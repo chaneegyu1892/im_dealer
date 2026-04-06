@@ -1,0 +1,318 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────
+// 금융사 (FinanceCompany)
+// ─────────────────────────────────────────
+model FinanceCompany {
+  id            String   @id @default(cuid())
+  name          String   @unique // IM캐피탈, 하나캐피탈 등
+  code          String   @unique // 시스템 코드
+  surchargeRate Float    @default(0) // 금융사 가산율 (%, +/-)
+  isActive      Boolean  @default(true)
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  rateConfigs RateConfig[]
+}
+
+// ─────────────────────────────────────────
+// 회수율 설정 (RateConfig)
+// 금융사 × 공통코드(차명) 단위
+// ─────────────────────────────────────────
+model RateConfig {
+  id               String         @id @default(cuid())
+  financeCompanyId String
+  financeCompany   FinanceCompany @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
+  vehicleCode      String         // 공통코드 (차명, 복수 차량에 매핑 가능)
+  productType      String         // 렌트 | 리스
+
+  minVehiclePrice Int // 최소 차량가격 (선형보간 하한)
+  maxVehiclePrice Int // 최대 차량가격 (선형보간 상한)
+
+  // 회수율 매트릭스: {"10000":{"36":0.0123,"48":0.0127,"60":0.0121},"20000":{...},"30000":{...}}
+  minPriceRates Json // 최소 차량가격 기준 회수율
+  maxPriceRates Json // 최대 차량가격 기준 회수율
+
+  // 보증금·선납금 할인 회수율 (10% 증가당)
+  depositDiscountRate Float // 보증금 할인 회수율 (음수 = 할인)
+  prepayAdjustRate    Float // 선납금 조정 회수율
+
+  isActive  Boolean  @default(true)
+  memo      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([financeCompanyId, vehicleCode, productType])
+  @@index([vehicleCode])
+}
+
+// ─────────────────────────────────────────
+// 순위 가산 설정 (RankSurchargeConfig)
+// ─────────────────────────────────────────
+model RankSurchargeConfig {
+  id   String @id @default(cuid())
+  rank Int    @unique // 1, 2, 3, 4 (4 = 4순위 이상)
+  rate Float  // 가산율 (%, e.g. 1.0 = +1%)
+}
+
+// ─────────────────────────────────────────
+// 차량 (Vehicle)
+// ─────────────────────────────────────────
+model Vehicle {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  brand         String
+  category      String   // 세단 | SUV | 밴 | 트럭
+  vehicleCode   String?  // RateConfig 매핑용 공통코드
+  basePrice     Int
+  thumbnailUrl  String
+  imageUrls     String[]
+  surchargeRate Float    @default(0) // 차량 가산율 (%, +/-)
+  isVisible     Boolean  @default(true)
+  isPopular     Boolean  @default(false)
+  displayOrder  Int      @default(0)
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  trims         Trim[]
+  quoteVars     QuoteVariable[]
+  recConfigs    RecommendationConfig[]
+  recLogs       RecommendationLog[]
+  exploLogs     ExplorationLog[]
+  notes         OperationalNote[]
+
+  @@index([isVisible, isPopular])
+  @@index([category])
+  @@index([vehicleCode])
+}
+
+// ─────────────────────────────────────────
+// 트림 (Trim)
+// ─────────────────────────────────────────
+model Trim {
+  id             String   @id @default(cuid())
+  vehicleId      String
+  vehicle        Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  name           String
+  price          Int
+  engineType     String   // 가솔린 | 디젤 | 하이브리드 | EV
+  fuelEfficiency Float?
+  isDefault      Boolean  @default(false)
+  isVisible      Boolean  @default(true)
+  specs          Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  options   TrimOption[]
+  quoteVars QuoteVariable[]
+
+  @@index([vehicleId])
+}
+
+// ─────────────────────────────────────────
+// 트림 옵션 (TrimOption)
+// ─────────────────────────────────────────
+model TrimOption {
+  id        String   @id @default(cuid())
+  trimId    String
+  trim      Trim     @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  name      String
+  price     Int      @default(0)
+  category  String?  // 편의 | 안전 | 외관
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([trimId])
+}
+
+// ─────────────────────────────────────────
+// 견적 변수 (QuoteVariable)
+// ─────────────────────────────────────────
+model QuoteVariable {
+  id             String   @id @default(cuid())
+  vehicleId      String
+  vehicle        Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  trimId         String?
+  trim           Trim?    @relation(fields: [trimId], references: [id])
+
+  contractMonths Int[]    // 지원 계약기간(월) ex: [24,36,48,60]
+  annualMileages Int[]    // 지원 약정거리 ex: [20000,30000,40000]
+
+  interestRate   Float    // 금리 (%)
+  residualRate   Float    // 잔존가치율 (%)
+  commissionRate Float    // 수수료율 (%)
+  taxRate        Float    @default(0.1)
+  miscCost       Int      @default(0)
+
+  depositOptions Int[]    // 보증금 비율(%) ex: [0,10,20,30]
+  prepayOptions  Int[]    // 선납금 비율(%) ex: [0,10,20,30]
+
+  promoDiscount  Int      @default(0)
+  promoNote      String?
+  promoExpiry    DateTime?
+
+  isActive       Boolean  @default(true)
+  memo           String?
+  updatedAt      DateTime @updatedAt
+  updatedBy      String?
+
+  @@index([vehicleId, trimId])
+}
+
+// ─────────────────────────────────────────
+// 저장된 견적 (SavedQuote)
+// ─────────────────────────────────────────
+model SavedQuote {
+  id             String   @id @default(cuid())
+  sessionId      String
+  vehicleId      String
+  trimId         String
+
+  contractMonths Int
+  annualMileage  Int
+  depositRate    Int
+  prepayRate     Int
+  contractType   String   // 인수형 | 반납형
+
+  monthlyPayment Int
+  totalCost      Int
+  breakdown      Json
+
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  @@index([sessionId])
+}
+
+// ─────────────────────────────────────────
+// AI 추천 로그 (RecommendationLog)
+// ─────────────────────────────────────────
+model RecommendationLog {
+  id                    String    @id @default(cuid())
+  sessionId             String
+
+  industry              String
+  purpose               String
+  budgetMin             Int
+  budgetMax             Int
+  paymentStyle          String    // 보수형 | 표준형 | 공격형
+  annualMileage         Int
+  returnType            String    // 인수형 | 반납형
+
+  recommendedVehicleIds String[]
+  recommendedReason     Json
+
+  clickedVehicleId      String?
+  clickedAt             DateTime?
+  proceedToQuote        Boolean   @default(false)
+
+  vehicleId             String?
+  vehicle               Vehicle?  @relation(fields: [vehicleId], references: [id])
+
+  createdAt             DateTime  @default(now())
+  userAgent             String?
+  ipHash                String?
+
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────
+// 고객 탐색 로그 (ExplorationLog)
+// ─────────────────────────────────────────
+model ExplorationLog {
+  id        String   @id @default(cuid())
+  sessionId String
+  eventType String   // page_view | car_click | filter_apply | quote_start | quote_complete | chat_click
+  path      String?
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id])
+  metadata  Json?
+  createdAt DateTime @default(now())
+  userAgent String?
+  ipHash    String?
+
+  @@index([sessionId])
+  @@index([eventType, createdAt])
+}
+
+// ─────────────────────────────────────────
+// AI 추천 기초 데이터 (RecommendationConfig)
+// ─────────────────────────────────────────
+model RecommendationConfig {
+  id          String   @id @default(cuid())
+  vehicleId   String   @unique
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  scoreMatrix Json
+  highlights  String[]
+  aiCaption   String?
+  isActive    Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+}
+
+// ─────────────────────────────────────────
+// 콘텐츠/배너 (ContentBanner)
+// ─────────────────────────────────────────
+model ContentBanner {
+  id           String    @id @default(cuid())
+  type         String    // hero | notice | promo | trust
+  title        String
+  subtitle     String?
+  imageUrl     String?
+  ctaLabel     String?
+  ctaUrl       String?
+  isVisible    Boolean   @default(true)
+  displayOrder Int       @default(0)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([type, isVisible])
+}
+
+// ─────────────────────────────────────────
+// 운영 메모 (OperationalNote)
+// ─────────────────────────────────────────
+model OperationalNote {
+  id        String   @id @default(cuid())
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id])
+  category  String   // vehicle | quote | consultation | general
+  content   String
+  isPinned  Boolean  @default(false)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category, isPinned])
+}
+
+// ─────────────────────────────────────────
+// 관리자 계정 (AdminUser)
+// ─────────────────────────────────────────
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         String    @default("operator") // superadmin | admin | operator
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+}
