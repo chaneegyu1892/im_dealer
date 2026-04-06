@@ -1,26 +1,110 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-primary: #000666;
+    --color-secondary: #71749A;
+    --color-tertiary: #5C1800;
+    --color-bg: #F8F9FA;
   }
+
+  body {
+    @apply bg-neutral text-ink-body antialiased;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  * {
+    @apply box-border;
+  }
+
+  h1, h2 { @apply text-ink font-light; }
+  h3, h4 { @apply text-ink font-medium; }
+  p      { @apply text-ink-body; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* ── 버튼 ─────────────────────────────── */
+  .btn-primary {
+    @apply bg-primary text-white rounded-btn px-6 py-3 font-medium text-sm
+           transition-all duration-200 hover:opacity-90 active:opacity-80
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-neutral text-primary rounded-btn px-6 py-3 font-medium text-sm
+           border border-neutral-800 transition-all duration-200
+           hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-inverted {
+    @apply bg-navy-dark text-white rounded-btn px-6 py-3 font-medium text-sm
+           transition-all duration-200 hover:opacity-90
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-outlined {
+    @apply bg-transparent text-neutral-0 rounded-btn px-6 py-3 font-medium text-sm
+           border border-neutral-0 transition-all duration-200
+           hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* ── 카드 ─────────────────────────────── */
+  .card {
+    @apply bg-white border border-[#F0F0F0] rounded-card shadow-card p-4 md:p-6;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-200
+           hover:shadow-card-hover hover:border-primary-200 hover:-translate-y-0.5;
+  }
+
+  .card-recommended {
+    @apply card border-2 border-primary;
+  }
+
+  /* ── 구분선 ───────────────────────────── */
+  .divider-primary   { @apply h-[2px] bg-primary rounded-sm; }
+  .divider-secondary { @apply h-[2px] bg-secondary rounded-sm; }
+  .divider-tertiary  { @apply h-[2px] bg-tertiary rounded-sm; }
+
+  /* ── 배지 ─────────────────────────────── */
+  .badge-trust {
+    @apply bg-primary-100 text-primary rounded-pill px-[14px] py-[6px]
+           text-label font-medium;
+  }
+
+  /* ── 스켈레톤 ─────────────────────────── */
+  .skeleton {
+    @apply bg-skeleton-shimmer bg-[length:200%_100%] animate-shimmer rounded-[6px];
+  }
+
+  /* ── 폼 인풋 ──────────────────────────── */
+  .input-search {
+    @apply w-full bg-white border border-neutral-800 rounded-btn
+           pl-10 pr-4 py-3 text-body placeholder:text-ink-caption
+           focus:outline-none focus:border-primary transition-colors duration-200;
+  }
+
+  /* ── 토스트 ───────────────────────────── */
+  .toast-success {
+    @apply bg-success-bg text-success-text rounded-toast px-[18px] py-[14px]
+           text-sm font-medium animate-fade-in;
+  }
+
+  .toast-error {
+    @apply bg-error-bg text-error-text rounded-toast px-[18px] py-[14px]
+           text-sm font-medium animate-fade-in;
+  }
+
+  /* ── 레이아웃 ─────────────────────────── */
+  .page-container {
+    @apply w-full max-w-content mx-auto px-4 md:px-6;
+  }
+
+  /* ── 모바일 하단 safe area ────────────── */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
