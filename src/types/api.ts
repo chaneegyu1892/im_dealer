@@ -1,5 +1,6 @@
 import type { EngineType, VehicleCategory } from "./vehicle";
 import type { RecommendScenarios } from "./recommendation";
+import type { QuoteScenarioDetails } from "./quote";
 
 /** GET /api/vehicles 응답의 개별 차량 */
 export interface VehicleListItem {
@@ -74,5 +75,5 @@ export interface QuoteResponse {
   contractMonths: number;
   annualMileage: number;
   contractType: string;
-  scenarios: RecommendScenarios;
+  scenarios: QuoteScenarioDetails;
 }

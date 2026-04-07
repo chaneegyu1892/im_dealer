@@ -140,7 +140,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
             </Link>
           </motion.div>
 
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
+          <div className="flex items-end justify-between gap-12">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -166,7 +166,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 )}
               </div>
 
-              <h1 className="text-[44px] md:text-[56px] font-light text-white leading-none tracking-tight mb-3">
+              <h1 className="font-display text-[52px] font-light text-white leading-none tracking-tight mb-3">
                 {vehicle.name}
               </h1>
               <p className="text-white/55 text-[14px] leading-relaxed max-w-md mb-6">
@@ -213,9 +213,9 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
 
       {/* 메인 콘텐츠 */}
       <div className="page-container py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-3 gap-8">
           {/* 좌: 견적 시뮬레이터 */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="col-span-2 space-y-6">
             {/* 견적 조건 설정 */}
             <motion.section
               initial={{ opacity: 0, y: 16 }}
@@ -402,7 +402,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
           </div>
 
           {/* 우: 스티키 사이드바 */}
-          <div className="lg:col-span-1">
+          <div className="col-span-1">
             <div className="sticky top-24 space-y-4">
               <motion.div
                 initial={{ opacity: 0, x: 16 }}
@@ -490,13 +490,13 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
           className="mt-12 rounded-card overflow-hidden"
           style={{ background: "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)" }}
         >
-          <div className="px-8 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="px-12 py-10 flex items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles size={14} className="text-white/60" />
                 <span className="text-[11px] font-semibold text-white/60 uppercase tracking-wider">AI 추천</span>
               </div>
-              <h3 className="text-[20px] font-light text-white mb-1">
+              <h3 className="font-display text-[22px] font-light text-white mb-1.5">
                 나에게 맞는 차량이 따로 있을 수 있어요
               </h3>
               <p className="text-[13px] text-white/60">

@@ -48,7 +48,7 @@ export function RecommendResultView() {
   // ── 로딩 ──────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="page-container py-8 max-w-xl mx-auto space-y-5">
+      <div className="page-container py-8 max-w-3xl mx-auto space-y-5">
         <div className="flex items-center gap-2 mb-6">
           <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary animate-pulse">
             <Sparkles size={14} className="text-white" />
@@ -65,7 +65,7 @@ export function RecommendResultView() {
   // ── 에러 ──────────────────────────────────────────────
   if (error || !result) {
     return (
-      <div className="page-container py-16 max-w-xl mx-auto text-center">
+      <div className="page-container py-16 max-w-3xl mx-auto text-center">
         <div className="w-14 h-14 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-4">
           <Sparkles size={24} className="text-primary" />
         </div>
@@ -89,7 +89,7 @@ export function RecommendResultView() {
   // ── 결과 없음 ──────────────────────────────────────────
   if (result.vehicles.length === 0) {
     return (
-      <div className="page-container py-16 max-w-xl mx-auto text-center">
+      <div className="page-container py-16 max-w-3xl mx-auto text-center">
         <div className="w-14 h-14 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-4">
           <Sparkles size={24} className="text-primary" />
         </div>
@@ -114,7 +114,7 @@ export function RecommendResultView() {
 
   // ── 결과 ──────────────────────────────────────────────
   return (
-    <div className="page-container py-8 max-w-xl mx-auto">
+    <div className="page-container py-8 max-w-3xl mx-auto">
       {/* 입력 요약 */}
       <div className="mb-6">
         <div className="flex items-center gap-1.5 mb-1">
@@ -135,7 +135,7 @@ export function RecommendResultView() {
       <TrustBadgeGroup className="mb-6" />
 
       {/* 차량 카드 목록 */}
-      <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-6">
         {vehicles.map((v, i) => (
           <RecommendVehicleCard key={v.vehicleId} vehicle={v} isTop={i === 0} />
         ))}

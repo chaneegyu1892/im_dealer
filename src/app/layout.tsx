@@ -1,8 +1,20 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Outfit, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const notoSansKr = Noto_Sans_KR({
+  subsets: ["latin"],
+  variable: "--font-noto",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: {
@@ -25,8 +37,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
-      <body className={inter.className}>{children}</body>
+    <html lang="ko" className={`${outfit.variable} ${notoSansKr.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }

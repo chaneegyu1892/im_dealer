@@ -42,8 +42,8 @@ Font: **Inter** (fallback: system-ui, -apple-system, sans-serif)
 
 | Role     | Size    | Weight        | Color     |
 | -------- | ------- | ------------- | --------- |
-| Headline | 28–40px | Light (300)   | `#1A1A1A` |
-| Title    | 18–24px | Medium (500)  | `#1A1A1A` |
+| Headline | 28–40px | Light (300)   | `#333333` |
+| Title    | 18–24px | Medium (500)  | `#333333` |
 | Body     | 15–16px | Regular (400) | `#404040` |
 | Label    | 12–13px | Regular (400) | `#71749A` |
 | Caption  | 11–12px | Regular (400) | `#A0A0A0` |
@@ -60,7 +60,7 @@ Font: **Inter** (fallback: system-ui, -apple-system, sans-serif)
 | Primary   | `#000666`   | `#FFFFFF` | none                |
 | Secondary | `#F8F9FA`   | `#000666` | `1px solid #E0E0E0` |
 | Inverted  | `#1A1A2E`   | `#FFFFFF` | none                |
-| Outlined  | transparent | `#000000` | `1px solid #000`    |
+| Outlined  | transparent | `#333333` | `1px solid #333333` |
 
 - Border radius: `8px`
 - Padding: `12px 24px`
@@ -115,14 +115,15 @@ Font: **Inter** (fallback: system-ui, -apple-system, sans-serif)
 
 ## Hero Section
 
-메인 랜딩 상단 전면 배치 컴포넌트
+메인 랜딩 상단 전면 배치 컴포넌트 (데스크톱 2컬럼 기준)
 
 - Background: `linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)`
 - Border radius: `16px`
-- Padding: `40px 32px`
+- Padding: `64px 48px` (desktop), `40px 32px` (tablet 이하)
+- 레이아웃: 좌측 텍스트 + 우측 비주얼 2컬럼 (desktop), 단일 컬럼 (mobile)
 - 배경 원형 장식: `rgba(255,255,255,0.08)`, 위치 자유
 - Tag pill: `rgba(255,255,255,0.15)` bg, `rgba(255,255,255,0.9)` text, border-radius `20px`
-- Headline: `font-size 28px`, `font-weight 300`, white
+- Headline: `font-size 40px` (desktop) / `28px` (mobile), `font-weight 300`, white
 - Subtext: `rgba(255,255,255,0.7)`
 - CTA 버튼: 흰 배경 + Primary 텍스트 (Inverted Primary)
 
@@ -252,7 +253,7 @@ AI 추천 결과 로딩 중 표시 컴포넌트
 추천 결과 없음, 데이터 없음 등 빈 상태 화면
 
 - 아이콘 원형: `56px`, background `#E5E5FA`
-- Title: `16px`, weight `500`, `#1A1A1A`
+- Title: `16px`, weight `500`, `#333333`
 - Subtitle: `13px`, `#71749A`, 중앙 정렬
 - CTA 버튼: Primary 버튼 스타일
 
@@ -301,12 +302,13 @@ AI 추천 결과 로딩 중 표시 컴포넌트
 - Logo: Primary `#000666`
 - 메뉴 링크: `#404040`, hover `#000666`
 
-### Bottom Navigation (모바일)
+### Bottom Navigation (모바일 전용 — 추후 구현)
 
 - Active: 원형 bg `#000666`, white 아이콘
 - Inactive: bg 없음, `#A0A0A0`
 - Icon size: `24px`
 - Nav items: 홈, 탐색, 마이페이지
+- **현재 단계에서는 비활성화**, 웹 상단 네비게이션이 기본
 
 ### Action Icons (FAB)
 
@@ -324,12 +326,16 @@ AI 추천 결과 로딩 중 표시 컴포넌트
 
 ## Layout & Spacing
 
+> **개발 우선순위**: 데스크톱 웹 우선. 반응형 모바일 대응은 2단계에서 추가.
+
 - Page background: `#F8F9FA`
 - Base unit: `8px`
 - Component gap: `16px`
 - Section gap: `24px–32px`
 - Max content width: `1200px`
-- Mobile breakpoint: `768px`
+- Desktop baseline: `1280px` (기준 해상도)
+- Tablet 전환점: `1024px`
+- Mobile 전환점: `768px` (추후 대응)
 
 ---
 
@@ -345,8 +351,10 @@ AI 추천 결과 로딩 중 표시 컴포넌트
 
 ## Design Principles
 
+- **Web-first**: 데스크톱 `1280px` 해상도를 기준으로 설계. 모바일 대응은 2단계.
 - **Clean & minimal**: 중립 배경, 흰 카드, 넉넉한 여백
 - **Navy-first**: Primary가 CTA, 활성 상태, 핵심 UI 지배
+- **Soft text**: 텍스트는 순수 검정(`#000000`) 대신 진한 회색(`#333333`)을 기본으로
 - **Burgundy accent**: 3차 액션, 파괴적 상태에만 제한적 사용
 - **Slate secondary**: 보조 텍스트, 비활성 상태, 2차 액션
 - **Consistent radius**: 모든 인터랙티브 요소 `8–12px`

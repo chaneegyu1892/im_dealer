@@ -47,6 +47,7 @@ export function RecommendFlow() {
   const [step, setStep] = useState<StepId>(1);
   const [state, setState] = useState<FlowState>(INITIAL_STATE);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canProceed = isStepValid(step, state);
 
@@ -60,6 +61,7 @@ export function RecommendFlow() {
 
     // 4단계 완료 → API 요청
     setLoading(true);
+    setError(null);
     try {
       const input: RecommendInput = {
         industry: state.industry,
@@ -77,11 +79,15 @@ export function RecommendFlow() {
         body: JSON.stringify(input),
       });
 
-      if (!res.ok) throw new Error("추천 요청 실패");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error ?? "추천 요청 실패");
+      }
 
       const { sessionId } = await res.json() as { sessionId: string };
       router.push(`/recommend/result?session=${sessionId}`);
-    } catch {
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "추천 요청 중 오류가 발생했습니다. 다시 시도해 주세요.");
       setLoading(false);
     }
   };
@@ -91,9 +97,9 @@ export function RecommendFlow() {
   };
 
   return (
-    <div className="page-container py-8 max-w-xl mx-auto">
+    <div className="page-container py-10 max-w-2xl mx-auto">
       {/* 스텝 인디케이터 */}
-      <div className="flex justify-center mb-8">
+      <div className="flex justify-center mb-10">
         <StepIndicator currentStep={step} />
       </div>
 
@@ -124,6 +130,13 @@ export function RecommendFlow() {
           />
         )}
       </div>
+
+      {/* 에러 메시지 */}
+      {error && (
+        <div className="mt-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-[13px] text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* 하단 버튼 */}
       <div className="flex items-center gap-3 mt-8 pt-6 border-t border-[#F0F0F0]">
