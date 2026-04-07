@@ -65,13 +65,13 @@ const config: Config = {
         destructive: "#CC0000",
         // ── Typography text colors ────────────────
         ink: {
-          DEFAULT: "#1A1A1A", // Headline, Title
-          body: "#404040",    // Body
-          label: "#71749A",   // Label
-          caption: "#A0A0A0", // Caption
+          DEFAULT: "#333333",
+          body: "#404040",
+          label: "#71749A",
+          caption: "#A0A0A0",
         },
         // ── Special ──────────────────────────────
-        "navy-dark": "#1A1A2E", // Inverted button, Tooltip bg
+        "navy-dark": "#1A1A2E",
       },
 
       borderRadius: {
@@ -89,21 +89,16 @@ const config: Config = {
       },
 
       fontFamily: {
-        sans: [
-          "Inter",
-          "ui-sans-serif",
-          "system-ui",
-          "-apple-system",
-          "sans-serif",
-        ],
+        display: ["var(--font-outfit)", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["var(--font-noto)", "ui-sans-serif", "system-ui", "sans-serif"],
       },
 
       fontSize: {
-        "headline-lg": ["40px", { lineHeight: "1.2", fontWeight: "300" }],
-        "headline-sm": ["28px", { lineHeight: "1.3", fontWeight: "300" }],
-        "title-lg": ["24px", { lineHeight: "1.4", fontWeight: "500" }],
+        "headline-lg": ["44px", { lineHeight: "1.15", fontWeight: "300" }],
+        "headline-sm": ["30px", { lineHeight: "1.25", fontWeight: "300" }],
+        "title-lg": ["24px", { lineHeight: "1.35", fontWeight: "500" }],
         "title-sm": ["18px", { lineHeight: "1.4", fontWeight: "500" }],
-        body: ["16px", { lineHeight: "1.6", fontWeight: "400" }],
+        body: ["16px", { lineHeight: "1.65", fontWeight: "400" }],
         "body-sm": ["15px", { lineHeight: "1.6", fontWeight: "400" }],
         label: ["13px", { lineHeight: "1.5", fontWeight: "400" }],
         caption: ["12px", { lineHeight: "1.5", fontWeight: "400" }],

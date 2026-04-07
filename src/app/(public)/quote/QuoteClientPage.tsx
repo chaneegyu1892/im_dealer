@@ -13,7 +13,7 @@ import {
   Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { QuoteScenarioTabs } from "@/components/quote/QuoteScenarioTabs";
+import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
@@ -246,7 +246,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
               견적 계산
             </span>
           </div>
-          <h1 className="text-headline-sm font-light text-ink">
+          <h1 className="font-display text-headline-sm text-ink">
             조건을 설정하면 실시간으로 계산됩니다
           </h1>
           <p className="text-[14px] text-ink-label mt-1">
@@ -256,7 +256,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       </div>
 
       <div className="page-container py-8">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <StepBar currentStep={step} />
 
           <AnimatePresence mode="wait">
@@ -297,7 +297,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       검색 결과가 없습니다
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-4">
                       {filteredVehicles.map((v) => (
                         <VehiclePickCard
                           key={v.id}
@@ -539,7 +539,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       아래 탭을 클릭해 3가지 시나리오를 비교하세요
                     </p>
                   </div>
-                  <QuoteScenarioTabs scenarios={quoteResult.scenarios} />
+                  <QuoteBreakdownTabs scenarios={quoteResult.scenarios} />
                 </div>
 
                 {/* 면책 안내 */}
@@ -583,7 +583,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       {/* AI 추천 배너 */}
       {step === 1 && (
         <div className="page-container pb-12">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             <div
               className="rounded-card overflow-hidden"
               style={{
@@ -591,7 +591,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
               }}
             >
-              <div className="px-6 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="px-10 py-8 flex items-center justify-between gap-6">
                 <div>
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Sparkles size={13} className="text-white/60" />

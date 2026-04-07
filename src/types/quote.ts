@@ -58,6 +58,25 @@ export interface QuoteScenarios {
   aggressive: FinanceQuoteResult;   // 공격형: 선납금 있음
 }
 
+/** 견적 계산기 전용 시나리오 상세 (breakdown + surcharges 포함) */
+export interface QuoteScenarioDetail {
+  monthlyPayment: number;
+  depositAmount: number;
+  prepayAmount: number;
+  contractMonths: number;
+  annualMileage: number;
+  contractType: string;
+  bestFinanceCompany: string;
+  breakdown: QuoteBreakdown | null;
+  surcharges: SurchargeDetail | null;
+}
+
+export interface QuoteScenarioDetails {
+  conservative: QuoteScenarioDetail;
+  standard: QuoteScenarioDetail;
+  aggressive: QuoteScenarioDetail;
+}
+
 export type ContractType = "인수형" | "반납형";
 export type QuoteScenario = "보수형" | "표준형" | "공격형";
 export type ProductType = "렌트" | "리스";

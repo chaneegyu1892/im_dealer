@@ -28,7 +28,7 @@ export function StepIndicator({ currentStep, className }: StepIndicatorProps) {
             {idx > 0 && (
               <div
                 className={cn(
-                  "h-[2px] w-8 sm:w-12 flex-shrink-0 rounded-sm transition-colors duration-300",
+                  "h-[2px] w-16 flex-shrink-0 rounded-sm transition-colors duration-300",
                   isDone ? "bg-primary" : "bg-neutral-800"
                 )}
               />

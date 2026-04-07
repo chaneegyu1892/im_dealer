@@ -63,44 +63,50 @@ export default function AboutPage() {
         className="relative overflow-hidden"
         style={{
           background:
-            "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
+            "linear-gradient(135deg, #000666 0%, #0D0D80 40%, #1A1A6E 70%, #3333CC 100%)",
         }}
       >
-        {/* 배경 원형 장식 */}
-        <div className="absolute -right-32 -top-32 w-[500px] h-[500px] rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute -left-16 bottom-0 w-72 h-72 rounded-full bg-white/5 pointer-events-none" />
+        <div className="absolute -right-32 -top-32 w-[500px] h-[500px] rounded-full bg-white/[0.04] pointer-events-none" />
+        <div className="absolute -left-16 bottom-0 w-72 h-72 rounded-full bg-white/[0.03] pointer-events-none" />
+        <div
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{
+            backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+          }}
+        />
 
-        <div className="page-container relative z-10 py-20 md:py-28">
+        <div className="page-container relative z-10 py-28">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-white/15 text-white/90 text-[12px] font-medium px-3 py-1.5 rounded-full mb-6">
+            <div className="inline-flex items-center gap-2 bg-white/10 text-white/80 text-[12px] font-medium px-4 py-1.5 rounded-full mb-8 border border-white/15">
               <ShieldCheck size={13} />
               아임딜러 소개
             </div>
-            <h1 className="text-[32px] md:text-[44px] font-light text-white leading-tight mb-4">
+            <h1 className="font-display text-[48px] font-light text-white leading-[1.1] mb-5" style={{ letterSpacing: "-0.02em" }}>
               기존 견적사이트와
               <br />
               <span className="font-medium">완전히 다릅니다.</span>
             </h1>
-            <p className="text-[16px] text-white/70 leading-relaxed mb-8 max-w-lg">
+            <p className="text-[16px] text-white/55 leading-relaxed mb-10 max-w-lg">
               장기렌트·리스 시장의 관행을 바꾸려 합니다.
               <br />
               고객이 먼저 탐색하고, 이해하고, 결정할 수 있는
               <br />
               AI 기반 진짜견적 서비스입니다.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex gap-4">
               <Link
                 href="/recommend"
                 className="inline-flex items-center gap-2 bg-white text-primary text-[14px] font-semibold
-                           px-6 py-3 rounded-btn hover:bg-primary-100 transition-colors duration-200"
+                           px-7 py-3.5 rounded-btn hover:bg-primary-100 hover:shadow-lg transition-all duration-200"
               >
                 <Sparkles size={15} />
                 AI 추천 시작하기
               </Link>
               <Link
                 href="/cars"
-                className="inline-flex items-center gap-2 bg-white/15 text-white text-[14px] font-medium
-                           px-6 py-3 rounded-btn hover:bg-white/20 transition-colors duration-200 border border-white/20"
+                className="inline-flex items-center gap-2 bg-white/10 text-white text-[14px] font-medium
+                           px-7 py-3.5 rounded-btn hover:bg-white/15 transition-colors duration-200 border border-white/20"
               >
                 차량 탐색하기
                 <ArrowRight size={14} />
@@ -111,31 +117,26 @@ export default function AboutPage() {
       </section>
 
       {/* ── 문제 vs 해결 ────────────────────────────────── */}
-      <section className="page-container py-16 md:py-20">
-        <div className="text-center mb-12">
-          <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-[0.15em] mb-2">
-            왜 아임딜러인가
-          </p>
-          <h2 className="text-[26px] md:text-[32px] font-light text-ink">
+      <section className="page-container py-20">
+        <div className="text-center mb-14">
+          <p className="section-label mb-3">왜 아임딜러인가</p>
+          <h2 className="font-display text-headline-sm text-ink">
             기존 시장의 구조적 문제
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-6">
           {/* 기존 방식 */}
-          <div className="bg-white rounded-card p-6 border border-[#F0F0F0] shadow-card">
-            <div className="flex items-center gap-2 mb-5">
+          <div className="bg-white rounded-card p-8 border border-[#F0F0F0] shadow-card">
+            <div className="flex items-center gap-2 mb-6">
               <span className="w-2 h-2 rounded-full bg-tertiary-700 shrink-0" />
-              <p className="text-[13px] font-semibold text-tertiary-700 uppercase tracking-wider">
+              <p className="text-[12px] font-semibold text-tertiary-700 uppercase tracking-wider">
                 기존 견적사이트
               </p>
             </div>
-            <ul className="space-y-3">
+            <ul className="space-y-4">
               {PROBLEMS.map((p) => (
-                <li
-                  key={p}
-                  className="flex items-start gap-3 text-[14px] text-ink-label"
-                >
+                <li key={p} className="flex items-start gap-3 text-[14px] text-ink-label">
                   <span className="text-tertiary-700 text-[16px] leading-none mt-0.5">✕</span>
                   {p}
                 </li>
@@ -145,21 +146,18 @@ export default function AboutPage() {
 
           {/* 아임딜러 */}
           <div
-            className="rounded-card p-6 border-2 border-primary shadow-card-hover"
+            className="rounded-card p-8 border-2 border-primary shadow-card-hover"
             style={{ background: "linear-gradient(145deg, #F5F5FF 0%, #FFFFFF 100%)" }}
           >
-            <div className="flex items-center gap-2 mb-5">
+            <div className="flex items-center gap-2 mb-6">
               <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
-              <p className="text-[13px] font-semibold text-primary uppercase tracking-wider">
+              <p className="text-[12px] font-semibold text-primary uppercase tracking-wider">
                 아임딜러
               </p>
             </div>
-            <ul className="space-y-3">
+            <ul className="space-y-4">
               {SOLUTIONS.map((s) => (
-                <li
-                  key={s}
-                  className="flex items-start gap-3 text-[14px] text-ink"
-                >
+                <li key={s} className="flex items-start gap-3 text-[14px] text-ink">
                   <span className="text-primary text-[16px] leading-none mt-0.5 shrink-0">✓</span>
                   {s}
                 </li>
@@ -171,27 +169,23 @@ export default function AboutPage() {
 
       {/* ── 3가지 핵심 원칙 ─────────────────────────────── */}
       <section className="bg-white border-y border-[#F0F0F0]">
-        <div className="page-container py-16 md:py-20">
-          <div className="text-center mb-12">
-            <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-[0.15em] mb-2">
-              서비스 원칙
-            </p>
-            <h2 className="text-[26px] md:text-[32px] font-light text-ink">
+        <div className="page-container py-20">
+          <div className="text-center mb-14">
+            <p className="section-label mb-3">서비스 원칙</p>
+            <h2 className="font-display text-headline-sm text-ink">
               아임딜러가 지키는 것
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-3 gap-10">
             {PILLARS.map((pillar, i) => (
               <div key={i} className="group">
-                <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center mb-4
-                                 bg-primary-100 text-primary group-hover:bg-primary group-hover:text-white
-                                 transition-colors duration-300"
-                >
+                <div className="w-14 h-14 rounded-[12px] flex items-center justify-center mb-5
+                               bg-primary-100 text-primary group-hover:bg-primary group-hover:text-white
+                               transition-colors duration-300">
                   {pillar.icon}
                 </div>
-                <h3 className="text-[17px] font-medium text-ink mb-2">
+                <h3 className="font-display text-[18px] font-medium text-ink mb-2.5">
                   {pillar.title}
                 </h3>
                 <p className="text-[14px] text-ink-label leading-relaxed">
@@ -204,41 +198,30 @@ export default function AboutPage() {
       </section>
 
       {/* ── 서비스 흐름 ─────────────────────────────────── */}
-      <section className="page-container py-16 md:py-20">
-        <div className="text-center mb-12">
-          <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-[0.15em] mb-2">
-            이용 흐름
-          </p>
-          <h2 className="text-[26px] md:text-[32px] font-light text-ink">
+      <section className="page-container py-20">
+        <div className="text-center mb-14">
+          <p className="section-label mb-3">이용 흐름</p>
+          <h2 className="font-display text-headline-sm text-ink">
             고객이 주도하는 3단계
           </h2>
-          <p className="text-[14px] text-ink-label mt-2">
+          <p className="text-[14px] text-ink-label mt-2.5">
             개인정보 없이, 상담 압박 없이 시작하세요
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
+        <div className="grid grid-cols-3 gap-10 max-w-3xl mx-auto">
           {FLOW_STEPS.map((item, i) => (
-            <div key={i} className="relative">
-              {/* 연결선 (데스크톱) */}
-              {i < FLOW_STEPS.length - 1 && (
-                <div className="hidden md:block absolute top-5 left-[calc(50%+28px)] right-[-calc(50%-28px)] h-px bg-primary-200 z-0" />
-              )}
-
-              <div className="relative z-10 flex flex-col items-center text-center">
-                <div
-                  className="w-10 h-10 rounded-full bg-primary text-white text-[13px] font-semibold
-                                 flex items-center justify-center mb-4 shrink-0"
-                >
-                  {item.step}
-                </div>
-                <p className="text-[16px] font-medium text-ink mb-1.5">
-                  {item.label}
-                </p>
-                <p className="text-[13px] text-ink-label leading-relaxed">
-                  {item.description}
-                </p>
+            <div key={i} className="relative flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-primary text-white text-[13px] font-semibold
+                             flex items-center justify-center mb-5 shrink-0">
+                {item.step}
               </div>
+              <p className="font-display text-[17px] font-medium text-ink mb-2">
+                {item.label}
+              </p>
+              <p className="text-[13px] text-ink-label leading-relaxed">
+                {item.description}
+              </p>
             </div>
           ))}
         </div>
@@ -247,20 +230,20 @@ export default function AboutPage() {
       {/* ── 신뢰 배지 ───────────────────────────────────── */}
       <section className="bg-primary-100 border-y border-primary-200">
         <div className="page-container py-10">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <p className="text-[15px] font-medium text-primary text-center md:text-left">
+          <div className="flex items-center justify-between">
+            <p className="text-[15px] font-medium text-primary">
               아임딜러는 이렇게 약속합니다
             </p>
-            <TrustBadgeGroup className="justify-center md:justify-end" />
+            <TrustBadgeGroup />
           </div>
         </div>
       </section>
 
       {/* ── 솔직한 한 마디 ──────────────────────────────── */}
-      <section className="page-container py-16 md:py-20">
+      <section className="page-container py-20">
         <div className="max-w-2xl mx-auto">
-          <blockquote className="border-l-4 border-primary pl-6">
-            <p className="text-[18px] md:text-[22px] font-light text-ink leading-relaxed mb-4">
+          <blockquote className="border-l-4 border-primary pl-8">
+            <p className="font-display text-[24px] font-light text-ink leading-relaxed mb-5">
               &ldquo;AI는 아직 완벽하지 않습니다.
               <br />
               하지만 솔직하게 설명하는 것에는 자신 있습니다.&rdquo;
@@ -270,7 +253,7 @@ export default function AboutPage() {
             </footer>
           </blockquote>
 
-          <p className="text-[14px] text-ink-label leading-relaxed mt-8">
+          <p className="text-[14px] text-ink-label leading-relaxed mt-10">
             걸음마 단계임을 솔직히 인정하고, 그 솔직함이 신뢰로 이어지는
             서비스를 만들겠습니다. 시스템이 부족한 부분은 사람이 보완하고,
             고객 경험은 절대 끊기지 않도록 운영합니다.
@@ -279,40 +262,42 @@ export default function AboutPage() {
       </section>
 
       {/* ── CTA ─────────────────────────────────────────── */}
-      <section
-        className="rounded-card mx-4 md:mx-auto max-w-[1200px] mb-12 overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
-        }}
-      >
-        <div className="px-8 py-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div>
-            <h3 className="text-[22px] font-light text-white mb-2">
-              지금 바로 시작해보세요
-            </h3>
-            <p className="text-[14px] text-white/60">
-              이름도, 전화번호도 필요 없습니다
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-            <Link
-              href="/recommend"
-              className="inline-flex items-center gap-2 bg-white text-primary text-[14px] font-semibold
-                         px-6 py-3 rounded-btn hover:bg-primary-100 transition-colors duration-200"
-            >
-              <Sparkles size={15} />
-              AI 추천 받기
-            </Link>
-            <Link
-              href="/quote"
-              className="inline-flex items-center gap-2 bg-white/15 text-white text-[14px] font-medium
-                         px-6 py-3 rounded-btn hover:bg-white/20 transition-colors duration-200
-                         border border-white/20"
-            >
-              견적 계산하기
-              <ArrowRight size={14} />
-            </Link>
+      <section className="page-container mb-16">
+        <div
+          className="rounded-card overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
+          }}
+        >
+          <div className="px-12 py-14 flex items-center justify-between gap-8">
+            <div>
+              <h3 className="font-display text-[24px] font-light text-white mb-2">
+                지금 바로 시작해보세요
+              </h3>
+              <p className="text-[14px] text-white/50">
+                이름도, 전화번호도 필요 없습니다
+              </p>
+            </div>
+            <div className="flex gap-3 shrink-0">
+              <Link
+                href="/recommend"
+                className="inline-flex items-center gap-2 bg-white text-primary text-[14px] font-semibold
+                           px-7 py-3.5 rounded-btn hover:shadow-lg transition-shadow duration-200"
+              >
+                <Sparkles size={15} />
+                AI 추천 받기
+              </Link>
+              <Link
+                href="/quote"
+                className="inline-flex items-center gap-2 bg-white/10 text-white text-[14px] font-medium
+                           px-7 py-3.5 rounded-btn hover:bg-white/15 transition-colors duration-200
+                           border border-white/20"
+              >
+                견적 계산하기
+                <ArrowRight size={14} />
+              </Link>
+            </div>
           </div>
         </div>
       </section>

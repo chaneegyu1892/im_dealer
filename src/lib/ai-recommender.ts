@@ -223,6 +223,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
         thumbnailUrl: v.thumbnailUrl,
         defaultTrimName: defaultTrim.name,
         defaultTrimPrice: defaultTrim.price,
+        slug: v.slug,
       },
       scenarios,
     });

@@ -46,11 +46,11 @@ export function RecommendVehicleCard({ vehicle, isTop = false }: RecommendVehicl
         </span>
       </div>
 
-      <div className="p-4 md:p-5 space-y-5">
+      <div className="p-6 space-y-5">
         {/* 차량 정보 헤더 */}
         <div className="flex items-center gap-4">
           {/* 썸네일 */}
-          <div className="relative w-24 h-16 flex-shrink-0 rounded-[8px] overflow-hidden bg-neutral">
+          <div className="relative w-28 h-20 flex-shrink-0 rounded-[8px] overflow-hidden bg-neutral">
             {detail.thumbnailUrl ? (
               <Image
                 src={detail.thumbnailUrl}
@@ -75,7 +75,7 @@ export function RecommendVehicleCard({ vehicle, isTop = false }: RecommendVehicl
 
           {/* 차량 상세 링크 */}
           <Link
-            href={`/cars/${vehicle.vehicleId}`}
+            href={`/cars/${detail.slug}`}
             className="flex-shrink-0 text-ink-caption hover:text-primary transition-colors"
             aria-label="차량 상세 보기"
           >

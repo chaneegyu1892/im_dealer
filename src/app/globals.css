@@ -11,16 +11,15 @@
   }
 
   body {
-    @apply bg-neutral text-ink-body antialiased;
-    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    @apply bg-neutral text-ink-body antialiased font-sans;
   }
 
   * {
     @apply box-border;
   }
 
-  h1, h2 { @apply text-ink font-light; }
-  h3, h4 { @apply text-ink font-medium; }
+  h1, h2 { @apply text-ink font-display font-light; }
+  h3, h4 { @apply text-ink font-display font-medium; }
   p      { @apply text-ink-body; }
 }
 
@@ -45,14 +44,14 @@
   }
 
   .btn-outlined {
-    @apply bg-transparent text-neutral-0 rounded-btn px-6 py-3 font-medium text-sm
-           border border-neutral-0 transition-all duration-200
+    @apply bg-transparent text-ink rounded-btn px-6 py-3 font-medium text-sm
+           border border-neutral-800 transition-all duration-200
            hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   /* ── 카드 ─────────────────────────────── */
   .card {
-    @apply bg-white border border-[#F0F0F0] rounded-card shadow-card p-4 md:p-6;
+    @apply bg-white border border-[#F0F0F0] rounded-card shadow-card p-6;
   }
 
   .card-hover {
@@ -81,10 +80,14 @@
   }
 
   /* ── 폼 인풋 ──────────────────────────── */
-  .input-search {
+  .input-field {
     @apply w-full bg-white border border-neutral-800 rounded-btn
-           pl-10 pr-4 py-3 text-body placeholder:text-ink-caption
+           px-4 py-3 text-body placeholder:text-ink-caption
            focus:outline-none focus:border-primary transition-colors duration-200;
+  }
+
+  .input-search {
+    @apply input-field pl-10;
   }
 
   /* ── 토스트 ───────────────────────────── */
@@ -98,13 +101,13 @@
            text-sm font-medium animate-fade-in;
   }
 
-  /* ── 레이아웃 ─────────────────────────── */
+  /* ── 레이아웃 (데스크톱 1200px 기준) ──── */
   .page-container {
-    @apply w-full max-w-content mx-auto px-4 md:px-6;
+    @apply w-full max-w-content mx-auto px-8;
   }
 
-  /* ── 모바일 하단 safe area ────────────── */
-  .safe-area-pb {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* ── 섹션 ─────────────────────────────── */
+  .section-label {
+    @apply text-[11px] font-semibold text-ink-caption uppercase tracking-[0.15em];
   }
 }

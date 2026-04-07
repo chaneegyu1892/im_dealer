@@ -31,6 +31,7 @@ export interface RecommendedVehicleDetail {
   thumbnailUrl: string;
   defaultTrimName: string;
   defaultTrimPrice: number;
+  slug: string;
 }
 
 export interface RecommendScenario {

@@ -1,91 +1,154 @@
+"use client";
+
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { TrustBadgeGroup } from "@/components/ui/TrustBadge";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, CheckCircle2 } from "lucide-react";
+
+const HIGHLIGHTS = [
+  "업종별 맞춤 차량 추천",
+  "실제 계약 가능한 견적",
+  "허위견적 · 상담 압박 없음",
+];
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.12 } },
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const } },
+};
 
 export function HeroSection() {
   return (
-    <section className="page-container py-6 md:py-10">
+    <section className="page-container pt-12 pb-10">
       <div
-        className="relative overflow-hidden rounded-[16px] px-8 py-10 md:px-12 md:py-16"
+        className="relative overflow-hidden rounded-[20px]"
         style={{
-          background: "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
+          background: "linear-gradient(135deg, #000666 0%, #0D0D80 40%, #1A1A6E 70%, #3333CC 100%)",
         }}
       >
-        {/* 배경 원형 장식 */}
-        <span
-          aria-hidden
-          className="absolute -top-16 -right-16 w-64 h-64 rounded-full"
-          style={{ background: "rgba(255,255,255,0.08)" }}
-        />
-        <span
-          aria-hidden
-          className="absolute -bottom-20 -left-10 w-48 h-48 rounded-full"
-          style={{ background: "rgba(255,255,255,0.05)" }}
-        />
-
-        {/* AI 태그 pill */}
-        <div className="relative mb-6 inline-flex items-center gap-1.5 rounded-[20px] px-4 py-1.5"
-          style={{ background: "rgba(255,255,255,0.15)" }}
-        >
-          <Sparkles
-            size={13}
-            style={{ color: "rgba(255,255,255,0.9)" }}
+        {/* 배경 장식 */}
+        <div className="absolute inset-0 overflow-hidden" aria-hidden>
+          <span className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-white/[0.04]" />
+          <span className="absolute top-1/3 left-[45%] w-[300px] h-[300px] rounded-full bg-[#3333CC]/30 blur-[80px]" />
+          <span className="absolute -bottom-20 -left-10 w-[280px] h-[280px] rounded-full bg-white/[0.03]" />
+          {/* 미세한 그리드 텍스처 */}
+          <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
+              backgroundSize: "60px 60px",
+            }}
           />
-          <span
-            className="text-[12px] font-medium"
-            style={{ color: "rgba(255,255,255,0.9)" }}
-          >
-            AI 기반 진짜견적 서비스
-          </span>
         </div>
 
-        {/* 헤드라인 */}
-        <h1
-          className="relative text-white font-light leading-snug mb-3"
-          style={{ fontSize: "clamp(24px, 5vw, 40px)" }}
+        {/* 2컬럼 레이아웃 */}
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          animate="show"
+          className="relative z-10 flex items-center justify-between gap-16 px-16 py-20"
         >
-          차 뽑기 전에,
-          <br />
-          AI한테 먼저 물어보세요
-        </h1>
+          {/* 좌측: 텍스트 */}
+          <div className="max-w-[560px]">
+            <motion.div
+              variants={fadeUp}
+              className="mb-8 inline-flex items-center gap-2 rounded-full px-4 py-1.5 border border-white/20"
+              style={{ background: "rgba(255,255,255,0.1)" }}
+            >
+              <Sparkles size={13} className="text-white/80" />
+              <span className="text-[12px] font-medium text-white/80 tracking-wide">
+                AI 기반 진짜견적 서비스
+              </span>
+            </motion.div>
 
-        {/* 서브텍스트 */}
-        <p
-          className="relative mb-8 max-w-sm leading-relaxed"
-          style={{ color: "rgba(255,255,255,0.7)", fontSize: "15px" }}
-        >
-          업종·목적·예산만 입력하면
-          <br />
-          실제 계약 가능한 견적을 바로 확인할 수 있어요.
-        </p>
+            <motion.h1
+              variants={fadeUp}
+              className="font-display text-white font-light leading-[1.1] mb-5"
+              style={{ fontSize: "48px", letterSpacing: "-0.02em" }}
+            >
+              차 뽑기 전에,
+              <br />
+              <span className="font-normal">AI</span>한테 먼저
+              <br />
+              물어보세요
+            </motion.h1>
 
-        {/* CTA */}
-        <div className="relative flex flex-col sm:flex-row gap-3">
-          <Button
-            variant="secondary"
-            size="lg"
-            className="bg-white text-primary border-none font-semibold shadow-sm hover:bg-white/90"
-            asChild
-          >
-            <Link href="/recommend">
-              AI 추천 시작하기
-              <ArrowRight size={16} className="ml-2" />
-            </Link>
-          </Button>
-          <Button
-            variant="outlined"
-            size="lg"
-            className="border-white/40 text-white hover:bg-white/10"
-            asChild
-          >
-            <Link href="/cars">차량 직접 탐색</Link>
-          </Button>
-        </div>
+            <motion.p
+              variants={fadeUp}
+              className="text-[16px] leading-relaxed mb-10 max-w-[400px]"
+              style={{ color: "rgba(255,255,255,0.55)" }}
+            >
+              업종 · 목적 · 예산만 입력하면
+              <br />
+              실제 계약 가능한 견적을 바로 확인할 수 있어요.
+            </motion.p>
+
+            <motion.div variants={fadeUp} className="flex items-center gap-4">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="bg-white text-primary border-none font-semibold shadow-lg hover:bg-white/90 hover:shadow-xl transition-shadow"
+                asChild
+              >
+                <Link href="/recommend">
+                  AI 추천 시작하기
+                  <ArrowRight size={16} className="ml-2" />
+                </Link>
+              </Button>
+              <Button
+                variant="outlined"
+                size="lg"
+                className="border-white/30 text-white hover:bg-white/10 hover:border-white/50"
+                asChild
+              >
+                <Link href="/cars">차량 직접 탐색</Link>
+              </Button>
+            </motion.div>
+          </div>
+
+          {/* 우측: 하이라이트 카드 */}
+          <motion.div variants={fadeUp} className="w-[360px] shrink-0">
+            <div
+              className="rounded-2xl p-7 space-y-5"
+              style={{
+                background: "rgba(255,255,255,0.07)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
+                아임딜러가 다른 이유
+              </p>
+              {HIGHLIGHTS.map((text) => (
+                <div key={text} className="flex items-center gap-3">
+                  <CheckCircle2 size={18} className="text-white/60 shrink-0" />
+                  <span className="text-[15px] font-medium text-white/85">{text}</span>
+                </div>
+              ))}
+
+              <div className="pt-5 mt-2 border-t border-white/10">
+                <div className="flex items-baseline gap-2 mb-1.5">
+                  <span className="font-display text-[40px] font-light text-white leading-none">
+                    3분
+                  </span>
+                  <span className="text-[14px] text-white/45">만에 견적 완성</span>
+                </div>
+                <p className="text-[12px] text-white/30">
+                  개인정보 없이 · 상담 압박 없이
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
       </div>
 
-      {/* Trust Badges — 히어로 하단 */}
-      <div className="mt-5 flex justify-center md:justify-start">
+      {/* Trust Badges */}
+      <div className="mt-8">
         <TrustBadgeGroup />
       </div>
     </section>

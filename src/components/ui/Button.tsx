@@ -27,7 +27,7 @@ const variantStyles: Record<ButtonVariant, string> = {
   inverted:
     "bg-navy-dark text-white hover:opacity-90 active:opacity-80",
   outlined:
-    "bg-transparent text-neutral-0 border border-neutral-0 hover:bg-neutral-800",
+    "bg-transparent text-ink border border-neutral-800 hover:bg-neutral-800",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
