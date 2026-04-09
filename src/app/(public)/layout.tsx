@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Header } from "@/components/layout/Header";
 
 export default function PublicLayout({
@@ -7,7 +8,9 @@ export default function PublicLayout({
 }) {
   return (
     <div className="min-h-screen bg-neutral">
-      <Header />
+      <Suspense fallback={<div className="h-[72px] bg-white border-b border-[#F0F0F0]" />}>
+        <Header />
+      </Suspense>
       <main>{children}</main>
     </div>
   );

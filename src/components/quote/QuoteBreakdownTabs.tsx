@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatMonthly } from "@/lib/utils";
-import { Building2, ChevronDown, ChevronUp } from "lucide-react";
-import type { QuoteScenarioDetails, QuoteScenarioDetail } from "@/types/quote";
+import { Building2, ChevronDown, ChevronUp, Trophy } from "lucide-react";
+import type { QuoteScenarioDetails, QuoteScenarioDetail, FinanceCompanyQuote } from "@/types/quote";
 
 type ScenarioKey = keyof QuoteScenarioDetails;
 
@@ -22,6 +22,7 @@ interface Props {
 export function QuoteBreakdownTabs({ scenarios, defaultTab = "standard" }: Props) {
   const [active, setActive] = useState<ScenarioKey>(defaultTab);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const data = scenarios[active];
 
   return (
@@ -123,7 +124,32 @@ export function QuoteBreakdownTabs({ scenarios, defaultTab = "standard" }: Props
           </div>
         )}
 
-        {/* ④ 체크포인트 */}
+        {/* ④ 금융사별 비교 (펼침/접힘) */}
+        {data.allFinanceResults.length > 1 && (
+          <div className="rounded-[10px] border border-[#E8EAF2] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setCompareOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-neutral hover:bg-neutral-800 transition-colors duration-150"
+            >
+              <span className="flex items-center gap-2 text-[12px] font-semibold text-ink-label tracking-wide uppercase">
+                <Trophy size={12} className="text-primary" />
+                금융사별 견적 비교
+              </span>
+              {compareOpen ? (
+                <ChevronUp size={14} className="text-ink-caption" />
+              ) : (
+                <ChevronDown size={14} className="text-ink-caption" />
+              )}
+            </button>
+
+            {compareOpen && (
+              <FinanceCompareTable results={data.allFinanceResults} />
+            )}
+          </div>
+        )}
+
+        {/* ⑤ 체크포인트 */}
         <CostCheckpoint contractType={data.contractType} />
       </div>
     </div>
@@ -261,6 +287,76 @@ function CalcRow({
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+// ─── 금융사 비교 테이블 ───────────────────────────────────
+
+const RANK_LABEL: Record<number, { label: string; color: string; bg: string }> = {
+  1: { label: "최저가", color: "#000666", bg: "#E5E5FA" },
+  2: { label: "2순위",  color: "#059669", bg: "#ECFDF5" },
+  3: { label: "3순위",  color: "#D97706", bg: "#FFFBEB" },
+  4: { label: "4순위",  color: "#9BA4C0", bg: "#F4F5F8" },
+};
+
+function FinanceCompareTable({ results }: { results: FinanceCompanyQuote[] }) {
+  const best = results[0]?.monthlyPayment ?? 0;
+
+  return (
+    <div className="divide-y divide-[#F0F2F8] bg-white">
+      {results.map((r) => {
+        const diff = r.monthlyPayment - best;
+        const rankInfo = RANK_LABEL[r.rank] ?? RANK_LABEL[4];
+
+        return (
+          <div
+            key={r.financeCompanyName}
+            className={cn(
+              "flex items-center gap-3 px-4 py-3",
+              r.rank === 1 && "bg-primary-100"
+            )}
+          >
+            {/* 순위 배지 */}
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 rounded-[4px] shrink-0 w-[46px] text-center"
+              style={{ color: rankInfo.color, background: rankInfo.bg }}
+            >
+              {rankInfo.label}
+            </span>
+
+            {/* 금융사명 */}
+            <span className={cn(
+              "flex-1 text-[13px]",
+              r.rank === 1 ? "font-semibold text-primary" : "text-ink-body"
+            )}>
+              {r.financeCompanyName}
+            </span>
+
+            {/* 가산 내역 요약 */}
+            <div className="flex flex-col items-end gap-0.5">
+              <span className={cn(
+                "text-[15px] font-semibold tabular-nums",
+                r.rank === 1 ? "text-primary" : "text-ink"
+              )}>
+                {formatMonthly(r.monthlyPayment)}
+              </span>
+              {diff > 0 && (
+                <span className="text-[10px] text-ink-caption tabular-nums">
+                  +{formatCurrency(diff)}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* 가산율 설명 */}
+      <div className="px-4 py-2.5 bg-neutral">
+        <p className="text-[11px] text-ink-caption leading-relaxed">
+          순위 가산·차량 가산·금융사 가산이 반영된 최종 월 납입금 기준입니다.
+        </p>
+      </div>
     </div>
   );
 }
