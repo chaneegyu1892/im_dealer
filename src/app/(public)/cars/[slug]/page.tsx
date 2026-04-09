@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput } from "@/lib/quote-calculator";
 import type { RateMatrix } from "@/types/quote";
@@ -167,9 +169,10 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
 export default async function CarDetailPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const vehicle = await getVehicle(params.slug);
+  const { slug } = await params;
+  const vehicle = await getVehicle(slug);
   if (!vehicle) notFound();
 
   return <CarDetailClient vehicle={vehicle} />;

@@ -5,10 +5,10 @@ import type { RecommendResultResponse } from "@/types/recommendation";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    const { sessionId } = params;
+    const { sessionId } = await params;
 
     // 추천 로그에서 입력값 복원
     const log = await prisma.recommendationLog.findFirst({

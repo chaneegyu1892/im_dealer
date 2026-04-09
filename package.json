@@ -19,9 +19,9 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.454.0",
-    "next": "^14.2.35",
-    "react": "^18",
-    "react-dom": "^18",
+    "next": "^16.2.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "tailwind-merge": "^2.5.4",
     "uuid": "^13.0.0",
     "zod": "^3.23.8"
@@ -30,17 +30,20 @@
     "seed": "npx tsx prisma/seed.ts"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
     "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.0.1",
-    "eslint": "^8",
-    "eslint-config-next": "^14.2.35",
+    "dotenv": "^17.4.1",
+    "eslint": "^9",
+    "eslint-config-next": "^16.2.2",
     "postcss": "^8",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "xlsx": "^0.18.5"
   }
 }

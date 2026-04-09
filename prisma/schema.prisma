@@ -127,14 +127,16 @@ model Trim {
 // 트림 옵션 (TrimOption)
 // ─────────────────────────────────────────
 model TrimOption {
-  id        String   @id @default(cuid())
-  trimId    String
-  trim      Trim     @relation(fields: [trimId], references: [id], onDelete: Cascade)
-  name      String
-  price     Int      @default(0)
-  category  String?  // 편의 | 안전 | 외관
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  trimId      String
+  trim        Trim     @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  name        String
+  price       Int      @default(0)
+  category    String?  // 편의 | 안전 | 외관
+  description String?  // 옵션 상세 설명
+  isAccessory Boolean  @default(false) // 액세서리 여부
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   @@index([trimId])
 }

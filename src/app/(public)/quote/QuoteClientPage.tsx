@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,6 +11,7 @@ import {
   Calculator,
   AlertCircle,
   Check,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
@@ -31,6 +32,73 @@ interface Conditions {
   contractMonths: ContractMonths;
   annualMileage: AnnualMileage;
   contractType: ContractType;
+}
+
+// ─── 트림/옵션 타입 ───────────────────────────────────────
+interface TrimOption {
+  id: string;
+  name: string;
+  price: number;
+  category: string | null;
+  description: string | null;
+  isAccessory: boolean;
+  isDefault: boolean;
+}
+
+interface TrimData {
+  id: string;
+  name: string;
+  price: number;
+  engineType: string;
+  fuelEfficiency: number | null;
+  isDefault: boolean;
+  specs: Record<string, string> | null;
+  options: TrimOption[];
+}
+
+// ─── 캐스케이딩 셀렉트 행 ─────────────────────────────────
+function SelectRow({
+  label,
+  value,
+  placeholder,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <p className="text-[12px] font-medium text-ink-caption mb-1.5 uppercase tracking-wide">
+        {label}
+      </p>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full appearance-none bg-white border border-neutral-800 rounded-btn
+                     px-4 py-2.5 text-[14px] pr-9
+                     focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10
+                     transition-colors duration-150 cursor-pointer
+                     text-ink disabled:text-ink-caption"
+        >
+          <option value="">{placeholder}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          size={15}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-caption pointer-events-none"
+        />
+      </div>
+    </div>
+  );
 }
 
 // ─── 스텝 인디케이터 ──────────────────────────────────────
@@ -181,6 +249,15 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [search, setSearch] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleListItem | null>(null);
+
+  // 트림/옵션 상태
+  const [trims, setTrims] = useState<TrimData[]>([]);
+  const [trimsLoading, setTrimsLoading] = useState(false);
+  // 캐스케이딩 선택 상태
+  const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
+  const [selectedTrimName, setSelectedTrimName] = useState<string | null>(null);
+  const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(new Set());
+
   const [conditions, setConditions] = useState<Conditions>({
     contractMonths: 48,
     annualMileage: 20000,
@@ -189,6 +266,83 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 차량 선택 시 트림 데이터 로드
+  useEffect(() => {
+    if (!selectedVehicle) return;
+    setTrimsLoading(true);
+    setTrims([]);
+    setSelectedLineup(null);
+    setSelectedTrimName(null);
+    setSelectedOptionIds(new Set());
+
+    fetch(`/api/vehicles/${selectedVehicle.slug}/trims`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success && json.data.length > 0) {
+          setTrims(json.data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setTrimsLoading(false));
+  }, [selectedVehicle]);
+
+  // ─── 캐스케이딩 파생 값 ──────────────────────────────────
+  // 트림에 lineup 스펙이 있는지 확인
+  const hasCascade = trims.some((t) => (t.specs as Record<string, string> | null)?.lineup);
+
+  // 1단계: 유니크 라인업 목록
+  const availableLineups = hasCascade
+    ? (() => {
+        const all = [...new Set(trims.map((t) => (t.specs as Record<string, string>)?.lineup ?? "").filter(Boolean))];
+        const getYear = (s: string) => parseInt(s.match(/\d{4}/)?.[0] ?? "0");
+        const getGroup = (s: string) => s.replace(/^\d{4}년형\s*/, "");
+        const groupOrder: string[] = [];
+        for (const l of all) {
+          const g = getGroup(l);
+          if (!groupOrder.includes(g)) groupOrder.push(g);
+        }
+        return all.sort((a, b) => {
+          const ga = getGroup(a), gb = getGroup(b);
+          const gi = groupOrder.indexOf(ga) - groupOrder.indexOf(gb);
+          if (gi !== 0) return gi;
+          return getYear(b) - getYear(a);
+        });
+      })()
+    : [];
+
+  // 2단계: 선택된 라인업에 속하는 트림들
+  const trimsForLineup = selectedLineup
+    ? trims.filter((t) => (t.specs as Record<string, string>)?.lineup === selectedLineup)
+    : [];
+
+  // 유니크 트림명 (가격 포함)
+  const availableTrimNames = [
+    ...new Map(
+      trimsForLineup.map((t) => {
+        const name = (t.specs as Record<string, string>)?.trimName ?? t.name;
+        return [name, { name, price: t.price, id: t.id }];
+      })
+    ).values(),
+  ];
+
+  // 최종 선택된 트림 객체
+  const selectedTrim =
+    hasCascade
+      ? (selectedTrimName
+          ? trimsForLineup.find(
+              (t) => (t.specs as Record<string, string>)?.trimName === selectedTrimName
+            ) ?? null
+          : null)
+      : trims.find((t) => t.id === selectedLineup) ?? null;
+
+  const selectedTrimId = selectedTrim?.id ?? null;
+
+  const optionsTotalPrice = selectedTrim
+    ? selectedTrim.options
+        .filter((o) => selectedOptionIds.has(o.id))
+        .reduce((sum, o) => sum + o.price, 0)
+    : 0;
 
   // 차량 필터
   const filteredVehicles = vehicles.filter((v) =>
@@ -210,6 +364,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            trimId: selectedTrimId ?? undefined,
+            selectedOptionIds: Array.from(selectedOptionIds),
             contractMonths: conditions.contractMonths,
             annualMileage: conditions.annualMileage,
             contractType: conditions.contractType,
@@ -359,13 +515,132 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setStep(1)}
+                        onClick={() => {
+                          setStep(1);
+                          setTrims([]);
+                          setSelectedLineup(null);
+                          setSelectedTrimName(null);
+                          setSelectedOptionIds(new Set());
+                        }}
                         className="ml-auto text-[12px] text-ink-caption hover:text-primary transition-colors"
                       >
                         변경
                       </button>
                     </div>
                   )}
+
+                  {/* ── 캐스케이딩 트림 선택 ── */}
+                  {trimsLoading ? (
+                    <div className="flex items-center gap-2 h-11 mb-5 text-[13px] text-ink-caption">
+                      <span className="w-3.5 h-3.5 border-2 border-neutral-700 border-t-primary rounded-full animate-spin" />
+                      트림 정보 불러오는 중...
+                    </div>
+                  ) : trims.length > 0 ? (
+                    <div className="mb-5 space-y-3">
+
+                      {/* 1단계: 라인업 선택 */}
+                      <SelectRow
+                        label="라인업"
+                        value={selectedLineup ?? ""}
+                        placeholder="연식 / 엔진을 선택하세요"
+                        options={availableLineups.map((l) => ({ value: l, label: l }))}
+                        onChange={(v) => {
+                          setSelectedLineup(v || null);
+                          setSelectedTrimName(null);
+                          setSelectedOptionIds(new Set());
+                        }}
+                      />
+
+                      {/* 2단계: 트림명 선택 (라인업 선택 후 노출) */}
+                      {selectedLineup && (
+                        <SelectRow
+                          label="트림"
+                          value={selectedTrimName ?? ""}
+                          placeholder="트림을 선택하세요"
+                          options={availableTrimNames.map((t) => ({
+                            value: t.name,
+                            label: `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
+                          }))}
+                          onChange={(v) => {
+                            setSelectedTrimName(v || null);
+                            setSelectedOptionIds(new Set());
+                          }}
+                        />
+                      )}
+
+                      {/* 3단계: 옵션 선택 (트림 선택 후 노출, 옵션이 있을 때만) */}
+                      {selectedTrim && selectedTrim.options.length > 0 && (
+                        <div>
+                          <p className="text-[12px] font-medium text-ink-caption mb-1.5 uppercase tracking-wide">
+                            추가 옵션
+                            <span className="normal-case font-normal ml-1 opacity-60">(선택)</span>
+                          </p>
+                          <div className="border border-neutral-800 rounded-btn overflow-hidden divide-y divide-[#F0F0F0]">
+                            {selectedTrim.options.map((opt) => {
+                              const isOptSelected = selectedOptionIds.has(opt.id);
+                              return (
+                                <button
+                                  key={opt.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedOptionIds((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(opt.id)) next.delete(opt.id);
+                                      else next.add(opt.id);
+                                      return next;
+                                    })
+                                  }
+                                  className={cn(
+                                    "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100",
+                                    isOptSelected ? "bg-primary-100" : "bg-white hover:bg-neutral"
+                                  )}
+                                >
+                                  <div className={cn(
+                                    "w-4 h-4 rounded border-[1.5px] shrink-0 flex items-center justify-center",
+                                    isOptSelected ? "bg-primary border-primary" : "border-neutral-600 bg-white"
+                                  )}>
+                                    {isOptSelected && <Check size={9} strokeWidth={3} className="text-white" />}
+                                  </div>
+                                  <span className={cn("flex-1 text-[13px]", isOptSelected ? "text-primary font-medium" : "text-ink")}>
+                                    {opt.name}
+                                  </span>
+                                  <span className={cn("text-[12px] font-medium shrink-0", isOptSelected ? "text-primary" : "text-ink-label")}>
+                                    +{opt.price >= 10000
+                                      ? `${Math.round(opt.price / 10000).toLocaleString()}만원`
+                                      : `${opt.price.toLocaleString()}원`}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {selectedOptionIds.size > 0 && (
+                            <p className="text-[12px] text-primary font-medium text-right mt-1.5">
+                              옵션 +{Math.round(optionsTotalPrice / 10000).toLocaleString()}만원 · 합계{" "}
+                              <span className="font-semibold">
+                                {Math.round((selectedTrim.price + optionsTotalPrice) / 10000).toLocaleString()}만원
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 선택된 트림 가격 요약 */}
+                      {selectedTrim && (
+                        <div className="flex items-center justify-between py-2 px-3 bg-neutral rounded-[6px] text-[12px]">
+                          <span className="text-ink-caption">
+                            {selectedTrim.engineType}
+                            {selectedTrim.fuelEfficiency ? ` · 연비 ${selectedTrim.fuelEfficiency}km/L` : ""}
+                          </span>
+                          <span className="font-semibold text-ink">
+                            차량가 {Math.round((selectedTrim.price + optionsTotalPrice) / 10000).toLocaleString()}만원
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {/* 구분선 */}
+                  {selectedTrim && <div className="border-t border-[#F0F0F0] mb-5" />}
 
                   <h2 className="text-[17px] font-medium text-ink mb-6">
                     계약 조건을 설정하세요
@@ -468,11 +743,11 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   </button>
                   <button
                     type="button"
-                    disabled={isLoading}
+                    disabled={isLoading || !selectedTrim}
                     onClick={fetchQuote}
                     className={cn(
                       "inline-flex items-center gap-2 px-6 py-3 rounded-btn text-[14px] font-medium transition-all duration-200",
-                      isLoading
+                      isLoading || !selectedTrim
                         ? "bg-neutral-800 text-ink-caption cursor-not-allowed"
                         : "bg-primary text-white hover:opacity-90"
                     )}
@@ -484,7 +759,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       </>
                     ) : (
                       <>
-                        견적 계산하기
+                        {selectedTrim ? "견적 계산하기" : "트림을 선택하세요"}
                         <Calculator size={15} />
                       </>
                     )}
@@ -510,6 +785,13 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         ? `${selectedVehicle?.name} · ${quoteResult.trimName}`
                         : selectedVehicle?.name}
                     </span>
+                    {(quoteResult as QuoteResponse & { optionsTotalPrice?: number }).optionsTotalPrice
+                      ? (
+                        <span className="text-ink-label">
+                          옵션 +{Math.round(((quoteResult as QuoteResponse & { optionsTotalPrice?: number }).optionsTotalPrice ?? 0) / 10000).toLocaleString()}만원
+                        </span>
+                      )
+                      : null}
                     <span className="text-ink-label">
                       계약 {quoteResult.contractMonths}개월
                     </span>
