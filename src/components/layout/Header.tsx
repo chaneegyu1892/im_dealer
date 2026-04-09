@@ -1,19 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
 const NAV_LINKS = [
   { href: "/recommend", label: "AI 추천" },
   { href: "/cars", label: "차량 탐색" },
-  { href: "/quote", label: "견적 계산" },
+  { href: "/quote?type=rent", label: "렌트 견적", matchPrefix: "/quote" },
+  { href: "/quote?type=lease", label: "리스 견적", matchPrefix: "/quote" },
   { href: "/about", label: "아임딜러 소개" },
 ] as const;
 
 export function Header() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentType = searchParams.get("type");
+
+  function isActive(href: string, matchPrefix?: string) {
+    const [path, query] = href.split("?");
+    const pathMatch = matchPrefix
+      ? pathname === path || pathname.startsWith(matchPrefix + "/")
+      : pathname === path || pathname.startsWith(path + "/");
+    if (!pathMatch) return false;
+    if (!query) return true;
+    const param = new URLSearchParams(query);
+    return param.get("type") === currentType;
+  }
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
@@ -31,21 +45,22 @@ export function Header() {
 
           {/* 데스크톱 네비게이션 */}
           <nav className="flex items-center gap-1">
-            {NAV_LINKS.map(({ href, label }) => {
-              const isActive = pathname === href || pathname.startsWith(href + "/");
+            {NAV_LINKS.map(({ href, label, ...rest }) => {
+              const matchPrefix = "matchPrefix" in rest ? rest.matchPrefix : undefined;
+              const active = isActive(href, matchPrefix);
               return (
                 <Link
                   key={href}
                   href={href}
                   className={cn(
                     "relative px-5 py-2 rounded-btn text-[14px] transition-colors duration-200",
-                    isActive
+                    active
                       ? "text-primary font-medium"
                       : "text-ink-body hover:text-primary"
                   )}
                 >
                   {label}
-                  {isActive && (
+                  {active && (
                     <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-primary rounded-full" />
                   )}
                 </Link>

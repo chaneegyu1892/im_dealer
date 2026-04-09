@@ -85,7 +85,7 @@ const vehicles: VehicleSeed[] = [
     category: "세단",
     vehicleCode: "GRANDEUR",
     basePrice: 39_800_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.hyundai.com/static/images/model/grandeur/25my/grandeur_highlights_usp.jpg",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 1,
@@ -104,7 +104,7 @@ const vehicles: VehicleSeed[] = [
     category: "세단",
     vehicleCode: "SONATA",
     basePrice: 30_900_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.hyundai.com/static/images/model/sonata/25my/sonata_highlights_usp.jpg",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 2,
@@ -122,7 +122,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "TUCSON",
     basePrice: 30_100_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.hyundai.com/static/images/model/tucson/25my/tucson_highlights_usp.jpg",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 3,
@@ -141,7 +141,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "SANTAFE",
     basePrice: 36_200_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.hyundai.com/static/images/model/santafe/25my/santafe_highlights_usp.jpg",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 4,
@@ -159,7 +159,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "PALISADE",
     basePrice: 41_800_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.hyundai.com/static/images/model/palisade/25my/palisade_highlights_usp.jpg",
     surchargeRate: 0.3,
     isPopular: true,
     displayOrder: 5,
@@ -177,7 +177,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "IONIQ5",
     basePrice: 47_000_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.hyundai.com/static/images/model/ioniq5/25my/ioniq5_highlights_usp.jpg",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 6,
@@ -195,7 +195,7 @@ const vehicles: VehicleSeed[] = [
     category: "세단",
     vehicleCode: "IONIQ6",
     basePrice: 52_000_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.hyundai.com/static/images/model/ioniq6/24my/ioniq6_highlights_usp.jpg",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 7,
@@ -212,7 +212,7 @@ const vehicles: VehicleSeed[] = [
     category: "밴",
     vehicleCode: "STARIA",
     basePrice: 37_600_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.hyundai.com/static/images/model/staria/24my/staria_highlights_usp.jpg",
     surchargeRate: 0,
     isPopular: false,
     displayOrder: 8,
@@ -231,7 +231,7 @@ const vehicles: VehicleSeed[] = [
     category: "세단",
     vehicleCode: "K8",
     basePrice: 37_300_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.kia.com/content/dam/kwp/kr/ko/vehicles/k8/25pe/gallery/image/asset/k8_gallery_image_01.jpg",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 9,
@@ -249,7 +249,7 @@ const vehicles: VehicleSeed[] = [
     category: "세단",
     vehicleCode: "K5",
     basePrice: 28_800_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.kia.com/content/dam/kwp/kr/ko/vehicles/represent/krdl243/k5_s_c7s.png",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 10,
@@ -267,7 +267,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "SPORTAGE",
     basePrice: 30_500_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.kia.com/content/dam/kwp/kr/ko/vehicles/represent/krnq259/sportage_s_swp.png",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 11,
@@ -285,7 +285,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "SORENTO",
     basePrice: 36_500_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.kia.com/content/dam/kwp/kr/ko/vehicles/represent/krmq255/sorento_s_bn4.png",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 12,
@@ -303,7 +303,7 @@ const vehicles: VehicleSeed[] = [
     category: "밴",
     vehicleCode: "CARNIVAL",
     basePrice: 36_300_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.kia.com/content/dam/kwp/kr/ko/vehicles/represent/krkp214/carnival_s_isg.png",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 13,
@@ -322,7 +322,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "EV6",
     basePrice: 48_800_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.kia.com/content/dam/kwp/kr/ko/vehicles/represent/krcv253/ev6_s_swp.png",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 14,
@@ -340,7 +340,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "EV9",
     basePrice: 73_700_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.kia.com/content/dam/kwp/kr/ko/vehicles/represent/krmv297/ev9_s_ism.png",
     surchargeRate: 0.5,
     isPopular: false,
     displayOrder: 15,
@@ -359,7 +359,7 @@ const vehicles: VehicleSeed[] = [
     category: "세단",
     vehicleCode: "G80",
     basePrice: 58_900_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.genesis.com/content/dam/genesis-p2/kr/admin/model-information/G80/list-thumbnail/2026-01-06/16-22-33/genesis-kr-admin-model-list-thumbnail-g80-27my-pc-630x240-ko.png",
     surchargeRate: 0.3,
     isPopular: true,
     displayOrder: 16,
@@ -377,7 +377,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "GV70",
     basePrice: 48_500_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.genesis.com/content/dam/genesis/au/en/models/luxury-suv-genesis/gv70/gallery/03_GV70_Standard_Driving_Front-Quarter_1920x960.jpg",
     surchargeRate: 0.3,
     isPopular: true,
     displayOrder: 17,
@@ -395,7 +395,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "GV80",
     basePrice: 66_300_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.genesis.com/content/dam/genesis-p2/kr/assets/models/gv80-black/gallery/genesis-kr-gv80-black-galleryKV-large.jpg",
     surchargeRate: 0.5,
     isPopular: false,
     displayOrder: 18,
@@ -415,7 +415,7 @@ const vehicles: VehicleSeed[] = [
     category: "트럭",
     vehicleCode: "PORTER2EV",
     basePrice: 43_500_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.hyundai.com/contents/repn-car/side-w/porter2-electric-26my-well-side.png",
     surchargeRate: 0,
     isPopular: false,
     displayOrder: 19,
@@ -432,7 +432,7 @@ const vehicles: VehicleSeed[] = [
     category: "트럭",
     vehicleCode: "BONGO3EV",
     basePrice: 44_200_000,
-    thumbnailUrl: "",
+    thumbnailUrl: "https://www.kia.com/content/dam/kwp/kr/ko/vehicles/represent/krb1279/bongo3-ev_s_ud.png",
     surchargeRate: 0,
     isPopular: false,
     displayOrder: 20,
@@ -447,20 +447,31 @@ const vehicles: VehicleSeed[] = [
 
 /**
  * 범용 회수율 생성
- * baseRate를 기준으로 기간·거리별 미세 조정
+ * baseRate(48개월·2만km 기준)를 기준으로 기간·거리별 현실적 조정
+ *
+ * 계약기간별 조정 근거 (실제 장기렌트 시장):
+ *   36개월: 잔존가치·리스크 높아 48개월 대비 약 +18~22% 회수율
+ *   48개월: 기준
+ *   60개월: 장기계약 할인 효과로 48개월 대비 약 -15~18% 회수율
+ *
+ * 주행거리별 조정 근거:
+ *   10000km: 차량 소모 적어 잔존가치 높음 → 약 -5% 회수율
+ *   20000km: 기준
+ *   30000km: 차량 소모 커 잔존가치 낮음 → 약 +5% 회수율
  */
 function generateRateMatrix(baseRate: number): Record<string, Record<string, number>> {
-  // 주행거리(km): 10000, 20000, 30000
-  // 계약기간(월): 36, 48, 60
-  const mileageAdjust: Record<string, number> = {
-    "10000": -0.0005,
-    "20000": 0,
-    "30000": 0.0005,
-  };
+  // 계약기간별 조정 (baseRate 대비 절대값 조정)
   const monthsAdjust: Record<string, number> = {
-    "36": 0.0003,
-    "48": 0,
-    "60": -0.0002,
+    "36": baseRate * 0.20,   // +20%: 36개월은 단기계약, 회수율 높음
+    "48": 0,                 // 기준
+    "60": baseRate * -0.16,  // -16%: 60개월 장기계약, 회수율 낮음
+  };
+
+  // 주행거리별 조정 (baseRate 대비 절대값 조정)
+  const mileageAdjust: Record<string, number> = {
+    "10000": baseRate * -0.05,  // -5%: 저주행 → 잔존가치 높음
+    "20000": 0,                 // 기준
+    "30000": baseRate * 0.05,   // +5%: 고주행 → 잔존가치 낮음
   };
 
   const matrix: Record<string, Record<string, number>> = {};
@@ -507,6 +518,13 @@ async function main() {
   const vehicleIds: Record<string, string> = {};
 
   for (const v of vehicles) {
+    // 기존 thumbnailUrl 보존 (관리자가 설정한 이미지 URL을 seed가 덮어쓰지 않도록)
+    const existing = await prisma.vehicle.findUnique({
+      where: { slug: v.slug },
+      select: { thumbnailUrl: true },
+    });
+    const thumbnailUrl = existing?.thumbnailUrl || v.thumbnailUrl;
+
     const created = await prisma.vehicle.upsert({
       where: { slug: v.slug },
       update: {
@@ -515,7 +533,7 @@ async function main() {
         category: v.category,
         vehicleCode: v.vehicleCode,
         basePrice: v.basePrice,
-        thumbnailUrl: v.thumbnailUrl,
+        thumbnailUrl,
         surchargeRate: v.surchargeRate,
         isPopular: v.isPopular,
         displayOrder: v.displayOrder,
@@ -538,23 +556,26 @@ async function main() {
     });
     vehicleIds[v.slug] = created.id;
 
-    // 트림: 기존 삭제 후 재생성 (upsert 어려움)
-    await prisma.trim.deleteMany({ where: { vehicleId: created.id } });
-    for (const t of v.trims) {
-      await prisma.trim.create({
-        data: {
-          vehicleId: created.id,
-          name: t.name,
-          price: t.price,
-          engineType: t.engineType,
-          fuelEfficiency: t.fuelEfficiency,
-          isDefault: t.isDefault,
-          specs: t.specs,
-        },
-      });
+    // 트림: 이미 존재하면 스킵 (seed-trims.ts에서 임포트한 상세 데이터 보존)
+    const existingTrimCount = await prisma.trim.count({ where: { vehicleId: created.id } });
+    if (existingTrimCount === 0) {
+      for (const t of v.trims) {
+        await prisma.trim.create({
+          data: {
+            vehicleId: created.id,
+            name: t.name,
+            price: t.price,
+            engineType: t.engineType,
+            fuelEfficiency: t.fuelEfficiency,
+            isDefault: t.isDefault,
+            specs: t.specs,
+          },
+        });
+      }
+      console.log(`   ✅ ${v.brand} ${v.name} (${v.trims.length}개 트림 신규 생성)`);
+    } else {
+      console.log(`   ↩ ${v.brand} ${v.name} (트림 ${existingTrimCount}개 이미 존재, 스킵)`);
     }
-
-    console.log(`   ✅ ${v.brand} ${v.name} (${v.trims.length}개 트림)`);
   }
 
   // 4) 회수율 (RateConfig) — 금융사 × 차량 코드

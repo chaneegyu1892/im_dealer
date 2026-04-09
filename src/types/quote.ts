@@ -58,6 +58,15 @@ export interface QuoteScenarios {
   aggressive: FinanceQuoteResult;   // 공격형: 선납금 있음
 }
 
+/** 금융사별 견적 요약 (비교 테이블용) */
+export interface FinanceCompanyQuote {
+  financeCompanyName: string;
+  rank: number;
+  monthlyPayment: number;
+  baseMonthly: number;
+  surcharges: SurchargeDetail;
+}
+
 /** 견적 계산기 전용 시나리오 상세 (breakdown + surcharges 포함) */
 export interface QuoteScenarioDetail {
   monthlyPayment: number;
@@ -69,6 +78,7 @@ export interface QuoteScenarioDetail {
   bestFinanceCompany: string;
   breakdown: QuoteBreakdown | null;
   surcharges: SurchargeDetail | null;
+  allFinanceResults: FinanceCompanyQuote[];
 }
 
 export interface QuoteScenarioDetails {

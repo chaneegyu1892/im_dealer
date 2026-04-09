@@ -126,6 +126,13 @@ export async function POST(
       bestFinanceCompany: string;
       breakdown: FinanceQuoteResult["breakdown"] | null;
       surcharges: FinanceQuoteResult["surcharges"] | null;
+      allFinanceResults: {
+        financeCompanyName: string;
+        rank: number;
+        monthlyPayment: number;
+        baseMonthly: number;
+        surcharges: FinanceQuoteResult["surcharges"];
+      }[];
     }> = {};
 
     for (const key of scenarioKeys) {
@@ -156,19 +163,17 @@ export async function POST(
           bestFinanceCompany: "",
           breakdown: null,
           surcharges: null,
+          allFinanceResults: [],
         };
         continue;
       }
 
+      // 인수형: 잔존가치 상쇄를 위한 12% 가산 (전체 금융사 동일 적용)
+      const purchaseFactor = input.contractType === "인수형" ? 1.12 : 1;
+
       // 1순위(최저가) 금융사 결과
       const best = results[0];
-
-      let monthlyPayment = best.monthlyPayment;
-
-      // 인수형: 잔존가치 상쇄를 위한 12% 가산
-      if (input.contractType === "인수형") {
-        monthlyPayment = Math.round(monthlyPayment * 1.12);
-      }
+      const monthlyPayment = Math.round(best.monthlyPayment * purchaseFactor);
 
       scenarios[key] = {
         monthlyPayment,
@@ -180,6 +185,13 @@ export async function POST(
         bestFinanceCompany: best.financeCompanyName,
         breakdown: best.breakdown,
         surcharges: best.surcharges,
+        allFinanceResults: results.map((r) => ({
+          financeCompanyName: r.financeCompanyName,
+          rank: r.rank,
+          monthlyPayment: Math.round(r.monthlyPayment * purchaseFactor),
+          baseMonthly: r.baseMonthly,
+          surcharges: r.surcharges,
+        })),
       };
     }
 
