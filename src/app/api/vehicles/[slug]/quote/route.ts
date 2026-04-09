@@ -11,6 +11,7 @@ import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 
 const quoteSchema = z.object({
   trimId: z.string().optional(),
+  selectedOptionIds: z.array(z.string()).optional(),
   contractMonths: z.number().int().refine((v) => [36, 48, 60].includes(v)),
   annualMileage: z.number().int().refine((v) => [10000, 20000, 30000].includes(v)),
   contractType: z.enum(["인수형", "반납형"]),
@@ -27,10 +28,10 @@ const SCENARIO_CONDITIONS = {
 // 조건별 3개 시나리오 견적 (전체 파이프라인: 선형보간 → 보증금/선납금 → 순위가산 + 차량가산 + 금융사가산)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = params;
+    const { slug } = await params;
     const body = await request.json();
     const input = quoteSchema.parse(body);
 
@@ -38,7 +39,11 @@ export async function POST(
     const vehicle = await prisma.vehicle.findUnique({
       where: { slug },
       include: {
-        trims: { where: { isVisible: true }, orderBy: { isDefault: "desc" } },
+        trims: {
+          where: { isVisible: true },
+          orderBy: { isDefault: "desc" },
+          include: { options: { select: { id: true, price: true } } },
+        },
       },
     });
 
@@ -59,6 +64,12 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    // 선택된 옵션 가격 합산
+    const selectedOptionIds = new Set(input.selectedOptionIds ?? []);
+    const optionsTotalPrice = trim.options
+      .filter((o) => selectedOptionIds.has(o.id))
+      .reduce((sum, o) => sum + o.price, 0);
 
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
     const [rateConfigs, rankSurcharges] = await Promise.all([
@@ -121,7 +132,7 @@ export async function POST(
       const { depositRate, prepayRate } = SCENARIO_CONDITIONS[key];
 
       const calcInput: CalcInput = {
-        vehiclePrice: trim.price,
+        vehiclePrice: trim.price + optionsTotalPrice,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         depositRate,
@@ -179,6 +190,8 @@ export async function POST(
         trimId: trim.id,
         trimName: trim.name,
         trimPrice: trim.price,
+        optionsTotalPrice,
+        totalVehiclePrice: trim.price + optionsTotalPrice,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         contractType: input.contractType,

@@ -45,7 +45,8 @@ const BRAND_COLORS: Record<string, string> = {
 };
 
 export function CarCard({ vehicle, index = 0 }: CarCardProps) {
-  const engineType = (vehicle.defaultTrim?.engineType ?? "가솔린") as EngineType;
+  const rawEngineType = vehicle.defaultTrim?.engineType ?? "가솔린";
+  const engineType = (rawEngineType in ENGINE_BADGE ? rawEngineType : "가솔린") as EngineType;
   const engine = ENGINE_BADGE[engineType];
   const EngineIcon = engine.icon;
   const formattedMonthly = vehicle.monthlyFrom > 0

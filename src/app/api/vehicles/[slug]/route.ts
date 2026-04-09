@@ -10,10 +10,10 @@ import type { RateMatrix } from "@/types/quote";
 // 차량 상세 + 기본 트림 기준 시나리오 견적
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = params;
+    const { slug } = await params;
 
     const vehicle = await prisma.vehicle.findUnique({
       where: { slug },
