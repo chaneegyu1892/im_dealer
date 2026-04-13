@@ -62,6 +62,7 @@ model Vehicle {
   isPopular     Boolean               @default(false)
   displayOrder  Int                   @default(0)
   description   String?
+  detailedSpecs Json?
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   exploLogs     ExplorationLog[]

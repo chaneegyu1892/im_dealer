@@ -1,0 +1,434 @@
+{
+  "grandeur": {
+    "name": "그랜저 (GN7)",
+    "brand": "현대",
+    "category": "세단",
+    "specs": {
+      "gasoline_2.5": {
+        "engine": "가솔린 2.5",
+        "max_power": "198ps",
+        "max_torque": "25.3kg.m",
+        "fuel_efficiency": "11.7km/L",
+        "displacement": "2,497cc"
+      },
+      "hybrid_1.6": {
+        "engine": "하이브리드 1.6T",
+        "max_power": "시스템 합산 230ps",
+        "max_torque": "시스템 합산 35.7kg.m",
+        "fuel_efficiency": "18.0km/L",
+        "displacement": "1,598cc"
+      },
+      "dimensions": {
+        "length": "5,035mm",
+        "width": "1,880mm",
+        "height": "1,460mm",
+        "wheelbase": "2,895mm"
+      }
+    },
+    "technical_specs": {
+      "chassis": {
+        "front_suspension": "맥퍼슨 스트럿",
+        "rear_suspension": "멀티링크",
+        "front_brake": "벤틸레이티드 디스크",
+        "rear_brake": "디스크",
+        "steering": "R-MDPS"
+      },
+      "aerodynamics": {
+        "drag_coefficient": "0.29 Cd"
+      },
+      "interior_dimensions": {
+        "front_legroom": "1,050mm",
+        "rear_legroom": "1,035mm",
+        "trunk_capacity": "480L (VDA)"
+      },
+      "capacities": {
+        "fuel_tank": "60L (가솔린), 50L (하이브리드)"
+      }
+    }
+  },
+  "sonata": {
+    "name": "쏘나타 디 엣지",
+    "brand": "현대",
+    "category": "세단",
+    "specs": {
+      "gasoline_2.0": {
+        "engine": "가솔린 2.0",
+        "max_power": "160ps",
+        "max_torque": "20.0kg.m",
+        "fuel_efficiency": "12.6km/L",
+        "displacement": "1,999cc"
+      },
+      "hybrid_2.0": {
+        "engine": "하이브리드 2.0",
+        "max_power": "시스템 합산 195ps",
+        "max_torque": "엔진 19.2kg.m / 모터 205Nm",
+        "fuel_efficiency": "19.4km/L",
+        "displacement": "1,999cc"
+      },
+      "dimensions": {
+        "length": "4,910mm",
+        "width": "1,860mm",
+        "height": "1,445mm",
+        "wheelbase": "2,840mm"
+      }
+    },
+    "technical_specs": {
+      "chassis": {
+        "front_suspension": "맥퍼슨 스트럿",
+        "rear_suspension": "멀티링크",
+        "front_brake": "벤틸레이티드 디스크",
+        "rear_brake": "디스크",
+        "steering": "R-MDPS"
+      },
+      "aerodynamics": {
+        "drag_coefficient": "0.27 Cd (하이브리드)"
+      },
+      "interior_dimensions": {
+        "front_legroom": "1,170mm",
+        "rear_legroom": "885mm",
+        "trunk_capacity": "480L (VDA)"
+      },
+      "capacities": {
+        "fuel_tank": "60L (가솔린), 50L (하이브리드)"
+      }
+    }
+  },
+  "tucson": {
+    "name": "투싼 (NX4 PE)",
+    "brand": "현대",
+    "category": "SUV",
+    "specs": {
+      "gasoline_1.6_turbo": {
+        "engine": "가솔린 1.6T",
+        "max_power": "180ps",
+        "max_torque": "27.0kg.m",
+        "fuel_efficiency": "12.5km/L",
+        "displacement": "1,598cc"
+      },
+      "hybrid_1.6": {
+        "engine": "하이브리드 1.6T",
+        "max_power": "시스템 합산 235ps",
+        "max_torque": "시스템 합산 35.7kg.m",
+        "fuel_efficiency": "16.2km/L",
+        "displacement": "1,598cc"
+      },
+      "dimensions": {
+        "length": "4,640mm",
+        "width": "1,865mm",
+        "height": "1,665mm",
+        "wheelbase": "2,755mm"
+      }
+    },
+    "technical_specs": {
+      "chassis": {
+        "front_suspension": "맥퍼슨 스트럿",
+        "rear_suspension": "멀티링크",
+        "front_brake": "벤틸레이티드 디스크",
+        "rear_brake": "디스크",
+        "steering": "C-MDPS / R-MDPS(N라인)"
+      },
+      "interior_dimensions": {
+        "rear_legroom": "1,050mm",
+        "trunk_capacity": "622L (VDA, 2열 폴딩 시 1,095L)"
+      },
+      "capacities": {
+        "fuel_tank": "54L (가솔린), 52L (하이브리드)"
+      }
+    }
+  },
+  "santafe": {
+    "name": "싼타페 (MX5)",
+    "brand": "현대",
+    "category": "SUV",
+    "specs": {
+      "gasoline_2.5_turbo": {
+        "engine": "가솔린 2.5T",
+        "max_power": "281ps",
+        "max_torque": "43.0kg.m",
+        "fuel_efficiency": "11.0km/L",
+        "displacement": "2,497cc"
+      },
+      "hybrid_1.6": {
+        "engine": "하이브리드 1.6T",
+        "max_power": "시스템 합산 235ps",
+        "max_torque": "시스템 합산 35.7kg.m",
+        "fuel_efficiency": "15.5km/L",
+        "displacement": "1,598cc"
+      },
+      "dimensions": {
+        "length": "4,830mm",
+        "width": "1,900mm",
+        "height": "1,720mm",
+        "wheelbase": "2,815mm"
+      }
+    },
+    "technical_specs": {
+      "chassis": {
+        "front_suspension": "맥퍼슨 스트럿",
+        "rear_suspension": "멀티링크",
+        "front_brake": "벤틸레이티드 디스크",
+        "rear_brake": "디스크",
+        "steering": "R-MDPS"
+      },
+      "interior_dimensions": {
+        "rear_legroom": "1,060mm (2열)",
+        "trunk_capacity": "725L (VDA, 3열 폴딩 시)"
+      },
+      "capacities": {
+        "fuel_tank": "67L"
+      }
+    }
+  },
+  "palisade": {
+    "name": "디 올 뉴 팰리세이드 (LX3)",
+    "brand": "현대",
+    "category": "SUV",
+    "specs": {
+      "gasoline_2.5_turbo": {
+        "engine": "가솔린 2.5T",
+        "max_power": "281ps",
+        "max_torque": "43.0kg.m",
+        "fuel_efficiency": "9.7km/L",
+        "displacement": "2,497cc"
+      },
+      "hybrid_2.5": {
+        "engine": "하이브리드 2.5T",
+        "max_power": "시스템 합산 335ps",
+        "max_torque": "시스템 합산 46.5kg.m",
+        "fuel_efficiency": "14.0km/L (예상)",
+        "displacement": "2,497cc"
+      },
+      "dimensions": {
+        "length": "5,060mm",
+        "width": "1,975mm",
+        "height": "1,780mm",
+        "wheelbase": "3,060mm"
+      }
+    },
+    "technical_specs": {
+      "chassis": {
+        "front_suspension": "맥퍼슨 스트럿",
+        "rear_suspension": "멀티링크",
+        "front_brake": "벤틸레이티드 디스크",
+        "rear_brake": "디스크",
+        "steering": "R-MDPS"
+      },
+      "interior_dimensions": {
+        "ground_clearance": "212mm",
+        "trunk_capacity": "약 600L (3열 사용 시 311L)"
+      },
+      "capacities": {
+        "fuel_tank": "71L"
+      }
+    }
+  },
+  "sorento": {
+    "name": "쏘렌토 (MQ4 PE)",
+    "brand": "기아",
+    "category": "SUV",
+    "specs": {
+      "gasoline_2.5_turbo": {
+        "engine": "가솔린 2.5T",
+        "max_power": "281ps",
+        "max_torque": "43.0kg.m",
+        "fuel_efficiency": "10.8km/L",
+        "displacement": "2,497cc"
+      },
+      "hybrid_1.6": {
+        "engine": "하이브리드 1.6T",
+        "max_power": "시스템 합산 235ps",
+        "max_torque": "시스템 합산 35.7kg.m",
+        "fuel_efficiency": "15.7km/L",
+        "displacement": "1,598cc"
+      },
+      "dimensions": {
+        "length": "4,815mm",
+        "width": "1,900mm",
+        "height": "1,695mm",
+        "wheelbase": "2,815mm"
+      }
+    },
+    "technical_specs": {
+      "chassis": {
+        "front_suspension": "맥퍼슨 스트럿",
+        "rear_suspension": "멀티링크",
+        "front_brake": "벤틸레이티드 디스크",
+        "rear_brake": "디스크",
+        "steering": "R-MDPS"
+      },
+      "interior_dimensions": {
+        "ground_clearance": "185mm",
+        "trunk_capacity": "705L (VDA, 3열 폴딩 시)"
+      },
+      "capacities": {
+        "fuel_tank": "67L"
+      }
+    }
+  },
+  "sportage": {
+    "name": "스포티지 (NQ5 PE)",
+    "brand": "기아",
+    "category": "SUV",
+    "specs": {
+      "gasoline_1.6_turbo": {
+        "engine": "가솔린 1.6T",
+        "max_power": "180ps",
+        "max_torque": "27.0kg.m",
+        "fuel_efficiency": "12.3km/L",
+        "displacement": "1,598cc"
+      },
+      "hybrid_1.6": {
+        "engine": "하이브리드 1.6T",
+        "max_power": "시스템 합산 235ps",
+        "max_torque": "시스템 합산 35.7kg.m",
+        "fuel_efficiency": "16.3km/L",
+        "displacement": "1,598cc"
+      },
+      "dimensions": {
+        "length": "4,685mm",
+        "width": "1,865mm",
+        "height": "1,660mm",
+        "wheelbase": "2,755mm"
+      }
+    },
+    "technical_specs": {
+      "chassis": {
+        "front_suspension": "맥퍼슨 스트럿",
+        "rear_suspension": "멀티링크",
+        "front_brake": "벤틸레이티드 디스크",
+        "rear_brake": "디스크",
+        "steering": "C-MDPS / R-MDPS(N라인)"
+      },
+      "interior_dimensions": {
+        "rear_legroom": "996mm",
+        "trunk_capacity": "637L (VDA)"
+      },
+      "capacities": {
+        "fuel_tank": "54L"
+      }
+    }
+  },
+  "carnival": {
+    "name": "카니발 (KA4 PE)",
+    "brand": "기아",
+    "category": "밴",
+    "specs": {
+      "gasoline_3.5": {
+        "engine": "가솔린 3.5",
+        "max_power": "294ps",
+        "max_torque": "36.2kg.m",
+        "fuel_efficiency": "9.0km/L",
+        "displacement": "3,470cc"
+      },
+      "hybrid_1.6": {
+        "engine": "하이브리드 1.6T",
+        "max_power": "시스템 합산 245ps",
+        "max_torque": "시스템 합산 37.4kg.m",
+        "fuel_efficiency": "13.5km/L",
+        "displacement": "1,598cc"
+      },
+      "dimensions": {
+        "length": "5,155mm",
+        "width": "1,995mm",
+        "height": "1,775mm",
+        "wheelbase": "3,090mm"
+      }
+    },
+    "technical_specs": {
+      "chassis": {
+        "front_suspension": "맥퍼슨 스트럿",
+        "rear_suspension": "멀티링크",
+        "front_brake": "벤틸레이티드 디스크",
+        "rear_brake": "디스크",
+        "steering": "R-MDPS"
+      },
+      "interior_dimensions": {
+        "ground_clearance": "172mm",
+        "trunk_capacity": "627L (4열 폴딩 시)"
+      },
+      "capacities": {
+        "fuel_tank": "72L"
+      }
+    }
+  },
+  "ioniq5": {
+    "name": "아이오닉 5",
+    "brand": "현대",
+    "category": "SUV",
+    "specs": {
+      "long_range_2wd": {
+        "engine": "전기모터 (84.0kWh)",
+        "max_power": "168kW (약 228ps)",
+        "max_torque": "350Nm",
+        "fuel_efficiency": "5.1km/kWh",
+        "range": "485km"
+      },
+      "dimensions": {
+        "length": "4,635mm",
+        "width": "1,890mm",
+        "height": "1,605mm",
+        "wheelbase": "3,000mm"
+      }
+    },
+    "technical_specs": {
+      "chassis": {
+        "front_suspension": "맥퍼슨 스트럿",
+        "rear_suspension": "멀티링크",
+        "front_brake": "벤틸레이티드 디스크",
+        "rear_brake": "디스크",
+        "steering": "R-MDPS"
+      },
+      "aerodynamics": {
+        "drag_coefficient": "0.288 Cd"
+      },
+      "interior_dimensions": {
+        "trunk_capacity": "527L",
+        "frunk_capacity": "57L (2WD)"
+      },
+      "electric_system": {
+        "battery": "84.0kWh",
+        "charging": "350kW 초급속 (18분 80%)"
+      }
+    }
+  },
+  "ioniq6": {
+    "name": "아이오닉 6",
+    "brand": "현대",
+    "category": "세단",
+    "specs": {
+      "long_range_2wd": {
+        "engine": "전기모터 (84.0kWh)",
+        "max_power": "168kW (약 228ps)",
+        "max_torque": "350Nm",
+        "fuel_efficiency": "6.0km/kWh",
+        "range": "544km"
+      },
+      "dimensions": {
+        "length": "4,855mm",
+        "width": "1,880mm",
+        "height": "1,495mm",
+        "wheelbase": "2,950mm"
+      }
+    },
+    "technical_specs": {
+      "chassis": {
+        "front_suspension": "맥퍼슨 스트럿",
+        "rear_suspension": "멀티링크",
+        "front_brake": "벤틸레이티드 디스크",
+        "rear_brake": "디스크",
+        "steering": "R-MDPS"
+      },
+      "aerodynamics": {
+        "drag_coefficient": "0.21 Cd (동급 최고 수준)"
+      },
+      "interior_dimensions": {
+        "rear_legroom": "996mm",
+        "trunk_capacity": "401L (VDA)"
+      },
+      "electric_system": {
+        "battery": "84.0kWh",
+        "charging": "350kW 초급속 (18분 80%)"
+      }
+    }
+  }
+}
