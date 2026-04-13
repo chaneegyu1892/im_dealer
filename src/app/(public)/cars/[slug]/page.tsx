@@ -117,7 +117,7 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     }
   }
 
-  const recConfig = vehicle.recConfigs[0] ?? null;
+  const recConfig = vehicle.recConfigs ?? null;
 
   return {
     id: vehicle.id,

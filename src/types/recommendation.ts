@@ -24,6 +24,20 @@ export interface RecommendedVehicle {
   scenarios: RecommendScenarios;
 }
 
+export interface PopularConfigItem {
+  id: string;
+  name: string;
+  price: number;
+  trimOptionId?: string | null;
+}
+
+export interface PopularConfig {
+  id: string;
+  name: string;
+  note: string | null;
+  items: PopularConfigItem[];
+}
+
 export interface RecommendedVehicleDetail {
   name: string;
   brand: string;
@@ -32,6 +46,7 @@ export interface RecommendedVehicleDetail {
   defaultTrimName: string;
   defaultTrimPrice: number;
   slug: string;
+  popularConfigs: PopularConfig[];
 }
 
 export interface RecommendScenario {

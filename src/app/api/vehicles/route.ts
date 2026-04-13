@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       const rate = v.vehicleCode ? lowestRateByCode.get(v.vehicleCode) : undefined;
       const trimPrice = defaultTrim?.price ?? v.basePrice;
       const monthlyFrom = rate ? Math.round(trimPrice * rate) : 0;
-      const highlights = v.recConfigs[0]?.highlights ?? [];
+      const highlights = v.recConfigs?.highlights ?? [];
 
       return {
         id: v.id,

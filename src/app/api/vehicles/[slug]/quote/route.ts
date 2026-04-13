@@ -12,9 +12,11 @@ import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 const quoteSchema = z.object({
   trimId: z.string().optional(),
   selectedOptionIds: z.array(z.string()).optional(),
+  extraOptionsPrice: z.number().int().min(0).optional(),
   contractMonths: z.number().int().refine((v) => [36, 48, 60].includes(v)),
   annualMileage: z.number().int().refine((v) => [10000, 20000, 30000].includes(v)),
   contractType: z.enum(["인수형", "반납형"]),
+  productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
 });
 
 // ── 시나리오별 보증금·선납금 조건 ───────────────────────
@@ -65,11 +67,12 @@ export async function POST(
       );
     }
 
-    // 선택된 옵션 가격 합산
+    // 선택된 옵션 가격 합산 (TrimOption 기반) + 추천 구성 추가금
     const selectedOptionIds = new Set(input.selectedOptionIds ?? []);
-    const optionsTotalPrice = trim.options
+    const trimOptionsTotalPrice = trim.options
       .filter((o) => selectedOptionIds.has(o.id))
       .reduce((sum, o) => sum + o.price, 0);
+    const optionsTotalPrice = trimOptionsTotalPrice + (input.extraOptionsPrice ?? 0);
 
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
     const [rateConfigs, rankSurcharges] = await Promise.all([
@@ -77,7 +80,7 @@ export async function POST(
         ? prisma.rateConfig.findMany({
             where: {
               vehicleCode: vehicle.vehicleCode,
-              productType: "렌트",
+              productType: input.productType === "리스" ? "리스" : "렌트",
               isActive: true,
               financeCompany: { isActive: true },
             },

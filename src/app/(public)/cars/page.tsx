@@ -75,7 +75,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
           }
         : null,
       monthlyFrom,
-      highlights: v.recConfigs[0]?.highlights ?? [],
+      highlights: v.recConfigs?.highlights ?? [],
     };
   });
 }

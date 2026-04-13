@@ -104,7 +104,7 @@ const vehicles: VehicleSeed[] = [
     category: "세단",
     vehicleCode: "SONATA",
     basePrice: 30_900_000,
-    thumbnailUrl: "https://www.hyundai.com/static/images/model/sonata/25my/sonata_highlights_usp.jpg",
+    thumbnailUrl: "https://www.hyundai.com/static/images/model/sonata/26my/sonata_highlights.jpg",
     surchargeRate: 0,
     isPopular: true,
     displayOrder: 2,
@@ -159,7 +159,7 @@ const vehicles: VehicleSeed[] = [
     category: "SUV",
     vehicleCode: "PALISADE",
     basePrice: 41_800_000,
-    thumbnailUrl: "https://www.hyundai.com/static/images/model/palisade/25my/palisade_highlights_usp.jpg",
+    thumbnailUrl: "https://www.hyundai.com/static/images/model/palisade/25fc/palisade_highlights_usp.jpg",
     surchargeRate: 0.3,
     isPopular: true,
     displayOrder: 5,
@@ -756,6 +756,499 @@ async function main() {
     },
   });
   console.log("   ✅ 히어로 배너\n");
+
+  // 7) 추천 구성 (PopularConfig)
+  console.log("🔧 추천 구성 생성...");
+
+  const popularConfigsData: {
+    slug: string;
+    configs: { name: string; note?: string; displayOrder: number; items: { name: string; price: number; displayOrder: number }[] }[];
+  }[] = [
+    {
+      slug: "grandeur",
+      configs: [
+        {
+          name: "편의 패키지", note: "법인 고객 78% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프", price: 1_160_000, displayOrder: 1 },
+            { name: "통풍·열선시트", price: 690_000, displayOrder: 2 },
+            { name: "HUD(헤드업 디스플레이)", price: 500_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 92% 선택", displayOrder: 2,
+          items: [
+            { name: "현대 스마트센스 Ⅱ", price: 500_000, displayOrder: 1 },
+            { name: "후측방 모니터(BVM)", price: 300_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "sonata",
+      configs: [
+        {
+          name: "편의 패키지", note: "개인 고객 71% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프", price: 890_000, displayOrder: 1 },
+            { name: "내비게이션(10.25인치)", price: 890_000, displayOrder: 2 },
+            { name: "통풍시트", price: 490_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 88% 선택", displayOrder: 2,
+          items: [
+            { name: "현대 스마트센스", price: 400_000, displayOrder: 1 },
+            { name: "후측방 충돌방지 보조", price: 200_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "tucson",
+      configs: [
+        {
+          name: "편의 패키지", note: "가족 고객 82% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프 + 루프랙", price: 1_160_000, displayOrder: 1 },
+            { name: "인포테인먼트 내비", price: 890_000, displayOrder: 2 },
+            { name: "컴포트 Ⅰ(통풍·열선시트)", price: 690_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 90% 선택", displayOrder: 2,
+          items: [
+            { name: "현대 스마트센스", price: 400_000, displayOrder: 1 },
+            { name: "서라운드뷰 모니터", price: 500_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "santafe",
+      configs: [
+        {
+          name: "프리미엄 편의 패키지", note: "패밀리 고객 85% 선택", displayOrder: 1,
+          items: [
+            { name: "2열 파워 도어", price: 800_000, displayOrder: 1 },
+            { name: "파노라믹 선루프", price: 1_100_000, displayOrder: 2 },
+            { name: "컴포트 패키지(통풍·마사지시트)", price: 990_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 93% 선택", displayOrder: 2,
+          items: [
+            { name: "현대 스마트센스 Ⅱ", price: 500_000, displayOrder: 1 },
+            { name: "주차충돌방지 보조 Ⅱ", price: 300_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "palisade",
+      configs: [
+        {
+          name: "럭셔리 편의 패키지", note: "법인 고객 80% 선택", displayOrder: 1,
+          items: [
+            { name: "렉시콘 프리미엄 사운드", price: 990_000, displayOrder: 1 },
+            { name: "2열 열선·통풍시트", price: 690_000, displayOrder: 2 },
+            { name: "파노라믹 선루프", price: 1_200_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 94% 선택", displayOrder: 2,
+          items: [
+            { name: "현대 스마트센스 Ⅱ", price: 500_000, displayOrder: 1 },
+            { name: "후측방 모니터(BVM)", price: 300_000, displayOrder: 2 },
+            { name: "빌트인 캠", price: 400_000, displayOrder: 3 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "ioniq5",
+      configs: [
+        {
+          name: "편의 패키지", note: "전기차 고객 77% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라믹 글라스루프", price: 990_000, displayOrder: 1 },
+            { name: "릴렉션 컴포트 시트", price: 890_000, displayOrder: 2 },
+            { name: "빌트인 캠 2채널", price: 500_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 91% 선택", displayOrder: 2,
+          items: [
+            { name: "현대 스마트센스 Ⅱ", price: 500_000, displayOrder: 1 },
+            { name: "디지털 사이드 미러", price: 690_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "ioniq6",
+      configs: [
+        {
+          name: "편의 패키지", note: "개인 고객 73% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라믹 글라스루프", price: 990_000, displayOrder: 1 },
+            { name: "증강현실 내비(AR HUD)", price: 690_000, displayOrder: 2 },
+            { name: "릴렉션 시트", price: 790_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 89% 선택", displayOrder: 2,
+          items: [
+            { name: "현대 스마트센스", price: 400_000, displayOrder: 1 },
+            { name: "디지털 사이드 미러", price: 690_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "staria",
+      configs: [
+        {
+          name: "편의 패키지", note: "패밀리·법인 85% 선택", displayOrder: 1,
+          items: [
+            { name: "2열 파워 슬라이딩 도어", price: 500_000, displayOrder: 1 },
+            { name: "파노라믹 선루프", price: 990_000, displayOrder: 2 },
+            { name: "2·3열 열선시트", price: 490_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 88% 선택", displayOrder: 2,
+          items: [
+            { name: "현대 스마트센스 Ⅱ", price: 500_000, displayOrder: 1 },
+            { name: "서라운드뷰 모니터", price: 500_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "k8",
+      configs: [
+        {
+          name: "편의 패키지", note: "법인 고객 76% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프", price: 1_000_000, displayOrder: 1 },
+            { name: "HUD(헤드업 디스플레이)", price: 500_000, displayOrder: 2 },
+            { name: "릴렉션 컴포트 시트", price: 890_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 90% 선택", displayOrder: 2,
+          items: [
+            { name: "기아 드라이브 와이즈", price: 490_000, displayOrder: 1 },
+            { name: "후측방 충돌 방지 보조", price: 290_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "k5",
+      configs: [
+        {
+          name: "편의 패키지", note: "개인 고객 69% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프", price: 890_000, displayOrder: 1 },
+            { name: "내비게이션 패키지", price: 790_000, displayOrder: 2 },
+            { name: "통풍시트", price: 490_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 86% 선택", displayOrder: 2,
+          items: [
+            { name: "기아 드라이브 와이즈", price: 490_000, displayOrder: 1 },
+            { name: "서라운드뷰 모니터", price: 490_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "sportage",
+      configs: [
+        {
+          name: "편의 패키지", note: "가족 고객 79% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프", price: 990_000, displayOrder: 1 },
+            { name: "12.3인치 내비게이션", price: 890_000, displayOrder: 2 },
+            { name: "통풍·열선시트", price: 590_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 91% 선택", displayOrder: 2,
+          items: [
+            { name: "기아 드라이브 와이즈", price: 490_000, displayOrder: 1 },
+            { name: "빌트인 캠 2채널", price: 490_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "sorento",
+      configs: [
+        {
+          name: "프리미엄 편의 패키지", note: "패밀리 고객 83% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프", price: 1_100_000, displayOrder: 1 },
+            { name: "2열 열선·통풍시트", price: 590_000, displayOrder: 2 },
+            { name: "HUD(헤드업 디스플레이)", price: 490_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 92% 선택", displayOrder: 2,
+          items: [
+            { name: "기아 드라이브 와이즈 Ⅱ", price: 590_000, displayOrder: 1 },
+            { name: "서라운드뷰 모니터", price: 490_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "carnival",
+      configs: [
+        {
+          name: "패밀리 편의 패키지", note: "패밀리 고객 87% 선택", displayOrder: 1,
+          items: [
+            { name: "파워 슬라이딩 도어(양측)", price: 890_000, displayOrder: 1 },
+            { name: "파노라마 선루프", price: 1_100_000, displayOrder: 2 },
+            { name: "2·3열 열선시트", price: 490_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 89% 선택", displayOrder: 2,
+          items: [
+            { name: "기아 드라이브 와이즈", price: 490_000, displayOrder: 1 },
+            { name: "서라운드뷰 모니터 Ⅱ", price: 590_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "ev6",
+      configs: [
+        {
+          name: "편의 패키지", note: "전기차 고객 74% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프", price: 990_000, displayOrder: 1 },
+            { name: "빌트인 캠 2채널", price: 490_000, displayOrder: 2 },
+            { name: "릴렉션 시트", price: 890_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 90% 선택", displayOrder: 2,
+          items: [
+            { name: "기아 드라이브 와이즈", price: 490_000, displayOrder: 1 },
+            { name: "디지털 사이드 미러", price: 690_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "ev9",
+      configs: [
+        {
+          name: "럭셔리 편의 패키지", note: "법인 고객 81% 선택", displayOrder: 1,
+          items: [
+            { name: "듀얼 파노라마 선루프", price: 1_400_000, displayOrder: 1 },
+            { name: "VIP 릴렉션 시트(2열)", price: 1_200_000, displayOrder: 2 },
+            { name: "메리디안 프리미엄 사운드", price: 1_100_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 95% 선택", displayOrder: 2,
+          items: [
+            { name: "기아 드라이브 와이즈 Ⅱ", price: 590_000, displayOrder: 1 },
+            { name: "원격 스마트 주차 보조", price: 490_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "g80",
+      configs: [
+        {
+          name: "제네시스 편의 패키지", note: "법인 고객 86% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프", price: 1_300_000, displayOrder: 1 },
+            { name: "마그네슘 제어 서스펜션(MCS)", price: 1_100_000, displayOrder: 2 },
+            { name: "후석 엔터테인먼트(RSE)", price: 990_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 94% 선택", displayOrder: 2,
+          items: [
+            { name: "제네시스 액티브 세이프티 Ⅱ", price: 690_000, displayOrder: 1 },
+            { name: "서라운드뷰 모니터", price: 490_000, displayOrder: 2 },
+            { name: "원격 스마트 주차 보조 Ⅱ", price: 490_000, displayOrder: 3 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "gv70",
+      configs: [
+        {
+          name: "제네시스 편의 패키지", note: "법인 고객 79% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프", price: 1_200_000, displayOrder: 1 },
+            { name: "릴렉션 컴포트 시트", price: 990_000, displayOrder: 2 },
+            { name: "HUD(헤드업 디스플레이)", price: 590_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 91% 선택", displayOrder: 2,
+          items: [
+            { name: "제네시스 액티브 세이프티 Ⅱ", price: 690_000, displayOrder: 1 },
+            { name: "서라운드뷰 모니터", price: 490_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "gv80",
+      configs: [
+        {
+          name: "플래그십 편의 패키지", note: "법인 고객 88% 선택", displayOrder: 1,
+          items: [
+            { name: "파노라마 선루프", price: 1_400_000, displayOrder: 1 },
+            { name: "후석 엔터테인먼트(RSE)", price: 1_100_000, displayOrder: 2 },
+            { name: "럭셔리 릴렉션 시트", price: 1_200_000, displayOrder: 3 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 96% 선택", displayOrder: 2,
+          items: [
+            { name: "제네시스 액티브 세이프티 Ⅱ", price: 690_000, displayOrder: 1 },
+            { name: "원격 스마트 주차 보조 Ⅱ", price: 590_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "porter2ev",
+      configs: [
+        {
+          name: "업무 편의 패키지", note: "사업자 고객 72% 선택", displayOrder: 1,
+          items: [
+            { name: "인포테인먼트 내비(7인치)", price: 490_000, displayOrder: 1 },
+            { name: "후방 카메라 고화질", price: 290_000, displayOrder: 2 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 85% 선택", displayOrder: 2,
+          items: [
+            { name: "전방 충돌방지 보조", price: 300_000, displayOrder: 1 },
+            { name: "차로 이탈방지 보조", price: 200_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "bongo3ev",
+      configs: [
+        {
+          name: "업무 편의 패키지", note: "사업자 고객 70% 선택", displayOrder: 1,
+          items: [
+            { name: "내비게이션(8인치)", price: 490_000, displayOrder: 1 },
+            { name: "후방 카메라", price: 290_000, displayOrder: 2 },
+          ],
+        },
+        {
+          name: "안전 패키지", note: "전 고객 83% 선택", displayOrder: 2,
+          items: [
+            { name: "전방 충돌방지 보조", price: 300_000, displayOrder: 1 },
+            { name: "차로 이탈방지 보조", price: 200_000, displayOrder: 2 },
+          ],
+        },
+      ],
+    },
+  ];
+
+  let configCount = 0;
+  for (const entry of popularConfigsData) {
+    const vehicle = await prisma.vehicle.findUnique({ where: { slug: entry.slug } });
+    if (!vehicle) continue;
+
+    // 이미 있으면 스킵
+    const existing = await prisma.popularConfig.count({ where: { vehicleId: vehicle.id } });
+    if (existing > 0) {
+      console.log(`   ↩ ${vehicle.name} 추천 구성 (이미 존재, 스킵)`);
+      continue;
+    }
+
+    for (const cfg of entry.configs) {
+      await prisma.popularConfig.create({
+        data: {
+          vehicleId: vehicle.id,
+          name: cfg.name,
+          note: cfg.note,
+          displayOrder: cfg.displayOrder,
+          items: {
+            create: cfg.items,
+          },
+        },
+      });
+      configCount++;
+    }
+  }
+  console.log(`   ✅ ${configCount}개 추천 구성 생성\n`);
+
+  // 8) TrimOptions 생성 + PopularConfigItem 연결
+  console.log("🔧 TrimOptions 생성 및 연결...");
+  let trimOptionCount = 0;
+  let linkCount = 0;
+
+  for (const entry of popularConfigsData) {
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { slug: entry.slug },
+      include: { trims: { where: { isDefault: true }, take: 1 } },
+    });
+    if (!vehicle || vehicle.trims.length === 0) continue;
+    const defaultTrim = vehicle.trims[0];
+
+    // 기존 TrimOptions 로드 (이름→ID 맵)
+    const existingOptions = await prisma.trimOption.findMany({
+      where: { trimId: defaultTrim.id },
+      select: { id: true, name: true, price: true },
+    });
+    const optionMap = new Map(existingOptions.map((o) => [`${o.name}::${o.price}`, o.id]));
+
+    const vehiclePopularConfigs = await prisma.popularConfig.findMany({
+      where: { vehicleId: vehicle.id },
+      include: { items: { orderBy: { displayOrder: "asc" } } },
+    });
+
+    for (const config of vehiclePopularConfigs) {
+      for (const item of config.items) {
+        // 이미 연결되어 있으면 스킵
+        if (item.trimOptionId) continue;
+
+        const key = `${item.name}::${item.price}`;
+        let trimOptionId = optionMap.get(key);
+
+        if (!trimOptionId) {
+          // TrimOption 신규 생성
+          const trimOption = await prisma.trimOption.create({
+            data: { trimId: defaultTrim.id, name: item.name, price: item.price },
+          });
+          trimOptionId = trimOption.id;
+          optionMap.set(key, trimOptionId);
+          trimOptionCount++;
+        }
+
+        // PopularConfigItem에 연결
+        await prisma.popularConfigItem.update({
+          where: { id: item.id },
+          data: { trimOptionId },
+        });
+        linkCount++;
+      }
+    }
+    if (linkCount > 0) console.log(`   ✅ ${vehicle.name} 연결 완료`);
+  }
+  console.log(`   ✅ TrimOption 신규 ${trimOptionCount}개 생성, ${linkCount}개 연결\n`);
 
   console.log("✨ 시드 데이터 삽입 완료!");
 }
