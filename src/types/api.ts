@@ -25,6 +25,17 @@ export interface VehicleListItem {
   highlights: string[];
 }
 
+export interface VehicleDetailedSpecs {
+  specs?: Record<string, Record<string, string>>;
+  technical_specs?: {
+    chassis?: Record<string, string>;
+    aerodynamics?: Record<string, string>;
+    interior_dimensions?: Record<string, string>;
+    capacities?: Record<string, string>;
+    electric_system?: Record<string, string>;
+  };
+}
+
 /** GET /api/vehicles/:slug 응답 data */
 export interface VehicleDetail {
   id: string;
@@ -53,6 +64,7 @@ export interface VehicleDetail {
   highlights: string[];
   aiCaption: string | null;
   hasRateConfig: boolean;
+  detailedSpecs: VehicleDetailedSpecs | null;
 }
 
 export interface VehicleDetailTrim {

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput } from "@/lib/quote-calculator";
 import type { RateMatrix } from "@/types/quote";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
-import type { VehicleDetail } from "@/types/api";
+import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import type { RecommendScenarios } from "@/types/recommendation";
 import { notFound } from "next/navigation";
@@ -163,6 +163,7 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     highlights: recConfig?.highlights ?? [],
     aiCaption: recConfig?.aiCaption ?? null,
     hasRateConfig: rateConfigs.length > 0,
+    detailedSpecs: (vehicle.detailedSpecs as VehicleDetailedSpecs | null) ?? null,
   };
 }
 
