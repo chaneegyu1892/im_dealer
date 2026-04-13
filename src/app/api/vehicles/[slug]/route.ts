@@ -87,7 +87,7 @@ export async function GET(
       bestFinanceName = bestConfig.financeCompanyName;
     }
 
-    const recConfig = vehicle.recConfigs[0] ?? null;
+    const recConfig = vehicle.recConfigs ?? null;
 
     return NextResponse.json({
       success: true,

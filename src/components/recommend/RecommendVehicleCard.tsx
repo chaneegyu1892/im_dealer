@@ -1,11 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { cn, formatCurrency, formatMonthly } from "@/lib/utils";
 import type { RecommendedVehicle } from "@/types/recommendation";
 import { AiInsight } from "@/components/quote/AiInsight";
-import { QuoteScenarioTabs } from "@/components/quote/QuoteScenarioTabs";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
-import { ChevronRight, Trophy } from "lucide-react";
+import { ChevronRight, Trophy, Check, Users } from "lucide-react";
 
 interface RecommendVehicleCardProps {
   vehicle: RecommendedVehicle;
@@ -20,6 +23,41 @@ const RANK_LABELS: Record<number, string> = {
 
 export function RecommendVehicleCard({ vehicle, isTop = false }: RecommendVehicleCardProps) {
   const { vehicle: detail, scenarios, reason, highlights, rank } = vehicle;
+  const router = useRouter();
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
+  const toggleItem = (id: string) => {
+    setSelectedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectedTotal = detail.popularConfigs
+    .flatMap((c) => c.items)
+    .filter((i) => selectedItems.has(i.id))
+    .reduce((sum, i) => sum + i.price, 0);
+
+  const hasConfigs = detail.popularConfigs.length > 0;
+
+  function handleQuote() {
+    const params = new URLSearchParams({ vehicle: detail.slug });
+    if (selectedItems.size > 0) {
+      const allItems = detail.popularConfigs.flatMap((c) => c.items);
+      const trimOptionIds = Array.from(selectedItems)
+        .map((pciId) => allItems.find((i) => i.id === pciId)?.trimOptionId)
+        .filter((id): id is string => !!id);
+      if (trimOptionIds.length > 0) {
+        params.set("options", trimOptionIds.join(","));
+      }
+    }
+    router.push(`/quote?${params.toString()}`);
+  }
 
   return (
     <div
@@ -86,16 +124,102 @@ export function RecommendVehicleCard({ vehicle, isTop = false }: RecommendVehicl
         {/* AI 해설 */}
         <AiInsight reason={reason} highlights={highlights} />
 
-        {/* 견적 시나리오 탭 */}
-        <div>
-          <p className="text-[11px] font-medium text-ink-label mb-3">
-            납입 방식별 견적 비교
+        {/* 추천 구성 */}
+        {hasConfigs && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Users size={13} className="text-secondary" />
+              <p className="text-[12px] font-medium text-ink-label">추천 구성</p>
+              <span className="text-[10px] font-medium text-secondary bg-secondary-100 rounded-pill px-2 py-0.5">
+                인기
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {detail.popularConfigs.map((config) => (
+                <div key={config.id}>
+                  {/* 구성 헤더 */}
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[12px] font-medium text-ink">{config.name}</p>
+                    {config.note && (
+                      <p className="text-[10px] text-ink-caption">{config.note}</p>
+                    )}
+                  </div>
+
+                  {/* 옵션 칩들 */}
+                  <div className="flex flex-wrap gap-2">
+                    {config.items.map((item) => {
+                      const isSelected = selectedItems.has(item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => toggleItem(item.id)}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-btn px-3 py-2 text-[12px] font-medium transition-all duration-150",
+                            isSelected
+                              ? "bg-primary-100 border border-primary text-primary"
+                              : "bg-white border border-neutral-800 text-ink-label hover:border-primary-400 hover:text-ink"
+                          )}
+                        >
+                          {isSelected && <Check size={11} className="flex-shrink-0" />}
+                          <span>{item.name}</span>
+                          <span
+                            className={cn(
+                              "text-[11px]",
+                              isSelected ? "text-primary" : "text-ink-caption"
+                            )}
+                          >
+                            +{Math.round(item.price / 10000)}만
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 선택 총액 */}
+            {selectedTotal > 0 && (
+              <div className="mt-3 flex items-center justify-between rounded-[6px] bg-primary-100 border border-primary-200 px-3 py-2">
+                <p className="text-[12px] text-primary font-medium">선택 구성 추가금</p>
+                <p className="text-[13px] font-semibold text-primary">
+                  +{formatCurrency(selectedTotal)}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 월 납입금 요약 */}
+        <div className="rounded-btn bg-neutral p-4">
+          <p className="text-[11px] text-ink-caption mb-1">월 납입금 예상</p>
+          <p className="text-[26px] font-light text-ink leading-none">
+            {formatMonthly(scenarios.standard.monthlyPayment)}
           </p>
-          <QuoteScenarioTabs scenarios={scenarios} />
+          <p className="text-[11px] text-ink-caption mt-1.5">
+            48개월 · 보증금·선납금 없음 (표준형 기준)
+          </p>
+          <p className="text-[10px] text-ink-caption mt-1">
+            * 실제 견적은 금융사·신용도에 따라 달라질 수 있어요
+          </p>
         </div>
 
-        {/* 채널톡 CTA */}
-        <ChannelTalkButton vehicleName={detail.name} />
+        {/* 하단 버튼 */}
+        <div className="space-y-2">
+          {/* 견적내기 */}
+          <button
+            type="button"
+            onClick={handleQuote}
+            className="btn-primary w-full text-center"
+          >
+            견적내기
+          </button>
+
+          {/* 상담하기 */}
+          <ChannelTalkButton vehicleName={detail.name} />
+        </div>
       </div>
     </div>
   );

@@ -67,9 +67,10 @@ model Vehicle {
   exploLogs     ExplorationLog[]
   notes         OperationalNote[]
   quoteVars     QuoteVariable[]
-  recConfigs    RecommendationConfig?
-  recLogs       RecommendationLog[]
-  trims         Trim[]
+  recConfigs     RecommendationConfig?
+  recLogs        RecommendationLog[]
+  trims          Trim[]
+  popularConfigs PopularConfig[]
 
   @@index([isVisible, isPopular])
   @@index([category])
@@ -105,9 +106,38 @@ model TrimOption {
   createdAt   DateTime @default(now())
   description String?
   isAccessory Boolean  @default(false)
-  trim        Trim     @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  trim                Trim                @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  popularConfigItems  PopularConfigItem[]
 
   @@index([trimId])
+}
+
+model PopularConfig {
+  id           String              @id @default(cuid())
+  vehicleId    String
+  name         String
+  note         String?
+  displayOrder Int                 @default(0)
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  vehicle      Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  items        PopularConfigItem[]
+
+  @@index([vehicleId])
+}
+
+model PopularConfigItem {
+  id           String        @id @default(cuid())
+  configId     String
+  name         String
+  price        Int
+  trimOptionId String?
+  displayOrder Int           @default(0)
+  config       PopularConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  trimOption   TrimOption?   @relation(fields: [trimOptionId], references: [id])
+
+  @@index([configId])
 }
 
 model QuoteVariable {

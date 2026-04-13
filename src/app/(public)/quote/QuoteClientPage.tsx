@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -20,10 +21,12 @@ import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
 
 // ─── 상수 ────────────────────────────────────────────────
+const CONTRACT_CATEGORIES = ["장기렌트", "리스"] as const;
 const CONTRACT_MONTHS = [36, 48, 60] as const;
 const ANNUAL_MILEAGES = [10000, 20000, 30000] as const;
 const CONTRACT_TYPES = ["반납형", "인수형"] as const;
 
+type ContractCategory = (typeof CONTRACT_CATEGORIES)[number];
 type ContractMonths = (typeof CONTRACT_MONTHS)[number];
 type AnnualMileage = (typeof ANNUAL_MILEAGES)[number];
 type ContractType = (typeof CONTRACT_TYPES)[number];
@@ -246,9 +249,17 @@ function VehiclePickCard({
 
 // ─── 메인 ────────────────────────────────────────────────
 export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const searchParams = useSearchParams();
+  const prefillSlug = searchParams.get("vehicle") ?? undefined;
+  // 추천 결과에서 넘어온 TrimOption IDs (pre-select용)
+  const prefillOptionIds = searchParams.get("options")?.split(",").filter(Boolean) ?? [];
+
+  // 추천에서 넘어온 경우 처음부터 step=2, 차량 pre-select (lazy init으로 SSR flash 방지)
+  const [step, setStep] = useState<1 | 2 | 3>(() => (prefillSlug ? 2 : 1));
   const [search, setSearch] = useState("");
-  const [selectedVehicle, setSelectedVehicle] = useState<VehicleListItem | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleListItem | null>(() =>
+    prefillSlug ? vehicles.find((v) => v.slug === prefillSlug) ?? null : null
+  );
 
   // 트림/옵션 상태
   const [trims, setTrims] = useState<TrimData[]>([]);
@@ -258,16 +269,27 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [selectedTrimName, setSelectedTrimName] = useState<string | null>(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(new Set());
 
+  const [contractCategory, setContractCategory] = useState<ContractCategory>("장기렌트");
   const [conditions, setConditions] = useState<Conditions>({
     contractMonths: 48,
     annualMileage: 20000,
     contractType: "반납형",
   });
+
+  // 장기렌트 선택 시 반납형 고정
+  useEffect(() => {
+    if (contractCategory === "장기렌트") {
+      setConditions((prev) => ({ ...prev, contractType: "반납형" }));
+    }
+  }, [contractCategory]);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 차량 선택 시 트림 데이터 로드
+  // 추천 프리필을 한 번만 적용하기 위한 플래그
+  const hasPrefilled = useRef(false);
+
+  // 차량 선택 시 트림 로드
   useEffect(() => {
     if (!selectedVehicle) return;
     setTrimsLoading(true);
@@ -276,16 +298,41 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     setSelectedTrimName(null);
     setSelectedOptionIds(new Set());
 
-    fetch(`/api/vehicles/${selectedVehicle.slug}/trims`)
+    const slug = selectedVehicle.slug;
+    const shouldPrefill = !!prefillSlug && !hasPrefilled.current;
+
+    fetch(`/api/vehicles/${slug}/trims`)
       .then((r) => r.json())
-      .then((json) => {
-        if (json.success && json.data.length > 0) {
-          setTrims(json.data);
+      .then((trimsJson) => {
+        if (!trimsJson.success || trimsJson.data.length === 0) return;
+        const loadedTrims: TrimData[] = trimsJson.data;
+        setTrims(loadedTrims);
+
+        if (shouldPrefill) {
+          hasPrefilled.current = true;
+          const defaultTrim = loadedTrims.find((t) => t.isDefault) ?? loadedTrims[0];
+          const specs = defaultTrim.specs as Record<string, string> | null;
+          const hasLineup = loadedTrims.some(
+            (t) => (t.specs as Record<string, string> | null)?.lineup
+          );
+          if (hasLineup && specs?.lineup) {
+            setSelectedLineup(specs.lineup);
+            setSelectedTrimName(specs.trimName ?? defaultTrim.name);
+          } else {
+            setSelectedLineup(defaultTrim.id);
+          }
+
+          // TrimOption pre-select: URL의 options 파라미터와 기본 트림의 옵션 ID 교집합
+          if (prefillOptionIds.length > 0) {
+            const validIds = new Set(defaultTrim.options.map((o: TrimOption) => o.id));
+            const toSelect = prefillOptionIds.filter((id) => validIds.has(id));
+            if (toSelect.length > 0) setSelectedOptionIds(new Set(toSelect));
+          }
         }
       })
       .catch(() => {})
       .finally(() => setTrimsLoading(false));
-  }, [selectedVehicle]);
+  }, [selectedVehicle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── 캐스케이딩 파생 값 ──────────────────────────────────
   // 트림에 lineup 스펙이 있는지 확인
@@ -369,6 +416,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
             contractMonths: conditions.contractMonths,
             annualMileage: conditions.annualMileage,
             contractType: conditions.contractType,
+            productType: contractCategory,
           }),
         }
       );
@@ -538,37 +586,56 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   ) : trims.length > 0 ? (
                     <div className="mb-5 space-y-3">
 
-                      {/* 1단계: 라인업 선택 */}
-                      <SelectRow
-                        label="라인업"
-                        value={selectedLineup ?? ""}
-                        placeholder="연식 / 엔진을 선택하세요"
-                        options={availableLineups.map((l) => ({ value: l, label: l }))}
-                        onChange={(v) => {
-                          setSelectedLineup(v || null);
-                          setSelectedTrimName(null);
-                          setSelectedOptionIds(new Set());
-                        }}
-                      />
+                      {hasCascade ? (
+                        <>
+                          {/* 1단계: 라인업 선택 */}
+                          <SelectRow
+                            label="라인업"
+                            value={selectedLineup ?? ""}
+                            placeholder="연식 / 엔진을 선택하세요"
+                            options={availableLineups.map((l) => ({ value: l, label: l }))}
+                            onChange={(v) => {
+                              setSelectedLineup(v || null);
+                              setSelectedTrimName(null);
+                              setSelectedOptionIds(new Set());
+                            }}
+                          />
 
-                      {/* 2단계: 트림명 선택 (라인업 선택 후 노출) */}
-                      {selectedLineup && (
+                          {/* 2단계: 트림명 선택 (라인업 선택 후 노출) */}
+                          {selectedLineup && (
+                            <SelectRow
+                              label="트림"
+                              value={selectedTrimName ?? ""}
+                              placeholder="트림을 선택하세요"
+                              options={availableTrimNames.map((t) => ({
+                                value: t.name,
+                                label: `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
+                              }))}
+                              onChange={(v) => {
+                                setSelectedTrimName(v || null);
+                                setSelectedOptionIds(new Set());
+                              }}
+                            />
+                          )}
+                        </>
+                      ) : (
+                        /* 라인업 없는 차량: 트림 직접 선택 */
                         <SelectRow
                           label="트림"
-                          value={selectedTrimName ?? ""}
+                          value={selectedLineup ?? ""}
                           placeholder="트림을 선택하세요"
-                          options={availableTrimNames.map((t) => ({
-                            value: t.name,
+                          options={trims.map((t) => ({
+                            value: t.id,
                             label: `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
                           }))}
                           onChange={(v) => {
-                            setSelectedTrimName(v || null);
+                            setSelectedLineup(v || null);
                             setSelectedOptionIds(new Set());
                           }}
                         />
                       )}
 
-                      {/* 3단계: 옵션 선택 (트림 선택 후 노출, 옵션이 있을 때만) */}
+                      {/* 추가 옵션 (TrimOption 체크리스트, 추천결과 선택 항목 pre-select) */}
                       {selectedTrim && selectedTrim.options.length > 0 && (
                         <div>
                           <p className="text-[12px] font-medium text-ink-caption mb-1.5 uppercase tracking-wide">
@@ -646,69 +713,102 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     계약 조건을 설정하세요
                   </h2>
 
-                  {/* 계약기간 */}
+                  {/* ① 상품 유형 */}
                   <div className="mb-6">
-                    <p className="text-[13px] font-medium text-ink-label mb-3">
-                      계약기간
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {CONTRACT_MONTHS.map((m) => (
-                        <OptionButton
-                          key={m}
-                          selected={conditions.contractMonths === m}
-                          onClick={() =>
-                            setConditions((prev) => ({ ...prev, contractMonths: m }))
-                          }
-                        >
-                          {m}개월
-                        </OptionButton>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 약정거리 */}
-                  <div className="mb-6">
-                    <p className="text-[13px] font-medium text-ink-label mb-3">
-                      연간 약정거리
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {ANNUAL_MILEAGES.map((m) => (
-                        <OptionButton
-                          key={m}
-                          selected={conditions.annualMileage === m}
-                          onClick={() =>
-                            setConditions((prev) => ({ ...prev, annualMileage: m }))
-                          }
-                        >
-                          연 {(m / 10000).toFixed(0)}만km
-                        </OptionButton>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 계약 종류 */}
-                  <div>
                     <p className="text-[13px] font-medium text-ink-label mb-1.5">
-                      계약 종류
+                      상품 유형
                     </p>
                     <p className="text-[12px] text-ink-caption mb-3">
-                      반납형: 계약 종료 후 반납, 전액 비용처리 가능 ·
-                      인수형: 잔존가치로 차량 매입
+                      장기렌트: 보험·세금 포함, 전액 비용처리 · 리스: 차량 소유권 이전 가능
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {CONTRACT_TYPES.map((t) => (
+                      {CONTRACT_CATEGORIES.map((c) => (
                         <OptionButton
-                          key={t}
-                          selected={conditions.contractType === t}
-                          onClick={() =>
-                            setConditions((prev) => ({ ...prev, contractType: t }))
-                          }
+                          key={c}
+                          selected={contractCategory === c}
+                          onClick={() => setContractCategory(c)}
                         >
-                          {t}
+                          {c}
                         </OptionButton>
                       ))}
                     </div>
                   </div>
+
+                  {contractCategory === "리스" && (
+                    <div className="bg-neutral border border-neutral-800 rounded-[8px] p-4 text-[13px] text-ink-caption mb-6 flex items-start gap-2">
+                      <Sparkles size={13} className="text-primary shrink-0 mt-0.5" />
+                      <p>리스 견적은 임시 데이터 기준입니다. 실제 금융사 조건과 다를 수 있습니다.</p>
+                    </div>
+                  )}
+
+                  {(contractCategory === "장기렌트" || contractCategory === "리스") && (
+                    <>
+                      {/* ② 계약기간 */}
+                      <div className="mb-6">
+                        <p className="text-[13px] font-medium text-ink-label mb-3">
+                          계약기간
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {CONTRACT_MONTHS.map((m) => (
+                            <OptionButton
+                              key={m}
+                              selected={conditions.contractMonths === m}
+                              onClick={() =>
+                                setConditions((prev) => ({ ...prev, contractMonths: m }))
+                              }
+                            >
+                              {m}개월
+                            </OptionButton>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* ③ 연간 약정거리 */}
+                      <div className="mb-6">
+                        <p className="text-[13px] font-medium text-ink-label mb-3">
+                          연간 약정거리
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {ANNUAL_MILEAGES.map((m) => (
+                            <OptionButton
+                              key={m}
+                              selected={conditions.annualMileage === m}
+                              onClick={() =>
+                                setConditions((prev) => ({ ...prev, annualMileage: m }))
+                              }
+                            >
+                              연 {(m / 10000).toFixed(0)}만km
+                            </OptionButton>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* ④ 계약 종류 */}
+                      <div>
+                        <p className="text-[13px] font-medium text-ink-label mb-1.5">
+                          계약 종류
+                        </p>
+                        <p className="text-[12px] text-ink-caption mb-3">
+                          {contractCategory === "리스"
+                            ? "반납형: 계약 종료 후 반납 · 인수형: 잔존가치로 차량 매입"
+                            : "장기렌트는 반납형이 기본입니다 · 인수형: 잔존가치로 차량 매입 (월 납입금 +12% 적용)"}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {CONTRACT_TYPES.map((t) => (
+                            <OptionButton
+                              key={t}
+                              selected={conditions.contractType === t}
+                              onClick={() =>
+                                setConditions((prev) => ({ ...prev, contractType: t }))
+                              }
+                            >
+                              {t}
+                            </OptionButton>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* 안내 메시지 */}

@@ -40,6 +40,11 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     include: {
       trims: { where: { isVisible: true }, orderBy: { isDefault: "desc" } },
       recConfigs: { where: { isActive: true } },
+      popularConfigs: {
+        where: { isActive: true },
+        orderBy: { displayOrder: "asc" },
+        include: { items: { orderBy: { displayOrder: "asc" } } },
+      },
     },
   });
 
@@ -107,7 +112,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
 
     // ── 스코어링 ─────────────────────────────────
     let score = 50;
-    const recConfig = v.recConfigs[0] ?? null;
+    const recConfig = v.recConfigs ?? null;
 
     // (a) 예산 적합도
     if (bestMonthly >= input.budgetMin && bestMonthly <= input.budgetMax) {
@@ -224,6 +229,12 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
         defaultTrimName: defaultTrim.name,
         defaultTrimPrice: defaultTrim.price,
         slug: v.slug,
+        popularConfigs: v.popularConfigs.map((c) => ({
+          id: c.id,
+          name: c.name,
+          note: c.note,
+          items: c.items.map((i) => ({ id: i.id, name: i.name, price: i.price, trimOptionId: i.trimOptionId })),
+        })),
       },
       scenarios,
     });

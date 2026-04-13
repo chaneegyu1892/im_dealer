@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
@@ -43,11 +44,15 @@ async function getVehicles(): Promise<VehicleListItem[]> {
         }
       : null,
     monthlyFrom: 0,
-    highlights: v.recConfigs[0]?.highlights ?? [],
+    highlights: v.recConfigs?.highlights ?? [],
   }));
 }
 
 export default async function QuotePage() {
   const vehicles = await getVehicles();
-  return <QuoteClientPage vehicles={vehicles} />;
+  return (
+    <Suspense>
+      <QuoteClientPage vehicles={vehicles} />
+    </Suspense>
+  );
 }

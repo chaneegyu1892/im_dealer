@@ -1,33 +1,42 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
-  ArrowRight,
   Sparkles,
   Check,
-  Info,
   ChevronRight,
   Images,
+  Fuel,
+  Gauge,
+  Tag,
+  Calculator,
+  Building2,
+  Leaf,
+  TrendingDown,
+  MapPin,
+  Users,
+  Receipt,
+  ShieldCheck,
+  Wrench,
+  BadgePercent,
+  RefreshCw,
+  UserX,
+  BatteryCharging,
+  Zap,
+  Settings2,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
 import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
-import type { VehicleDetail, VehicleDetailTrim, QuoteResponse } from "@/types/api";
+import type { VehicleDetail } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
-import type { QuoteScenarioDetails } from "@/types/quote";
 import type { RecommendScenarios } from "@/types/recommendation";
 
 // ── 상수 ───────────────────────────────────────────────────
-const CONTRACT_MONTHS = [36, 48, 60] as const;
-const ANNUAL_MILEAGES = [10_000, 20_000, 30_000] as const;
-type ContractMonths = (typeof CONTRACT_MONTHS)[number];
-type AnnualMileage = (typeof ANNUAL_MILEAGES)[number];
-type ContractType = "반납형" | "인수형";
-
 const TRUST_ITEMS = [
   "허위·낚시 견적 없음",
   "개인정보 없이 견적 확인",
@@ -42,51 +51,6 @@ const ENGINE_LABEL: Record<EngineType, string> = {
   디젤: "디젤",
 };
 
-// ── 캐스케이딩 셀렉트 ─────────────────────────────────────
-function CascadeSelect({
-  label,
-  value,
-  placeholder,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  options: { value: string; label: string }[];
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div>
-      <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-1.5">
-        {label}
-      </p>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none bg-white border border-[#E5E5E5] rounded-[10px]
-                     px-4 py-2.5 text-[13px] text-ink pr-9
-                     focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10
-                     transition-colors duration-150 cursor-pointer"
-        >
-          <option value="">{placeholder}</option>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <svg
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-caption pointer-events-none"
-          width="14" height="14" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </div>
-    </div>
-  );
-}
-
 // ── 유틸 ───────────────────────────────────────────────────
 function formatWon(n: number) {
   if (n >= 10_000_000) return `${(n / 10_000_000).toFixed(1)}천만원`;
@@ -97,179 +61,59 @@ function formatMonthlyShort(n: number) {
   return `${Math.round(n / 10_000)}만원`;
 }
 
+// ── 스펙 카드 ──────────────────────────────────────────────
+function SpecCard({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-[10px] p-3.5",
+        highlight
+          ? "bg-primary-100 border border-primary-200"
+          : "bg-neutral border border-[#EBEBEB]",
+      )}
+    >
+      <p className="text-[10px] font-medium text-ink-caption uppercase tracking-wider mb-1">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "text-[14px] font-semibold",
+          highlight ? "text-primary" : "text-ink",
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════
 // CarDetailClient
 // ══════════════════════════════════════════════════════════
 export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
-  // ── 캐스케이딩 트림 선택 상태 ─────────────────────────────
-  const hasCascade = vehicle.trims.some((t) => (t.specs as Record<string, string> | null)?.lineup);
-  const availableLineups = hasCascade
-    ? (() => {
-        const all = [...new Set(vehicle.trims.map((t) => (t.specs as Record<string, string>)?.lineup ?? "").filter(Boolean))];
-        const getYear = (s: string) => parseInt(s.match(/\d{4}/)?.[0] ?? "0");
-        const getGroup = (s: string) => s.replace(/^\d{4}년형\s*/, "");
-        // 그룹 등장 순서 유지
-        const groupOrder: string[] = [];
-        for (const l of all) {
-          const g = getGroup(l);
-          if (!groupOrder.includes(g)) groupOrder.push(g);
-        }
-        return all.sort((a, b) => {
-          const ga = getGroup(a), gb = getGroup(b);
-          const gi = groupOrder.indexOf(ga) - groupOrder.indexOf(gb);
-          if (gi !== 0) return gi;
-          return getYear(b) - getYear(a); // 같은 그룹이면 최신연도 우선
-        });
-      })()
-    : [];
-  const [selectedLineup, setSelectedLineup] = useState<string | null>(
-    availableLineups[0] ?? null
-  );
-  const [selectedTrimName, setSelectedTrimName] = useState<string | null>(null);
-
-  const trimsForLineup = selectedLineup
-    ? vehicle.trims.filter((t) => (t.specs as Record<string, string>)?.lineup === selectedLineup)
-    : vehicle.trims;
-  const availableTrimNames = [
-    ...new Map(
-      trimsForLineup.map((t) => {
-        const name = (t.specs as Record<string, string>)?.trimName ?? t.name;
-        return [name, { name, price: t.price, id: t.id }];
-      })
-    ).values(),
-  ];
-
-  // 최종 선택된 트림 (캐스케이딩 또는 flat)
-  const selectedTrim: VehicleDetailTrim | undefined = hasCascade
-    ? (selectedTrimName
-        ? trimsForLineup.find((t) => (t.specs as Record<string, string>)?.trimName === selectedTrimName)
-        : undefined)
-    : vehicle.trims.find((t) => t.id === selectedLineup) ?? vehicle.trims[0];
-  const selectedTrimId = selectedTrim?.id ?? vehicle.defaultTrim?.id ?? vehicle.trims[0]?.id ?? "";
-
-  // 견적 플로우 가시성
-  const [quoteVisible, setQuoteVisible] = useState(false);
-  const quoteAnchorRef = useRef<HTMLDivElement>(null);
-
-  // 견적 조건
-  const [contractMonths, setContractMonths] = useState<ContractMonths>(48);
-  const [annualMileage, setAnnualMileage] = useState<AnnualMileage>(20_000);
-  const [contractType, setContractType] = useState<ContractType>("반납형");
-
-  // 견적 데이터
-  const [detailedScenarios, setDetailedScenarios] =
-    useState<QuoteScenarioDetails | null>(null);
   // 사이드바용 초기 시나리오 (서버에서 받은 간단 버전)
-  const [simpleScenarios, setSimpleScenarios] =
-    useState<RecommendScenarios | null>(vehicle.scenarios);
-  const [isLoading, setIsLoading] = useState(false);
+  const [simpleScenarios] = useState<RecommendScenarios | null>(vehicle.scenarios);
 
   // 이미지 갤러리 선택
   const [activeImageIdx, setActiveImageIdx] = useState(0);
-  const engineType = (selectedTrim?.engineType ?? "가솔린") as EngineType;
+
+  const engineType = (vehicle.defaultTrim?.engineType ?? "가솔린") as EngineType;
 
   // ── 현재 월납입 (사이드바 표시용) ────────────────────────
-  const currentMonthly =
-    detailedScenarios?.standard?.monthlyPayment ??
-    simpleScenarios?.standard?.monthlyPayment;
-
-  // ── 견적 API 호출 ─────────────────────────────────────────
-  const fetchQuote = useCallback(
-    async (
-      months: number,
-      mileage: number,
-      type: string,
-      trimId: string,
-    ) => {
-      setIsLoading(true);
-      try {
-        const res = await fetch(`/api/vehicles/${vehicle.slug}/quote`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            trimId,
-            contractMonths: months,
-            annualMileage: mileage,
-            contractType: type,
-          }),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          const data = json.data as QuoteResponse;
-          setDetailedScenarios(data.scenarios);
-          // 사이드바용 간단 버전 동기화
-          setSimpleScenarios({
-            conservative: {
-              monthlyPayment: data.scenarios.conservative.monthlyPayment,
-              depositAmount: data.scenarios.conservative.depositAmount,
-              prepayAmount: data.scenarios.conservative.prepayAmount,
-              contractMonths: data.scenarios.conservative.contractMonths,
-              annualMileage: data.scenarios.conservative.annualMileage,
-              contractType: data.scenarios.conservative.contractType,
-            },
-            standard: {
-              monthlyPayment: data.scenarios.standard.monthlyPayment,
-              depositAmount: data.scenarios.standard.depositAmount,
-              prepayAmount: data.scenarios.standard.prepayAmount,
-              contractMonths: data.scenarios.standard.contractMonths,
-              annualMileage: data.scenarios.standard.annualMileage,
-              contractType: data.scenarios.standard.contractType,
-            },
-            aggressive: {
-              monthlyPayment: data.scenarios.aggressive.monthlyPayment,
-              depositAmount: data.scenarios.aggressive.depositAmount,
-              prepayAmount: data.scenarios.aggressive.prepayAmount,
-              contractMonths: data.scenarios.aggressive.contractMonths,
-              annualMileage: data.scenarios.aggressive.annualMileage,
-              contractType: data.scenarios.aggressive.contractType,
-            },
-          });
-        }
-      } catch {
-        // 기존 상태 유지
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [vehicle.slug],
-  );
-
-  // ── 트림 선택 핸들러 (캐스케이딩 최종 선택 시 호출) ─────
-  const handleTrimSelect = (trim: VehicleDetailTrim) => {
-    if (!quoteVisible) setQuoteVisible(true);
-    fetchQuote(contractMonths, annualMileage, contractType, trim.id);
-    setTimeout(() => {
-      quoteAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 200);
-  };
-
-  // 트림명 선택 시 자동으로 견적 호출
-  const handleTrimNameSelect = (trimName: string) => {
-    setSelectedTrimName(trimName);
-    const trim = trimsForLineup.find(
-      (t) => (t.specs as Record<string, string>)?.trimName === trimName
-    );
-    if (trim) handleTrimSelect(trim);
-  };
-
-  // ── 조건 변경 핸들러 ─────────────────────────────────────
-  const handleMonthsChange = (m: ContractMonths) => {
-    setContractMonths(m);
-    if (quoteVisible) fetchQuote(m, annualMileage, contractType, selectedTrimId);
-  };
-  const handleMileageChange = (km: AnnualMileage) => {
-    setAnnualMileage(km);
-    if (quoteVisible) fetchQuote(contractMonths, km, contractType, selectedTrimId);
-  };
-  const handleTypeChange = (type: ContractType) => {
-    setContractType(type);
-    if (quoteVisible) fetchQuote(contractMonths, annualMileage, type, selectedTrimId);
-  };
+  const currentMonthly = simpleScenarios?.standard?.monthlyPayment;
 
   const aiReason =
     vehicle.aiCaption ?? `${vehicle.name}은(는) 이 조건에 적합한 차량입니다.`;
 
-  // 갤러리 이미지 목록 (thumbnailUrl + imageUrls 중복 제거)
+  // 갤러리 이미지 목록
   const allImages = vehicle.imageUrls.length > 0
     ? vehicle.imageUrls
     : vehicle.thumbnailUrl
@@ -277,18 +121,78 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
     : [];
   const heroImage = vehicle.thumbnailUrl || allImages[0] || "";
 
-  // ── 트림 옵션 카테고리 그룹 ──────────────────────────────
-  function groupOptions(options: VehicleDetailTrim["options"]) {
-    return options.reduce<Record<string, VehicleDetailTrim["options"]>>(
-      (acc, opt) => {
-        const cat = opt.category ?? "기타";
-        if (!acc[cat]) acc[cat] = [];
-        acc[cat].push(opt);
-        return acc;
-      },
-      {},
-    );
+  // ── 추천 대상 태그 (highlights 기반 + 차종/연료 보정) ───
+  const KEYWORD_ICON_MAP: { keywords: string[]; icon: React.ReactNode; label: string }[] = [
+    { keywords: ["법인", "비용처리", "경비"],       icon: <Building2 size={13} />,    label: "법인·사업자" },
+    { keywords: ["친환경", "전기", "EV", "ev"],     icon: <Leaf size={13} />,          label: "친환경 선호" },
+    { keywords: ["연비", "유지비", "절감"],          icon: <TrendingDown size={13} />,  label: "유지비 절감" },
+    { keywords: ["출퇴근", "통근", "업무"],          icon: <MapPin size={13} />,        label: "출퇴근·업무용" },
+    { keywords: ["가족", "넓", "공간"],              icon: <Users size={13} />,          label: "가족 동반" },
+    { keywords: ["절세", "세제", "혜택"],            icon: <Receipt size={13} />,       label: "절세 혜택" },
+  ];
+
+  const derivedTags: { icon: React.ReactNode; label: string }[] = [];
+  const joined = vehicle.highlights.join(" ");
+  for (const { keywords, icon, label } of KEYWORD_ICON_MAP) {
+    if (keywords.some((kw) => joined.includes(kw))) {
+      derivedTags.push({ icon, label });
+    }
   }
+  // 매칭 태그가 부족하면 차종·연료로 보충
+  if (derivedTags.length < 3) {
+    if (engineType === "EV" && !derivedTags.find((t) => t.label === "친환경 선호")) {
+      derivedTags.push({ icon: <Leaf size={13} />, label: "친환경 선호" });
+    }
+    if ((vehicle.category === "세단" || vehicle.category === "SUV") && !derivedTags.find((t) => t.label === "출퇴근·업무용")) {
+      derivedTags.push({ icon: <MapPin size={13} />, label: "출퇴근·업무용" });
+    }
+    if (!derivedTags.find((t) => t.label === "법인·사업자")) {
+      derivedTags.push({ icon: <Building2 size={13} />, label: "법인·사업자" });
+    }
+  }
+
+  // ── Key Figures 동적 구성 ────────────────────────────────
+  const defaultSpecs = (vehicle.defaultTrim?.specs ?? {}) as Record<string, string>;
+  const isEV = engineType === "EV";
+
+  // 연비: defaultTrim → 다른 트림 fallback
+  const anyFuelEff =
+    vehicle.defaultTrim?.fuelEfficiency ??
+    vehicle.trims.find((t) => t.fuelEfficiency != null)?.fuelEfficiency ??
+    null;
+
+  type KeyFigure = { label: string; value: string; icon: React.ReactNode; highlight?: boolean };
+
+  const keyFigures: KeyFigure[] = [
+    // 1) 연료 타입 (항상)
+    {
+      label: "연료",
+      value: ENGINE_LABEL[engineType],
+      icon: <Fuel size={16} />,
+    },
+    // 2) 연비 or EV 1회충전 주행거리
+    isEV && defaultSpecs.range
+      ? { label: "1회 충전", value: defaultSpecs.range, icon: <BatteryCharging size={16} /> }
+      : {
+          label: "연비 (기본형)",
+          value: anyFuelEff ? `${anyFuelEff}km/L` : "-",
+          icon: <Gauge size={16} />,
+        },
+    // 3) 엔진 or EV 충전방식
+    isEV && defaultSpecs.charge
+      ? { label: "충전방식", value: defaultSpecs.charge, icon: <Zap size={16} /> }
+      : defaultSpecs.engine
+      ? { label: "엔진", value: defaultSpecs.engine, icon: <Settings2 size={16} /> }
+      : { label: "기본가", value: `${formatWon(vehicle.basePrice)}~`, icon: <Tag size={16} />, highlight: true },
+    // 4) 최고출력 > 적재량 > 승차인원 > 기본가
+    defaultSpecs.power
+      ? { label: "최고출력", value: defaultSpecs.power, icon: <Zap size={16} />, highlight: true }
+      : defaultSpecs.payload
+      ? { label: "최대적재량", value: defaultSpecs.payload, icon: <Package size={16} /> }
+      : defaultSpecs.seat
+      ? { label: "승차인원", value: defaultSpecs.seat, icon: <Users size={16} /> }
+      : { label: "기본가", value: `${formatWon(vehicle.basePrice)}~`, icon: <Tag size={16} />, highlight: true },
+  ];
 
   // ═════════════════════════════════════════════════════════
   return (
@@ -440,7 +344,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
         <div className="grid grid-cols-3 gap-8">
 
           {/* ────────────────────────────────────────────
-              LEFT: 스펙 + 갤러리 + 트림 + 견적 플로우
+              LEFT: 이미지 갤러리 + 차량 스펙 정보
           ──────────────────────────────────────────── */}
           <div className="col-span-2 space-y-6">
 
@@ -503,432 +407,173 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               </motion.section>
             )}
 
-            {/* ── 트림 선택 (캐스케이딩 드롭다운) ─── */}
+            {/* ── Key Figures ───────────────────────── */}
             <motion.section
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.3 }}
               className="bg-white rounded-card border border-[#F0F0F0] p-6 shadow-card"
             >
-              <div className="mb-5">
-                <h2 className="text-[15px] font-semibold text-ink mb-1">트림 선택</h2>
-                <p className="text-[12px] text-ink-caption">
-                  트림을 선택하면 해당 조건으로 견적을 바로 확인할 수 있어요
-                </p>
+              <div className="flex items-center gap-2 mb-5">
+                <Gauge size={14} className="text-primary" />
+                <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider">핵심 제원</p>
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                {keyFigures.map(({ label, value, icon, highlight }) => (
+                  <div
+                    key={label}
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-4 rounded-[12px] border",
+                      highlight
+                        ? "bg-primary/5 border-primary/20"
+                        : "bg-neutral border-[#EBEBEB]"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-9 h-9 rounded-full flex items-center justify-center",
+                      highlight ? "bg-primary/15" : "bg-primary/10"
+                    )}>
+                      <span className="text-primary">{icon}</span>
+                    </div>
+                    <p className={cn(
+                      "text-[10px] text-center",
+                      highlight ? "text-primary/70" : "text-ink-caption"
+                    )}>
+                      {label}
+                    </p>
+                    <p className={cn(
+                      "text-[13px] font-semibold text-center leading-tight",
+                      highlight ? "text-primary" : "text-ink"
+                    )}>
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </motion.section>
+
+            {/* ── 이런 분께 추천드려요 ─────────────── */}
+            <motion.section
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.35 }}
+              className="bg-white rounded-card border border-[#F0F0F0] overflow-hidden shadow-card"
+            >
+              {/* 헤더 바 */}
+              <div className="flex items-center gap-2.5 px-6 py-4 border-b border-[#F4F4F4] bg-neutral">
+                <Users size={14} className="text-primary" />
+                <p className="text-[12px] font-semibold text-ink">이런 분께 추천드려요</p>
               </div>
 
-              <div className="space-y-3">
-                {/* 1단계: 라인업 (연식/엔진) */}
-                <CascadeSelect
-                  label="라인업"
-                  value={selectedLineup ?? ""}
-                  placeholder="연식 / 엔진을 선택하세요"
-                  options={availableLineups.map((l) => ({ value: l, label: l }))}
-                  onChange={(v) => {
-                    setSelectedLineup(v || null);
-                    setSelectedTrimName(null);
-                  }}
-                />
+              <div className="px-6 py-5">
+                {/* 추천 태그 */}
+                <div className="flex flex-wrap gap-2 mb-5">
+                  {derivedTags.map(({ icon, label }) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5
+                                 bg-primary/6 border border-primary/15 rounded-full
+                                 text-[12px] font-medium text-primary"
+                    >
+                      {icon}
+                      {label}
+                    </span>
+                  ))}
+                </div>
 
-                {/* 2단계: 트림명 (라인업 선택 후) */}
-                {selectedLineup && (
-                  <CascadeSelect
-                    label="트림"
-                    value={selectedTrimName ?? ""}
-                    placeholder="트림을 선택하세요"
-                    options={availableTrimNames.map((t) => ({
-                      value: t.name,
-                      label: `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
-                    }))}
-                    onChange={(v) => {
-                      if (v) handleTrimNameSelect(v);
-                      else setSelectedTrimName(null);
-                    }}
-                  />
-                )}
-
-                {/* 선택된 트림 상세 (옵션 + 견적 CTA) */}
-                {selectedTrim && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {/* 트림 가격 요약 */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-primary-100 rounded-[10px] border border-primary-200 mb-3">
-                      <div>
-                        <p className="text-[13px] font-semibold text-primary">
-                          {(selectedTrim.specs as Record<string, string>)?.trimName ?? selectedTrim.name}
-                        </p>
-                        <p className="text-[11px] text-ink-caption mt-0.5">
-                          {selectedTrim.engineType}
-                          {selectedTrim.fuelEfficiency ? ` · 연비 ${selectedTrim.fuelEfficiency}km/L` : ""}
-                        </p>
-                      </div>
-                      <span className="text-[16px] font-bold text-primary">
-                        {formatWon(selectedTrim.price)}
-                      </span>
-                    </div>
-
-                    {/* 옵션 목록 */}
-                    {selectedTrim.options.length > 0 && (() => {
-                      const optsByCategory = groupOptions(selectedTrim.options);
-                      return (
-                        <div className="border border-[#F0F0F0] rounded-[10px] px-4 pt-3 pb-4 mb-3">
-                          <p className="text-[10px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
-                            포함 옵션
-                          </p>
-                          <div className="space-y-4">
-                            {Object.entries(optsByCategory).map(([cat, opts]) => (
-                              <div key={cat}>
-                                <p className="text-[11px] font-semibold text-ink mb-2">{cat}</p>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                                  {opts.map((opt) => (
-                                    <div key={opt.id} className="flex items-start gap-1.5 text-[12px] text-ink-label">
-                                      <span className={cn(
-                                        "w-1.5 h-1.5 rounded-full shrink-0 mt-[4px]",
-                                        opt.isDefault ? "bg-primary" : "bg-neutral-300"
-                                      )} />
-                                      <span className="leading-tight">
-                                        {opt.name}
-                                        {opt.price > 0 && (
-                                          <span className="text-ink-caption ml-1">+{formatWon(opt.price)}</span>
-                                        )}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* 견적 CTA */}
-                    {!quoteVisible && (
-                      <button
-                        type="button"
-                        onClick={() => handleTrimSelect(selectedTrim)}
-                        className="w-full py-2.5 rounded-btn bg-primary text-white text-[13px] font-semibold
-                                   hover:bg-primary/90 transition-colors duration-150 flex items-center justify-center gap-2"
+                {/* highlights 포인트 */}
+                {vehicle.highlights.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {vehicle.highlights.map((h, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-2.5 p-3 rounded-[10px] bg-neutral border border-[#EBEBEB]"
                       >
-                        이 트림으로 견적 시작하기
-                        <ArrowRight size={13} strokeWidth={2.5} />
-                      </button>
-                    )}
-                  </motion.div>
+                        <span className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0 mt-0.5">
+                          <Check size={8} strokeWidth={3} className="text-white" />
+                        </span>
+                        <p className="text-[12px] text-ink-label leading-snug">{h}</p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </motion.section>
 
-            {/* ── 선택 트림 상세 스펙 ──────────────── */}
-            <AnimatePresence>
-              {selectedTrim && (
-                <motion.section
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                  className="bg-white rounded-card border border-[#F0F0F0] p-6 shadow-card"
-                >
-                  <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-[15px] font-semibold text-ink">선택 트림 스펙</h2>
-                    <AnimatePresence mode="wait">
-                      <motion.span
-                        key={selectedTrimId}
-                        initial={{ opacity: 0, x: 8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -8 }}
-                        transition={{ duration: 0.2 }}
-                        className="text-[12px] font-medium text-primary bg-primary-100 px-2.5 py-1 rounded-pill"
-                      >
-                        {(selectedTrim.specs as Record<string, string>)?.trimName ?? selectedTrim.name}
-                      </motion.span>
-                    </AnimatePresence>
+            {/* ── 장기렌트 핵심 혜택 ───────────────── */}
+            <motion.section
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.4 }}
+              className="rounded-card overflow-hidden shadow-card"
+              style={{
+                background: "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
+              }}
+            >
+              <div className="px-7 pt-6 pb-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShieldCheck size={14} className="text-white/55" />
+                  <p className="text-[11px] font-semibold text-white/55 uppercase tracking-wider">
+                    장기렌트 핵심 혜택
+                  </p>
+                </div>
+                <p className="text-[18px] font-light text-white mb-5">
+                  이 차를 렌트로 타면 달라지는 것들
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-px bg-white/10 border-t border-white/10">
+                {[
+                  {
+                    icon: <Receipt size={16} />,
+                    title: "전액 비용처리",
+                    desc: "렌트료 100% 경비 처리\n(법인·개인사업자)",
+                  },
+                  {
+                    icon: <Wrench size={16} />,
+                    title: "유지보수 포함",
+                    desc: "정기점검·소모품\n비용 걱정 없음",
+                  },
+                  {
+                    icon: <BadgePercent size={16} />,
+                    title: "보험료 절감",
+                    desc: "자동차 보험이\n렌트료에 포함",
+                  },
+                  {
+                    icon: <TrendingDown size={16} />,
+                    title: "초기비용 최소",
+                    desc: "보증금 0%부터\n시작 가능",
+                  },
+                  {
+                    icon: <RefreshCw size={16} />,
+                    title: "잔존가치 부담 없음",
+                    desc: "계약 종료 후 반납,\n시세 하락 위험 없음",
+                  },
+                  {
+                    icon: <UserX size={16} />,
+                    title: "개인정보 없이",
+                    desc: "이름·전화번호 요구\n없이 견적 확인",
+                  },
+                ].map(({ icon, title, desc }) => (
+                  <div
+                    key={title}
+                    className="flex flex-col gap-2 px-5 py-5 bg-white/5 hover:bg-white/10 transition-colors duration-150"
+                  >
+                    <span className="text-white/50">{icon}</span>
+                    <p className="text-[13px] font-semibold text-white leading-snug">{title}</p>
+                    <p className="text-[11px] text-white/50 leading-relaxed whitespace-pre-line">{desc}</p>
                   </div>
-
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={selectedTrimId}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.25 }}
-                    >
-                      {/* 고정 스펙: 연료·연비·출고가 */}
-                      <div className="grid grid-cols-3 gap-3 mb-4">
-                        <SpecCard label="연료 타입" value={selectedTrim.engineType ?? "-"} />
-                        <SpecCard
-                          label="연비"
-                          value={
-                            selectedTrim.fuelEfficiency
-                              ? `${selectedTrim.fuelEfficiency}km/L`
-                              : "-"
-                          }
-                        />
-                        <SpecCard
-                          label="출고가"
-                          value={formatWon(selectedTrim.price)}
-                          highlight
-                        />
-                      </div>
-
-                      {/* 동적 스펙: specs JSON (내부 필드 제외) */}
-                      {(() => {
-                        const displaySpecs = Object.entries(selectedTrim.specs ?? {}).filter(
-                          ([k]) => !["model", "lineup", "trimName"].includes(k)
-                        );
-                        return displaySpecs.length > 0 ? (
-                          <div className="grid grid-cols-2 gap-3">
-                            {displaySpecs.map(([label, value]) => (
-                              <SpecCard key={label} label={label} value={String(value)} />
-                            ))}
-                          </div>
-                        ) : null;
-                      })()}
-                    </motion.div>
-                  </AnimatePresence>
-                </motion.section>
-              )}
-            </AnimatePresence>
-
-            {/* ── 견적 플로우 스크롤 앵커 ─────────── */}
-            <div ref={quoteAnchorRef} className="-mt-2" />
-
-            {/* ── 견적 플로우 (트림 클릭 후 reveal) ─ */}
-            <AnimatePresence>
-              {quoteVisible && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="space-y-6"
-                >
-                  {/* STEP 1: 견적 조건 설정 */}
-                  <section className="bg-white rounded-card border border-[#F0F0F0] p-6 shadow-card">
-                    <div className="flex items-center gap-2.5 mb-5">
-                      <StepBadge n={1} />
-                      <h2 className="text-[15px] font-semibold text-ink">
-                        견적 조건 설정
-                      </h2>
-                    </div>
-                    <div className="space-y-5">
-                      {/* 계약기간 */}
-                      <div>
-                        <p className="text-[11px] font-medium text-ink-caption uppercase tracking-wider mb-2.5">
-                          계약기간
-                        </p>
-                        <div className="flex gap-2">
-                          {CONTRACT_MONTHS.map((m) => (
-                            <button
-                              key={m}
-                              onClick={() => handleMonthsChange(m)}
-                              className={cn(
-                                "flex-1 py-2 rounded-btn text-[13px] font-medium border transition-all duration-150",
-                                contractMonths === m
-                                  ? "bg-primary text-white border-primary"
-                                  : "bg-white text-ink-label border-neutral-800 hover:border-primary/40",
-                              )}
-                            >
-                              {m}개월
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* 연간 약정거리 */}
-                      <div>
-                        <p className="text-[11px] font-medium text-ink-caption uppercase tracking-wider mb-2.5">
-                          연간 약정거리
-                        </p>
-                        <div className="flex gap-2">
-                          {ANNUAL_MILEAGES.map((km) => (
-                            <button
-                              key={km}
-                              onClick={() => handleMileageChange(km)}
-                              className={cn(
-                                "flex-1 py-2 rounded-btn text-[13px] font-medium border transition-all duration-150",
-                                annualMileage === km
-                                  ? "bg-primary text-white border-primary"
-                                  : "bg-white text-ink-label border-neutral-800 hover:border-primary/40",
-                              )}
-                            >
-                              연 {km / 10_000}만km
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* 계약 유형 */}
-                      <div>
-                        <p className="text-[11px] font-medium text-ink-caption uppercase tracking-wider mb-2.5">
-                          계약 유형
-                        </p>
-                        <div className="flex gap-2">
-                          {(["반납형", "인수형"] as ContractType[]).map(
-                            (type) => (
-                              <button
-                                key={type}
-                                onClick={() => handleTypeChange(type)}
-                                className={cn(
-                                  "flex-1 py-2 rounded-btn text-[13px] font-medium border transition-all duration-150",
-                                  contractType === type
-                                    ? "bg-primary text-white border-primary"
-                                    : "bg-white text-ink-label border-neutral-800 hover:border-primary/40",
-                                )}
-                              >
-                                {type}
-                              </button>
-                            ),
-                          )}
-                        </div>
-                        <p className="text-[11px] text-ink-caption mt-2">
-                          {contractType === "반납형"
-                            ? "계약 종료 후 반납 · 전액 비용처리 가능"
-                            : "계약 종료 후 잔존가치로 차량 매입 · 감가상각 가능"}
-                        </p>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* STEP 2: 견적 시나리오 */}
-                  <section className="bg-white rounded-card border border-[#F0F0F0] p-6 shadow-card">
-                    <div className="flex items-center gap-2.5 mb-5">
-                      <StepBadge n={2} />
-                      <h2 className="text-[15px] font-semibold text-ink">
-                        견적 시나리오
-                      </h2>
-                      <span className="text-[11px] text-ink-caption ml-auto">
-                        {contractMonths}개월 · 연{annualMileage / 10_000}만km · {contractType}
-                      </span>
-                    </div>
-
-                    {isLoading ? (
-                      <div className="space-y-3">
-                        {[1, 2, 3].map((i) => (
-                          <div
-                            key={i}
-                            className="h-16 rounded-[10px] bg-neutral animate-pulse"
-                          />
-                        ))}
-                      </div>
-                    ) : detailedScenarios ? (
-                      <QuoteBreakdownTabs scenarios={detailedScenarios} />
-                    ) : (
-                      <p className="text-[13px] text-ink-label py-8 text-center">
-                        견적 데이터를 준비 중입니다
-                      </p>
-                    )}
-                  </section>
-
-                  {/* STEP 3: 가격 구성 원리 */}
-                  <section className="bg-white rounded-card border border-[#F0F0F0] p-6 shadow-card">
-                    <div className="flex items-center gap-2.5 mb-5">
-                      <StepBadge n={3} />
-                      <h2 className="text-[15px] font-semibold text-ink">
-                        이 견적이 나온 이유
-                      </h2>
-                      <span className="text-[11px] bg-primary-100 text-primary px-2 py-0.5 rounded-pill ml-auto">
-                        투명공개
-                      </span>
-                    </div>
-
-                    <div className="space-y-3">
-                      {[
-                        {
-                          step: "01",
-                          label: "차량 기준가",
-                          value: formatWon(
-                            selectedTrim?.price ?? vehicle.basePrice,
-                          ),
-                          desc: "선택한 트림 출고가 기준",
-                        },
-                        {
-                          step: "02",
-                          label: "회수율 적용",
-                          value: "금융사 조건 기준",
-                          desc: "차량가격·기간·거리별 선형보간 계산",
-                        },
-                        {
-                          step: "03",
-                          label: "계약조건 반영",
-                          value: `${contractMonths}개월 / 연${annualMileage / 10_000}만km`,
-                          desc: "기간·거리별 회수율 조정",
-                        },
-                        {
-                          step: "04",
-                          label: "가산율 적용",
-                          value: "순위 + 차량 + 금융사",
-                          desc: "투명하게 공개된 가산 항목별 금액 포함",
-                        },
-                        {
-                          step: "05",
-                          label: "표준형 월납입",
-                          value: detailedScenarios
-                            ? formatWon(
-                                detailedScenarios.standard.monthlyPayment,
-                              )
-                            : "---",
-                          desc: "보증금·선납금 0% 기준 최종 납입금",
-                          highlight: true,
-                        },
-                      ].map((row) => (
-                        <div
-                          key={row.step}
-                          className={cn(
-                            "flex items-center gap-4 p-3.5 rounded-[10px]",
-                            row.highlight
-                              ? "bg-primary-100 border border-primary-200"
-                              : "bg-neutral",
-                          )}
-                        >
-                          <span className="text-[11px] font-semibold text-ink-caption w-6 shrink-0">
-                            {row.step}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p
-                              className={cn(
-                                "text-[13px] font-medium",
-                                row.highlight ? "text-primary" : "text-ink",
-                              )}
-                            >
-                              {row.label}
-                            </p>
-                            <p className="text-[11px] text-ink-caption">
-                              {row.desc}
-                            </p>
-                          </div>
-                          <span
-                            className={cn(
-                              "text-[14px] font-semibold shrink-0",
-                              row.highlight ? "text-primary" : "text-ink",
-                            )}
-                          >
-                            {row.value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <p className="text-[11px] text-ink-caption mt-4 flex items-start gap-1.5">
-                      <Info size={11} className="shrink-0 mt-0.5" />
-                      실제 견적은 금융사·취급점 조건에 따라 달라질 수 있습니다.
-                      상담을 통해 최종 조건을 확정해드립니다.
-                    </p>
-                  </section>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                ))}
+              </div>
+            </motion.section>
           </div>
 
           {/* ────────────────────────────────────────────
-              RIGHT: 스티키 사이드바 (기존 유지)
+              RIGHT: 스티키 사이드바
           ──────────────────────────────────────────── */}
           <div className="col-span-1">
             <div className="sticky top-24 space-y-4">
-              {/* 월납입 + 상담 버튼 */}
+              {/* 월납입 + 견적내기 + 상담 버튼 */}
               <motion.div
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -946,15 +591,28 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                       transition={{ duration: 0.18 }}
                       className="text-[28px] font-semibold text-ink leading-tight"
                     >
-                      {currentMonthly ? formatWon(currentMonthly) : "---"}
+                      {currentMonthly ? formatMonthlyShort(currentMonthly) : "---"}
                     </motion.p>
                   </AnimatePresence>
                   <p className="text-[11px] text-ink-caption mt-0.5">
-                    {contractMonths}개월 · 연{annualMileage / 10_000}만km ·{" "}
-                    {contractType}
+                    48개월 · 연2만km · 반납형 기준
                   </p>
                 </div>
                 <div className="h-px bg-[#F0F0F0] my-4" />
+
+                {/* 견적내기 버튼 */}
+                <Link
+                  href={`/quote?vehicle=${vehicle.slug}`}
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-btn
+                             bg-primary text-white text-[14px] font-semibold
+                             hover:bg-primary/90 active:scale-[0.98]
+                             transition-all duration-150 mb-2.5"
+                >
+                  <Calculator size={15} strokeWidth={2} />
+                  견적내기
+                </Link>
+
+                {/* 상담하기 */}
                 <ChannelTalkButton vehicleName={vehicle.name} size="md" />
                 <p className="text-[11px] text-ink-caption text-center mt-3">
                   상담 전 이름·전화번호 요구 없음
@@ -1051,63 +709,17 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               </p>
             </div>
             <Link
-              href="/recommend"
-              className="shrink-0 inline-flex items-center gap-2 bg-white text-primary
-                         text-[13px] font-semibold px-6 py-3 rounded-btn
-                         hover:bg-primary-100 transition-colors duration-200"
+              href="/"
+              className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-btn
+                         bg-white text-primary text-[13px] font-semibold
+                         hover:bg-white/90 transition-colors duration-150"
             >
-              AI 추천 시작
-              <ArrowRight size={14} strokeWidth={2.5} />
+              AI 추천 받기
+              <ChevronRight size={13} strokeWidth={2.5} />
             </Link>
           </div>
         </motion.section>
       </div>
     </div>
-  );
-}
-
-// ── 서브 컴포넌트 ──────────────────────────────────────────
-
-function SpecCard({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-[10px] p-3.5",
-        highlight ? "bg-primary-100 border border-primary-200" : "bg-neutral",
-      )}
-    >
-      <p
-        className={cn(
-          "text-[10px] uppercase tracking-wider mb-1",
-          highlight ? "text-primary/60" : "text-ink-caption",
-        )}
-      >
-        {label}
-      </p>
-      <p
-        className={cn(
-          "text-[14px] font-semibold",
-          highlight ? "text-primary" : "text-ink",
-        )}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function StepBadge({ n }: { n: number }) {
-  return (
-    <span className="w-6 h-6 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center shrink-0">
-      {n}
-    </span>
   );
 }
