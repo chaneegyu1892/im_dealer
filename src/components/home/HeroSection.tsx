@@ -25,26 +25,14 @@ const fadeUp = {
 export function HeroSection() {
   return (
     <section className="page-container pt-12 pb-10">
-      <div
-        className="relative overflow-hidden rounded-[20px]"
-        style={{
-          background: "linear-gradient(135deg, #000666 0%, #0D0D80 40%, #1A1A6E 70%, #3333CC 100%)",
-        }}
-      >
-        {/* 배경 장식 */}
-        <div className="absolute inset-0 overflow-hidden" aria-hidden>
-          <span className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-white/[0.04]" />
-          <span className="absolute top-1/3 left-[45%] w-[300px] h-[300px] rounded-full bg-[#3333CC]/30 blur-[80px]" />
-          <span className="absolute -bottom-20 -left-10 w-[280px] h-[280px] rounded-full bg-white/[0.03]" />
-          {/* 미세한 그리드 텍스처 */}
-          <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
-              backgroundSize: "60px 60px",
-            }}
-          />
-        </div>
+      <div className="relative overflow-hidden rounded-[20px]">
+        {/* 배경 이미지 */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/images/hero-bg.png')" }}
+        />
+        {/* 이미지 위 어두운 오버레이 — 텍스트 가독성 확보 */}
+        <div className="absolute inset-0 bg-black/55" />
 
         {/* 2컬럼 레이아웃 */}
         <motion.div

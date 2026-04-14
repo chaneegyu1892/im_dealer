@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
 
 const NAV_LINKS = [
   { href: "/recommend", label: "AI 추천" },
@@ -21,7 +20,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
       <div className="page-container">
-        <div className="flex items-center justify-between h-[72px]">
+        <div className="relative flex items-center h-[72px]">
           {/* 로고 */}
           <Link href="/" className="flex items-center gap-2">
             <span className="font-display text-primary font-semibold text-[20px] tracking-tight">
@@ -32,8 +31,8 @@ export function Header() {
             </span>
           </Link>
 
-          {/* 데스크톱 네비게이션 */}
-          <nav className="flex items-center gap-1">
+          {/* 데스크톱 네비게이션 — 항상 중앙 고정 */}
+          <nav className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
             {NAV_LINKS.map(({ href, label }) => {
               const active = isActive(href);
               return (
@@ -55,11 +54,6 @@ export function Header() {
               );
             })}
           </nav>
-
-          {/* CTA */}
-          <Button variant="primary" size="sm" asChild>
-            <Link href="/recommend">AI 견적 시작</Link>
-          </Button>
         </div>
       </div>
     </header>
