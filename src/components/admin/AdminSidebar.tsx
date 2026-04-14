@@ -5,13 +5,17 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
+  FileText,
+  Users,
   Car,
+  Package,
+  Sparkles,
+  BarChart2,
   TrendingUp,
   Building2,
-  Sparkles,
-  FileText,
-  LogOut,
   Settings,
+  ClipboardList,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,31 +37,30 @@ const NAV: NavGroup[] = [
     group: null,
     items: [
       { href: "/admin", label: "대시보드", icon: LayoutDashboard, exact: true },
+      { href: "/admin/analytics", label: "데이터 분석", icon: BarChart2 },
     ],
   },
   {
-    group: "차량 관리",
+    group: "핵심 관리",
     items: [
-      { href: "/admin/vehicles", label: "차량 목록", icon: Car },
+      { href: "/admin/quotations", label: "견적 데이터", icon: FileText },
+      { href: "/admin/vehicles", label: "차량 관리", icon: Car },
+      { href: "/admin/inventory", label: "재고관리", icon: Package },
+      { href: "/admin/users", label: "사용자 관리", icon: Users },
     ],
   },
   {
-    group: "견적 관리",
+    group: "정책 및 AI",
     items: [
       { href: "/admin/rates", label: "회수율 설정", icon: TrendingUp },
       { href: "/admin/finance", label: "금융사 관리", icon: Building2 },
+      { href: "/admin/ai", label: "AI관리", icon: Sparkles },
     ],
   },
   {
-    group: "AI · 추천",
+    group: "시스템",
     items: [
-      { href: "/admin/recommend-logs", label: "추천 로그", icon: Sparkles, badge: "23" },
-    ],
-  },
-  {
-    group: "운영",
-    items: [
-      { href: "/admin/memo", label: "운영 메모", icon: FileText },
+      { href: "/admin/memo", label: "운영 메모", icon: ClipboardList },
       { href: "/admin/settings", label: "설정", icon: Settings },
     ],
   },
