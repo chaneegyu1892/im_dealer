@@ -5,7 +5,7 @@
  *   기준 대여료 = 차량가 × 회수율(선형보간)
  *   보증금 적용 = 차량가 × (기준회수율 + 보증금할인회수율 × 보증금10%단위수)
  *   선납금 적용 = (기준대여료 - 선납금/개월수) + 차량가 × 선납금조정회수율 × 선납금10%단위수
- *   최종 대여료 = 보증금or선납금 적용 대여료 + 순위가산 + 차량가산 + 금융사가산
+ *   최종 대여료 = 보증금or선납금 적용 대여료 × (1+순위가산율) × (1+차량가산율) × (1+금융사가산율)
  */
 
 import type {
@@ -108,9 +108,9 @@ function applyPrepay(
   // 선납금 로직: (기준대여료 - 선납금/개월수) + 차량가 × 선납금조정회수율 × 단위수
   const prepayDeduction = Math.round(prepayAmount / contractMonths);
   const adjustAmount = Math.round(vehiclePrice * prepayAdjustRate * steps);
-  const monthly = baseMonthly - prepayDeduction + adjustAmount;
+  const monthly = baseMonthly - prepayDeduction - adjustAmount;
 
-  return { monthly, prepayAmount, adjust: adjustAmount - prepayDeduction };
+  return { monthly, prepayAmount, adjust: -(prepayDeduction + adjustAmount) };
 }
 
 // ─── 다중 금융사 견적 계산 (메인 함수) ──────────────────
@@ -200,22 +200,20 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
   const results: FinanceQuoteResult[] = intermediates.map((item, idx) => {
     const rank = idx + 1;
 
-    // 순위 가산: base × rankRate%
+    // 순위 가산 → 차량 가산 → 금융사 가산 순서로 누적 곱셈
     const rankRate = rank <= rankSurchargeRates.length
       ? rankSurchargeRates[rank - 1]
       : rankSurchargeRates[rankSurchargeRates.length - 1];
-    const rankSurcharge = Math.round(item.monthlyBeforeSurcharge * (rankRate / 100));
 
-    // 차량 가산: base × vehicleSurchargeRate%
-    const vehicleSurcharge = Math.round(item.monthlyBeforeSurcharge * (vehicleSurchargeRate / 100));
+    const afterRank    = item.monthlyBeforeSurcharge * (1 + rankRate / 100);
+    const afterVehicle = afterRank * (1 + vehicleSurchargeRate / 100);
+    const monthlyPayment = Math.round(afterVehicle * (1 + item.config.financeSurchargeRate / 100));
 
-    // 금융사 가산: base × financeSurchargeRate%
-    const financeSurcharge = Math.round(
-      item.monthlyBeforeSurcharge * (item.config.financeSurchargeRate / 100)
-    );
-
-    const totalSurcharge = rankSurcharge + vehicleSurcharge + financeSurcharge;
-    const monthlyPayment = item.monthlyBeforeSurcharge + totalSurcharge;
+    // breakdown 표시용 중간값 (반올림)
+    const rankSurcharge    = Math.round(afterRank - item.monthlyBeforeSurcharge);
+    const vehicleSurcharge = Math.round(afterVehicle - afterRank);
+    const financeSurcharge = monthlyPayment - Math.round(afterVehicle);
+    const totalSurcharge   = rankSurcharge + vehicleSurcharge + financeSurcharge;
 
     const breakdown: QuoteBreakdown = {
       vehiclePrice,

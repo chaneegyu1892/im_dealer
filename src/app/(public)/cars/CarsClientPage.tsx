@@ -20,18 +20,11 @@ const SORT_OPTIONS = [
 ] as const;
 type SortOption = (typeof SORT_OPTIONS)[number]["value"];
 
-const BRAND_COLORS: Record<string, string> = {
-  현대: "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
-  기아: "linear-gradient(135deg, #111111 0%, #2A2A2A 100%)",
-  제네시스: "linear-gradient(135deg, #1C1407 0%, #3D2E0F 100%)",
-};
-
 // ── 피처드 카드 ───────────────────────────────────────────
 function FeaturedCard({ vehicle, size = "large" }: { vehicle: VehicleListItem; size?: "large" | "small" }) {
   const formattedMonthly = vehicle.monthlyFrom > 0
     ? Math.round(vehicle.monthlyFrom / 10000)
     : null;
-  const brandColor = BRAND_COLORS[vehicle.brand] ?? BRAND_COLORS["현대"];
   const specs = vehicle.defaultTrim?.specs ?? {};
 
   return (
@@ -39,13 +32,19 @@ function FeaturedCard({ vehicle, size = "large" }: { vehicle: VehicleListItem; s
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative overflow-hidden rounded-card cursor-pointer h-full"
-      style={{ background: brandColor }}
+      className="group relative overflow-hidden rounded-card cursor-pointer h-full bg-neutral-900"
     >
       <Link href={`/cars/${vehicle.slug}`} className="block h-full">
-        <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/5" />
-        <div className="absolute -left-8 -bottom-8 w-40 h-40 rounded-full bg-white/5" />
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-black/15 to-transparent" />
+        {/* 차량 이미지 배경 */}
+        {vehicle.thumbnailUrl && (
+          <div
+            className="absolute inset-0 bg-cover bg-center scale-105 group-hover:scale-110 transition-transform duration-700"
+            style={{ backgroundImage: `url(${vehicle.thumbnailUrl})` }}
+          />
+        )}
+        {/* 오버레이 */}
+        <div className="absolute inset-0 bg-black/55" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
         <div className={cn(
           "relative z-10 flex flex-col justify-between h-full",
@@ -87,34 +86,38 @@ function FeaturedCard({ vehicle, size = "large" }: { vehicle: VehicleListItem; s
               </div>
             )}
 
-            <div className="flex items-end justify-between">
-              <div>
-                <span className="text-[10px] text-white/35 block mb-1">
-                  월 납입금 (48개월·표준형)
-                </span>
-                <div className="flex items-baseline gap-1">
-                  {formattedMonthly ? (
-                    <>
-                      <span className="font-display text-[34px] font-semibold text-white leading-none">
-                        {formattedMonthly}
-                      </span>
-                      <span className="text-[14px] text-white/60 font-medium">만원~</span>
-                    </>
-                  ) : (
-                    <span className="text-[14px] text-white/60">견적 준비중</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 bg-white text-primary text-[13px] font-semibold
-                              px-5 py-2.5 rounded-btn transition-all duration-200
-                              group-hover:gap-3 group-hover:shadow-lg">
-                견적 보기
-                <ArrowRight size={14} strokeWidth={2.5} />
+            <div>
+              <span className="text-[10px] text-white/35 block mb-1">
+                월 납입금 (48개월·표준형)
+              </span>
+              <div className="flex items-baseline gap-1">
+                {formattedMonthly ? (
+                  <>
+                    <span className="font-display text-[34px] font-semibold text-white leading-none">
+                      {formattedMonthly}
+                    </span>
+                    <span className="text-[14px] text-white/60 font-medium">만원~</span>
+                  </>
+                ) : (
+                  <span className="text-[14px] text-white/60">견적 준비중</span>
+                )}
               </div>
             </div>
           </div>
         </div>
+      </Link>
+
+      {/* 견적 보기 버튼 — Link 바깥에 absolute 배치 */}
+      <Link
+        href={`/quote?vehicle=${vehicle.slug}`}
+        className={cn(
+          "absolute z-20 flex items-center gap-2 bg-white text-primary text-[13px] font-semibold",
+          "px-5 py-2.5 rounded-btn transition-all duration-200 group-hover:gap-3 group-hover:shadow-lg",
+          size === "large" ? "bottom-10 right-10" : "bottom-8 right-8"
+        )}
+      >
+        견적 보기
+        <ArrowRight size={14} strokeWidth={2.5} />
       </Link>
     </motion.div>
   );
@@ -152,27 +155,16 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     <div className="min-h-screen bg-neutral">
       {/* 페이지 헤더 */}
       <div className="page-container pt-12 pb-10">
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="section-label mb-2">
-              차량 탐색 · 총 {totalCount}개 차종
-            </p>
-            <h1 className="font-display text-headline-sm text-ink leading-tight">
-              진짜 견적으로 비교하세요
-            </h1>
-            <p className="text-[14px] text-ink-label mt-2">
-              허위 없이, 실제 운영 가능한 조건으로만 안내합니다
-            </p>
-          </div>
-
-          <Link
-            href="/recommend"
-            className="inline-flex items-center gap-2 bg-primary text-white text-[13px] font-medium
-                       px-5 py-2.5 rounded-btn hover:opacity-90 transition-opacity duration-200 shrink-0"
-          >
-            <Sparkles size={14} />
-            AI로 차량 추천받기
-          </Link>
+        <div>
+          <p className="section-label mb-2">
+            차량 탐색 · 총 {totalCount}개 차종
+          </p>
+          <h1 className="font-display text-headline-sm text-ink leading-tight">
+            진짜 견적으로 비교하세요
+          </h1>
+          <p className="text-[14px] text-ink-label mt-2">
+            허위 없이, 실제 운영 가능한 조건으로만 안내합니다
+          </p>
         </div>
       </div>
 

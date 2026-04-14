@@ -153,18 +153,17 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
                 )}
               </div>
             </div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 6 }}
-              whileHover={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-1 text-[12px] font-medium text-primary
-                         opacity-0 group-hover:opacity-100 transition-all duration-200"
-            >
-              견적 보기
-              <ArrowRight size={13} strokeWidth={2.5} />
-            </motion.div>
           </div>
         </div>
+      </Link>
+
+      <Link
+        href={`/quote?vehicle=${vehicle.slug}`}
+        className="absolute bottom-4 right-4 flex items-center gap-1 text-[12px] font-medium text-primary
+                   opacity-0 group-hover:opacity-100 transition-all duration-200 hover:gap-2"
+      >
+        견적 보기
+        <ArrowRight size={13} strokeWidth={2.5} />
       </Link>
     </motion.div>
   );

@@ -59,22 +59,13 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-neutral">
       {/* ── 히어로 ──────────────────────────────────────── */}
-      <section
-        className="relative overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(135deg, #000666 0%, #0D0D80 40%, #1A1A6E 70%, #3333CC 100%)",
-        }}
-      >
-        <div className="absolute -right-32 -top-32 w-[500px] h-[500px] rounded-full bg-white/[0.04] pointer-events-none" />
-        <div className="absolute -left-16 bottom-0 w-72 h-72 rounded-full bg-white/[0.03] pointer-events-none" />
+      <section className="relative overflow-hidden">
+        {/* 배경 이미지 */}
         <div
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
-          style={{
-            backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
-          }}
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/images/hero-bg.png')" }}
         />
+        <div className="absolute inset-0 bg-black/55" />
 
         <div className="page-container relative z-10 py-28">
           <div className="max-w-2xl">
@@ -94,24 +85,14 @@ export default function AboutPage() {
               <br />
               AI 기반 진짜견적 서비스입니다.
             </p>
-            <div className="flex gap-4">
-              <Link
-                href="/recommend"
-                className="inline-flex items-center gap-2 bg-white text-primary text-[14px] font-semibold
-                           px-7 py-3.5 rounded-btn hover:bg-primary-100 hover:shadow-lg transition-all duration-200"
-              >
-                <Sparkles size={15} />
-                AI 추천 시작하기
-              </Link>
-              <Link
-                href="/cars"
-                className="inline-flex items-center gap-2 bg-white/10 text-white text-[14px] font-medium
-                           px-7 py-3.5 rounded-btn hover:bg-white/15 transition-colors duration-200 border border-white/20"
-              >
-                차량 탐색하기
-                <ArrowRight size={14} />
-              </Link>
-            </div>
+            <Link
+              href="/cars"
+              className="inline-flex items-center gap-2 bg-white/10 text-white text-[14px] font-medium
+                         px-7 py-3.5 rounded-btn hover:bg-white/15 transition-colors duration-200 border border-white/20"
+            >
+              차량 탐색하기
+              <ArrowRight size={14} />
+            </Link>
           </div>
         </div>
       </section>
