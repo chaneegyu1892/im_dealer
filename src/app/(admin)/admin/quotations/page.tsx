@@ -4,64 +4,69 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as xlsx from "xlsx";
 import {
-  FileText, Search, Download, Filter, MoreHorizontal, 
-  ChevronRight, X, Phone, User, Calendar, Copy,
-  CheckCircle2, Clock, AlertCircle, MessageSquare
+  FileText, Search, Download, Filter, X, Phone, User,
+  Calendar, Copy, CheckCircle2, Clock, AlertCircle,
+  MessageSquare, ChevronDown, SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  MOCK_QUOTES, FINANCE_COMPANIES,
+  type QuoteStatus, type Quotation,
+} from "@/constants/mock-data";
 
-// ─── TYPES & MOCK DATA ──────────────────────────────────────────
-type QuoteStatus = "상담대기" | "상담중" | "계약완료" | "계약취소";
-
-interface Quotation {
-  id: string;
-  vehicleName: string;
-  customerName: string;
-  phone: string;
-  monthlyPayment: number;
-  financeCompany: string;
-  status: QuoteStatus;
-  createdAt: string;
-  // 상세 데이터용
-  options: string[];
-  color: string;
-  promotion: string;
-  memo: string;
-}
-
-const MOCK_QUOTES: Quotation[] = [
-  { id: "Q-2404-001", vehicleName: "아이오닉 6 롱레인지 익스클루시브", customerName: "김대현", phone: "010-1234-5678", monthlyPayment: 654000, financeCompany: "KB캐피탈", status: "상담대기", createdAt: "2026-04-14", options: ["빌트인 캠", "파노라마 선루프"], color: "어비스 블랙 펄", promotion: "EV 특별 프로모션", memo: "" },
-  { id: "Q-2404-002", vehicleName: "쏘렌토 하이브리드 시그니처", customerName: "이민수", phone: "010-9876-5432", monthlyPayment: 720000, financeCompany: "현대캐피탈", status: "상담중", createdAt: "2026-04-13", options: ["드라이브 와이즈", "스마트 커넥트"], color: "스노우 화이트 펄", promotion: "봄맞이 페스타", memo: "고객님이 화이트 펄 색상 출고 대기기간 문의하심." },
-  { id: "Q-2404-003", vehicleName: "GV80 2.5 가솔린 터보", customerName: "박지훈", phone: "010-5555-4444", monthlyPayment: 1150000, financeCompany: "하나캐피탈", status: "계약완료", createdAt: "2026-04-10", options: ["파퓰러 패키지", "렉시콘 사운드"], color: "우유니 화이트", promotion: "법인 임원 특별할인", memo: "최종 계약 서명 완료. 다음주 목요일 탁송 예정." },
-  { id: "Q-2404-004", vehicleName: "투싼 하이브리드 인스퍼레이션", customerName: "최유진", phone: "010-3333-2222", monthlyPayment: 540000, financeCompany: "우리카드", status: "계약취소", createdAt: "2026-04-08", options: ["파노라마 선루프"], color: "아마존 그레이", promotion: "기본할인", memo: "타사 조건이 더 좋아 취소하심." },
-  { id: "Q-2404-005", vehicleName: "제로무공해 EV6", customerName: "정수빈", phone: "010-1111-9999", monthlyPayment: 690000, financeCompany: "신한카드", status: "상담대기", createdAt: "2026-04-14", options: ["하이테크", "메리디안 사운드"], color: "문스케이프 매트", promotion: "기본할인", memo: "" },
-  { id: "Q-2404-006", vehicleName: "K8 하이브리드 노블레스", customerName: "강성태", phone: "010-8888-7777", monthlyPayment: 610000, financeCompany: "JB우리캐피탈", status: "상담중", createdAt: "2026-04-12", options: ["드라이브 와이즈"], color: "스틸 그레이", promotion: "재고할인 특별전", memo: "금리 인하 가능 여부 확인 필요." },
-];
-
-const STATUS_STYLE: Record<QuoteStatus, { bg: string, text: string, icon: any }> = {
+const STATUS_STYLE: Record<QuoteStatus, { bg: string; text: string; icon: React.ElementType }> = {
   상담대기: { bg: "bg-slate-100", text: "text-slate-600", icon: Clock },
-  상담중: { bg: "bg-blue-50", text: "text-blue-600", icon: MessageSquare },
+  상담중:   { bg: "bg-blue-50",   text: "text-blue-600",  icon: MessageSquare },
   계약완료: { bg: "bg-emerald-50", text: "text-emerald-600", icon: CheckCircle2 },
-  계약취소: { bg: "bg-red-50", text: "text-red-500", icon: AlertCircle },
+  계약취소: { bg: "bg-red-50",    text: "text-red-500",   icon: AlertCircle },
 };
+
+const STATUS_LIST: QuoteStatus[] = ["상담대기", "상담중", "계약완료", "계약취소"];
 
 export default function QuotationsPage() {
   const [quotes, setQuotes] = useState<Quotation[]>(MOCK_QUOTES);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | "전체">("전체");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  
-  // Drawer 상태
+
+  // 상세 필터 상태
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [filterFC, setFilterFC] = useState<string>("전체");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterPaymentMin, setFilterPaymentMin] = useState("");
+  const [filterPaymentMax, setFilterPaymentMax] = useState("");
+
   const [drawerQuote, setDrawerQuote] = useState<Quotation | null>(null);
 
-  // ─── 로직 ───
+  const activeFilterCount =
+    (filterFC !== "전체" ? 1 : 0) +
+    (filterDateFrom ? 1 : 0) +
+    (filterDateTo ? 1 : 0) +
+    (filterPaymentMin ? 1 : 0) +
+    (filterPaymentMax ? 1 : 0);
+
   const filteredQuotes = useMemo(() => {
     return quotes.filter(q => {
-      const matchSearch = q.customerName.includes(search) || q.vehicleName.includes(search);
+      const matchSearch = q.customerName.includes(search) || q.vehicleName.includes(search) || q.phone.includes(search);
       const matchStatus = statusFilter === "전체" || q.status === statusFilter;
-      return matchSearch && matchStatus;
+      const matchFC = filterFC === "전체" || q.financeCompany === filterFC;
+      const matchDateFrom = !filterDateFrom || q.createdAt >= filterDateFrom;
+      const matchDateTo = !filterDateTo || q.createdAt <= filterDateTo;
+      const min = filterPaymentMin ? Number(filterPaymentMin) * 10000 : 0;
+      const max = filterPaymentMax ? Number(filterPaymentMax) * 10000 : Infinity;
+      const matchPayment = q.monthlyPayment >= min && q.monthlyPayment <= max;
+      return matchSearch && matchStatus && matchFC && matchDateFrom && matchDateTo && matchPayment;
     });
-  }, [quotes, search, statusFilter]);
+  }, [quotes, search, statusFilter, filterFC, filterDateFrom, filterDateTo, filterPaymentMin, filterPaymentMax]);
+
+  const resetDetailFilters = () => {
+    setFilterFC("전체");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setFilterPaymentMin("");
+    setFilterPaymentMax("");
+  };
 
   const toggleSelectAll = () => {
     if (selectedIds.size === filteredQuotes.length && filteredQuotes.length > 0) {
@@ -80,20 +85,38 @@ export default function QuotationsPage() {
   };
 
   const handleExportExcel = () => {
-    const dataToExport = filteredQuotes.map(q => ({
+    const target = selectedIds.size > 0
+      ? filteredQuotes.filter(q => selectedIds.has(q.id))
+      : filteredQuotes;
+
+    const dataToExport = target.map(q => ({
       "견적 ID": q.id,
       "고객명": q.customerName,
       "연락처": q.phone,
       "차량명": q.vehicleName,
-      "월 납입금(원)": q.monthlyPayment,
+      "차량 (짧은명)": q.vehicleShort,
+      "선택 색상": q.color,
+      "선택 옵션": q.options.join(", "),
+      "월 납입금 (원)": q.monthlyPayment,
       "금융사": q.financeCompany,
+      "프로모션": q.promotion,
       "진행 상태": q.status,
-      "생성일": q.createdAt
+      "접수일": q.createdAt,
+      "메모": q.memo,
     }));
+
     const worksheet = xlsx.utils.json_to_sheet(dataToExport);
+
+    // 컬럼 너비 설정
+    worksheet["!cols"] = [
+      { wch: 14 }, { wch: 8 }, { wch: 16 }, { wch: 30 }, { wch: 12 },
+      { wch: 16 }, { wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 18 },
+      { wch: 10 }, { wch: 12 }, { wch: 30 },
+    ];
+
     const workbook = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(workbook, worksheet, "견적데이터");
-    xlsx.writeFile(workbook, `견적데이터_${new Date().toISOString().slice(0,10)}.xlsx`);
+    xlsx.writeFile(workbook, `아임딜러_견적데이터_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const handleBulkStatusChange = (newStatus: QuoteStatus) => {
@@ -102,7 +125,7 @@ export default function QuotationsPage() {
   };
 
   const handleBulkDelete = () => {
-    if(confirm(`선택한 ${selectedIds.size}개의 견적을 정말 삭제하시겠습니까?`)) {
+    if (confirm(`선택한 ${selectedIds.size}개의 견적을 정말 삭제하시겠습니까?`)) {
       setQuotes(prev => prev.filter(q => !selectedIds.has(q.id)));
       setSelectedIds(new Set());
     }
@@ -110,74 +133,169 @@ export default function QuotationsPage() {
 
   const updateMemo = (id: string, newMemo: string) => {
     setQuotes(prev => prev.map(q => q.id === id ? { ...q, memo: newMemo } : q));
-    if(drawerQuote && drawerQuote.id === id) {
-      setDrawerQuote({ ...drawerQuote, memo: newMemo });
-    }
+    if (drawerQuote?.id === id) setDrawerQuote({ ...drawerQuote, memo: newMemo });
   };
 
-  // ─── 렌더링 ───
   return (
-    <div className="relative flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm" style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
-      
-      {/* 1. 통계 요약 (Top KPI) */}
+    <div className="relative flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm">
+
+      {/* 1. 상단 KPI */}
       <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 shrink-0 flex items-center justify-between z-10">
         <div>
-          <h1 className="text-[18px] font-bold text-[#1A1A2E] flex items-center gap-2">
-            견적 데이터 실시간 현황
-          </h1>
+          <h1 className="text-[18px] font-bold text-[#1A1A2E]">견적 데이터 실시간 현황</h1>
           <p className="text-[12px] text-[#6B7399] mt-1">이번 달 접수된 모든 견적 건의 진행 상태를 파악합니다.</p>
         </div>
         <div className="flex gap-4">
           <KPIMini label="전체 누적" value={quotes.length.toString()} highlight />
           <div className="w-[1px] h-10 bg-[#E8EAF0]" />
-          <KPIMini label="상담 대기" value={quotes.filter(q=>q.status==="상담대기").length.toString()} color="text-slate-600" />
-          <KPIMini label="상담 진행" value={quotes.filter(q=>q.status==="상담중").length.toString()} color="text-blue-600" />
-          <KPIMini label="계약 완료" value={quotes.filter(q=>q.status==="계약완료").length.toString()} color="text-emerald-600" />
+          <KPIMini label="상담 대기" value={quotes.filter(q => q.status === "상담대기").length.toString()} color="text-slate-600" />
+          <KPIMini label="상담 진행" value={quotes.filter(q => q.status === "상담중").length.toString()} color="text-blue-600" />
+          <KPIMini label="계약 완료" value={quotes.filter(q => q.status === "계약완료").length.toString()} color="text-emerald-600" />
         </div>
       </div>
 
-      {/* 2. 툴바 영역 */}
+      {/* 2. 툴바 */}
       <div className="px-6 py-3 bg-[#FAFBFF] border-b border-[#E8EAF0] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
+          {/* 검색 */}
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0]" />
-            <input 
-              type="text" value={search} onChange={e=>setSearch(e.target.value)}
-              placeholder="고객명 또는 차량명 검색" 
+            <input
+              type="text" value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="고객명, 차량명, 전화번호 검색"
               className="w-[240px] pl-9 pr-4 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] outline-none focus:border-[#C0C5DC] text-[#1A1A2E] transition-colors shadow-sm"
             />
           </div>
+          {/* 상태 탭 필터 */}
           <div className="flex bg-white rounded-[6px] border border-[#E8EAF0] p-1 shadow-sm">
-            {(["전체", "상담대기", "상담중", "계약완료", "계약취소"] as const).map(st => (
-              <button 
+            {(["전체", ...STATUS_LIST] as const).map(st => (
+              <button
                 key={st} onClick={() => setStatusFilter(st)}
                 className={cn(
                   "px-3 py-1 text-[11px] font-medium rounded-[4px] transition-colors",
                   statusFilter === st ? "bg-[#F4F5F8] text-[#1A1A2E]" : "text-[#9BA4C0] hover:text-[#6B7399]"
                 )}
-              >
-                {st}
-              </button>
+              >{st}</button>
             ))}
           </div>
-        </div>
-        <div className="flex gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#E8EAF0] shadow-sm rounded-[6px] text-[12px] font-medium text-[#4A5270] hover:bg-[#F8F9FC] transition-colors">
-            <Filter size={13} /> 상세 필터
+
+          {/* 상세 필터 버튼 */}
+          <button
+            onClick={() => setFilterPanelOpen(o => !o)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2 border shadow-sm rounded-[6px] text-[12px] font-medium transition-colors",
+              filterPanelOpen || activeFilterCount > 0
+                ? "bg-[#000666] text-white border-[#000666]"
+                : "bg-white border-[#E8EAF0] text-[#4A5270] hover:bg-[#F8F9FC]"
+            )}
+          >
+            <SlidersHorizontal size={13} />
+            상세 필터
+            {activeFilterCount > 0 && (
+              <span className="ml-1 w-4 h-4 rounded-full bg-white text-[#000666] text-[10px] font-bold flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
           </button>
-          <button onClick={handleExportExcel} className="flex items-center gap-1.5 px-3 py-2 bg-[#000666] text-white border border-transparent shadow-sm rounded-[6px] text-[12px] font-medium hover:opacity-90 transition-opacity">
-            <Download size={13} /> 엑셀 다운로드 (XLSX)
+        </div>
+
+        <div className="flex gap-2 items-center">
+          <span className="text-[11px] text-[#9BA4C0]">
+            {filteredQuotes.length}/{quotes.length}건
+            {selectedIds.size > 0 && ` · ${selectedIds.size}건 선택`}
+          </span>
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center gap-1.5 px-3 py-2 bg-[#000666] text-white border border-transparent shadow-sm rounded-[6px] text-[12px] font-medium hover:opacity-90 transition-opacity"
+          >
+            <Download size={13} />
+            {selectedIds.size > 0 ? `선택 ${selectedIds.size}건 엑셀` : "전체 엑셀"} 다운로드
           </button>
         </div>
       </div>
 
-      {/* 3. 데이터 테이블 */}
+      {/* 3. 상세 필터 패널 */}
+      <AnimatePresence>
+        {filterPanelOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden shrink-0"
+          >
+            <div className="bg-[#F0F2F8] border-b border-[#E8EAF0] px-6 py-4 flex items-end gap-6 flex-wrap">
+              {/* 금융사 */}
+              <div className="flex flex-col gap-1.5 min-w-[160px]">
+                <label className="text-[11px] font-semibold text-[#6B7399] uppercase tracking-wider">금융사</label>
+                <div className="relative">
+                  <select
+                    value={filterFC}
+                    onChange={e => setFilterFC(e.target.value)}
+                    className="appearance-none w-full pl-3 pr-8 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] text-[#1A1A2E] outline-none focus:border-[#C0C5DC] shadow-sm cursor-pointer"
+                  >
+                    <option value="전체">전체 금융사</option>
+                    {FINANCE_COMPANIES.map(fc => <option key={fc} value={fc}>{fc}</option>)}
+                  </select>
+                  <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9BA4C0] pointer-events-none" />
+                </div>
+              </div>
+
+              {/* 접수일 범위 */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-[#6B7399] uppercase tracking-wider">접수일 범위</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
+                    className="px-3 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] text-[#1A1A2E] outline-none focus:border-[#C0C5DC] shadow-sm"
+                  />
+                  <span className="text-[12px] text-[#9BA4C0]">~</span>
+                  <input
+                    type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
+                    className="px-3 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] text-[#1A1A2E] outline-none focus:border-[#C0C5DC] shadow-sm"
+                  />
+                </div>
+              </div>
+
+              {/* 월 납입금 범위 */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-[#6B7399] uppercase tracking-wider">월 납입금 (만원)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" value={filterPaymentMin} onChange={e => setFilterPaymentMin(e.target.value)}
+                    placeholder="최소 (만원)"
+                    className="w-[100px] px-3 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] text-[#1A1A2E] outline-none focus:border-[#C0C5DC] shadow-sm"
+                  />
+                  <span className="text-[12px] text-[#9BA4C0]">~</span>
+                  <input
+                    type="number" value={filterPaymentMax} onChange={e => setFilterPaymentMax(e.target.value)}
+                    placeholder="최대 (만원)"
+                    className="w-[100px] px-3 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] text-[#1A1A2E] outline-none focus:border-[#C0C5DC] shadow-sm"
+                  />
+                </div>
+              </div>
+
+              {/* 초기화 */}
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={resetDetailFilters}
+                  className="flex items-center gap-1.5 px-3 py-2 text-[12px] text-[#DC2626] bg-red-50 border border-red-200 rounded-[6px] hover:bg-red-100 transition-colors self-end"
+                >
+                  <X size={13} /> 필터 초기화
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 4. 테이블 */}
       <div className="flex-1 overflow-auto bg-white min-h-0 relative">
         <table className="w-full text-left border-collapse">
           <thead className="bg-[#FAFBFF] sticky top-0 z-10 border-b border-[#E8EAF0] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
             <tr>
               <th className="py-3 px-4 w-[40px] font-medium text-center">
-                <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === filteredQuotes.length && filteredQuotes.length > 0} className="w-4 h-4 rounded text-[#000666] cursor-pointer" />
+                <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === filteredQuotes.length && filteredQuotes.length > 0} className="w-4 h-4 rounded cursor-pointer" />
               </th>
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">견적 ID</th>
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">차량 정보</th>
@@ -191,21 +309,18 @@ export default function QuotationsPage() {
           <tbody className="divide-y divide-[#F0F2F8]">
             {filteredQuotes.length === 0 ? (
               <tr><td colSpan={8} className="py-20 text-center text-[13px] text-[#9BA4C0]">해당하는 견적 데이터가 없습니다.</td></tr>
-            ) : filteredQuotes.map((q) => {
+            ) : filteredQuotes.map(q => {
               const isSelected = selectedIds.has(q.id);
               const SStyle = STATUS_STYLE[q.status];
               const SIcon = SStyle.icon;
               return (
-                <tr 
-                  key={q.id} 
+                <tr
+                  key={q.id}
                   onClick={() => setDrawerQuote(q)}
-                  className={cn(
-                    "group cursor-pointer transition-colors hover:bg-[#F8F9FC]",
-                    isSelected && "bg-[#F4F5F8]"
-                  )}
+                  className={cn("group cursor-pointer transition-colors hover:bg-[#F8F9FC]", isSelected && "bg-[#F4F5F8]")}
                 >
                   <td className="py-3 px-4 text-center">
-                    <input type="checkbox" checked={isSelected} onClick={(e) => toggleSelect(q.id, e)} onChange={()=>{}} className="w-4 h-4 rounded text-[#000666] cursor-pointer" />
+                    <input type="checkbox" checked={isSelected} onClick={e => toggleSelect(q.id, e)} onChange={() => {}} className="w-4 h-4 rounded cursor-pointer" />
                   </td>
                   <td className="py-3 px-4">
                     <span className="text-[12px] font-bold text-[#1A1A2E] bg-slate-50 px-2 py-1 rounded-[4px] font-mono group-hover:bg-white">{q.id}</span>
@@ -235,10 +350,10 @@ export default function QuotationsPage() {
         </table>
       </div>
 
-      {/* 4. 플로팅 액션 바 (벌크 관리) */}
+      {/* 5. 플로팅 액션바 */}
       <AnimatePresence>
         {selectedIds.size > 0 && (
-          <motion.div 
+          <motion.div
             initial={{ y: 50, opacity: 0, x: "-50%" }} animate={{ y: 0, opacity: 1, x: "-50%" }} exit={{ y: 50, opacity: 0, x: "-50%" }}
             className="absolute bottom-8 left-1/2 flex items-center gap-4 px-5 py-3 bg-[#1A1A2E] rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.2)] border border-[#3D4470] z-30"
           >
@@ -250,28 +365,26 @@ export default function QuotationsPage() {
             <div className="flex items-center gap-2">
               <span className="text-[12px] text-[#9BA4C0]">상태 변경:</span>
               <div className="flex gap-1.5">
-                {(["상담대기", "상담중", "계약완료", "계약취소"] as QuoteStatus[]).map(s => (
+                {STATUS_LIST.map(s => (
                   <button key={s} onClick={() => handleBulkStatusChange(s)} className="px-2.5 py-1 text-[11px] font-medium text-[#C0C5DC] bg-[#2A2D4A] hover:bg-[#3D4470] hover:text-white rounded-[4px] transition-colors">{s}</button>
                 ))}
               </div>
             </div>
             <div className="w-[1px] h-4 bg-[#3D4470]" />
-            <button onClick={handleBulkDelete} className="text-[12px] font-medium text-red-400 hover:text-red-300 transition-colors">
-              일괄 삭제
-            </button>
+            <button onClick={handleBulkDelete} className="text-[12px] font-medium text-red-400 hover:text-red-300 transition-colors">일괄 삭제</button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 5. 우측 상담 상세 Drawer */}
+      {/* 6. 상세 Drawer */}
       <AnimatePresence>
         {drawerQuote && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDrawerQuote(null)} className="absolute inset-0 bg-black/20 backdrop-blur-[2px] z-40" />
-            <motion.div 
-              initial={{ x: "100%", boxShadow: "-10px 0 30px rgba(0,0,0,0)" }} animate={{ x: 0, boxShadow: "-10px 0 30px rgba(0,0,0,0.1)" }} exit={{ x: "100%", boxShadow: "-10px 0 30px rgba(0,0,0,0)" }}
+            <motion.div
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 bottom-0 w-[420px] bg-white z-50 flex flex-col border-l border-[#E8EAF0]"
+              className="absolute top-0 right-0 bottom-0 w-[420px] bg-white z-50 flex flex-col border-l border-[#E8EAF0] shadow-[-10px_0_30px_rgba(0,0,0,0.08)]"
             >
               <div className="flex items-center justify-between px-6 py-5 border-b border-[#E8EAF0] bg-[#FAFBFF]">
                 <div>
@@ -285,51 +398,46 @@ export default function QuotationsPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-                
-                {/* 섹션 1: 고객 및 상태 */}
                 <section>
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-[13px] font-bold text-[#1A1A2E] flex items-center gap-1.5"><User size={14} className="text-[#000666]"/> 고객 & 진행</h4>
-                    <select 
-                      value={drawerQuote.status} 
-                      onChange={(e) => {
+                    <h4 className="text-[13px] font-bold text-[#1A1A2E] flex items-center gap-1.5"><User size={14} className="text-[#000666]" /> 고객 & 진행</h4>
+                    <select
+                      value={drawerQuote.status}
+                      onChange={e => {
                         const s = e.target.value as QuoteStatus;
                         setQuotes(prev => prev.map(q => q.id === drawerQuote.id ? { ...q, status: s } : q));
                         setDrawerQuote({ ...drawerQuote, status: s });
                       }}
-                      className={cn("px-2 py-1 text-[11px] font-bold rounded-[4px] outline-none cursor-pointer border", STATUS_STYLE[drawerQuote.status].bg, STATUS_STYLE[drawerQuote.status].text, "border-transparent focus:border-[#C0C5DC]")}
+                      className={cn("px-2 py-1 text-[11px] font-bold rounded-[4px] outline-none cursor-pointer border", STATUS_STYLE[drawerQuote.status].bg, STATUS_STYLE[drawerQuote.status].text, "border-transparent")}
                     >
-                      {(["상담대기", "상담중", "계약완료", "계약취소"] as QuoteStatus[]).map(st => <option key={st} value={st}>{st}</option>)}
+                      {STATUS_LIST.map(st => <option key={st} value={st}>{st}</option>)}
                     </select>
                   </div>
-                  <div className="bg-[#F8F9FC] border border-[#E8EAF0] rounded-[8px] p-3 py-3 grid grid-cols-2 gap-3">
+                  <div className="bg-[#F8F9FC] border border-[#E8EAF0] rounded-[8px] p-3 grid grid-cols-2 gap-3">
                     <div>
                       <p className="text-[10px] text-[#6B7399] mb-0.5">연락처</p>
-                      <p className="text-[12px] font-medium text-[#1A1A2E] flex items-center gap-1"><Phone size={10} className="text-[#9BA4C0]"/> {drawerQuote.phone}</p>
+                      <p className="text-[12px] font-medium text-[#1A1A2E] flex items-center gap-1"><Phone size={10} className="text-[#9BA4C0]" /> {drawerQuote.phone}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-[#6B7399] mb-0.5">접수 일자</p>
-                      <p className="text-[12px] font-medium text-[#1A1A2E] flex items-center gap-1"><Calendar size={10} className="text-[#9BA4C0]"/> {drawerQuote.createdAt}</p>
+                      <p className="text-[12px] font-medium text-[#1A1A2E] flex items-center gap-1"><Calendar size={10} className="text-[#9BA4C0]" /> {drawerQuote.createdAt}</p>
                     </div>
                   </div>
                 </section>
 
-                {/* 섹션 2: 차량 스펙 */}
                 <section>
-                  <h4 className="text-[13px] font-bold text-[#1A1A2E] mb-3 flex items-center gap-1.5"><FileText size={14} className="text-[#000666]"/> 차량 스펙 정보</h4>
+                  <h4 className="text-[13px] font-bold text-[#1A1A2E] mb-3 flex items-center gap-1.5"><FileText size={14} className="text-[#000666]" /> 차량 스펙 정보</h4>
                   <div className="space-y-2 border-t border-b border-[#F0F2F8] py-3">
-                    <div className="flex justify-between">
-                      <span className="text-[12px] text-[#6B7399]">모델</span>
-                      <span className="text-[13px] font-bold text-[#1A1A2E] text-right">{drawerQuote.vehicleName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[12px] text-[#6B7399]">외장 색상</span>
-                      <span className="text-[12px] font-medium text-[#4A5270]">{drawerQuote.color}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[12px] text-[#6B7399]">선택 옵션</span>
-                      <span className="text-[12px] font-medium text-[#4A5270] text-right max-w-[200px] leading-tight">{drawerQuote.options.join(", ")}</span>
-                    </div>
+                    {[
+                      ["모델", drawerQuote.vehicleName],
+                      ["외장 색상", drawerQuote.color],
+                      ["선택 옵션", drawerQuote.options.join(", ")],
+                    ].map(([label, val]) => (
+                      <div key={label} className="flex justify-between">
+                        <span className="text-[12px] text-[#6B7399]">{label}</span>
+                        <span className="text-[12px] font-medium text-[#4A5270] text-right max-w-[220px]">{val}</span>
+                      </div>
+                    ))}
                     <div className="flex justify-between pt-2">
                       <span className="text-[12px] font-semibold text-[#000666]">적용 프로모션</span>
                       <span className="text-[11px] font-bold text-white bg-[#6066EE] px-1.5 py-0.5 rounded-[4px]">{drawerQuote.promotion}</span>
@@ -337,7 +445,6 @@ export default function QuotationsPage() {
                   </div>
                 </section>
 
-                {/* 섹션 3: 계약 조건 조건방 (월 납입금) */}
                 <section>
                   <div className="bg-[#0D0D1F] rounded-[10px] p-4 text-white shadow-lg overflow-hidden relative">
                     <div className="absolute top-0 right-0 p-3 opacity-10"><FileText size={60} /></div>
@@ -354,33 +461,33 @@ export default function QuotationsPage() {
                   </div>
                 </section>
 
-                {/* 섹션 4: 딜러 상담 노트 */}
-                <section className="flex flex-col flex-1 h-full min-h-[150px]">
-                  <h4 className="text-[13px] font-bold text-[#1A1A2E] mb-2 flex items-center gap-1.5">상담 일지 (Dealer Note)</h4>
-                  <textarea 
+                <section className="flex flex-col flex-1 min-h-[150px]">
+                  <h4 className="text-[13px] font-bold text-[#1A1A2E] mb-2">상담 일지 (Dealer Note)</h4>
+                  <textarea
                     value={drawerQuote.memo}
-                    onChange={(e) => updateMemo(drawerQuote.id, e.target.value)}
-                    placeholder="고객과의 상담 내역이나 특이사항을 기록하세요. (자동 저장됨)" 
+                    onChange={e => updateMemo(drawerQuote.id, e.target.value)}
+                    placeholder="고객과의 상담 내역이나 특이사항을 기록하세요."
                     className="w-full flex-1 p-3 text-[12px] bg-[#FAFBFF] border border-[#E8EAF0] rounded-[8px] outline-none focus:border-[#C0C5DC] text-[#4A5270] resize-none transition-colors"
+                    rows={6}
                   />
-                  <p className="text-[10px] text-[#9BA4C0] mt-1.5 flex items-center gap-1"><AlertCircle size={10} /> 작성 시 로컬 시스템에 실시간 반영됩니다.</p>
+                  <p className="text-[10px] text-[#9BA4C0] mt-1.5 flex items-center gap-1"><AlertCircle size={10} /> 로컬 시스템에 실시간 반영됩니다.</p>
                 </section>
-
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
-
     </div>
   );
 }
 
-function KPIMini({ label, value, highlight, color }: any) {
+function KPIMini({ label, value, highlight, color }: { label: string; value: string; highlight?: boolean; color?: string }) {
   return (
     <div className="flex flex-col">
       <span className="text-[11px] font-semibold text-[#9BA4C0] mb-0.5">{label}</span>
-      <span className={cn("text-[20px] font-bold tracking-tight", highlight ? "text-[#000666]" : color || "text-[#1A1A2E]")}>{value}<span className="text-[12px] font-normal ml-0.5 opacity-60">건</span></span>
+      <span className={cn("text-[20px] font-bold tracking-tight", highlight ? "text-[#000666]" : color || "text-[#1A1A2E]")}>
+        {value}<span className="text-[12px] font-normal ml-0.5 opacity-60">건</span>
+      </span>
     </div>
   );
 }

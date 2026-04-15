@@ -6,26 +6,31 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Car, Eye, TrendingUp, Sparkles, ChevronLeft, ChevronRight,
   Plus, AlertCircle, CheckCircle2, MessageSquare, Clock, Star,
-  BarChart2, Percent, Users, CreditCard,
+  BarChart2, Percent, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DASHBOARD_STATS,
+  WEEKLY_QUOTE_DATA,
+  WEEKLY_AI_DATA,
+  MONTHLY_CONSULTATION_DATA,
+  CATEGORY_DIST,
+  TOP_VEHICLES_DASHBOARD,
+  RECENT_CONSULTATIONS_DASHBOARD,
+  RECENT_ADMIN_ACTIVITY,
+} from "@/constants/mock-data";
 
-// ─── KPI 6개 (한번에 전체 표시) ─────────────────────────
+// ─── KPI 6개 (통합 목 데이터 기반) ─────────────────────────
 const STATS = [
-  { label: "등록 차량", value: 12, unit: "대", icon: Car, trend: "+2", isUp: true, trendLabel: "이번 달", color: "#000666", bg: "#E5E5FA" },
-  { label: "노출 중", value: 8, unit: "대", icon: Eye, trend: "-1", isUp: false, trendLabel: "어제 대비", color: "#059669", bg: "#ECFDF5" },
-  { label: "오늘 견적 조회", value: 47, unit: "회", icon: TrendingUp, trend: "+12%", isUp: true, trendLabel: "어제 대비", color: "#D97706", bg: "#FFFBEB" },
-  { label: "AI 추천 세션", value: 23, unit: "회", icon: Sparkles, trend: "+8%", isUp: true, trendLabel: "어제 대비", color: "#7C3AED", bg: "#F5F3FF" },
-  { label: "이달 신규 상담", value: 89, unit: "건", icon: Users, trend: "+15%", isUp: true, trendLabel: "지난달 대비", color: "#0EA5E9", bg: "#E0F2FE" },
-  { label: "계약 전환율", value: 34, unit: "%", icon: Percent, trend: "+2%p", isUp: true, trendLabel: "지난달 대비", color: "#059669", bg: "#ECFDF5" },
+  { label: "등록 차량",    value: DASHBOARD_STATS.totalVehicles,          unit: "대", icon: Car,       trend: "+1",   isUp: true,  trendLabel: "전월 대비",  color: "#000666", bg: "#E5E5FA" },
+  { label: "노출 중",      value: DASHBOARD_STATS.visibleVehicles,        unit: "대", icon: Eye,       trend: "-1",   isUp: false, trendLabel: "이번 달",   color: "#059669", bg: "#ECFDF5" },
+  { label: "오늘 견적 조회", value: DASHBOARD_STATS.todayQuoteViews,      unit: "회", icon: TrendingUp, trend: "+5%",  isUp: true,  trendLabel: "어제 대비",  color: "#D97706", bg: "#FFFBEB" },
+  { label: "AI 추천 세션", value: DASHBOARD_STATS.todayAISessions,        unit: "회", icon: Sparkles,  trend: "+20%", isUp: true,  trendLabel: "어제 대비",  color: "#7C3AED", bg: "#F5F3FF" },
+  { label: "이달 신규 상담", value: DASHBOARD_STATS.monthlyConsultations, unit: "건", icon: Users,     trend: "+1",   isUp: true,  trendLabel: "지난달 대비", color: "#0EA5E9", bg: "#E0F2FE" },
+  { label: "계약 전환율",  value: DASHBOARD_STATS.conversionRate,         unit: "%", icon: Percent,   trend: "+2%p", isUp: true,  trendLabel: "지난달 대비", color: "#059669", bg: "#ECFDF5" },
 ];
 
 // ─── 차트 데이터 ─────────────────────────────────────────
-const WEEKLY_QUOTES = [{ day: "월", value: 31 }, { day: "화", value: 28 }, { day: "수", value: 42 }, { day: "목", value: 38 }, { day: "금", value: 55 }, { day: "토", value: 22 }, { day: "일", value: 47 }];
-const WEEKLY_AI = [{ day: "월", value: 15 }, { day: "화", value: 18 }, { day: "수", value: 21 }, { day: "목", value: 19 }, { day: "금", value: 27 }, { day: "토", value: 10 }, { day: "일", value: 23 }];
-const MONTHLY_CONS = [{ label: "10월", value: 52 }, { label: "11월", value: 68 }, { label: "12월", value: 71 }, { label: "1월", value: 58 }, { label: "2월", value: 63 }, { label: "3월", value: 79 }, { label: "4월", value: 89 }];
-const CATEGORY_DATA = [{ label: "세단", count: 4, color: "#000666" }, { label: "SUV", count: 3, color: "#7C3AED" }, { label: "밴", count: 1, color: "#D97706" }, { label: "EV", count: 2, color: "#059669" }, { label: "하이브리드", count: 2, color: "#0EA5E9" }];
-
 type LineItem = { day: string; value: number };
 type BarItem = { label: string; value: number };
 type DonutItem = { label: string; count: number; color: string };
@@ -35,34 +40,25 @@ interface ChartDef {
   summary?: { label: string; value: number | string; unit: string }[];
 }
 
+// 주간 합계: 18+25+14+19+31+28+23 = 158, 평균 23, 최고 31
+// AI 합계: 9+13+7+10+16+15+12 = 82, 평균 12, 최고 16
 const CHARTS: ChartDef[] = [
-  { id: "quotes", title: "주간 견적 조회 추이", subtitle: "최근 7일", type: "line", color: "#D97706", lineData: WEEKLY_QUOTES, summary: [{ label: "주간 합계", value: 263, unit: "회" }, { label: "일 평균", value: 38, unit: "회" }, { label: "최고치", value: 55, unit: "회" }] },
-  { id: "ai", title: "주간 AI 추천 세션", subtitle: "최근 7일", type: "line", color: "#7C3AED", lineData: WEEKLY_AI, summary: [{ label: "주간 합계", value: 133, unit: "회" }, { label: "일 평균", value: 19, unit: "회" }, { label: "최고치", value: 27, unit: "회" }] },
-  { id: "category", title: "차량 카테고리 분포", subtitle: "등록 차량 기준", type: "donut", color: "#000666", donutData: CATEGORY_DATA },
-  { id: "monthly", title: "월별 상담 건수", subtitle: "최근 7개월", type: "bar", color: "#0EA5E9", barData: MONTHLY_CONS, summary: [{ label: "이달 합계", value: 89, unit: "건" }, { label: "전월 대비", value: "+13", unit: "건" }, { label: "7개월 평균", value: 69, unit: "건" }] },
+  { id: "quotes", title: "주간 견적 조회 추이", subtitle: "최근 7일 (4/9~4/15)", type: "line",  color: "#D97706", lineData: WEEKLY_QUOTE_DATA,          summary: [{ label: "주간 합계", value: 158, unit: "회" }, { label: "일 평균", value: 23, unit: "회" }, { label: "최고치", value: 31, unit: "회" }] },
+  { id: "ai",     title: "주간 AI 추천 세션",  subtitle: "최근 7일 (4/9~4/15)", type: "line",  color: "#7C3AED", lineData: WEEKLY_AI_DATA,             summary: [{ label: "주간 합계", value: 82,  unit: "회" }, { label: "일 평균", value: 12, unit: "회" }, { label: "최고치", value: 16, unit: "회" }] },
+  { id: "category", title: "차량 카테고리 분포", subtitle: "등록 차량 6대 기준",  type: "donut", color: "#000666", donutData: CATEGORY_DIST },
+  { id: "monthly", title: "월별 상담 건수",    subtitle: "서비스 시작 이후 (1월~4월)", type: "bar", color: "#0EA5E9", barData: MONTHLY_CONSULTATION_DATA, summary: [{ label: "이달 합계", value: 6, unit: "건" }, { label: "전월 대비", value: "+1", unit: "건" }, { label: "월 평균", value: 5, unit: "건" }] },
 ];
 const CHART_PER_PAGE = 2;
 const CHART_PAGES = Math.ceil(CHARTS.length / CHART_PER_PAGE); // 2
 
-// ─── 하단 목 데이터 ──────────────────────────────────────
-const RECENT_CONSULTATIONS = [
-  { id: "c1", name: "김민준", vehicle: "아이오닉 6", time: "방금 전", status: "진행중", sc: "#000666", sb: "#E5E5FA" },
-  { id: "c2", name: "이서연", vehicle: "기아 EV6", time: "12분 전", status: "견적완료", sc: "#059669", sb: "#ECFDF5" },
-  { id: "c3", name: "박도현", vehicle: "GV80", time: "34분 전", status: "이탈", sc: "#9BA4C0", sb: "#F4F5F8" },
-  { id: "c4", name: "최지우", vehicle: "투싼", time: "1시간 전", status: "견적완료", sc: "#059669", sb: "#ECFDF5" },
-];
-const TOP_VEHICLES = [
-  { rank: 1, name: "현대 아이오닉 6", views: 312, bar: 100, barColor: "#000666" },
-  { rank: 2, name: "기아 EV6", views: 278, bar: 89, barColor: "#7C3AED" },
-  { rank: 3, name: "현대 투싼", views: 241, bar: 77, barColor: "#D97706" },
-  { rank: 4, name: "제네시스 GV80", views: 189, bar: 61, barColor: "#9BA4C0" },
-];
-const RECENT_ACTIVITY = [
-  { id: 1, text: "아이오닉6 기준가 업데이트", time: "10분 전", icon: CheckCircle2, color: "#059669" },
-  { id: 2, text: "투싼 비노출 처리", time: "1시간 전", icon: AlertCircle, color: "#D97706" },
-  { id: 3, text: "K8 신규 등록 완료", time: "3시간 전", icon: CheckCircle2, color: "#059669" },
-  { id: 4, text: "금융사 회수율 업데이트", time: "어제", icon: CheckCircle2, color: "#059669" },
-];
+// ─── 하단 데이터 (공용 mock-data.ts 사용) ────────────────
+const RECENT_CONSULTATIONS = RECENT_CONSULTATIONS_DASHBOARD;
+const TOP_VEHICLES = TOP_VEHICLES_DASHBOARD;
+const RECENT_ACTIVITY = RECENT_ADMIN_ACTIVITY.map((a) => ({
+  ...a,
+  icon: a.isAlert ? AlertCircle : CheckCircle2,
+  color: a.isAlert ? "#D97706" : "#059669",
+}));
 
 // ─── SVG 차트 컴포넌트 ──────────────────────────────────
 function LineChart({ data, color, height = 130 }: { data: LineItem[]; color: string; height?: number }) {
@@ -330,7 +326,7 @@ export default function AdminDashboard() {
               <MessageSquare size={11} className="text-[#6B7399]" strokeWidth={2} />
               <h2 className="text-[11px] font-semibold text-[#1A1A2E]">최근 상담</h2>
             </div>
-            <Link href="/admin/logs" className="flex items-center gap-0.5 text-[10px] text-[#000666] hover:opacity-70 transition-opacity">
+            <Link href="/admin/quotations" className="flex items-center gap-0.5 text-[10px] text-[#000666] hover:opacity-70 transition-opacity">
               전체 <ChevronRight size={9} />
             </Link>
           </div>
@@ -401,10 +397,10 @@ export default function AdminDashboard() {
           </div>
           <div className="flex flex-col gap-1.5 p-2.5">
             {[
-              { href: "/admin/vehicles?action=add", label: "차량 추가", icon: Plus, primary: true },
-              { href: "/admin/rates", label: "회수율 수정", icon: TrendingUp, primary: false },
-              { href: "/admin/finance", label: "금융사 관리", icon: CreditCard, primary: false },
-              { href: "/admin/logs", label: "추천 로그 확인", icon: Sparkles, primary: false },
+              { href: "/admin/vehicles", label: "차량 관리", icon: Plus, primary: true },
+              { href: "/admin/quotations", label: "견적 데이터 확인", icon: BarChart2, primary: false },
+              { href: "/admin/users", label: "사용자 관리", icon: Users, primary: false },
+              { href: "/admin/memo", label: "운영 메모", icon: TrendingUp, primary: false },
             ].map(action => {
               const Icon = action.icon;
               return (
