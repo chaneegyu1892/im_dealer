@@ -6,15 +6,8 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   FileText,
-  Users,
   Car,
-  Package,
-  Sparkles,
   BarChart2,
-  TrendingUp,
-  Building2,
-  Settings,
-  ClipboardList,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -45,23 +38,6 @@ const NAV: NavGroup[] = [
     items: [
       { href: "/admin/quotations", label: "견적 데이터", icon: FileText },
       { href: "/admin/vehicles", label: "차량 관리", icon: Car },
-      { href: "/admin/inventory", label: "재고관리", icon: Package },
-      { href: "/admin/users", label: "사용자 관리", icon: Users },
-    ],
-  },
-  {
-    group: "정책 및 AI",
-    items: [
-      { href: "/admin/rates", label: "회수율 설정", icon: TrendingUp },
-      { href: "/admin/finance", label: "금융사 관리", icon: Building2 },
-      { href: "/admin/ai", label: "AI관리", icon: Sparkles },
-    ],
-  },
-  {
-    group: "시스템",
-    items: [
-      { href: "/admin/memo", label: "운영 메모", icon: ClipboardList },
-      { href: "/admin/settings", label: "설정", icon: Settings },
     ],
   },
 ];
