@@ -43,11 +43,12 @@ const financeCompanies = [
 
 // ─── 순위 가산율 ─────────────────────────────────────────
 
+// [수정] 명세 기준: 1순위 +1.0%, 2순위 +1.5%, 3순위 +2.0%, 4순위 이상 +2.5%
 const rankSurcharges = [
-  { rank: 1, rate: 0 },
-  { rank: 2, rate: 0.5 },
-  { rank: 3, rate: 1.0 },
-  { rank: 4, rate: 1.5 },
+  { rank: 1, rate: 1.0 },
+  { rank: 2, rate: 1.5 },
+  { rank: 3, rate: 2.0 },
+  { rank: 4, rate: 2.5 },
 ];
 
 // ─── 차량 데이터 (25년 신차 기준) ─────────────────────────
@@ -628,8 +629,8 @@ async function main() {
           maxVehiclePrice: range.max,
           minPriceRates: generateRateMatrix(effectiveRate),
           maxPriceRates: generateRateMatrix(effectiveRate + 0.0008),
-          depositDiscountRate: -0.0012,
-          prepayAdjustRate: 0.0004,
+          depositDiscountRate: -0.000523, // [수정] 명세 기준값
+          prepayAdjustRate: 0.000073,     // [수정] 명세 기준값 (양수 저장, 계산 시 차감)
         },
         create: {
           financeCompanyId: fcId,
@@ -639,8 +640,8 @@ async function main() {
           maxVehiclePrice: range.max,
           minPriceRates: generateRateMatrix(effectiveRate),
           maxPriceRates: generateRateMatrix(effectiveRate + 0.0008),
-          depositDiscountRate: -0.0012,
-          prepayAdjustRate: 0.0004,
+          depositDiscountRate: -0.000523, // [수정] 명세 기준값
+          prepayAdjustRate: 0.000073,     // [수정] 명세 기준값 (양수 저장, 계산 시 차감)
         },
       });
 
@@ -678,6 +679,57 @@ async function main() {
     }
   }
   console.log(`   ✅ ${rateConfigCount}개 회수율 설정 (${vehicles.length}개 차량 × ${financeCompanies.length}개 금융사 × 2종)\n`);
+
+  // [수정] ORIX × SORENTO 실제 회수율 데이터로 덮어쓰기 (명세 기준)
+  console.log("📈 ORIX × SORENTO 실제 회수율 업데이트...");
+  const orixId = fcIds["ORIX"];
+  if (orixId) {
+    await prisma.rateConfig.upsert({
+      where: {
+        financeCompanyId_vehicleCode_productType: {
+          financeCompanyId: orixId,
+          vehicleCode: "SORENTO",
+          productType: "렌트",
+        },
+      },
+      update: {
+        minVehiclePrice: 43_840_000,
+        maxVehiclePrice: 49_290_000,
+        minPriceRates: {
+          "10000": { "36": 0.012325, "48": 0.012726, "60": 0.012110 },
+          "20000": { "36": 0.013337, "48": 0.012506, "60": 0.012181 },
+          "30000": { "36": 0.013993, "48": 0.013682, "60": 0.012997 },
+        },
+        maxPriceRates: {
+          "10000": { "36": 0.012634, "48": 0.012914, "60": 0.012236 },
+          "20000": { "36": 0.013695, "48": 0.012841, "60": 0.012406 },
+          "30000": { "36": 0.014395, "48": 0.013986, "60": 0.013126 },
+        },
+        depositDiscountRate: -0.000523,
+        prepayAdjustRate: 0.000073,
+      },
+      create: {
+        financeCompanyId: orixId,
+        vehicleCode: "SORENTO",
+        productType: "렌트",
+        minVehiclePrice: 43_840_000,
+        maxVehiclePrice: 49_290_000,
+        minPriceRates: {
+          "10000": { "36": 0.012325, "48": 0.012726, "60": 0.012110 },
+          "20000": { "36": 0.013337, "48": 0.012506, "60": 0.012181 },
+          "30000": { "36": 0.013993, "48": 0.013682, "60": 0.012997 },
+        },
+        maxPriceRates: {
+          "10000": { "36": 0.012634, "48": 0.012914, "60": 0.012236 },
+          "20000": { "36": 0.013695, "48": 0.012841, "60": 0.012406 },
+          "30000": { "36": 0.014395, "48": 0.013986, "60": 0.013126 },
+        },
+        depositDiscountRate: -0.000523,
+        prepayAdjustRate: 0.000073,
+      },
+    });
+    console.log("   ✅ ORIX × SORENTO 실제 회수율 설정 완료\n");
+  }
 
   // 5) AI 추천 기초 데이터 (RecommendationConfig)
   console.log("🤖 AI 추천 기초 데이터 생성...");

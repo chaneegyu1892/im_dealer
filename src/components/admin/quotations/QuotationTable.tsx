@@ -1,10 +1,49 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, ExternalLink, Copy, Check as CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatKRWMan, formatDateKR, formatDateTimeKR } from "@/lib/format";
 import type { AdminSavedQuote } from "@/types/admin";
+import { VerificationResult } from "@/components/admin/VerificationResult";
+
+// DB가 비어있을 때 Drawer UI 테스트용 fallback 데이터
+const MOCK_QUOTES: AdminSavedQuote[] = [
+  {
+    id: "mock-1",
+    sessionId: "test-session-001",
+    vehicleId: "mock-vehicle-1",
+    vehicleName: "아이오닉 6",
+    vehicleBrand: "현대",
+    trimId: "mock-trim-1",
+    trimName: "Standard",
+    contractMonths: 48,
+    annualMileage: 20000,
+    depositRate: 20,
+    prepayRate: 0,
+    contractType: "반납형",
+    monthlyPayment: 820000,
+    totalCost: 39360000,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "mock-2",
+    sessionId: "test-session-002",
+    vehicleId: "mock-vehicle-2",
+    vehicleName: "EV6",
+    vehicleBrand: "기아",
+    trimId: "mock-trim-2",
+    trimName: "Air",
+    contractMonths: 36,
+    annualMileage: 30000,
+    depositRate: 0,
+    prepayRate: 30,
+    contractType: "인수형",
+    monthlyPayment: 950000,
+    totalCost: 34200000,
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+];
 
 interface QuotationTableProps {
   initialQuotes: AdminSavedQuote[];
@@ -15,15 +54,17 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const selectedQuote = initialQuotes.find((q) => q.id === selectedId);
+  const quotes = initialQuotes.length > 0 ? initialQuotes : MOCK_QUOTES;
+
+  const selectedQuote = quotes.find((q) => q.id === selectedId);
 
   const filtered = search
-    ? initialQuotes.filter(
+    ? quotes.filter(
         (q) =>
           q.vehicleName.toLowerCase().includes(search.toLowerCase()) ||
           q.trimName.toLowerCase().includes(search.toLowerCase())
       )
-    : initialQuotes;
+    : quotes;
 
   // ESC 키 + backdrop 클릭으로 Drawer 닫기
   const closeDrawer = useCallback(() => setSelectedId(null), []);
@@ -196,6 +237,8 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
             <DetailRow label="총 비용" value={formatKRWMan(selectedQuote.totalCost)} />
             <DetailRow label="세션 ID" value={selectedQuote.sessionId} />
             <DetailRow label="접수일" value={formatDateTimeKR(selectedQuote.createdAt)} />
+            <VerifyLinkSection sessionId={selectedQuote.sessionId} />
+            <VerificationResult sessionId={selectedQuote.sessionId} />
           </div>
         </div>
       )}
@@ -208,6 +251,68 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between">
       <span className="text-[12px] text-[#6B7399]">{label}</span>
       <span className="text-[12px] font-medium text-[#1A1A2E]">{value}</span>
+    </div>
+  );
+}
+
+function VerifyLinkSection({ sessionId }: { sessionId: string }) {
+  const [copied, setCopied] = useState(false);
+  const verifyUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/verify?sessionId=${sessionId}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(verifyUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard API 미지원 환경 무시
+    }
+  };
+
+  return (
+    <div className="rounded-[10px] border border-[#E8EAF0] overflow-hidden">
+      <div className="bg-[#F8F9FC] px-4 py-2.5 border-b border-[#E8EAF0]">
+        <p className="text-[11px] font-semibold text-[#6B7399] uppercase tracking-wide">
+          고객 서류 제출 링크
+        </p>
+      </div>
+      <div className="bg-white p-3 space-y-2">
+        <p className="text-[11px] text-[#9BA4C0] break-all leading-relaxed">
+          {verifyUrl}
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={handleCopy}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[11px] font-medium transition-colors",
+              copied
+                ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                : "bg-[#F4F5F8] text-[#4A5270] hover:bg-[#E8EAF0] border border-[#E8EAF0]"
+            )}
+          >
+            {copied ? (
+              <>
+                <CheckIcon size={11} />
+                복사됨
+              </>
+            ) : (
+              <>
+                <Copy size={11} />
+                링크 복사
+              </>
+            )}
+          </button>
+          <a
+            href={verifyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[11px] font-medium bg-[#000666] text-white hover:opacity-90 transition-opacity"
+          >
+            <ExternalLink size={11} />
+            새 탭으로 열기
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

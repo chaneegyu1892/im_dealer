@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -10,6 +11,7 @@ import {
   ChevronRight,
   Images,
   Calculator,
+  FileCheck,
   Building2,
   Leaf,
   TrendingDown,
@@ -299,11 +301,18 @@ function DetailedSpecsSection({ specs }: { specs: VehicleDetailedSpecs }) {
 // CarDetailClient
 // ══════════════════════════════════════════════════════════
 export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
+  const router = useRouter();
+
   // 사이드바용 초기 시나리오 (서버에서 받은 간단 버전)
   const [simpleScenarios] = useState<RecommendScenarios | null>(vehicle.scenarios);
 
   // 이미지 갤러리 선택
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+
+  // 서류 제출용 세션 ID — 페이지 방문 시 1회 생성, 리렌더링에도 유지
+  const verifySessionId = useRef(
+    typeof crypto !== "undefined" ? crypto.randomUUID() : `car-${vehicle.slug}-${Date.now()}`
+  ).current;
 
   const engineType = (vehicle.defaultTrim?.engineType ?? "가솔린") as EngineType;
 
@@ -732,6 +741,19 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
 
                 {/* 상담하기 */}
                 <ChannelTalkButton vehicleName={vehicle.name} size="md" />
+
+                {/* 서류 간편 제출 */}
+                <button
+                  onClick={() => router.push(`/verify?sessionId=${verifySessionId}`)}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 mt-2 rounded-btn
+                             border border-primary/30 text-primary text-[13px] font-medium
+                             hover:bg-primary/[0.04] active:scale-[0.98]
+                             transition-all duration-150"
+                >
+                  <FileCheck size={14} strokeWidth={2} />
+                  서류 간편 제출
+                </button>
+
                 <p className="text-[11px] text-ink-caption text-center mt-3">
                   상담 전 이름·전화번호 요구 없음
                 </p>
