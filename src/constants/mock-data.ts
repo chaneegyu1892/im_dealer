@@ -19,6 +19,8 @@ export interface SharedQuote {
   status: QuoteStatus;
   createdAt: string;
   options: string[];
+  lineup: string;             // 라인업 추가
+  trim: string;               // 트림 추가
   color: string;
   promotion: string;
   memo: string;
@@ -32,7 +34,7 @@ export type Quotation = SharedQuote;
 export const MOCK_QUOTES: SharedQuote[] = [
   {
     id: "Q-2604-001",
-    vehicleName: "현대 아이오닉 6 롱레인지 익스클루시브",
+    vehicleName: "아이오닉 6",
     vehicleShort: "아이오닉 6",
     customerName: "김민준",
     phone: "010-2847-5931",
@@ -40,6 +42,8 @@ export const MOCK_QUOTES: SharedQuote[] = [
     financeCompany: "KB캐피탈",
     status: "상담중",
     createdAt: "2026-04-14",
+    lineup: "2024년형 전기 롱레인지",
+    trim: "프레스티지 (AWD)",
     options: ["빌트인 캠", "파노라마 선루프"],
     color: "어비스 블랙 펄",
     promotion: "EV 봄 특별 프로모션",
@@ -47,14 +51,16 @@ export const MOCK_QUOTES: SharedQuote[] = [
   },
   {
     id: "Q-2604-002",
-    vehicleName: "기아 쏘렌토 하이브리드 시그니처",
-    vehicleShort: "쏘렌토 하이브리드",
+    vehicleName: "더 뉴 쏘렌토",
+    vehicleShort: "더 뉴 쏘렌토",
     customerName: "이서연",
     phone: "010-5512-3874",
     monthlyPayment: 743000,
     financeCompany: "현대캐피탈",
     status: "계약완료",
     createdAt: "2026-04-11",
+    lineup: "2025년형 가솔린 2.5 터보",
+    trim: "시그니처 (5인승)",
     options: ["드라이브 와이즈", "7인승 시트"],
     color: "스노우 화이트 펄",
     promotion: "봄맞이 페스타",
@@ -62,14 +68,16 @@ export const MOCK_QUOTES: SharedQuote[] = [
   },
   {
     id: "Q-2604-003",
-    vehicleName: "기아 EV6 롱레인지 GT-Line",
-    vehicleShort: "기아 EV6",
+    vehicleName: "더 뉴 EV6",
+    vehicleShort: "더 뉴 EV6",
     customerName: "박도현",
     phone: "010-9183-6745",
     monthlyPayment: 682000,
     financeCompany: "신한카드",
     status: "상담대기",
     createdAt: "2026-04-14",
+    lineup: "2026년형 전기 롱레인지",
+    trim: "어스 (2WD)",
     options: ["컨비니언스 패키지", "메리디안 사운드"],
     color: "문스케이프 매트",
     promotion: "기본할인",
@@ -77,14 +85,16 @@ export const MOCK_QUOTES: SharedQuote[] = [
   },
   {
     id: "Q-2604-004",
-    vehicleName: "제네시스 GV80 2.5 가솔린 터보 시그나처",
-    vehicleShort: "제네시스 GV80",
+    vehicleName: "GV80",
+    vehicleShort: "GV80",
     customerName: "최지우",
     phone: "010-7264-0183",
     monthlyPayment: 1120000,
     financeCompany: "하나캐피탈",
     status: "상담대기",
     createdAt: "2026-04-13",
+    lineup: "2025년형 가솔린 3.5 터보",
+    trim: "기본 모델 (5인승)",
     options: ["파퓰러 패키지", "렉시콘 사운드"],
     color: "우유니 화이트",
     promotion: "법인 VIP 특별할인",
@@ -92,14 +102,16 @@ export const MOCK_QUOTES: SharedQuote[] = [
   },
   {
     id: "Q-2604-005",
-    vehicleName: "현대 투싼 하이브리드 인스퍼레이션",
-    vehicleShort: "투싼 하이브리드",
+    vehicleName: "더 뉴 투싼",
+    vehicleShort: "더 뉴 투싼",
     customerName: "정수빈",
     phone: "010-3345-8820",
     monthlyPayment: 534000,
     financeCompany: "우리카드",
     status: "계약취소",
     createdAt: "2026-04-09",
+    lineup: "2024년형 가솔린 1.6 터보",
+    trim: "인스퍼레이션",
     options: ["파노라마 선루프"],
     color: "아마존 그레이",
     promotion: "기본할인",
@@ -107,14 +119,16 @@ export const MOCK_QUOTES: SharedQuote[] = [
   },
   {
     id: "Q-2604-006",
-    vehicleName: "기아 K8 하이브리드 노블레스",
-    vehicleShort: "K8 하이브리드",
+    vehicleName: "더 뉴 K8",
+    vehicleShort: "더 뉴 K8",
     customerName: "강성태",
     phone: "010-6678-2491",
     monthlyPayment: 615000,
     financeCompany: "JB우리캐피탈",
     status: "상담중",
     createdAt: "2026-04-12",
+    lineup: "2025년형 가솔린 1.6 터보 HEV",
+    trim: "노블레스 라이트",
     options: ["드라이브 와이즈", "어드밴스드 패키지"],
     color: "스틸 그레이 메탈릭",
     promotion: "재고할인 특별전",
@@ -168,9 +182,9 @@ export const CATEGORY_DIST = [
 // 합계 6,005건 → Analytics KPI "총 견적 발생량 6,005건"과 일치
 export const VEHICLE_QUOTE_RANK = [
   { name: "아이오닉 6", brand: "현대", count: 1847, color: "#000666" },
-  { name: "쏘렌토 하이브리드", brand: "기아", count: 1523, color: "#2A2A72" },
-  { name: "EV6", brand: "기아", count: 1189, color: "#4B4B99" },
-  { name: "투싼 하이브리드", brand: "현대", count: 834, color: "#6C6CBF" },
+  { name: "더 뉴 쏘렌토", brand: "기아", count: 1523, color: "#2A2A72" },
+  { name: "더 뉴 EV6", brand: "기아", count: 1189, color: "#4B4B99" },
+  { name: "더 뉴 투싼", brand: "현대", count: 834, color: "#6C6CBF" },
   { name: "GV80", brand: "제네시스", count: 612, color: "#8E8EE6" },
 ];
 
@@ -202,18 +216,22 @@ export const DASHBOARD_STATS = {
 
 // ── ⑩ 대시보드 인기 차량 Top 4 (VEHICLE_QUOTE_RANK 기반) ───────
 export const TOP_VEHICLES_DASHBOARD = [
-  { rank: 1, name: "현대 아이오닉 6", views: 1847, bar: 100, barColor: "#000666" },
-  { rank: 2, name: "기아 쏘렌토 HEV", views: 1523, bar: 82, barColor: "#7C3AED" },
-  { rank: 3, name: "기아 EV6", views: 1189, bar: 64, barColor: "#D97706" },
-  { rank: 4, name: "현대 투싼 HEV", views: 834, bar: 45, barColor: "#9BA4C0" },
+  { rank: 1, name: "아이오닉 6", views: 1847, bar: 100, barColor: "#000666" },
+  { rank: 2, name: "더 뉴 쏘렌토", views: 1523, bar: 82, barColor: "#7C3AED" },
+  { rank: 3, name: "더 뉴 EV6", views: 1189, bar: 64, barColor: "#D97706" },
+  { rank: 4, name: "더 뉴 투싼", views: 834, bar: 45, barColor: "#9BA4C0" },
+  { rank: 5, name: "GV80", views: 612, bar: 33, barColor: "#C0C5DC" },
 ];
 
 // ── ⑪ 대시보드 최근 상담 4건 (MOCK_QUOTES 최신 4건 기반) ────────
 export const RECENT_CONSULTATIONS_DASHBOARD = [
   { id: "Q-2604-001", name: "김민준",  vehicle: "아이오닉 6",     time: "방금 전",  status: "상담중",   sc: "#000666", sb: "#E5E5FA" },
-  { id: "Q-2604-003", name: "박도현",  vehicle: "EV6",            time: "3시간 전", status: "상담대기", sc: "#9BA4C0", sb: "#F4F5F8" },
-  { id: "Q-2604-002", name: "이서연",  vehicle: "쏘렌토 HEV",     time: "3일 전",  status: "계약완료", sc: "#059669", sb: "#ECFDF5" },
-  { id: "Q-2604-006", name: "강성태",  vehicle: "K8 하이브리드",   time: "3일 전",  status: "상담중",   sc: "#000666", sb: "#E5E5FA" },
+  { id: "Q-2604-003", name: "박도현",  vehicle: "더 뉴 EV6",            time: "3시간 전", status: "상담대기", sc: "#9BA4C0", sb: "#F4F5F8" },
+  { id: "Q-2604-002", name: "이서연",  vehicle: "더 뉴 쏘렌토",     time: "3일 전",  status: "계약완료", sc: "#059669", sb: "#ECFDF5" },
+  { id: "Q-2604-006", name: "강성태",  vehicle: "더 뉴 K8",   time: "3일 전",  status: "상담중",   sc: "#000666", sb: "#E5E5FA" },
+  { id: "Q-2604-004", name: "최지우",  vehicle: "GV80",      time: "4일 전",  status: "상담대기", sc: "#9BA4C0", sb: "#F4F5F8" },
+  { id: "Q-2604-005", name: "정수빈",  vehicle: "더 뉴 투싼", time: "1주 전", status: "계약취소", sc: "#DC2626", sb: "#FEF2F2" },
+  { id: "Q-2604-007", name: "한지수",  vehicle: "아이오닉 6", time: "2주 전", status: "계약완료", sc: "#059669", sb: "#ECFDF5" },
 ];
 
 // ── ⑫ 대시보드 최근 관리자 활동 ───────────────────────────────
@@ -226,22 +244,9 @@ export const RECENT_ADMIN_ACTIVITY = [
 
 // ── ⑬ 재고관리 ─────────────────────────────────────────────────
 
-/** 재고 상태 */
-export type InventoryStatus = "정상" | "부족" | "소진";
+import { type InventoryStatus, type InventoryItem } from "../types/inventory";
 
-/** 금융사가 보유한 차량 재고 단위 */
-export interface InventoryItem {
-  id: string;
-  vehicleName: string;       // 차량 전체명
-  vehicleShort: string;      // 짧은 이름 (표시용)
-  brand: string;             // 브랜드 (현대 / 기아 / 제네시스)
-  financeCompany: string;    // 금융사
-  quantity: number;          // 보유 수량
-  immediateDelivery: boolean; // 즉시 출고 가능 여부
-  status: InventoryStatus;   // 재고 상태 (수량 기반 자동 계산 or 수동 설정)
-  registeredAt: string;      // 등록/최신 업데이트 날짜
-  memo: string;              // 관리자 메모
-}
+export { type InventoryStatus, type InventoryItem };
 
 /** 금융사 목록 */
 export const FINANCE_COMPANIES = [
@@ -458,197 +463,8 @@ export const MOCK_FINANCES: FinanceCompanyRecord[] = [
 /** 브랜드 목록 */
 export const VEHICLE_BRANDS = ["현대", "기아", "제네시스"];
 
-/**
- * 재고 목 데이터 (금융사 5개 × 차량 6종 조합, 총 15건)
- * 2026-04-15 기준 스냅샷
- */
-export const MOCK_INVENTORY: InventoryItem[] = [
-  // KB캐피탈
-  {
-    id: "INV-001",
-    vehicleName: "현대 아이오닉 6 롱레인지 익스클루시브",
-    vehicleShort: "아이오닉 6",
-    brand: "현대",
-    financeCompany: "KB캐피탈",
-    quantity: 4,
-    immediateDelivery: true,
-    status: "정상",
-    registeredAt: "2026-04-15",
-    memo: "4월 초 입고분. 어비스 블랙 2대, 그라비티 골드 2대.",
-  },
-  {
-    id: "INV-002",
-    vehicleName: "기아 EV6 롱레인지 GT-Line",
-    vehicleShort: "기아 EV6",
-    brand: "기아",
-    financeCompany: "KB캐피탈",
-    quantity: 2,
-    immediateDelivery: true,
-    status: "부족",
-    registeredAt: "2026-04-15",
-    memo: "재고 부족, 추가 입고 협의 중.",
-  },
-  {
-    id: "INV-003",
-    vehicleName: "기아 쏘렌토 하이브리드 시그니처",
-    vehicleShort: "쏘렌토 HEV",
-    brand: "기아",
-    financeCompany: "KB캐피탈",
-    quantity: 3,
-    immediateDelivery: true,
-    status: "정상",
-    registeredAt: "2026-04-14",
-    memo: "",
-  },
-  // 현대캐피탈
-  {
-    id: "INV-004",
-    vehicleName: "현대 아이오닉 6 롱레인지 익스클루시브",
-    vehicleShort: "아이오닉 6",
-    brand: "현대",
-    financeCompany: "현대캐피탈",
-    quantity: 6,
-    immediateDelivery: true,
-    status: "정상",
-    registeredAt: "2026-04-15",
-    memo: "자사 브랜드 우선 배정분.",
-  },
-  {
-    id: "INV-005",
-    vehicleName: "현대 투싼 하이브리드 인스퍼레이션",
-    vehicleShort: "투싼 HEV",
-    brand: "현대",
-    financeCompany: "현대캐피탈",
-    quantity: 5,
-    immediateDelivery: true,
-    status: "정상",
-    registeredAt: "2026-04-14",
-    memo: "",
-  },
-  {
-    id: "INV-006",
-    vehicleName: "제네시스 GV80 2.5 가솔린 터보 시그나처",
-    vehicleShort: "GV80",
-    brand: "제네시스",
-    financeCompany: "현대캐피탈",
-    quantity: 1,
-    immediateDelivery: false,
-    status: "부족",
-    registeredAt: "2026-04-13",
-    memo: "VIP 고객 사전 예약 1대 포함.",
-  },
-  // 신한카드
-  {
-    id: "INV-007",
-    vehicleName: "기아 EV6 롱레인지 GT-Line",
-    vehicleShort: "기아 EV6",
-    brand: "기아",
-    financeCompany: "신한카드",
-    quantity: 3,
-    immediateDelivery: true,
-    status: "정상",
-    registeredAt: "2026-04-15",
-    memo: "",
-  },
-  {
-    id: "INV-008",
-    vehicleName: "기아 K8 하이브리드 노블레스",
-    vehicleShort: "K8 HEV",
-    brand: "기아",
-    financeCompany: "신한카드",
-    quantity: 0,
-    immediateDelivery: false,
-    status: "소진",
-    registeredAt: "2026-04-12",
-    memo: "재고 소진. 다음 주 2대 추가 입고 예정.",
-  },
-  {
-    id: "INV-009",
-    vehicleName: "현대 투싼 하이브리드 인스퍼레이션",
-    vehicleShort: "투싼 HEV",
-    brand: "현대",
-    financeCompany: "신한카드",
-    quantity: 2,
-    immediateDelivery: true,
-    status: "부족",
-    registeredAt: "2026-04-14",
-    memo: "",
-  },
-  // 하나캐피탈
-  {
-    id: "INV-010",
-    vehicleName: "제네시스 GV80 2.5 가솔린 터보 시그나처",
-    vehicleShort: "GV80",
-    brand: "제네시스",
-    financeCompany: "하나캐피탈",
-    quantity: 2,
-    immediateDelivery: true,
-    status: "정상",
-    registeredAt: "2026-04-15",
-    memo: "법인 전용 배정분.",
-  },
-  {
-    id: "INV-011",
-    vehicleName: "기아 쏘렌토 하이브리드 시그니처",
-    vehicleShort: "쏘렌토 HEV",
-    brand: "기아",
-    financeCompany: "하나캐피탈",
-    quantity: 4,
-    immediateDelivery: true,
-    status: "정상",
-    registeredAt: "2026-04-13",
-    memo: "",
-  },
-  // JB우리캐피탈
-  {
-    id: "INV-012",
-    vehicleName: "기아 K8 하이브리드 노블레스",
-    vehicleShort: "K8 HEV",
-    brand: "기아",
-    financeCompany: "JB우리캐피탈",
-    quantity: 3,
-    immediateDelivery: true,
-    status: "정상",
-    registeredAt: "2026-04-15",
-    memo: "재고할인 특별전 연계.",
-  },
-  {
-    id: "INV-013",
-    vehicleName: "현대 아이오닉 6 롱레인지 익스클루시브",
-    vehicleShort: "아이오닉 6",
-    brand: "현대",
-    financeCompany: "JB우리캐피탈",
-    quantity: 1,
-    immediateDelivery: false,
-    status: "부족",
-    registeredAt: "2026-04-11",
-    memo: "",
-  },
-  {
-    id: "INV-014",
-    vehicleName: "현대 투싼 하이브리드 인스퍼레이션",
-    vehicleShort: "투싼 HEV",
-    brand: "현대",
-    financeCompany: "JB우리캐피탈",
-    quantity: 0,
-    immediateDelivery: false,
-    status: "소진",
-    registeredAt: "2026-04-10",
-    memo: "판매 완료. 재입고 미정.",
-  },
-  {
-    id: "INV-015",
-    vehicleName: "기아 쏘렌토 하이브리드 시그니처",
-    vehicleShort: "쏘렌토 HEV",
-    brand: "기아",
-    financeCompany: "JB우리캐피탈",
-    quantity: 2,
-    immediateDelivery: true,
-    status: "부족",
-    registeredAt: "2026-04-15",
-    memo: "",
-  },
-];
+import { MOCK_INVENTORY } from "./mock-inventory";
+export { MOCK_INVENTORY };
 
 // ── ⑭ 사용자 관리 ──────────────────────────────────────────────
 
@@ -691,7 +507,7 @@ export const MOCK_USERS: UserRecord[] = [
     consultationCount: 2,
     pdfDownloadCount: 3,
     activeItems: [
-      { quoteId: "Q-2604-001", vehicleName: "현대 아이오닉 6 롱레인지 익스클루시브", status: "상담중" },
+      { quoteId: "Q-2604-001", vehicleName: "아이오닉 6", status: "상담중" },
     ],
     memo: "선납 20% 조건 선호. VIP 고객 후보.",
   },
@@ -707,7 +523,7 @@ export const MOCK_USERS: UserRecord[] = [
     consultationCount: 3,
     pdfDownloadCount: 5,
     activeItems: [
-      { quoteId: "Q-2604-002", vehicleName: "기아 쏘렌토 하이브리드 시그니처", status: "계약완료" },
+      { quoteId: "Q-2604-002", vehicleName: "더 뉴 쏘렌토", status: "계약완료" },
     ],
     memo: "4/18 출고 예정. 4/17 최종 확인 연락 필요.",
   },
@@ -723,7 +539,7 @@ export const MOCK_USERS: UserRecord[] = [
     consultationCount: 1,
     pdfDownloadCount: 1,
     activeItems: [
-      { quoteId: "Q-2604-003", vehicleName: "기아 EV6 롱레인지 GT-Line", status: "상담대기" },
+      { quoteId: "Q-2604-003", vehicleName: "더 뉴 EV6", status: "상담대기" },
     ],
     memo: "",
   },
@@ -739,7 +555,7 @@ export const MOCK_USERS: UserRecord[] = [
     consultationCount: 5,
     pdfDownloadCount: 8,
     activeItems: [
-      { quoteId: "Q-2604-004", vehicleName: "제네시스 GV80 2.5 가솔린 터보 시그나처", status: "상담대기" },
+      { quoteId: "Q-2604-004", vehicleName: "GV80", status: "상담대기" },
     ],
     memo: "법인 VIP. 고가 차종 선호. 담당자 직접 응대 요청.",
   },
@@ -755,7 +571,7 @@ export const MOCK_USERS: UserRecord[] = [
     consultationCount: 2,
     pdfDownloadCount: 2,
     activeItems: [
-      { quoteId: "Q-2604-005", vehicleName: "현대 투싼 하이브리드 인스퍼레이션", status: "계약취소" },
+      { quoteId: "Q-2604-005", vehicleName: "더 뉴 투싼", status: "계약취소" },
     ],
     memo: "타사 계약 전환. 재접촉 가능성 있음.",
   },
@@ -771,7 +587,7 @@ export const MOCK_USERS: UserRecord[] = [
     consultationCount: 2,
     pdfDownloadCount: 4,
     activeItems: [
-      { quoteId: "Q-2604-006", vehicleName: "기아 K8 하이브리드 노블레스", status: "상담중" },
+      { quoteId: "Q-2604-006", vehicleName: "더 뉴 K8", status: "상담중" },
     ],
     memo: "금리 추가 인하 여부 확인 중.",
   },
@@ -834,8 +650,8 @@ export interface AdminMemo {
 export const MOCK_MEMOS: AdminMemo[] = [
   {
     id: "MEMO-001",
-    title: "신규 K8 하이브리드 프로모션 정책 적용 안내",
-    content: "영업팀 요청에 따라 K8 하이브리드 모델에 대한 2분기 추가 프로모션 할인이 적용되었습니다.\n기존 대비 월 납입금 변동이 있으니 고객 상담 시 반드시 최신 견적서를 다시 발송해주시기 바랍니다.\n\n적용일: 2026-04-12 부터\n변동 특이사항: 선납금 30% 이상 시 금리 추가 인하 적용.",
+    title: "신규 더 뉴 K8 프로모션 정책 적용 안내",
+    content: "영업팀 요청에 따라 더 뉴 K8 모델에 대한 2분기 추가 프로모션 할인이 적용되었습니다.\n기존 대비 월 납입금 변동이 있으니 고객 상담 시 반드시 최신 견적서를 다시 발송해주시기 바랍니다.\n\n적용일: 2026-04-12 부터\n변동 특이사항: 선납금 30% 이상 시 금리 추가 인하 적용.",
     category: "공지사항",
     isPinned: true,
     author: "최관리자",
@@ -854,8 +670,8 @@ export const MOCK_MEMOS: AdminMemo[] = [
   },
   {
     id: "MEMO-003",
-    title: "상담 우수사례 공유 - 제네시스 GV80",
-    content: "4월 2주차 GV80 법인 고객 계약 전환율이 전주 대비 20% 상승했습니다.\n주요 전환 요인은 초기 비용 최소화 플랜 제안과 빠른 출고 일정 확보였습니다.\n\n재고 중 하나캐피탈 배정분 먼저 소진하는 방향으로 유도 바랍니다.",
+    title: "상담 우수사례 공유 - 더 뉴 GV80",
+    content: "4월 2주차 더 뉴 GV80 법인 고객 계약 전환율이 전주 대비 20% 상승했습니다.\n주요 전환 요인은 초기 비용 최소화 플랜 제안과 빠른 출고 일정 확보였습니다.\n\n재고 중 하나캐피탈 배정분 먼저 소진하는 방향으로 유도 바랍니다.",
     category: "업무/인수인계",
     isPinned: false,
     author: "박팀장",
@@ -864,8 +680,8 @@ export const MOCK_MEMOS: AdminMemo[] = [
   },
   {
     id: "MEMO-004",
-    title: "투싼 하이브리드 재고 입고 지연 안내",
-    content: "반도체 수급 문제로 투싼 하이브리드 인스퍼레이션 트림의 4월 3주차 입고가 지연되고 있습니다.\n- 예상 지연 기간: 1주일~2주일\n\n대기 고객님들께 지연 문자를 발송할 예정이며 개별 연락이 필요한 VIP 고객의 경우 매니저가 직접 전화 부탁드립니다.",
+    title: "더 뉴 투싼 재고 입고 지연 안내",
+    content: "반도체 수급 문제로 더 뉴 투싼 트림의 4월 3주차 입고가 지연되고 있습니다.\n- 예상 지연 기간: 1주일~2주일\n\n대기 고객님들께 지연 문자를 발송할 예정이며 개별 연락이 필요한 VIP 고객의 경우 매니저가 직접 전화 부탁드립니다.",
     category: "일반",
     isPinned: false,
     author: "최관리자",
@@ -956,7 +772,7 @@ export const MOCK_RECOVERY_RATES: RecoveryRateItem[] = [
   {
     id: "RR-002",
     category: "국산 EV",
-    vehicleName: "기아 EV6",
+    vehicleName: "더 뉴 EV6",
     brand: "기아",
     baseRate: 70,
     vintageRates: {
@@ -982,7 +798,7 @@ export const MOCK_RECOVERY_RATES: RecoveryRateItem[] = [
   {
     id: "RR-003",
     category: "국산 HEV",
-    vehicleName: "기아 쏘렌토 HEV",
+    vehicleName: "더 뉴 쏘렌토",
     brand: "기아",
     baseRate: 78,
     vintageRates: {
@@ -1008,7 +824,7 @@ export const MOCK_RECOVERY_RATES: RecoveryRateItem[] = [
   {
     id: "RR-004",
     category: "국산 HEV",
-    vehicleName: "현대 투싼 HEV",
+    vehicleName: "더 뉴 투싼",
     brand: "현대",
     baseRate: 76,
     vintageRates: {
@@ -1034,7 +850,7 @@ export const MOCK_RECOVERY_RATES: RecoveryRateItem[] = [
   {
     id: "RR-005",
     category: "국산 HEV",
-    vehicleName: "기아 K8 HEV",
+    vehicleName: "더 뉴 K8",
     brand: "기아",
     baseRate: 75,
     vintageRates: {
@@ -1060,7 +876,7 @@ export const MOCK_RECOVERY_RATES: RecoveryRateItem[] = [
   {
     id: "RR-006",
     category: "국산 가솔린",
-    vehicleName: "제네시스 GV80",
+    vehicleName: "더 뉴 GV80",
     brand: "제네시스",
     baseRate: 74,
     vintageRates: {
@@ -1088,7 +904,7 @@ export const MOCK_RECOVERY_RATES: RecoveryRateItem[] = [
 export const MOCK_RECOVERY_HISTORY: RecoveryRateHistory[] = [
   {
     id: "RH-001",
-    vehicleName: "현대 아이오닉 6",
+    vehicleName: "아이오닉 6",
     field: "기본 잔존가치율",
     oldValue: 70,
     newValue: 72,
@@ -1098,7 +914,7 @@ export const MOCK_RECOVERY_HISTORY: RecoveryRateHistory[] = [
   },
   {
     id: "RH-002",
-    vehicleName: "기아 쏘렌토 HEV",
+    vehicleName: "더 뉴 쏘렌토",
     field: "기본 잔존가치율",
     oldValue: 75,
     newValue: 78,
@@ -1108,7 +924,7 @@ export const MOCK_RECOVERY_HISTORY: RecoveryRateHistory[] = [
   },
   {
     id: "RH-003",
-    vehicleName: "현대 투싼 HEV",
+    vehicleName: "더 뉴 투싼",
     field: "1년 이하 잔존가치율",
     oldValue: 74,
     newValue: 76,
@@ -1118,7 +934,7 @@ export const MOCK_RECOVERY_HISTORY: RecoveryRateHistory[] = [
   },
   {
     id: "RH-004",
-    vehicleName: "기아 EV6",
+    vehicleName: "더 뉴 EV6",
     field: "10만km 초과 감가율",
     oldValue: -7,
     newValue: -8,
@@ -1128,7 +944,7 @@ export const MOCK_RECOVERY_HISTORY: RecoveryRateHistory[] = [
   },
   {
     id: "RH-005",
-    vehicleName: "제네시스 GV80",
+    vehicleName: "더 뉴 GV80",
     field: "기본 잔존가치율",
     oldValue: 72,
     newValue: 74,

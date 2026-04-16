@@ -1,18 +1,21 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import * as xlsx from "xlsx";
 import {
   FileText, Search, Download, Filter, X, Phone, User,
   Calendar, Copy, CheckCircle2, Clock, AlertCircle,
-  MessageSquare, ChevronDown, SlidersHorizontal,
+  MessageSquare, ChevronDown, SlidersHorizontal, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   MOCK_QUOTES, FINANCE_COMPANIES,
   type QuoteStatus, type Quotation,
 } from "@/constants/mock-data";
+import { logActivity } from "@/lib/activity-store";
 
 const STATUS_STYLE: Record<QuoteStatus, { bg: string; text: string; icon: React.ElementType }> = {
   상담대기: { bg: "bg-slate-100", text: "text-slate-600", icon: Clock },
@@ -23,7 +26,8 @@ const STATUS_STYLE: Record<QuoteStatus, { bg: string; text: string; icon: React.
 
 const STATUS_LIST: QuoteStatus[] = ["상담대기", "상담중", "계약완료", "계약취소"];
 
-export default function QuotationsPage() {
+function QuotationsContent() {
+  const searchParams = useSearchParams();
   const [quotes, setQuotes] = useState<Quotation[]>(MOCK_QUOTES);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | "전체">("전체");
@@ -38,6 +42,23 @@ export default function QuotationsPage() {
   const [filterPaymentMax, setFilterPaymentMax] = useState("");
 
   const [drawerQuote, setDrawerQuote] = useState<Quotation | null>(null);
+
+  // URL 파라미터(?id=... 또는 ?search=...) 연동
+  useEffect(() => {
+    const id = searchParams.get("id");
+    if (id) {
+      const target = quotes.find(q => q.id === id);
+      if (target) {
+        setDrawerQuote(target);
+      }
+    }
+    
+    // 검색어 파라미터 처리
+    const s = searchParams.get("search");
+    if (s) {
+      setSearch(s);
+    }
+  }, [searchParams, quotes]);
 
   const activeFilterCount =
     (filterFC !== "전체" ? 1 : 0) +
@@ -120,18 +141,24 @@ export default function QuotationsPage() {
   };
 
   const handleBulkStatusChange = (newStatus: QuoteStatus) => {
+    logActivity(`[견적 일괄 변경] 선택된 ${selectedIds.size}건의 상태를 '${newStatus}'로 변경했습니다.`, 'update');
     setQuotes(prev => prev.map(q => selectedIds.has(q.id) ? { ...q, status: newStatus } : q));
     setSelectedIds(new Set());
   };
 
   const handleBulkDelete = () => {
     if (confirm(`선택한 ${selectedIds.size}개의 견적을 정말 삭제하시겠습니까?`)) {
+      logActivity(`[견적 일괄 삭제] 선택된 ${selectedIds.size}건의 견적 데이터를 삭제했습니다.`, 'delete');
       setQuotes(prev => prev.filter(q => !selectedIds.has(q.id)));
       setSelectedIds(new Set());
     }
   };
 
   const updateMemo = (id: string, newMemo: string) => {
+    const quote = quotes.find(q => q.id === id);
+    if (quote && quote.memo !== newMemo && newMemo.length > 0) {
+        // 너무 잦은 로그 방지 (선택적)
+    }
     setQuotes(prev => prev.map(q => q.id === id ? { ...q, memo: newMemo } : q));
     if (drawerQuote?.id === id) setDrawerQuote({ ...drawerQuote, memo: newMemo });
   };
@@ -139,11 +166,16 @@ export default function QuotationsPage() {
   return (
     <div className="relative flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm">
 
-      {/* 1. 상단 KPI */}
+      {/* 1. 상단 KPI & 헤더 */}
       <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 shrink-0 flex items-center justify-between z-10">
-        <div>
-          <h1 className="text-[18px] font-bold text-[#1A1A2E]">견적 데이터 실시간 현황</h1>
-          <p className="text-[12px] text-[#6B7399] mt-1">이번 달 접수된 모든 견적 건의 진행 상태를 파악합니다.</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-[#F4F5F8] rounded-[8px] text-[#000666]">
+            <MessageSquare size={20} strokeWidth={2.5} />
+          </div>
+          <div>
+            <h1 className="text-[18px] font-bold text-[#1A1A2E]">견적 데이터 실시간 현황</h1>
+            <p className="text-[12px] text-[#6B7399] mt-1">이번 달 접수된 모든 견적 건의 진행 상태 및 히스토리 요약</p>
+          </div>
         </div>
         <div className="flex gap-4">
           <KPIMini label="전체 누적" value={quotes.length.toString()} highlight />
@@ -290,7 +322,7 @@ export default function QuotationsPage() {
       </AnimatePresence>
 
       {/* 4. 테이블 */}
-      <div className="flex-1 overflow-auto bg-white min-h-0 relative">
+      <div className="flex-1 overflow-auto bg-white min-h-0 relative scrollbar-hide">
         <table className="w-full text-left border-collapse">
           <thead className="bg-[#FAFBFF] sticky top-0 z-10 border-b border-[#E8EAF0] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
             <tr>
@@ -319,35 +351,57 @@ export default function QuotationsPage() {
                   onClick={() => setDrawerQuote(q)}
                   className={cn("group cursor-pointer transition-colors hover:bg-[#F8F9FC]", isSelected && "bg-[#F4F5F8]")}
                 >
-                  <td className="py-3 px-4 text-center">
+                  <td className="py-4 px-4 text-center">
                     <input type="checkbox" checked={isSelected} onClick={e => toggleSelect(q.id, e)} onChange={() => {}} className="w-4 h-4 rounded cursor-pointer" />
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-4 px-4">
                     <span className="text-[12px] font-bold text-[#1A1A2E] bg-slate-50 px-2 py-1 rounded-[4px] font-mono group-hover:bg-white">{q.id}</span>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-4 px-4">
                     <p className="text-[13px] font-bold text-[#1A1A2E]">{q.vehicleName}</p>
-                    <p className="text-[11px] text-[#6B7399] mt-0.5 max-w-[200px] truncate">{q.options.join(", ")} | {q.color}</p>
+                    <div className="flex flex-col gap-0.5 mt-0.5">
+                      <p className="text-[11px] text-[#6B7399] font-medium">{q.lineup} | {q.trim}</p>
+                      <p className="text-[10px] text-[#9BA4C0] truncate max-w-[200px]">{q.options.join(", ")} | {q.color}</p>
+                    </div>
                   </td>
-                  <td className="py-3 px-4">
-                    <p className="text-[13px] font-bold text-[#1A1A2E]">{q.customerName}</p>
-                    <p className="text-[11px] text-[#6B7399] mt-0.5">{q.phone}</p>
+                   <td className="py-4 px-4 group/user">
+                    <Link 
+                      href={`/admin/users?search=${encodeURIComponent(q.customerName)}`}
+                      className="inline-flex items-center gap-1 group/link"
+                    >
+                      <div>
+                        <p className="text-[13px] font-bold text-[#1A1A2E] group-hover/link:text-[#000666] transition-colors">{q.customerName}</p>
+                        <p className="text-[11px] text-[#6B7399] mt-0.5">{q.phone}</p>
+                      </div>
+                      <ChevronRight size={12} className="text-[#9BA4C0] opacity-0 group-hover/link:opacity-100 -translate-x-1 group-hover/link:translate-x-0 transition-all" />
+                    </Link>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-4 px-4">
                     <span className="text-[13px] font-bold text-[#000666] bg-blue-50/50 px-2.5 py-1 rounded-[4px]">{q.monthlyPayment.toLocaleString()} 원</span>
                   </td>
-                  <td className="py-3 px-4 text-[12px] font-medium text-[#4A5270]">{q.financeCompany}</td>
-                  <td className="py-3 px-4">
+                  <td className="py-4 px-4 text-[12px] font-medium text-[#4A5270]">{q.financeCompany}</td>
+                  <td className="py-4 px-4">
                     <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", SStyle.bg, SStyle.text)}>
                       <SIcon size={11} strokeWidth={2.5} /> {q.status}
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-[12px] text-[#6B7399]">{q.createdAt}</td>
+                  <td className="py-4 px-4 text-[12px] text-[#6B7399]">{q.createdAt}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        <div className="h-20 shrink-0" /> {/* 리스트 끝 여백 */}
+      </div>
+      {/* 하단 페이드 오버레이 */}
+      <div className="absolute bottom-[48px] left-0 right-0 h-16 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none z-10 opacity-90" />
+
+      {/* 하단 상태 바 (페이지네이션 버튼 제거) */}
+      <div className="px-6 py-4 bg-[#FAFBFF] border-t border-[#E8EAF0] flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-4">
+          <span className="text-[12px] text-[#6B7399]">전체 <strong className="text-[#1A1A2E]">{filteredQuotes.length}</strong>개의 견적이 접수되었습니다.</span>
+        </div>
+        <div className="text-[11px] text-[#B0B5CC] font-medium">최종 업데이트: 2026-04-16</div>
       </div>
 
       {/* 5. 플로팅 액션바 */}
@@ -392,7 +446,13 @@ export default function QuotationsPage() {
                     <span className="text-[11px] font-bold text-[#6B7399] uppercase">상담 상세 정보</span>
                     <span className="text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-[#E8EAF0] text-[#1A1A2E]">{drawerQuote.id}</span>
                   </div>
-                  <h3 className="text-[18px] font-bold text-[#1A1A2E]">{drawerQuote.customerName} 고객님</h3>
+                   <Link 
+                    href={`/admin/users?search=${encodeURIComponent(drawerQuote.customerName)}`}
+                    className="group/name inline-flex items-center gap-1.5"
+                  >
+                    <h3 className="text-[18px] font-bold text-[#1A1A2E] group-hover/name:text-[#000666] transition-colors">{drawerQuote.customerName} 고객님</h3>
+                    <ChevronRight size={16} className="text-[#9BA4C0] group-hover/name:text-[#000666] transition-colors" />
+                  </Link>
                 </div>
                 <button onClick={() => setDrawerQuote(null)} className="p-1.5 hover:bg-[#E8EAF0] rounded-[6px] text-[#6B7399] transition-colors"><X size={18} /></button>
               </div>
@@ -405,6 +465,7 @@ export default function QuotationsPage() {
                       value={drawerQuote.status}
                       onChange={e => {
                         const s = e.target.value as QuoteStatus;
+                        logActivity(`[상담 상태 변경] ${drawerQuote.customerName} 고객님의 상태를 '${s}'(으)로 변경했습니다.`, 'update');
                         setQuotes(prev => prev.map(q => q.id === drawerQuote.id ? { ...q, status: s } : q));
                         setDrawerQuote({ ...drawerQuote, status: s });
                       }}
@@ -429,7 +490,9 @@ export default function QuotationsPage() {
                   <h4 className="text-[13px] font-bold text-[#1A1A2E] mb-3 flex items-center gap-1.5"><FileText size={14} className="text-[#000666]" /> 차량 스펙 정보</h4>
                   <div className="space-y-2 border-t border-b border-[#F0F2F8] py-3">
                     {[
-                      ["모델", drawerQuote.vehicleName],
+                      ["모델명", drawerQuote.vehicleName],
+                      ["라인업", drawerQuote.lineup],
+                      ["트림", drawerQuote.trim],
                       ["외장 색상", drawerQuote.color],
                       ["선택 옵션", drawerQuote.options.join(", ")],
                     ].map(([label, val]) => (
@@ -489,5 +552,20 @@ function KPIMini({ label, value, highlight, color }: { label: string; value: str
         {value}<span className="text-[12px] font-normal ml-0.5 opacity-60">건</span>
       </span>
     </div>
+  );
+}
+
+export default function QuotationsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="flex flex-col items-center gap-2">
+          <Clock className="w-8 h-8 text-[#000666] animate-spin" />
+          <p className="text-[14px] text-[#6B7399]">견적 현황 데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    }>
+      <QuotationsContent />
+    </Suspense>
   );
 }

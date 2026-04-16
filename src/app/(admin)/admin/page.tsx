@@ -6,9 +6,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Car, Eye, TrendingUp, Sparkles, ChevronLeft, ChevronRight,
   Plus, AlertCircle, CheckCircle2, MessageSquare, Clock, Star,
-  BarChart2, Percent, Users,
+  BarChart2, Percent, Users, RefreshCw, Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
+import { logActivity, getActivities, AdminActivity } from "@/lib/activity-store";
 import {
   DASHBOARD_STATS,
   WEEKLY_QUOTE_DATA,
@@ -61,7 +63,7 @@ const RECENT_ACTIVITY = RECENT_ADMIN_ACTIVITY.map((a) => ({
 }));
 
 // ─── SVG 차트 컴포넌트 ──────────────────────────────────
-function LineChart({ data, color, height = 130 }: { data: LineItem[]; color: string; height?: number }) {
+function LineChart({ data, color, height = 110 }: { data: LineItem[]; color: string; height?: number }) {
   const W = 500; const H = height;
   const P = { t: 10, r: 8, b: 20, l: 26 };
   const cW = W - P.l - P.r; const cH = H - P.t - P.b;
@@ -96,7 +98,7 @@ function LineChart({ data, color, height = 130 }: { data: LineItem[]; color: str
   );
 }
 
-function BarChart({ data, color, height = 120 }: { data: BarItem[]; color: string; height?: number }) {
+function BarChart({ data, color, height = 100 }: { data: BarItem[]; color: string; height?: number }) {
   const maxV = Math.max(...data.map(d => d.value));
   const bW = 32; const gap = 11; const cH = height - 22;
   const totalW = data.length * (bW + gap) - gap; const H = height;
@@ -163,7 +165,7 @@ function NavBar({
   onPrev: () => void; onNext: () => void; onJump: (i: number) => void;
 }) {
   return (
-    <div className="flex items-center justify-between px-5 py-3 border-b border-[#F0F2F8]">
+    <div className="flex items-center justify-between px-5 py-2 border-b border-[#F0F2F8]">
       <h2 className="text-[13px] font-semibold text-[#1A1A2E]">{title}</h2>
       <div className="flex items-center gap-2">
         {/* 도트 인디케이터 */}
@@ -204,24 +206,24 @@ function ChartPanel({ chart }: { chart: ChartDef }) {
     <div className="flex flex-col">
       {/* 차트 제목 */}
       <div className="mb-3">
-        <p className="text-[13px] font-semibold text-[#2A2D4A]">{chart.title}</p>
-        <p className="text-[11px] text-[#9BA4C0] mt-0.5">{chart.subtitle}</p>
+        <p className="text-[12px] font-semibold text-[#2A2D4A]">{chart.title}</p>
+        <p className="text-[10px] text-[#9BA4C0] mt-0.5">{chart.subtitle}</p>
       </div>
       {/* 차트 본체 */}
       {chart.type === "line" && chart.lineData && <LineChart data={chart.lineData} color={chart.color} />}
       {chart.type === "bar" && chart.barData && <BarChart data={chart.barData} color={chart.color} />}
       {chart.type === "donut" && chart.donutData && (
-        <div className="flex items-center" style={{ height: 130 }}>
+        <div className="flex items-center" style={{ height: 110 }}>
           <DonutChart data={chart.donutData} />
         </div>
       )}
       {/* 요약 수치 */}
       {chart.summary && (
-        <div className="flex gap-6 mt-3 pt-3 border-t border-[#F0F2F8]">
+        <div className="flex gap-4 mt-2 pt-2 border-t border-[#F0F2F8]">
           {chart.summary.map(s => (
             <div key={s.label}>
-              <p className="text-[10px] text-[#9BA4C0] leading-none mb-1">{s.label}</p>
-              <p className="text-[15px] font-bold text-[#1A1A2E] leading-none">
+              <p className="text-[9px] text-[#9BA4C0] leading-none mb-1">{s.label}</p>
+              <p className="text-[13px] font-bold text-[#1A1A2E] leading-none">
                 {s.value}<span className="text-[10px] font-normal text-[#9BA4C0] ml-0.5">{s.unit}</span>
               </p>
             </div>
@@ -237,6 +239,21 @@ export default function AdminDashboard() {
   // 차트 상태
   const [chartPage, setChartPage] = useState(0);
   const [chartDir, setChartDir] = useState(1);
+  const [activities, setActivities] = useState<AdminActivity[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [isSystemActive, setIsSystemActive] = useState(true); // 시스템 활성 상태
+
+  useEffect(() => {
+    // 초기 로딩
+    setActivities(getActivities());
+
+    // 실시간 업데이트 리스너
+    const handleUpdate = () => {
+      setActivities(getActivities());
+    };
+    window.addEventListener("activity_updated", handleUpdate);
+    return () => window.removeEventListener("activity_updated", handleUpdate);
+  }, []);
 
   const chartGo = (dir: 1 | -1) => {
     const next = Math.max(0, Math.min(CHART_PAGES - 1, chartPage + dir));
@@ -249,201 +266,279 @@ export default function AdminDashboard() {
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
 
   return (
-    <div className="p-5 flex flex-col gap-3.5" style={{ minHeight: "100vh" }}>
+    <div className="flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm">
 
-      {/* ── 헤더 ────────────────────────────────────── */}
-      <div>
-        <p className="text-[11px] text-[#8890AA]">{today}</p>
-        <h1 className="text-[20px] font-semibold text-[#1A1A2E] leading-tight">대시보드</h1>
-      </div>
-
-      {/* ── KPI 6개 한번에 표시 ───────────────────────── */}
-      <div className="grid grid-cols-6 gap-3">
-        {STATS.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.label}
-              className="bg-white rounded-[12px] border border-[#E8EAF0] px-4 py-3.5"
-              style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] font-medium text-[#6B7399] truncate pr-1">{stat.label}</p>
-                <span className="w-6 h-6 rounded-[5px] flex items-center justify-center shrink-0"
-                  style={{ background: stat.bg }}>
-                  <Icon size={12} style={{ color: stat.color }} strokeWidth={2} />
-                </span>
-              </div>
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-[22px] font-bold text-[#1A1A2E] leading-none">{stat.value}</span>
-                <span className="text-[11px] text-[#9BA4C0] ml-0.5">{stat.unit}</span>
-              </div>
-              <p className="text-[10px] text-[#9BA4C0] mt-1.5">
-                <span className={cn("font-semibold", stat.isUp ? "text-emerald-600" : "text-amber-600")}>
-                  {stat.trend}
-                </span>{" "}{stat.trendLabel}
-              </p>
+      {/* ── 1. 표준 헤더 ────────────────────────────────────── */}
+      <div className="bg-white border-b border-[#E8EAF0] px-6 py-3.5 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 bg-[#F4F5F8] rounded-[8px] text-[#000666]">
+            <BarChart2 size={16} />
+          </div>
+          <div>
+            <h1 className="text-[17px] font-bold text-[#1A1A2E]">대시보드</h1>
+            <p className="text-[11px] text-[#6B7399] mt-0.5">{today} · 실시간 현황 요약</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* 시스템 상태 인디케이터 (상태에 따라 색상 및 텍스트 변경) */}
+          <div className={cn(
+            "flex items-center gap-2 px-3 py-1.5 border rounded-full shadow-sm transition-all duration-300",
+            isSystemActive ? "bg-white border-[#E8EAF0]" : "bg-red-50 border-red-200"
+          )}>
+            <div className="relative flex h-2 w-2">
+              <span className={cn(
+                "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                isSystemActive ? "bg-emerald-400" : "bg-red-400"
+              )}></span>
+              <span className={cn(
+                "relative inline-flex rounded-full h-2 w-2",
+                isSystemActive ? "bg-emerald-500" : "bg-red-500"
+              )}></span>
             </div>
-          );
-        })}
-      </div>
-
-      {/* ── 차트 캐러셀 (2개씩 · 가장 크게) ──────────… */}
-      <div className="bg-white rounded-[12px] border border-[#E8EAF0]"
-        style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-        <NavBar
-          title="분석 차트"
-          total={CHART_PAGES}
-          current={chartPage}
-          onPrev={() => chartGo(-1)}
-          onNext={() => chartGo(1)}
-          onJump={chartJump}
-        />
-        <div className="px-5 py-4 overflow-hidden">
-          <AnimatePresence mode="wait" custom={chartDir}>
-            <motion.div
-              key={chartPage}
-              custom={chartDir}
-              variants={SLIDE}
-              initial="enter" animate="center" exit="exit"
-              transition={{ duration: 0.24, ease: "easeOut" }}
-              className="grid grid-cols-2 gap-8"
+            <span className={cn(
+              "text-[10px] font-black uppercase tracking-wider",
+              isSystemActive ? "text-[#4A5270]" : "text-red-600"
+            )}>
+              {isSystemActive ? "시스템 상시 활성" : "시스템 점검 중"}
+            </span>
+            
+            {/* 데모용 토글 버튼 (실제 운영시에는 자동 감지) */}
+            <button 
+              onClick={() => setIsSystemActive(!isSystemActive)}
+              className="ml-1 p-0.5 hover:bg-[#F4F5F8] rounded-full text-[#9BA4C0] transition-colors"
+              title="시스템 상태 토글 (데모)"
             >
-              {visibleCharts.map((chart) => (
-                <ChartPanel key={chart.id} chart={chart} />
-              ))}
-            </motion.div>
-          </AnimatePresence>
+              <Settings size={10} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── 하단 4열 (컴팩트) ─────────────────────────── */}
-      <div className="grid grid-cols-4 gap-3.5">
-
-        {/* ① 최근 상담 */}
-        <div className="bg-white rounded-[12px] border border-[#E8EAF0] overflow-hidden"
-          style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#F0F2F8]">
-            <div className="flex items-center gap-1.5">
-              <MessageSquare size={11} className="text-[#6B7399]" strokeWidth={2} />
-              <h2 className="text-[11px] font-semibold text-[#1A1A2E]">최근 상담</h2>
-            </div>
-            <Link href="/admin/quotations" className="flex items-center gap-0.5 text-[10px] text-[#000666] hover:opacity-70 transition-opacity">
-              전체 <ChevronRight size={9} />
-            </Link>
-          </div>
-          <div className="divide-y divide-[#F8F9FC]">
-            {RECENT_CONSULTATIONS.map(c => (
-              <div key={c.id} className="flex items-center gap-2 px-3.5 py-2 hover:bg-[#FAFBFF] transition-colors">
-                <div className="w-5 h-5 rounded-full bg-[#E5E5FA] flex items-center justify-center shrink-0">
-                  <span className="text-[8px] font-bold text-[#000666]">{c.name[0]}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-medium text-[#1A1A2E] truncate">{c.name} · {c.vehicle}</p>
-                  <p className="flex items-center gap-0.5 text-[9px] text-[#B0B5CC]">
-                    <Clock size={7} /> {c.time}
-                  </p>
-                </div>
-                <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-[3px] shrink-0"
-                  style={{ color: c.sc, background: c.sb }}>{c.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ② 인기 차량 Top 4 */}
-        <div className="bg-white rounded-[12px] border border-[#E8EAF0] overflow-hidden"
-          style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#F0F2F8]">
-            <div className="flex items-center gap-1.5">
-              <BarChart2 size={11} className="text-[#6B7399]" strokeWidth={2} />
-              <h2 className="text-[11px] font-semibold text-[#1A1A2E]">인기 차량</h2>
-            </div>
-            <Link href="/admin/vehicles" className="flex items-center gap-0.5 text-[10px] text-[#000666] hover:opacity-70 transition-opacity">
-              전체 <ChevronRight size={9} />
-            </Link>
-          </div>
-          <div className="px-3.5 py-2.5 space-y-2.5">
-            {TOP_VEHICLES.map(v => (
-              <div key={v.rank}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={cn("w-4 h-4 rounded-[3px] flex items-center justify-center text-[8px] font-bold shrink-0",
-                      v.rank === 1 ? "bg-[#FEF3C7] text-[#D97706]" : v.rank === 2 ? "bg-[#F0F2F8] text-[#6B7399]" : v.rank === 3 ? "bg-[#FDE8D4] text-[#C05621]" : "bg-[#F4F5F8] text-[#9BA4C0]")}>
-                      {v.rank}
-                    </span>
-                    <span className="text-[10px] text-[#1A1A2E] truncate">{v.name}</span>
-                  </div>
-                  <span className="flex items-center gap-0.5 text-[9px] text-[#9BA4C0] ml-1 shrink-0">
-                    <Star size={7} /> {v.views}
+      {/* 내부 스크롤 영역 */}
+      <div className="flex-1 overflow-auto p-5 flex flex-col gap-4 scrollbar-hide">
+        {/* ── 2. KPI 6개 ───────────────────────── */}
+        <div className="grid grid-cols-6 gap-4">
+          {STATS.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <div key={stat.label}
+                className="bg-white rounded-[12px] border border-[#E8EAF0] px-4 py-3 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-bold text-[#6B7399] truncate pr-1">{stat.label}</p>
+                  <span className="w-6 h-6 rounded-[6px] flex items-center justify-center shrink-0"
+                    style={{ background: stat.bg }}>
+                    <Icon size={12} style={{ color: stat.color }} strokeWidth={2.5} />
                   </span>
                 </div>
-                <div className="h-1 bg-[#F0F2F8] rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${v.bar}%` }}
-                    transition={{ duration: 0.6, delay: 0.3 + v.rank * 0.06, ease: "easeOut" }}
-                    className="h-full rounded-full" style={{ background: v.barColor }}
-                  />
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[21px] font-bold text-[#1A1A2E] leading-none">{stat.value}</span>
+                  <span className="text-[10px] text-[#9BA4C0] font-medium">{stat.unit}</span>
                 </div>
+                <p className="text-[9px] text-[#9BA4C0] mt-1.5">
+                  <span className={cn("font-bold px-1.5 py-0.5 rounded-[4px] mr-1", stat.isUp ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600")}>
+                    {stat.trend}
+                  </span>
+                  {stat.trendLabel}
+                </p>
               </div>
-            ))}
+            );
+          })}
+        </div>
+
+        {/* ── 3. 차트 캐러셀 ────────── */}
+        <div className="bg-white rounded-[12px] border border-[#E8EAF0] shadow-sm">
+          <NavBar
+            title="분석 차트"
+            total={CHART_PAGES}
+            current={chartPage}
+            onPrev={() => chartGo(-1)}
+            onNext={() => chartGo(1)}
+            onJump={chartJump}
+          />
+          <div className="px-5 py-4 overflow-hidden touch-none cursor-grab active:cursor-grabbing">
+            <AnimatePresence mode="wait" custom={chartDir}>
+              <motion.div
+                key={chartPage}
+                custom={chartDir}
+                variants={SLIDE}
+                initial="enter" animate="center" exit="exit"
+                transition={{ duration: 0.24, ease: "easeOut" }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.2}
+                onDragEnd={(_, info) => {
+                  const swipe = info.offset.x;
+                  if (swipe > 50) chartGo(-1);
+                  else if (swipe < -50) chartGo(1);
+                }}
+                className="grid grid-cols-2 gap-8"
+              >
+                {visibleCharts.map((chart) => (
+                  <ChartPanel key={chart.id} chart={chart} />
+                ))}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* ③ 빠른 액션 — 1열 동일 너비 */}
-        <div className="bg-white rounded-[12px] border border-[#E8EAF0] overflow-hidden"
-          style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-          <div className="px-3.5 py-2.5 border-b border-[#F0F2F8]">
-            <h2 className="text-[11px] font-semibold text-[#1A1A2E]">빠른 액션</h2>
-          </div>
-          <div className="flex flex-col gap-1.5 p-2.5">
-            {[
-              { href: "/admin/vehicles", label: "차량 관리", icon: Plus, primary: true },
-              { href: "/admin/quotations", label: "견적 데이터 확인", icon: BarChart2, primary: false },
-              { href: "/admin/users", label: "사용자 관리", icon: Users, primary: false },
-              { href: "/admin/memo", label: "운영 메모", icon: TrendingUp, primary: false },
-            ].map(action => {
-              const Icon = action.icon;
-              return (
-                <Link key={action.href} href={action.href}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-[8px] text-[11px] font-medium w-full transition-all duration-150",
-                    action.primary
-                      ? "bg-[#000666] text-white hover:opacity-90"
-                      : "bg-[#F4F5F8] text-[#4A5270] hover:bg-[#EAEDF5] hover:text-[#1A1A2E]"
-                  )}>
-                  <Icon size={12} strokeWidth={2} />
-                  {action.label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+        {/* ── 4. 하단 4열 (Edge-to-Edge 정제) ─────────────────────────── */}
+        <div className="grid grid-cols-4 gap-4">
 
-        {/* ④ 최근 활동 */}
-        <div className="bg-white rounded-[12px] border border-[#E8EAF0] overflow-hidden"
-          style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-          <div className="px-3.5 py-2.5 border-b border-[#F0F2F8]">
-            <h2 className="text-[11px] font-semibold text-[#1A1A2E]">최근 활동</h2>
-          </div>
-          <div className="flex flex-col gap-0 divide-y divide-[#F8F9FC]">
-            {RECENT_ACTIVITY.map(act => {
-              const Icon = act.icon;
-              return (
-                <div key={act.id} className="flex items-start gap-2 px-3.5 py-2">
-                  <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ background: act.color + "1A" }}>
-                    <Icon size={9} style={{ color: act.color }} strokeWidth={2.5} />
+          {/* ① 최근 상담 */}
+          <div className="bg-white rounded-[12px] border border-[#E8EAF0] shadow-sm overflow-hidden relative group/list flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#F0F2F8]">
+              <div className="flex items-center gap-1.5">
+                <MessageSquare size={13} strokeWidth={2.5} className="text-[#000666]" />
+                <h2 className="text-[13px] font-bold text-[#1A1A2E]">최근 상담</h2>
+              </div>
+              <Link href="/admin/quotations" className="flex items-center gap-0.5 text-[11px] font-bold text-[#000666] hover:opacity-70 transition-opacity">
+                전체 <ChevronRight size={10} />
+              </Link>
+            </div>
+            <div className="flex-1 max-h-[325px] overflow-y-auto divide-y divide-[#F8F9FC] relative scrollbar-hide">
+              {RECENT_CONSULTATIONS.map(c => (
+                <Link key={c.id} href={`/admin/quotations?id=${c.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-[#F8F9FC] transition-colors">
+                  <div className="w-6 h-6 rounded-full bg-[#E5E5FA] flex items-center justify-center shrink-0">
+                    <span className="text-[10px] font-bold text-[#000666]">{c.name[0]}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-[#3D4470] leading-snug">{act.text}</p>
-                    <p className="text-[9px] text-[#9BA4C0]">{act.time}</p>
+                    <p className="text-[12px] font-bold text-[#1A1A2E] truncate">{c.name} · {c.vehicle}</p>
+                    <p className="flex items-center gap-1 text-[10px] text-[#9BA4C0] mt-0.5">
+                      <Clock size={8} /> {c.time}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-[4px] shrink-0"
+                    style={{ color: c.sc, background: c.sb }}>{c.status}</span>
+                </Link>
+              ))}
+              <div className="h-10 shrink-0" />
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-90" />
+          </div>
+
+          {/* ② 인기 차량 */}
+          <div className="bg-white rounded-[12px] border border-[#E8EAF0] shadow-sm overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#F0F2F8]">
+              <div className="flex items-center gap-1.5">
+                <BarChart2 size={13} strokeWidth={2.5} className="text-[#000666]" />
+                <h2 className="text-[13px] font-bold text-[#1A1A2E]">인기 차량</h2>
+              </div>
+              <Link href="/admin/vehicles" className="flex items-center gap-0.5 text-[11px] font-bold text-[#000666] hover:opacity-70 transition-opacity">
+                전체 <ChevronRight size={10} />
+              </Link>
+            </div>
+            <div className="flex-1 p-0 divide-y divide-[#F8F9FC]">
+              {TOP_VEHICLES.slice(0, 5).map(v => (
+                <div key={v.rank} className="px-4 py-3 hover:bg-[#FAFBFF] transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={cn("w-5 h-5 rounded-[4px] flex items-center justify-center text-[10px] font-black shrink-0",
+                        v.rank === 1 ? "bg-amber-100 text-amber-600" : v.rank === 2 ? "bg-slate-100 text-slate-500" : v.rank === 3 ? "bg-orange-100 text-orange-600" : "bg-[#F4F5F8] text-[#9BA4C0]")}>
+                        {v.rank}
+                      </span>
+                      <span className="text-[12px] font-bold text-[#1A1A2E] truncate">{v.name}</span>
+                    </div>
+                    <span className="flex items-center gap-0.5 text-[11px] font-bold text-[#000666] ml-1 shrink-0">
+                      <Star size={10} fill="currentColor" /> {v.views.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-[#F0F2F8] rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${v.bar}%` }}
+                      transition={{ duration: 0.6, delay: 0.3 + v.rank * 0.06, ease: "easeOut" }}
+                      className="h-full rounded-full" style={{ background: v.barColor }}
+                    />
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
 
+          {/* ③ 빠른 액션 */}
+          <div className="bg-white rounded-[12px] border border-[#E8EAF0] shadow-sm overflow-hidden flex flex-col">
+            <div className="px-4 py-3.5 border-b border-[#F0F2F8]">
+              <h2 className="text-[13px] font-bold text-[#1A1A2E]">빠른 액션</h2>
+            </div>
+            <div className="flex flex-col gap-2 p-3">
+              {[
+                { href: "/admin/vehicles", label: "차량 관리", icon: Plus },
+                { href: "/admin/quotations", label: "견적 데이터 확인", icon: BarChart2 },
+                { href: "/admin/users", label: "사용자 관리", icon: Users },
+                { href: "/admin/memo", label: "운영 메모", icon: TrendingUp },
+              ].map(action => {
+                const Icon = action.icon;
+                return (
+                  <Link key={action.href} href={action.href}
+                    className="flex items-center gap-3 px-4 py-3 rounded-[10px] text-[12px] font-bold w-full bg-[#E5E5FA] text-[#000666] hover:bg-[#D4D4F5] transition-all duration-150 shadow-sm border border-[#C0C5DC]/30">
+                    <div className="w-6 h-6 rounded-full bg-white/50 flex items-center justify-center shrink-0">
+                       <Icon size={13} strokeWidth={2.5} />
+                    </div>
+                    {action.label}
+                  </Link>
+                );
+              })}
+              
+              {/* 추가된 기능형 빠른 액션: 실시간 데이터 동기화 */}
+              <button
+                onClick={() => {
+                  if (syncing) return;
+                  setSyncing(true);
+                  logActivity("관리자가 '실시간 데이터 동기화'를 실행했습니다.", "update");
+                  setTimeout(() => {
+                    setSyncing(false);
+                    // 전역 캐시 무효화나 데이터 재요청 로직이 있다면 여기서 수행
+                    window.dispatchEvent(new Event("activity_updated"));
+                  }, 1500);
+                }}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-[10px] text-[12px] font-bold w-full transition-all duration-300 shadow-sm border",
+                  syncing 
+                    ? "bg-[#F4F5F8] text-[#9BA4C0] border-[#E8EAF0] cursor-not-allowed" 
+                    : "bg-[#E5E5FA] text-[#000666] border-[#C0C5DC]/30 hover:bg-[#D4D4F5] hover:scale-[1.02] active:scale-[0.98]"
+                )}
+              >
+                <div className={cn("w-6 h-6 rounded-full bg-white/50 flex items-center justify-center shrink-0", syncing && "animate-spin")}>
+                   <RefreshCw size={13} strokeWidth={2.5} />
+                </div>
+                {syncing ? "데이터 동기화 중..." : "실시간 데이터 동기화"}
+              </button>
+            </div>
+          </div>
+
+          {/* ④ 최근 활동 */}
+          <div className="bg-white rounded-[12px] border border-[#E8EAF0] shadow-sm overflow-hidden relative group/list flex flex-col">
+            <div className="px-4 py-3.5 border-b border-[#F0F2F8]">
+              <h2 className="text-[13px] font-bold text-[#1A1A2E]">최근 활동</h2>
+            </div>
+            <div className="flex-1 flex flex-col gap-0 divide-y divide-[#F8F9FC] max-h-[325px] overflow-y-auto scrollbar-hide">
+              <div className="flex flex-col gap-0">
+                {activities.length > 0 ? activities.map(act => (
+                  <div key={act.id} className="flex items-start gap-3 px-4 py-3.5 hover:bg-[#FAFBFF] transition-colors">
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                      style={{ background: act.color + "1A" }}>
+                      <div className="w-2 h-2 rounded-full" style={{ background: act.color }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] text-[#3D4470] leading-snug font-bold">{act.text}</p>
+                      <p className="text-[10px] font-medium text-[#9BA4C0] mt-1.5 flex items-center gap-1">
+                        <Clock size={8} /> {act.time}
+                      </p>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="flex flex-col items-center justify-center py-12 px-4 opacity-40">
+                    <RefreshCw size={24} className="text-[#9BA4C0] mb-2 animate-spin-slow" />
+                    <p className="text-[11px] text-[#9BA4C0]">현재 기록된 활동이 없습니다</p>
+                  </div>
+                )}
+              </div>
+              <div className="h-10 shrink-0" />
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-90" />
+          </div>
+
+        </div>
       </div>
     </div>
   );
