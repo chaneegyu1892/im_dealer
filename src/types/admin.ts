@@ -23,11 +23,21 @@ export interface AdminVehicle {
 
 export interface AdminVehicleDetail extends AdminVehicle {
   trims: AdminTrim[];
+  lineups: AdminVehicleLineup[];
+}
+
+export interface AdminVehicleLineup {
+  id: string;
+  vehicleId: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AdminTrim {
   id: string;
   vehicleId: string;
+  lineupId: string | null;
   name: string;
   price: number;
   engineType: EngineType;
@@ -36,6 +46,16 @@ export interface AdminTrim {
   isVisible: boolean;
   specs: Record<string, string> | null;
   options: AdminTrimOption[];
+  rules: AdminOptionRule[];
+}
+
+export interface AdminOptionRule {
+  id: string;
+  trimId: string;
+  ruleType: "REQUIRED" | "INCLUDED" | "CONFLICT";
+  sourceOptionId: string;
+  targetOptionId: string;
+  createdAt: string;
 }
 
 export interface AdminTrimOption {

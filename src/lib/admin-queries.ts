@@ -45,10 +45,14 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
   const v = await prisma.vehicle.findUnique({
     where: { id },
     include: {
+      lineups: {
+        orderBy: { createdAt: "asc" },
+      },
       trims: {
         orderBy: [{ isDefault: "desc" }, { price: "asc" }],
         include: {
           options: { orderBy: { price: "asc" } },
+          rules: true,
         },
       },
     },
@@ -73,9 +77,17 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
     description: v.description,
     createdAt: v.createdAt.toISOString(),
     updatedAt: v.updatedAt.toISOString(),
+    lineups: v.lineups.map((l) => ({
+      id: l.id,
+      vehicleId: l.vehicleId,
+      name: l.name,
+      createdAt: l.createdAt.toISOString(),
+      updatedAt: l.updatedAt.toISOString(),
+    })),
     trims: v.trims.map((t) => ({
       id: t.id,
       vehicleId: t.vehicleId,
+      lineupId: t.lineupId,
       name: t.name,
       price: t.price,
       engineType: t.engineType as AdminVehicleDetail["trims"][number]["engineType"],
@@ -92,6 +104,14 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
         isDefault: o.isDefault,
         isAccessory: o.isAccessory,
         description: o.description,
+      })),
+      rules: t.rules.map((r) => ({
+        id: r.id,
+        trimId: r.trimId,
+        ruleType: r.ruleType as AdminOptionRule["ruleType"],
+        sourceOptionId: r.sourceOptionId,
+        targetOptionId: r.targetOptionId,
+        createdAt: r.createdAt.toISOString(),
       })),
     })),
   };
