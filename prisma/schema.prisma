@@ -281,3 +281,22 @@ model AdminUser {
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
 }
+
+model CustomerVerification {
+  id                String    @id @default(cuid())
+  sessionId         String
+  customerType      String    // "individual" | "self_employed" | "corporate"
+  connectedId       String?   // Codef Connected ID
+  licenseVerified   Boolean   @default(false)
+  insuranceVerified Boolean   @default(false)
+  bizVerified       Boolean   @default(false)
+  licenseData       Json?     // 운전면허 조회 결과
+  insuranceData     Json?     // 건강보험 자격득실 결과
+  bizData           Json?     // 사업자등록 상태 결과
+  consentedAt       DateTime
+  verifiedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([sessionId])
+}

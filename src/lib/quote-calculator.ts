@@ -4,7 +4,7 @@
  * 핵심 공식:
  *   기준 대여료 = 차량가 × 회수율(선형보간)
  *   보증금 적용 = 차량가 × (기준회수율 + 보증금할인회수율 × 보증금10%단위수)
- *   선납금 적용 = (기준대여료 - 선납금/개월수) + 차량가 × 선납금조정회수율 × 선납금10%단위수
+ *   선납금 적용 = (기준대여료 - 선납금/개월수) - 차량가 × 선납금조정회수율 × 선납금10%단위수
  *   최종 대여료 = 보증금or선납금 적용 대여료 × (1+순위가산율) × (1+차량가산율) × (1+금융사가산율)
  */
 
@@ -73,7 +73,7 @@ function calcBaseMonthly(
   vehiclePrice: number,
   recoveryRate: number
 ): number {
-  return Math.round(vehiclePrice * recoveryRate);
+  return vehiclePrice * recoveryRate; // [수정] 중간 단계 float 유지 (최종 단계에서만 Math.round)
 }
 
 /** 보증금 적용 월 대여료 계산 */
@@ -88,7 +88,7 @@ function applyDeposit(
 
   // 보증금 적용 회수율 = 기준 회수율 + 할인회수율 × 단위수
   const adjustedRate = baseRate + depositDiscountRate * steps;
-  const monthly = Math.round(vehiclePrice * adjustedRate);
+  const monthly = vehiclePrice * adjustedRate; // [수정] 중간 단계 float 유지
   const discount = Math.round(vehiclePrice * Math.abs(depositDiscountRate) * steps);
 
   return { monthly, depositAmount, discount };
@@ -105,9 +105,9 @@ function applyPrepay(
   const steps = prepayRate / 10;
   const prepayAmount = Math.round(vehiclePrice * (prepayRate / 100));
 
-  // 선납금 로직: (기준대여료 - 선납금/개월수) + 차량가 × 선납금조정회수율 × 단위수
-  const prepayDeduction = Math.round(prepayAmount / contractMonths);
-  const adjustAmount = Math.round(vehiclePrice * prepayAdjustRate * steps);
+  // 선납금 로직: (기준대여료 - 선납금/개월수) - 차량가 × 선납금조정회수율 × 단위수
+  const prepayDeduction = prepayAmount / contractMonths; // [수정] 중간 단계 float 유지
+  const adjustAmount = vehiclePrice * prepayAdjustRate * steps; // [수정] 중간 단계 float 유지
   const monthly = baseMonthly - prepayDeduction - adjustAmount;
 
   return { monthly, prepayAmount, adjust: -(prepayDeduction + adjustAmount) };
