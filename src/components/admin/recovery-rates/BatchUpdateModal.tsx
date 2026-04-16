@@ -54,12 +54,13 @@ export function BatchUpdateModal({ isOpen, onClose, onApply }: BatchUpdateModalP
             onClick={onClose}
             className="fixed inset-0 bg-black/40 z-[60] backdrop-blur-sm"
           />
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] bg-white rounded-[20px] shadow-2xl z-[70] overflow-hidden"
-          >
+          <div className="fixed inset-0 flex items-center justify-center z-[70] pointer-events-none p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="w-full max-w-[480px] bg-white rounded-[20px] shadow-2xl overflow-hidden pointer-events-auto"
+            >
             <div className="px-6 py-5 border-b border-[#F0F2F8] flex items-center justify-between bg-[#F8F9FC]">
               <div>
                 <h2 className="text-[16px] font-bold text-[#1A1A2E]">일괄 회수율 조정</h2>
@@ -178,7 +179,8 @@ export function BatchUpdateModal({ isOpen, onClose, onApply }: BatchUpdateModalP
                 </button>
               </div>
             </form>
-          </motion.div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

@@ -9,6 +9,9 @@ import {
   Eye, Sparkles, SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 import {
   MOCK_USERS,
   USER_STATS,
@@ -206,17 +209,19 @@ function UserDetailPanel({
             ) : (
               <div className="space-y-2">
                 {user.activeItems.map(item => (
-                  <div
+                  <Link
                     key={item.quoteId}
-                    className="flex items-center gap-2.5 py-2 px-3 rounded-[8px] bg-[#FAFBFF] border border-[#F0F2F8]"
+                    href={`/admin/quotations?id=${item.quoteId}`}
+                    className="flex items-center gap-2.5 py-2 px-3 rounded-[8px] bg-[#FAFBFF] border border-[#F0F2F8] hover:border-[#000666] hover:bg-white transition-all group/item"
                   >
-                    <FileText size={12} className="text-[#9BA4C0] shrink-0" />
+                    <FileText size={12} className="text-[#9BA4C0] shrink-0 group-hover/item:text-[#000666]" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-medium text-[#1A1A2E] truncate">{item.vehicleName}</p>
+                      <p className="text-[11px] font-medium text-[#1A1A2E] truncate group-hover/item:text-[#000666]">{item.vehicleName}</p>
                       <p className="text-[10px] text-[#9BA4C0]">{item.quoteId}</p>
                     </div>
                     <QuoteStatusBadge status={item.status} />
-                  </div>
+                    <ChevronRight size={10} className="text-[#D4D8EC] group-hover/item:text-[#000666] ml-1" />
+                  </Link>
                 ))}
               </div>
             )}
@@ -238,10 +243,13 @@ function UserDetailPanel({
 
         {/* 하단 액션 */}
         <div className="px-5 py-3.5 border-t border-[#F0F2F8] flex gap-2">
-          <button className="flex-1 py-2 rounded-[8px] text-[12px] font-medium bg-[#000666] text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5">
+          <Link 
+            href={`/admin/quotations?search=${encodeURIComponent(user.name)}`}
+            className="flex-1 py-2 rounded-[8px] text-[12px] font-medium bg-[#000666] text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5"
+          >
             <MessageSquare size={12} />
-            상담 이동
-          </button>
+            상담 이력 이동
+          </Link>
           <button className="py-2 px-3.5 rounded-[8px] text-[12px] font-medium bg-[#F4F5F8] text-[#4A5270] hover:bg-[#EAEDF5] transition-colors flex items-center gap-1.5">
             <TrendingUp size={12} />
             기록 보기
@@ -253,11 +261,24 @@ function UserDetailPanel({
 }
 
 // ─── 메인 페이지 ──────────────────────────────────────────────
-export default function AdminUsersPage() {
+function UsersContent() {
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<UserStatus | "전체">("전체");
   const [activeFilter, setActiveFilter] = useState<"전체" | "진행중" | "없음">("전체");
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
+
+  // URL 파라미터(?search=...) 연동
+  useEffect(() => {
+    const s = searchParams.get("search");
+    if (s) {
+      setSearch(s);
+      
+      // 검색어와 정확히 일치하는 사용자가 1명뿐이면 자동으로 상세 패널을 엽니다.
+      const match = MOCK_USERS.find(u => u.name === s);
+      if (match) setSelectedUser(match);
+    }
+  }, [searchParams]);
 
   const today = new Date().toLocaleDateString("ko-KR", {
     year: "numeric", month: "long", day: "numeric", weekday: "long",
@@ -275,224 +296,209 @@ export default function AdminUsersPage() {
   }, [search, statusFilter, activeFilter]);
 
   return (
-    <div className="p-5 flex flex-col gap-3.5" style={{ minHeight: "100vh" }}>
+    <div className="flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm">
 
-      {/* ── 헤더 ──────────────────────────────────────── */}
-      <div>
-        <p className="text-[11px] text-[#8890AA]">{today}</p>
-        <h1 className="text-[20px] font-semibold text-[#1A1A2E] leading-tight">사용자 관리</h1>
+      {/* ── 1. 표준 헤더 ────────────────────────────────────── */}
+      <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-[#F4F5F8] rounded-[8px] text-[#000666]">
+            <Users size={20} strokeWidth={2.5} />
+          </div>
+          <div>
+            <h1 className="text-[18px] font-bold text-[#1A1A2E]">사용자 관리</h1>
+            <p className="text-[12px] text-[#6B7399] mt-1">{today} · 플랫폼 가입 사용자 관리 및 활동 추적</p>
+          </div>
+        </div>
       </div>
 
-      {/* ── KPI 카드 ────────────────────────────────────── */}
-      <div className="grid grid-cols-5 gap-3">
-        {KPI_LIST.map(kpi => {
-          const Icon = kpi.icon;
-          return (
-            <div
-              key={kpi.label}
-              className="bg-white rounded-[12px] border border-[#E8EAF0] px-4 py-3.5"
-              style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] font-medium text-[#6B7399] truncate pr-1">{kpi.label}</p>
-                <span className="w-6 h-6 rounded-[5px] flex items-center justify-center shrink-0" style={{ background: kpi.bg }}>
-                  <Icon size={12} style={{ color: kpi.color }} strokeWidth={2} />
-                </span>
+      <div className="flex-1 overflow-auto p-6 flex flex-col gap-5 scrollbar-hide">
+        {/* ── 2. KPI 5개 ── */}
+        <div className="grid grid-cols-5 gap-4 shrink-0">
+          {KPI_LIST.map(kpi => {
+            const Icon = kpi.icon;
+            return (
+              <div key={kpi.label} className="bg-white rounded-[12px] border border-[#E8EAF0] px-5 py-4 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-bold text-[#6B7399] mb-1">{kpi.label}</p>
+                  <p className="text-[22px] font-bold text-[#1A1A2E] leading-none">{kpi.value}<span className="text-[12px] font-normal text-[#9BA4C0] ml-0.5">{kpi.unit}</span></p>
+                </div>
+                <div className="w-9 h-9 rounded-[8px] flex items-center justify-center shrink-0" style={{ background: kpi.bg }}>
+                  <Icon size={16} style={{ color: kpi.color }} strokeWidth={2.5} />
+                </div>
               </div>
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-[22px] font-bold text-[#1A1A2E] leading-none">{kpi.value}</span>
-                <span className="text-[11px] text-[#9BA4C0] ml-0.5">{kpi.unit}</span>
+            );
+          })}
+        </div>
+
+        {/* ── 3. 필터 & 검색 바 ── */}
+        <div className="bg-white rounded-[12px] border border-[#E8EAF0] px-5 py-3.5 flex items-center gap-4 shadow-sm shrink-0">
+          <div className="relative flex-1 max-w-[320px]">
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9BA4C0]" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="이름, 연락처, 이메일로 검색"
+              className="w-full pl-10 pr-4 py-2 text-[12px] bg-[#F4F5F8] border border-transparent rounded-[8px] focus:bg-white focus:border-[#000666] outline-none transition-all"
+            />
+          </div>
+
+          <div className="w-px h-6 bg-[#E8EAF0]" />
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider mr-1">계정 상태</span>
+            {(["전체", "정상", "휴면", "탈퇴"] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={cn(
+                  "px-3 py-1.5 rounded-[6px] text-[11px] font-bold transition-all",
+                  statusFilter === s ? "bg-[#000666] text-white shadow-md shadow-blue-900/10" : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#E8EAF0]"
+                )}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-6 bg-[#E8EAF0]" />
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider mr-1">상담 진행</span>
+            {(["전체", "진행중", "없음"] as const).map(a => (
+              <button
+                key={a}
+                onClick={() => setActiveFilter(a)}
+                className={cn(
+                  "px-3 py-1.5 rounded-[6px] text-[11px] font-bold transition-all",
+                  activeFilter === a ? "bg-[#000666] text-white shadow-md shadow-blue-900/10" : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#E8EAF0]"
+                )}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+
+          <p className="ml-auto text-[11px] font-bold text-[#9BA4C0]">{filtered.length}명의 데이터 검색됨</p>
+        </div>
+
+        {/* ── 4. 사용자 목록 테이블 ── */}
+        <div className="bg-white rounded-[12px] border border-[#E8EAF0] shadow-sm flex flex-col flex-1 min-h-0 relative">
+          {/* 테이블 헤더 */}
+          <div className="grid border-b border-[#F0F2F8] px-6 py-3.5 bg-[#FAFBFF] sticky top-0 z-10"
+            style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 0.8fr 0.8fr 0.8fr 1.8fr 1.2fr" }}
+          >
+            {["사용자", "연락처", "상태", "견적 조회", "상담", "PDF", "진행 항목", "마지막 접속"].map(col => (
+              <span key={col} className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">{col}</span>
+            ))}
+          </div>
+
+          {/* 테이블 바디 */}
+          <div className="flex-1 overflow-y-auto divide-y divide-[#F8F9FC]">
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-[#C0C5D8]">
+                <Users size={32} strokeWidth={1} className="mb-3 opacity-40" />
+                <p className="text-[13px] font-bold">검색 결과가 없습니다</p>
+                <p className="text-[11px] mt-1">필터 조건을 변경하거나 검색어를 다시 확인해 주세요.</p>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── 필터 & 검색 바 ────────────────────────────── */}
-      <div
-        className="bg-white rounded-[12px] border border-[#E8EAF0] px-4 py-3 flex items-center gap-3"
-        style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-      >
-        {/* 검색 */}
-        <div className="relative flex-1 max-w-[280px]">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0]" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="이름, 전화번호, 이메일 검색"
-            className="w-full pl-8 pr-3 py-1.5 rounded-[7px] bg-[#F4F5F8] text-[12px] text-[#1A1A2E] placeholder-[#B0B5CC] border border-transparent focus:border-[#000666] focus:outline-none transition-colors"
-          />
-          {search && (
-            <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#B0B5CC] hover:text-[#6B7399]">
-              <X size={11} />
-            </button>
-          )}
-        </div>
-
-        <div className="w-px h-5 bg-[#E8EAF0]" />
-
-        {/* 계정 상태 필터 */}
-        <div className="flex items-center gap-1.5">
-          <SlidersHorizontal size={12} className="text-[#9BA4C0]" />
-          <span className="text-[11px] text-[#9BA4C0]">상태</span>
-          {(["전체", "정상", "휴면", "탈퇴"] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                "px-2.5 py-1 rounded-[6px] text-[11px] font-medium transition-all duration-150",
-                statusFilter === s
-                  ? "bg-[#000666] text-white"
-                  : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#EAEDF5]"
-              )}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        <div className="w-px h-5 bg-[#E8EAF0]" />
-
-        {/* 진행중 여부 필터 */}
-        <div className="flex items-center gap-1.5">
-          <Filter size={12} className="text-[#9BA4C0]" />
-          <span className="text-[11px] text-[#9BA4C0]">상담</span>
-          {(["전체", "진행중", "없음"] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setActiveFilter(f)}
-              className={cn(
-                "px-2.5 py-1 rounded-[6px] text-[11px] font-medium transition-all duration-150",
-                activeFilter === f
-                  ? "bg-[#000666] text-white"
-                  : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#EAEDF5]"
-              )}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        <p className="ml-auto text-[11px] text-[#9BA4C0] shrink-0">
-          {filtered.length}명 표시 중
-        </p>
-      </div>
-
-      {/* ── 사용자 목록 테이블 ────────────────────────── */}
-      <div
-        className="bg-white rounded-[12px] border border-[#E8EAF0] overflow-hidden"
-        style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
-      >
-        {/* 테이블 헤더 */}
-        <div className="grid border-b border-[#F0F2F8] px-4 py-2.5 bg-[#FAFBFF]"
-          style={{ gridTemplateColumns: "2fr 1.5fr 1fr 0.8fr 0.8fr 0.8fr 1.5fr 1fr" }}
-        >
-          {["사용자", "연락처", "상태", "견적 조회", "상담", "PDF", "진행 항목", "마지막 접속"].map(col => (
-            <span key={col} className="text-[10px] font-semibold text-[#9BA4C0] uppercase tracking-wide">{col}</span>
-          ))}
-        </div>
-
-        {/* 테이블 바디 */}
-        <div className="divide-y divide-[#F8F9FC]">
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-[#C0C5D8]">
-              <Users size={28} strokeWidth={1.5} className="mb-2" />
-              <p className="text-[13px]">검색 결과가 없습니다</p>
-            </div>
-          ) : (
-            filtered.map((user, idx) => {
-              const statusStyle = USER_STATUS_STYLE[user.status];
-              const hasActive = user.activeItems.length > 0;
-              return (
-                <motion.div
-                  key={user.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.18, delay: idx * 0.03 }}
-                  onClick={() => setSelectedUser(user)}
-                  className="grid items-center px-4 py-3 cursor-pointer hover:bg-[#FAFBFF] transition-colors group"
-                  style={{ gridTemplateColumns: "2fr 1.5fr 1fr 0.8fr 0.8fr 0.8fr 1.5fr 1fr" }}
-                >
-                  {/* 사용자 */}
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-                      style={{ background: "linear-gradient(135deg, #000666, #6066EE)" }}
-                    >
-                      {user.name[0]}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-semibold text-[#1A1A2E] truncate">{user.name}</p>
-                      <p className="text-[10px] text-[#9BA4C0] truncate">{user.id}</p>
-                    </div>
-                  </div>
-
-                  {/* 연락처 */}
-                  <div className="min-w-0">
-                    <p className="text-[11px] text-[#3D4470] truncate">{user.phone}</p>
-                    <p className="text-[10px] text-[#B0B5CC] truncate">{user.email || "-"}</p>
-                  </div>
-
-                  {/* 상태 */}
-                  <div>
-                    <span
-                      className="text-[10px] font-semibold px-1.5 py-0.5 rounded-[4px]"
-                      style={{ color: statusStyle.color, background: statusStyle.bg }}
-                    >
-                      {statusStyle.label}
-                    </span>
-                  </div>
-
-                  {/* 견적 조회 */}
-                  <div className="flex items-center gap-1">
-                    <Eye size={10} className="text-[#D97706]" />
-                    <span className="text-[12px] font-semibold text-[#1A1A2E]">{user.quoteViewCount}</span>
-                    <span className="text-[10px] text-[#9BA4C0]">회</span>
-                  </div>
-
-                  {/* 상담 */}
-                  <div className="flex items-center gap-1">
-                    <MessageSquare size={10} className="text-[#000666]" />
-                    <span className="text-[12px] font-semibold text-[#1A1A2E]">{user.consultationCount}</span>
-                    <span className="text-[10px] text-[#9BA4C0]">건</span>
-                  </div>
-
-                  {/* PDF */}
-                  <div className="flex items-center gap-1">
-                    <Download size={10} className="text-[#7C3AED]" />
-                    <span className="text-[12px] font-semibold text-[#1A1A2E]">{user.pdfDownloadCount}</span>
-                    <span className="text-[10px] text-[#9BA4C0]">건</span>
-                  </div>
-
-                  {/* 진행 항목 */}
-                  <div className="min-w-0">
-                    {hasActive ? (
-                      <div className="space-y-0.5">
-                        {user.activeItems.map(item => (
-                          <div key={item.quoteId} className="flex items-center gap-1.5">
-                            <QuoteStatusBadge status={item.status} />
-                            <span className="text-[10px] text-[#6B7399] truncate">{item.vehicleName.split(" ").slice(0, 3).join(" ")}</span>
-                          </div>
-                        ))}
+            ) : (
+              filtered.map((user, idx) => {
+                const statusStyle = USER_STATUS_STYLE[user.status];
+                const hasActive = user.activeItems.length > 0;
+                return (
+                  <motion.div
+                    key={user.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.03 }}
+                    onClick={() => setSelectedUser(user)}
+                    className="grid items-center px-6 py-4 hover:bg-[#FAFBFF] transition-all cursor-pointer group relative"
+                    style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 0.8fr 0.8fr 0.8fr 1.8fr 1.2fr" }}
+                  >
+                    {/* 사용자 정보 */}
+                    <div className="flex items-center gap-3 pr-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-[#F4F5F8] flex items-center justify-center shrink-0 border border-[#E8EAF0] group-hover:border-[#000666] transition-colors">
+                        <span className="text-[12px] font-black text-[#6B7399] group-hover:text-[#000666]">{user.name[0]}</span>
                       </div>
-                    ) : (
-                      <span className="text-[11px] text-[#D4D8EC]">-</span>
-                    )}
-                  </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-bold text-[#1A1A2E] truncate">{user.name}</p>
+                        <p className="text-[10px] text-[#9BA4C0] truncate">{user.email}</p>
+                      </div>
+                    </div>
 
-                  {/* 마지막 접속 */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-[#9BA4C0]">{daysSince(user.lastLoginAt)}</span>
-                    <ChevronRight
-                      size={12}
-                      className="text-[#D4D8EC] group-hover:text-[#000666] transition-colors"
-                    />
-                  </div>
-                </motion.div>
-              );
-            })
-          )}
+                    {/* 연락처 */}
+                    <div className="text-[12px] font-medium text-[#4A5270] tabular-nums">{user.phone}</div>
+
+                    {/* 계정 상태 */}
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                        style={{ color: statusStyle.color, background: statusStyle.bg }}>
+                        <div className="w-1 h-1 rounded-full" style={{ background: statusStyle.color }} />
+                        {statusStyle.label}
+                      </span>
+                    </div>
+
+                    {/* 통계 메트릭 */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[12px] font-bold text-[#1A1A2E] tabular-nums">{user.quoteViewCount}</span>
+                      <span className="text-[10px] text-[#9BA4C0]">회</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[12px] font-bold text-[#1A1A2E] tabular-nums">{user.consultationCount}</span>
+                      <span className="text-[10px] text-[#9BA4C0]">건</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[12px] font-bold text-[#1A1A2E] tabular-nums">{user.pdfDownloadCount}</span>
+                      <span className="text-[10px] text-[#9BA4C0]">건</span>
+                    </div>
+
+                    {/* 진행 항목 */}
+                    <div className="min-w-0 pr-4">
+                      {hasActive ? (
+                        <div className="flex flex-col gap-1">
+                          {user.activeItems.slice(0, 2).map(item => (
+                            <div key={item.quoteId} className="flex items-center gap-1.5 min-w-0">
+                              <QuoteStatusBadge status={item.status} />
+                              <span className="text-[10px] text-[#6B7399] truncate font-medium">{item.vehicleName.split(" ").slice(0, 3).join(" ")}</span>
+                            </div>
+                          ))}
+                          {user.activeItems.length > 2 && <p className="text-[9px] text-[#B0B5CC] pl-1">+ {user.activeItems.length - 2}건 더 있음</p>}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-[#D4D8EC]">-</span>
+                      )}
+                    </div>
+
+                    {/* 마지막 접속 */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-[#9BA4C0] tabular-nums">{daysSince(user.lastLoginAt)}</span>
+                      <ChevronRight size={14} className="text-[#D4D8EC] group-hover:text-[#000666] transition-all group-hover:translate-x-1" />
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+            <div className="h-12 shrink-0" />
+          </div>
+          {/* 하단 페이드 */}
+          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-70" />
+        </div>
+      </div>
+
+      {/* ── 5. 하단 상태 바 ── */}
+      <div className="bg-[#FAFBFF] border-t border-[#E8EAF0] px-6 py-4 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[12px] text-[#6B7399]">전체 사용자: <strong className="text-[#1A1A2E]">{MOCK_USERS.length}명</strong></span>
+          </div>
+          <div className="w-px h-3 bg-[#E8EAF0]" />
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-[#6B7399]">이번 달 가입: <strong className="text-[#7C3AED]">{USER_STATS.newThisMonth}명</strong></span>
+          </div>
+        </div>
+        <div className="text-[11px] font-bold text-[#B0B5CC] tracking-widest uppercase">
+          System Update: <span className="text-emerald-500">Live</span> · {today.split(" ")[0]}
         </div>
       </div>
 
@@ -503,5 +509,17 @@ export default function AdminUsersPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function UsersPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-full bg-[#F8F9FC]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#000666]"></div>
+      </div>
+    }>
+      <UsersContent />
+    </Suspense>
   );
 }

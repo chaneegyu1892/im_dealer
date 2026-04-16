@@ -18,21 +18,41 @@ import { RecoveryRateTable } from "@/components/admin/recovery-rates/RecoveryRat
 import { BatchUpdateModal } from "@/components/admin/recovery-rates/BatchUpdateModal";
 import { RateHistoryTimeline } from "@/components/admin/recovery-rates/RateHistoryTimeline";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 
-export default function RecoveryRatesPage() {
+function RecoveryRatesContent() {
+  const searchParams = useSearchParams();
   const [rates, setRates] = useState<RecoveryRateItem[]>(MOCK_RECOVERY_RATES);
   const [history, setHistory] = useState(MOCK_RECOVERY_HISTORY);
   
   const [selectedBrand, setSelectedBrand] = useState("전체");
+  const [search, setSearch] = useState("");
   
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
 
-  // 현재 선택된 브랜드에 맞는 데이터 필터링
+  // URL 파라미터(?search=...) 연동
+  useEffect(() => {
+    const s = searchParams.get("search");
+    if (s) {
+      setSearch(s);
+    }
+  }, [searchParams]);
+
+  // 현재 선택된 브랜드 및 검색어에 맞는 데이터 필터링
   const filteredRates = useMemo(() => {
-    if (selectedBrand === "전체") return rates;
-    return rates.filter(item => item.brand === selectedBrand);
-  }, [rates, selectedBrand]);
+    let result = rates;
+    if (selectedBrand !== "전체") {
+      result = result.filter(item => item.brand === selectedBrand);
+    }
+    if (search) {
+      result = result.filter(item => 
+        item.vehicleName.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+    return result;
+  }, [rates, selectedBrand, search]);
 
   const handleUpdateRate = (id: string, field: string, newValue: number) => {
     setRates(prev => prev.map(item => {
@@ -211,6 +231,18 @@ export default function RecoveryRatesPage() {
         historyData={history} 
       />
     </div>
+  );
+}
+
+export default function RecoveryRatesPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-full bg-[#F8F9FC]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#000666]"></div>
+      </div>
+    }>
+      <RecoveryRatesContent />
+    </Suspense>
   );
 }
 
