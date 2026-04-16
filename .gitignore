@@ -37,3 +37,8 @@ next-env.d.ts
 # prisma
 /prisma/migrations/dev.db
 /prisma/migrations/dev.db-journal
+
+.vscode/
+node_modules/
+.next/
+.env
