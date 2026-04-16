@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -9,6 +10,10 @@ import {
   Car,
   BarChart2,
   LogOut,
+  ShieldCheck,
+  Settings,
+  ChevronUp,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,16 +42,51 @@ const NAV: NavGroup[] = [
     group: "핵심 관리",
     items: [
       { href: "/admin/quotations", label: "견적 데이터", icon: FileText },
+      { href: "/admin/verifications", label: "서류 확인", icon: ShieldCheck },
       { href: "/admin/vehicles", label: "차량 관리", icon: Car },
     ],
   },
 ];
 
+interface AdminInfo {
+  name: string;
+  email: string;
+  role: string;
+}
+
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [adminInfo, setAdminInfo] = useState<AdminInfo | null>(null);
+  const [popupOpen, setPopupOpen] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/auth/me")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setAdminInfo(d.data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
+        setPopupOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  async function handleLogout() {
+    await fetch("/api/admin/auth/logout", { method: "POST" });
+    router.push("/admin/login");
+  }
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
+
+  const initial = adminInfo?.name?.[0] ?? "관";
 
   return (
     <aside
@@ -112,22 +152,73 @@ export function AdminSidebar() {
       </nav>
 
       {/* 하단 유저 영역 */}
-      <div className="px-3 py-4 border-t border-white/[0.06]">
-        <div className="flex items-center gap-2.5 px-2 py-2 rounded-[6px] mb-1">
+      <div className="px-3 py-4 border-t border-white/[0.06]" ref={popupRef}>
+        {/* 팝업 */}
+        {popupOpen && (
+          <div className="mb-2 bg-[#1A1A3E] rounded-[8px] border border-white/[0.08] overflow-hidden">
+            <Link
+              href="/admin/settings"
+              onClick={() => setPopupOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2.5 text-[12px] text-[#9BA4C0] hover:text-white hover:bg-white/[0.06] transition-all duration-150"
+            >
+              <Settings size={13} strokeWidth={1.8} />
+              계정 설정
+            </Link>
+            {adminInfo?.role === "admin" && (
+              <>
+                <Link
+                  href="/admin/settings/accounts"
+                  onClick={() => setPopupOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 text-[12px] text-[#9BA4C0] hover:text-white hover:bg-white/[0.06] transition-all duration-150"
+                >
+                  <Users size={13} strokeWidth={1.8} />
+                  계정 관리
+                </Link>
+                <div className="h-px bg-white/[0.06]" />
+              </>
+            )}
+            <div className="h-px bg-white/[0.06]" />
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center gap-2.5 px-3 py-2.5 w-full text-left text-[12px] text-[#5A6080] hover:text-red-400 hover:bg-white/[0.04] transition-all duration-150"
+            >
+              <LogOut size={13} strokeWidth={1.8} />
+              로그아웃
+            </button>
+          </div>
+        )}
+
+        {/* 유저 버튼 */}
+        <button
+          type="button"
+          onClick={() => setPopupOpen((v) => !v)}
+          className={cn(
+            "flex items-center gap-2.5 px-2 py-2 rounded-[6px] w-full transition-all duration-150",
+            popupOpen ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
+          )}
+        >
           <div
             className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold text-white shrink-0"
             style={{ background: "#000666" }}
           >
-            관
+            {initial}
           </div>
-          <div className="min-w-0">
-            <p className="text-[12px] font-medium text-[#C0C5DC] truncate">관리자</p>
-            <p className="text-[10px] text-[#3D4470] truncate">admin@imdealers.kr</p>
+          <div className="min-w-0 flex-1 text-left">
+            <p className="text-[12px] font-medium text-[#C0C5DC] truncate">
+              {adminInfo?.name ?? "관리자"}
+            </p>
+            <p className="text-[10px] text-[#3D4470] truncate">
+              {adminInfo?.email ?? ""}
+            </p>
           </div>
-        </div>
-        <button className="flex items-center gap-2 px-2.5 py-1.5 w-full rounded-[6px] text-[12px] text-[#3D4470] hover:text-[#8890AA] hover:bg-white/[0.04] transition-all duration-150">
-          <LogOut size={12} strokeWidth={1.8} />
-          로그아웃
+          <ChevronUp
+            size={12}
+            className={cn(
+              "text-[#3D4470] shrink-0 transition-transform duration-150",
+              popupOpen ? "rotate-0" : "rotate-180"
+            )}
+          />
         </button>
       </div>
     </aside>

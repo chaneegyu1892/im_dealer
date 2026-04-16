@@ -428,10 +428,18 @@ function DoneScreen() {
 }
 
 // ─── 메인 클라이언트 컴포넌트 ─────────────────────────────
+function formatVehicleSlug(slug: string): string {
+  return slug
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 export function VerifyClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
+  const vehicleSlug = searchParams.get("vehicle");
 
   const [step, setStep] = useState<Step>(1);
   const [consents, setConsents] = useState({ privacy: false, codef: false });
@@ -521,6 +529,16 @@ export function VerifyClient() {
 
   return (
     <div className="page-container py-10 max-w-md mx-auto">
+      {/* 차량 컨텍스트 배너 */}
+      {vehicleSlug && step !== "done" && (
+        <div className="flex items-center gap-2 mb-6 px-4 py-3 rounded-card bg-primary/[0.06] border border-primary/20">
+          <span className="text-[12px] text-primary/70">신청 차량</span>
+          <span className="text-[13px] font-semibold text-primary">
+            {formatVehicleSlug(vehicleSlug)}
+          </span>
+        </div>
+      )}
+
       {/* 스텝 인디케이터 */}
       {step !== "done" && (
         <div className="flex justify-center mb-10">

@@ -2,11 +2,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { trimUpdateSchema } from "@/lib/validations/admin";
+import { getAdminSession } from "@/lib/admin-auth";
 
 type Params = { params: Promise<{ id: string; trimId: string }> };
 
 // ─── PATCH /api/admin/vehicles/[id]/trims/[trimId] ──────
 export async function PATCH(request: NextRequest, { params }: Params) {
+  if (!(await getAdminSession())) {
+    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+  }
   try {
     const { id, trimId } = await params;
     const body = await request.json();
@@ -56,6 +60,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 // ─── DELETE /api/admin/vehicles/[id]/trims/[trimId] ─────
 export async function DELETE(_request: NextRequest, { params }: Params) {
+  if (!(await getAdminSession())) {
+    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+  }
   try {
     const { id, trimId } = await params;
     const existing = await prisma.trim.findFirst({

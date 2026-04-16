@@ -9,6 +9,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -1301,6 +1302,26 @@ async function main() {
     if (linkCount > 0) console.log(`   ✅ ${vehicle.name} 연결 완료`);
   }
   console.log(`   ✅ TrimOption 신규 ${trimOptionCount}개 생성, ${linkCount}개 연결\n`);
+
+  // 초기 어드민 계정
+  const adminEmail = process.env.ADMIN_INITIAL_EMAIL ?? "admin@imdealers.com";
+  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD ?? "changeme123!";
+  const existingAdmin = await prisma.adminUser.findUnique({ where: { email: adminEmail } });
+  if (!existingAdmin) {
+    const passwordHash = await bcrypt.hash(adminPassword, 12);
+    await prisma.adminUser.create({
+      data: {
+        email: adminEmail,
+        passwordHash,
+        name: "관리자",
+        role: "admin",
+        isActive: true,
+      },
+    });
+    console.log(`👤 어드민 계정 생성: ${adminEmail}`);
+  } else {
+    console.log(`👤 어드민 계정 이미 존재: ${adminEmail}`);
+  }
 
   console.log("✨ 시드 데이터 삽입 완료!");
 }

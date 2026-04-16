@@ -8,6 +8,19 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-XSS-Protection", value: "1; mode=block" },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {
@@ -34,6 +47,9 @@ const nextConfig = {
       { protocol: "https", hostname: "*.tesla.com" },
       { protocol: "https", hostname: "www.volvo.co.kr" },
       { protocol: "https", hostname: "*.volvo.co.kr" },
+      // 카카오 프로필 이미지
+      { protocol: "https", hostname: "*.kakaocdn.net" },
+      { protocol: "http", hostname: "*.kakaocdn.net" },
       // 기타 외부 이미지 도메인 (필요 시 추가)
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "cdn.imdealers.com" },

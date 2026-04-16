@@ -7,7 +7,7 @@ import { RecommendVehicleCard } from "./RecommendVehicleCard";
 import { RecommendCardSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { TrustBadgeGroup } from "@/components/ui/TrustBadge";
-import { RotateCcw, Sparkles, FileCheck } from "lucide-react";
+import { RotateCcw, Sparkles } from "lucide-react";
 
 const LABEL_MAP: Record<string, string> = {
   법인: "법인",
@@ -139,33 +139,6 @@ export function RecommendResultView() {
         {vehicles.map((v, i) => (
           <RecommendVehicleCard key={v.vehicleId} vehicle={v} isTop={i === 0} />
         ))}
-      </div>
-
-      {/* 서류 간편 제출 CTA */}
-      <div className="mt-8 rounded-card border border-primary/20 bg-primary/[0.03] p-5">
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-            <FileCheck size={17} className="text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-semibold text-ink">
-              마음에 드는 차량이 있으신가요?
-            </p>
-            <p className="text-[12px] text-ink-label mt-1 leading-relaxed">
-              공공기관 서류를 비대면으로 간편하게 제출하면
-              딜러가 검토 후 정확한 조건으로 연락드립니다.
-            </p>
-            <Button
-              variant="primary"
-              size="sm"
-              className="mt-3"
-              onClick={() => router.push(`/verify?sessionId=${sessionId}`)}
-            >
-              <FileCheck size={13} className="mr-1.5" />
-              서류 간편 제출하기
-            </Button>
-          </div>
-        </div>
       </div>
 
       {/* 하단 재시도 */}

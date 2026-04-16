@@ -170,6 +170,7 @@ model QuoteVariable {
 model SavedQuote {
   id             String   @id @default(cuid())
   sessionId      String
+  userId         String?  // 로그인 고객 연결
   vehicleId      String
   trimId         String
   contractMonths Int
@@ -182,8 +183,10 @@ model SavedQuote {
   breakdown      Json
   createdAt      DateTime @default(now())
   expiresAt      DateTime
+  user           User?    @relation(fields: [userId], references: [id])
 
   @@index([sessionId])
+  @@index([userId])
 }
 
 model RecommendationLog {
@@ -282,9 +285,24 @@ model AdminUser {
   createdAt    DateTime  @default(now())
 }
 
+// 소셜 로그인 고객 (Supabase auth.users와 동일 UUID로 브릿지)
+model User {
+  id        String   @id          // Supabase auth.users.id (UUID)
+  provider  String               // "kakao" | "naver" | ...
+  name      String?
+  email     String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  verifications CustomerVerification[]
+  savedQuotes   SavedQuote[]
+}
+
 model CustomerVerification {
   id                String    @id @default(cuid())
   sessionId         String
+  userId            String?   // 로그인 고객 연결 (비로그인 시 null)
   customerType      String    // "individual" | "self_employed" | "corporate"
   connectedId       String?   // Codef Connected ID
   licenseVerified   Boolean   @default(false)
@@ -297,6 +315,8 @@ model CustomerVerification {
   verifiedAt        DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+  user              User?     @relation(fields: [userId], references: [id])
 
   @@index([sessionId])
+  @@index([userId])
 }

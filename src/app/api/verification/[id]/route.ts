@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAdminSession } from "@/lib/admin-auth";
 
 // ─── GET /api/verification/[id] ──────────────────────────
 // 관리자용: verificationId로 전체 인증 결과 조회
@@ -7,6 +8,10 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!(await getAdminSession())) {
+    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+  }
+
   try {
     const { id } = await params;
 

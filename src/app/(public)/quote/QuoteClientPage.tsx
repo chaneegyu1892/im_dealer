@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -13,6 +14,7 @@ import {
   AlertCircle,
   Check,
   ChevronDown,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
@@ -249,8 +251,12 @@ function VehiclePickCard({
 
 // ─── 메인 ────────────────────────────────────────────────
 export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const prefillSlug = searchParams.get("vehicle") ?? undefined;
+  const quoteSessionId = useRef(
+    typeof crypto !== "undefined" ? crypto.randomUUID() : `quote-${Date.now()}`
+  ).current;
   // 추천 결과에서 넘어온 TrimOption IDs (pre-select용)
   const prefillOptionIds = searchParams.get("options")?.split(",").filter(Boolean) ?? [];
 
@@ -260,6 +266,17 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleListItem | null>(() =>
     prefillSlug ? vehicles.find((v) => v.slug === prefillSlug) ?? null : null
   );
+
+  const handleContractApply = useCallback(async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}`;
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+      return;
+    }
+    router.push(target);
+  }, [router, quoteSessionId, selectedVehicle?.slug]);
 
   // 트림/옵션 상태
   const [trims, setTrims] = useState<TrimData[]>([]);
@@ -930,6 +947,19 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   차량 상태·옵션·프로모션에 따라 달라질 수 있습니다. 전문가
                   상담을 통해 확정 견적을 받으시길 권장합니다.
                 </div>
+
+                {/* 계약 신청하기 */}
+                <button
+                  type="button"
+                  onClick={handleContractApply}
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-btn
+                             bg-primary text-white text-[14px] font-semibold
+                             hover:bg-primary/90 active:scale-[0.98]
+                             transition-all duration-150 mb-2"
+                >
+                  <ClipboardCheck size={15} strokeWidth={2} />
+                  이 견적으로 계약 신청하기
+                </button>
 
                 {/* 상담 버튼 */}
                 <ChannelTalkButton vehicleName={selectedVehicle?.name} />
