@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { cn, formatCurrency, formatMonthly } from "@/lib/utils";
 import type { RecommendedVehicle } from "@/types/recommendation";
 import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
-import { ChevronRight, Trophy, Check, Users } from "lucide-react";
+import { ChevronRight, Trophy, Check, Users, ClipboardCheck } from "lucide-react";
 
 interface RecommendVehicleCardProps {
   vehicle: RecommendedVehicle;
@@ -44,6 +45,18 @@ export function RecommendVehicleCard({ vehicle, isTop = false }: RecommendVehicl
     .reduce((sum, i) => sum + i.price, 0);
 
   const hasConfigs = detail.popularConfigs.length > 0;
+
+  const handleContractApply = useCallback(async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const sessionId = crypto.randomUUID();
+    const target = `/verify?sessionId=${sessionId}&vehicle=${detail.slug}`;
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+      return;
+    }
+    router.push(target);
+  }, [router, detail.slug]);
 
   function handleQuote() {
     const params = new URLSearchParams({ vehicle: detail.slug });
@@ -208,14 +221,24 @@ export function RecommendVehicleCard({ vehicle, isTop = false }: RecommendVehicl
 
         {/* 하단 버튼 */}
         <div className="space-y-2">
-          {/* 견적내기 */}
-          <button
-            type="button"
-            onClick={handleQuote}
-            className="btn-primary w-full text-center"
-          >
-            견적내기
-          </button>
+          {/* 견적내기 + 계약 신청하기 */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleQuote}
+              className="flex-1 py-2.5 rounded-btn border border-primary/30 text-primary text-[13px] font-medium hover:bg-primary/[0.04] active:scale-[0.98] transition-all duration-150"
+            >
+              견적내기
+            </button>
+            <button
+              type="button"
+              onClick={handleContractApply}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-btn bg-primary text-white text-[13px] font-medium hover:bg-primary/90 active:scale-[0.98] transition-all duration-150"
+            >
+              <ClipboardCheck size={13} strokeWidth={2} />
+              계약 신청하기
+            </button>
+          </div>
 
           {/* 상담하기 */}
           <ChannelTalkButton vehicleName={detail.name} />

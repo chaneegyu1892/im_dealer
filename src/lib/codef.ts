@@ -30,8 +30,19 @@ interface CodefApiResponse {
   data: unknown;
 }
 
-// ─── OAuth 액세스 토큰 발급 ──────────────────────────────────────────────────
+// ─── 토큰 캐시 (서버 메모리) ─────────────────────────────────────────────────
+// 문서 기준 accessToken 유효기간 1주일 → 6일로 보수적 설정
+const TOKEN_TTL_MS = 6 * 24 * 60 * 60 * 1000;
+
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
+// ─── OAuth 액세스 토큰 발급 (캐싱 적용) ──────────────────────────────────────
 export async function getCodefToken(): Promise<CodefResult<string>> {
+  // 유효한 캐시가 있으면 재사용
+  if (cachedToken && Date.now() < cachedToken.expiresAt) {
+    return { success: true, data: cachedToken.value };
+  }
+
   const clientId = process.env.CODEF_CLIENT_ID;
   const clientSecret = process.env.CODEF_CLIENT_SECRET;
 
@@ -64,6 +75,9 @@ export async function getCodefToken(): Promise<CodefResult<string>> {
     if (!json.access_token) {
       return { success: false, error: "응답에 access_token이 없습니다." };
     }
+
+    // 토큰 캐시 저장
+    cachedToken = { value: json.access_token, expiresAt: Date.now() + TOKEN_TTL_MS };
 
     return { success: true, data: json.access_token };
   } catch (err) {

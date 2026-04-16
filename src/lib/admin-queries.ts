@@ -11,6 +11,44 @@ import type {
   AdminSavedQuote,
 } from "@/types/admin";
 
+// ─── 서류 인증 목록 (admin) ─────────────────────────────
+export interface AdminVerification {
+  id: string;
+  sessionId: string;
+  customerType: string;
+  licenseVerified: boolean;
+  insuranceVerified: boolean;
+  bizVerified: boolean;
+  licenseData: Record<string, unknown> | null;
+  insuranceData: Record<string, unknown> | null;
+  bizData: Record<string, unknown> | null;
+  consentedAt: Date;
+  verifiedAt: Date | null;
+  createdAt: Date;
+}
+
+export async function getRecentVerifications(take = 50): Promise<AdminVerification[]> {
+  const rows = await prisma.customerVerification.findMany({
+    orderBy: { createdAt: "desc" },
+    take,
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    sessionId: r.sessionId,
+    customerType: r.customerType,
+    licenseVerified: r.licenseVerified,
+    insuranceVerified: r.insuranceVerified,
+    bizVerified: r.bizVerified,
+    licenseData: r.licenseData as Record<string, unknown> | null,
+    insuranceData: r.insuranceData as Record<string, unknown> | null,
+    bizData: r.bizData as Record<string, unknown> | null,
+    consentedAt: r.consentedAt,
+    verifiedAt: r.verifiedAt,
+    createdAt: r.createdAt,
+  }));
+}
+
 // ─── 차량 목록 (admin) ──────────────────────────────────
 export async function getAdminVehicles(brand?: string): Promise<AdminVehicle[]> {
   const vehicles = await prisma.vehicle.findMany({
