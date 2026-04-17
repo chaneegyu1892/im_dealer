@@ -10,6 +10,21 @@ interface BrandListProps {
 }
 
 export function BrandList({ brands, selected, onSelect }: BrandListProps) {
+  const getLogoPath = (brandName: string) => {
+    const mapping: Record<string, string> = {
+      "현대": "/images/logos/hyundai.svg",
+      "기아": "/images/logos/kia.svg",
+      "제네시스": "/images/logos/genesis.svg",
+      "KGM": "/images/logos/kgm.svg",
+      "쉐보레": "/images/logos/chevrolet.svg",
+      "르노": "/images/logos/renault.svg",
+      "BMW": "/images/logos/bmw.svg",
+      "벤츠": "/images/logos/mercedes.svg",
+      "테슬라": "/images/logos/tesla.svg",
+    };
+    return mapping[brandName] || null;
+  };
+
   return (
     <div className="w-[280px] border-r border-[#E8EAF0] flex flex-col shrink-0 bg-[#FAFBFF]">
       <div className="p-4 border-b border-[#E8EAF0] bg-white z-10">
@@ -21,6 +36,8 @@ export function BrandList({ brands, selected, onSelect }: BrandListProps) {
         ) : (
           brands.map((b) => {
             const isSelected = selected === b.name;
+            const logoPath = getLogoPath(b.name);
+
             return (
               <div
                 key={b.name}
@@ -33,12 +50,18 @@ export function BrandList({ brands, selected, onSelect }: BrandListProps) {
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 bg-[#E8EAF0] rounded-full flex items-center justify-center text-[9px] font-bold text-[#6B7399] tracking-tighter shrink-0 border border-[#D0D5E8]">
-                    {b.name.substring(0, 2)}
+                  <div className="w-10 h-10 bg-white rounded-[8px] flex items-center justify-center p-1.5 shrink-0 border border-[#E8EAF0]">
+                    {logoPath ? (
+                      <img src={logoPath} alt={b.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="text-[9px] font-bold text-[#6B7399] tracking-tighter">
+                        {b.name.substring(0, 2)}
+                      </div>
+                    )}
                   </div>
                   <span
                     className={cn(
-                      "text-[13px] font-medium",
+                      "text-[13px] font-medium transition-colors",
                       isSelected ? "text-[#000666]" : "text-[#4A5270]"
                     )}
                   >

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Image as ImageIcon, Save, Plus, X } from "lucide-react";
+import { Image as ImageIcon, Save, Plus, X, Upload, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdminVehicleDetail } from "@/types/admin";
 import type { VehicleCategory } from "@/types/vehicle";
@@ -50,6 +50,42 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
       alert("저장 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const [uploading, setUploading] = useState<string | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: "thumbnail" | number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const key = target === "thumbnail" ? "thumbnail" : `image-${target}`;
+    setUploading(key);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("category", "vehicles");
+
+    try {
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await res.json();
+      if (result.url) {
+        if (target === "thumbnail") {
+          setData((prev) => ({ ...prev, thumbnailUrl: result.url }));
+        } else {
+          const next = [...data.imageUrls];
+          next[target] = result.url;
+          setData((prev) => ({ ...prev, imageUrls: next }));
+        }
+      }
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("이미지 업로드에 실패했습니다.");
+    } finally {
+      setUploading(null);
     }
   };
 
@@ -179,12 +215,29 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
           
           <FormField label="대표 이미지 (Thumbnail)">
             <div className="space-y-3">
-              <input
-                value={data.thumbnailUrl}
-                onChange={(e) => setData({ ...data, thumbnailUrl: e.target.value })}
-                className={inputClass}
-                placeholder="https://..."
-              />
+              <div className="flex gap-2">
+                <input
+                  value={data.thumbnailUrl}
+                  onChange={(e) => setData({ ...data, thumbnailUrl: e.target.value })}
+                  className={inputClass}
+                  placeholder="이미지 경로 또는 URL"
+                />
+                <label className="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#E8EAF0] rounded-[6px] text-[12px] font-medium text-[#4A5270] hover:bg-[#F8F9FC] cursor-pointer shrink-0 transition-colors">
+                  {uploading === "thumbnail" ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Upload size={14} />
+                  )}
+                  업로드
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, "thumbnail")}
+                    disabled={uploading !== null}
+                  />
+                </label>
+              </div>
               <div className="aspect-[16/9] rounded-[8px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden flex items-center justify-center relative group">
                 {data.thumbnailUrl ? (
                   <img src={data.thumbnailUrl} alt="Preview" className="w-full h-full object-cover" />
@@ -194,6 +247,11 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
                     <span className="text-[11px]">미리보기 없음</span>
                   </div>
                 )}
+                {uploading === "thumbnail" && (
+                  <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                    <Loader2 size={24} className="text-[#000666] animate-spin" />
+                  </div>
+                )}
               </div>
             </div>
           </FormField>
@@ -201,19 +259,45 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
           <FormField label="추가 이미지 목록">
             <div className="space-y-3">
               {data.imageUrls.map((url, i) => (
-                <div key={i} className="flex gap-2">
-                  <input
-                    value={url}
-                    onChange={(e) => updateImgUrl(i, e.target.value)}
-                    className={inputClass}
-                    placeholder={`이미지 ${i + 1} URL`}
-                  />
-                  <button
-                    onClick={() => setData({ ...data, imageUrls: data.imageUrls.filter((_, idx) => idx !== i) })}
-                    className="p-2 text-[#9BA4C0] hover:text-red-500 hover:bg-red-50 rounded-[6px]"
-                  >
-                    <X size={16} />
-                  </button>
+                <div key={i} className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      value={url}
+                      onChange={(e) => updateImgUrl(i, e.target.value)}
+                      className={inputClass}
+                      placeholder={`이미지 ${i + 1} 경로 또는 URL`}
+                    />
+                    <label className="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#E8EAF0] rounded-[6px] text-[12px] font-medium text-[#4A5270] hover:bg-[#F8F9FC] cursor-pointer shrink-0 transition-colors">
+                      {uploading === `image-${i}` ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Upload size={14} />
+                      )}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, i)}
+                        disabled={uploading !== null}
+                      />
+                    </label>
+                    <button
+                      onClick={() => setData({ ...data, imageUrls: data.imageUrls.filter((_, idx) => idx !== i) })}
+                      className="p-2 text-[#9BA4C0] hover:text-red-500 hover:bg-red-50 rounded-[6px] shrink-0"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  {url && (
+                    <div className="aspect-video w-32 rounded-[4px] border border-[#E8EAF0] overflow-hidden relative group">
+                      <img src={url} alt={`Preview ${i}`} className="w-full h-full object-cover" />
+                      {uploading === `image-${i}` && (
+                        <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                          <Loader2 size={16} className="text-[#000666] animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               <button
