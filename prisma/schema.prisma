@@ -201,6 +201,10 @@ model RecommendationLog {
   returnType            String
   recommendedVehicleIds String[]
   recommendedReason     Json
+  industryDetail        String?
+  purposeDetail         String?
+  budgetDetail          String?
+  fuelPreference        String?
   clickedVehicleId      String?
   clickedAt             DateTime?
   proceedToQuote        Boolean   @default(false)

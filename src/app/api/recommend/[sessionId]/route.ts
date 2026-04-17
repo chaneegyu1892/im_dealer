@@ -23,7 +23,7 @@ export async function GET(
       );
     }
 
-    // 입력값으로 추천 재계산 (최신 데이터 기준)
+    // 최신 데이터 기준으로 재계산하되, LLM 이유는 저장된 값 재사용
     const vehicles = await recommend({
       industry: log.industry,
       purpose: log.purpose,
@@ -32,7 +32,16 @@ export async function GET(
       paymentStyle: log.paymentStyle as "보수형" | "표준형" | "공격형",
       annualMileage: log.annualMileage,
       returnType: log.returnType as "인수형" | "반납형" | "미정",
+      industryDetail: log.industryDetail ?? undefined,
+      purposeDetail: log.purposeDetail ?? undefined,
+      budgetDetail: log.budgetDetail ?? undefined,
+      fuelPreference: log.fuelPreference ?? undefined,
     });
+
+    const storedReasons = log.recommendedReason as Record<string, string> | null;
+    const vehiclesWithReasons = storedReasons
+      ? vehicles.map((v) => ({ ...v, reason: storedReasons[v.vehicleId] ?? v.reason }))
+      : vehicles;
 
     const response: RecommendResultResponse = {
       sessionId,
@@ -45,7 +54,7 @@ export async function GET(
         annualMileage: log.annualMileage,
         returnType: log.returnType as "인수형" | "반납형" | "미정",
       },
-      vehicles,
+      vehicles: vehiclesWithReasons,
     };
 
     return NextResponse.json(response);

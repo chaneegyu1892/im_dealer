@@ -6,6 +6,11 @@ export interface RecommendInput {
   paymentStyle: PaymentStyle;
   annualMileage: number;
   returnType: ReturnType;
+  // 조건부 추가 질문 답변 (optional)
+  industryDetail?: string;
+  purposeDetail?: string;
+  budgetDetail?: string;
+  fuelPreference?: string;
 }
 
 export interface RecommendResult {

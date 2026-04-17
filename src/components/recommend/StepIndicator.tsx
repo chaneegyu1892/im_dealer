@@ -15,6 +15,7 @@ interface StepIndicatorProps {
   className?: string;
 }
 
+
 export function StepIndicator({ currentStep, className }: StepIndicatorProps) {
   return (
     <div className={cn("flex items-center", className)}>

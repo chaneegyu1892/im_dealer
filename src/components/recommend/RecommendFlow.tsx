@@ -13,32 +13,40 @@ import type { RecommendInput } from "@/types/recommendation";
 
 interface FlowState {
   industry: string;
+  industryDetail: string;
   purpose: string;
+  purposeDetail: string;
   budget: BudgetState;
+  budgetDetail: string;
   preference: PreferenceState;
+  fuelPreference: string;
 }
 
 const INITIAL_STATE: FlowState = {
   industry: "",
+  industryDetail: "",
   purpose: "",
+  purposeDetail: "",
   budget: {
     rangeKey: "",
     budgetMin: 0,
     budgetMax: 0,
     paymentStyle: "표준형",
   },
+  budgetDetail: "",
   preference: {
     annualMileage: 0,
     returnType: "미정",
   },
+  fuelPreference: "",
 };
 
 function isStepValid(step: StepId, state: FlowState): boolean {
   switch (step) {
-    case 1: return state.industry !== "";
-    case 2: return state.purpose !== "";
-    case 3: return state.budget.rangeKey !== "";
-    case 4: return state.preference.annualMileage !== 0;
+    case 1: return state.industry !== "" && state.industryDetail !== "";
+    case 2: return state.purpose !== "" && state.purposeDetail !== "";
+    case 3: return state.budget.rangeKey !== "" && state.budgetDetail !== "";
+    case 4: return state.preference.annualMileage !== 0 && state.fuelPreference !== "";
   }
 }
 
@@ -59,7 +67,6 @@ export function RecommendFlow() {
       return;
     }
 
-    // 4단계 완료 → API 요청
     setLoading(true);
     setError(null);
     try {
@@ -71,6 +78,10 @@ export function RecommendFlow() {
         paymentStyle: state.budget.paymentStyle,
         annualMileage: state.preference.annualMileage,
         returnType: state.preference.returnType,
+        industryDetail: state.industryDetail,
+        purposeDetail: state.purposeDetail,
+        budgetDetail: state.budgetDetail,
+        fuelPreference: state.fuelPreference,
       };
 
       const res = await fetch("/api/recommend", {
@@ -98,47 +109,51 @@ export function RecommendFlow() {
 
   return (
     <div className="page-container py-10 max-w-2xl mx-auto">
-      {/* 스텝 인디케이터 */}
       <div className="flex justify-center mb-10">
         <StepIndicator currentStep={step} />
       </div>
 
-      {/* 스텝 컨텐츠 */}
       <div className="min-h-[360px]">
         {step === 1 && (
           <StepIndustry
             value={state.industry}
-            onChange={(v) => setState((s) => ({ ...s, industry: v }))}
+            onChange={(v) => setState((s) => ({ ...s, industry: v, industryDetail: "" }))}
+            detail={state.industryDetail}
+            onDetailChange={(v) => setState((s) => ({ ...s, industryDetail: v }))}
           />
         )}
         {step === 2 && (
           <StepPurpose
             value={state.purpose}
-            onChange={(v) => setState((s) => ({ ...s, purpose: v }))}
+            onChange={(v) => setState((s) => ({ ...s, purpose: v, purposeDetail: "" }))}
+            detail={state.purposeDetail}
+            onDetailChange={(v) => setState((s) => ({ ...s, purposeDetail: v }))}
           />
         )}
         {step === 3 && (
           <StepBudget
             value={state.budget}
-            onChange={(v) => setState((s) => ({ ...s, budget: v }))}
+            onChange={(v) => setState((s) => ({ ...s, budget: v, budgetDetail: "" }))}
+            detail={state.budgetDetail}
+            onDetailChange={(v) => setState((s) => ({ ...s, budgetDetail: v }))}
           />
         )}
         {step === 4 && (
           <StepPreference
             value={state.preference}
             onChange={(v) => setState((s) => ({ ...s, preference: v }))}
+            fuelPreference={state.fuelPreference}
+            onFuelChange={(v) => setState((s) => ({ ...s, fuelPreference: v }))}
           />
         )}
       </div>
 
-      {/* 에러 메시지 */}
       {error && (
         <div className="mt-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-[13px] text-red-700">
           {error}
         </div>
       )}
 
-      {/* 하단 버튼 */}
       <div className="flex items-center gap-3 mt-8 pt-6 border-t border-[#F0F0F0]">
         {step > 1 && (
           <Button
@@ -166,7 +181,6 @@ export function RecommendFlow() {
         </Button>
       </div>
 
-      {/* 진행 텍스트 */}
       <p className="text-center text-caption text-ink-caption mt-3">
         {step} / 4 단계 · 개인정보 입력 없이 이용할 수 있어요
       </p>

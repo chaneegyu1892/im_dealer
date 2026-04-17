@@ -1,0 +1,17 @@
+# 1. 대용량 데이터 및 문서 파일 (AI가 읽다가 토큰 폭발 방지)
+trim_list.xlsx
+vehicle_specs_final.json
+아임딜러_온보딩가이드.pdf
+
+# 2. 이미지 등 정적 에셋 파일 (AI가 분석할 필요 없음)
+public/images/
+public/**/*.png
+public/**/*.jpg
+public/**/*.svg
+
+# 3. 패키지 잠금 파일 (매우 길고 AI가 수정할 일 없음)
+package-lock.json
+
+# 4. 기타 (기본적으로 .gitignore 설정이 먹히지만, 혹시 몰라 추가)
+.next/
+node_modules/
