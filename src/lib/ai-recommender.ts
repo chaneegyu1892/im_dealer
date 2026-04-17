@@ -8,6 +8,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { generateReason } from "@/lib/llm-reason";
 import {
   estimateMonthly,
   calculateMultiFinanceQuote,
@@ -134,8 +135,66 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     // (c) 인기 차량 가산
     if (v.isPopular) score += 5;
 
-    // 예산 40% 초과 시 제외
-    if (bestMonthly > input.budgetMax * 1.4) continue;
+    // (d) 업종 추가 답변 스코어링
+    if (input.industryDetail) {
+      if (input.industry === "법인" && input.industryDetail === "6대 이상") {
+        if (v.category !== "SUV") score += 5;
+      }
+      if (input.industry === "개인사업자" && input.industryDetail === "비용처리 중요") {
+        score += 3;
+      }
+      if (input.industry === "직장인" && input.industryDetail === "자가용 주요") {
+        if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 12) score += 5;
+      }
+      if (input.industry === "개인" && input.industryDetail === "4명 이상") {
+        if (v.category === "SUV" || v.category === "대형") score += 8;
+      }
+    }
+
+    // (e) 목적 추가 답변 스코어링
+    if (input.purposeDetail) {
+      if (input.purpose === "출퇴근" && input.purposeDetail === "30km 이상") {
+        if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 14) score += 5;
+      }
+      if (input.purpose === "영업·외근" && input.purposeDetail === "매일") {
+        score += 5;
+      }
+      if (input.purpose === "가족" && input.purposeDetail === "영유아") {
+        if (v.category === "SUV") score += 8;
+      }
+      if (input.purpose === "화물·배달" && input.purposeDetail === "대형 화물") {
+        if (v.category === "밴" || v.category === "트럭") score += 10;
+        else score -= 10;
+      }
+      if (input.purpose === "기타" && input.purposeDetail === "평일 포함 자주") {
+        if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 12) score += 3;
+      }
+    }
+
+    // (f) 예산 추가 답변 스코어링
+    const effectiveBudgetMax = (input.budgetDetail === "조금 타협 가능")
+      ? input.budgetMax * 1.1
+      : input.budgetMax;
+
+    if (bestMonthly <= effectiveBudgetMax && bestMonthly > input.budgetMax) {
+      score += 10;
+    }
+    if (input.budgetDetail === "300만원 이상" && input.paymentStyle === "공격형") {
+      if (defaultTrim.price > 40_000_000) score += 5;
+    }
+
+    // (g) 연료 방식 스코어링
+    if (input.fuelPreference && input.fuelPreference !== "상관없음") {
+      const trimFuel = (defaultTrim as { fuelType?: string }).fuelType ?? "";
+      if (input.fuelPreference === "전기차" && trimFuel.includes("전기")) score += 15;
+      else if (input.fuelPreference === "하이브리드" && trimFuel.includes("하이브리드")) score += 15;
+      else if (input.fuelPreference === "가솔린/디젤" &&
+        (trimFuel.includes("가솔린") || trimFuel.includes("디젤"))) score += 5;
+      else if (input.fuelPreference !== "상관없음") score -= 5;
+    }
+
+    // 예산 40% 초과 시 제외 (조금 타협 가능이면 실질 한도 적용)
+    if (bestMonthly > effectiveBudgetMax * 1.4) continue;
 
     // ── 추천 이유 생성 ────────────────────────────
     const reasons: string[] = [];
@@ -244,11 +303,28 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
   scored.sort((a, b) => b.score - a.score);
   const top = scored.slice(0, 3);
 
+  // 5) LLM으로 추천 이유 병렬 생성 (실패 시 규칙 기반 reason 사용)
+  const llmReasons = await Promise.all(
+    top.map((s) =>
+      generateReason({
+        industry: input.industry,
+        purpose: input.purpose,
+        budgetMax: input.budgetMax,
+        annualMileage: input.annualMileage,
+        vehicleName: s.detail.name,
+        brand: s.detail.brand,
+        category: s.detail.category,
+        estimatedMonthly: s.estimatedMonthly,
+        fallback: s.reason,
+      })
+    )
+  );
+
   return top.map((s, i): RecommendedVehicle => ({
     vehicleId: s.vehicleId,
     rank: i + 1,
     score: s.score,
-    reason: s.reason,
+    reason: llmReasons[i],
     highlights: s.highlights,
     estimatedMonthly: s.estimatedMonthly,
     vehicle: s.detail,

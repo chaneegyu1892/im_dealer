@@ -1,4 +1,4 @@
-import { MILEAGE_OPTIONS, RETURN_TYPE_OPTIONS } from "@/constants/recommend-options";
+import { MILEAGE_OPTIONS, RETURN_TYPE_OPTIONS, FUEL_PREFERENCE_OPTIONS } from "@/constants/recommend-options";
 import type { ReturnType } from "@/types/recommendation";
 import { SelectionCard } from "./SelectionCard";
 import { cn } from "@/lib/utils";
@@ -11,9 +11,11 @@ interface PreferenceState {
 interface StepPreferenceProps {
   value: PreferenceState;
   onChange: (value: PreferenceState) => void;
+  fuelPreference: string;
+  onFuelChange: (value: string) => void;
 }
 
-export function StepPreference({ value, onChange }: StepPreferenceProps) {
+export function StepPreference({ value, onChange, fuelPreference, onFuelChange }: StepPreferenceProps) {
   const handleMileage = (mileage: number) => {
     onChange({ ...value, annualMileage: mileage });
   };
@@ -80,6 +82,29 @@ export function StepPreference({ value, onChange }: StepPreferenceProps) {
               detail={opt.detail}
               selected={value.returnType === opt.value}
               onClick={() => handleReturnType(opt.value)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* 연료 방식 추가 질문 */}
+      <div className="pt-2 border-t border-[#F0F0F0]">
+        <div className="mb-4">
+          <p className="text-[11px] font-semibold text-primary uppercase tracking-wider mb-1.5">
+            추가 질문
+          </p>
+          <h3 className="text-base font-medium text-ink">연료 방식에 선호가 있으신가요?</h3>
+          <p className="text-[13px] text-ink-label mt-0.5">선호하는 연료 방식이 있다면 그에 맞게 추천해 드려요.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {FUEL_PREFERENCE_OPTIONS.map((opt) => (
+            <SelectionCard
+              key={opt.value}
+              label={opt.label}
+              desc={opt.desc}
+              icon={opt.icon}
+              selected={fuelPreference === opt.value}
+              onClick={() => onFuelChange(opt.value)}
             />
           ))}
         </div>

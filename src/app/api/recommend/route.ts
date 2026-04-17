@@ -12,6 +12,10 @@ const recommendSchema = z.object({
   paymentStyle: z.enum(["보수형", "표준형", "공격형"]),
   annualMileage: z.number().int().min(0),
   returnType: z.enum(["인수형", "반납형", "미정"]),
+  industryDetail: z.string().optional(),
+  purposeDetail: z.string().optional(),
+  budgetDetail: z.string().optional(),
+  fuelPreference: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -39,6 +43,10 @@ export async function POST(request: NextRequest) {
         recommendedReason: Object.fromEntries(
           vehicles.map((v) => [v.vehicleId, v.reason])
         ),
+        industryDetail: input.industryDetail,
+        purposeDetail: input.purposeDetail,
+        budgetDetail: input.budgetDetail,
+        fuelPreference: input.fuelPreference,
         userAgent: request.headers.get("user-agent") ?? undefined,
       },
     });

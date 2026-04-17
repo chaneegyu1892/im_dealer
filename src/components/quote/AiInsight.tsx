@@ -24,7 +24,11 @@ export function AiInsight({ reason, highlights, className }: AiInsightProps) {
       </div>
 
       {/* 이유 텍스트 */}
-      <p className="text-[13px] text-ink leading-relaxed">{reason}</p>
+      <div className="text-[13px] text-ink leading-relaxed space-y-1">
+        {reason.split(/(?<=\.) /).map((sentence, i) => (
+          sentence.trim() && <p key={i}>{sentence.trim()}</p>
+        ))}
+      </div>
 
       {/* 특징 배지 */}
       {highlights.length > 0 && (

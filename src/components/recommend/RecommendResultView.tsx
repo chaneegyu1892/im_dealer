@@ -35,14 +35,18 @@ export function RecommendResultView() {
       return;
     }
 
+    let cancelled = false;
+
     fetch(`/api/recommend/${sessionId}`)
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json() as Promise<RecommendResultResponse>;
       })
-      .then(setResult)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+      .then((data) => { if (!cancelled) setResult(data); })
+      .catch(() => { if (!cancelled) setError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
   }, [sessionId, router]);
 
   // ── 로딩 ──────────────────────────────────────────────
