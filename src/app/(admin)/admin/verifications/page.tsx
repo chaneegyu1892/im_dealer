@@ -1,6 +1,5 @@
 'use client';
 export const dynamic = 'force-dynamic';
-"use client";
 
 import { useState, useEffect } from "react";
 import { ShieldCheck, CheckCircle2, XCircle, Clock, ChevronRight, RefreshCw } from "lucide-react";
