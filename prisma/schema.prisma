@@ -71,6 +71,7 @@ model Vehicle {
   recConfigs     RecommendationConfig?
   recLogs        RecommendationLog[]
   trims          Trim[]
+  lineups        VehicleLineup[]
   popularConfigs PopularConfig[]
 
   @@index([isVisible, isPopular])
@@ -91,8 +92,24 @@ model Trim {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   quoteVars      QuoteVariable[]
+  lineupId       String?
+  lineup         VehicleLineup?  @relation(fields: [lineupId], references: [id], onDelete: Cascade)
   vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   options        TrimOption[]
+  rules          OptionRule[]
+
+  @@index([vehicleId])
+  @@index([lineupId])
+}
+
+model VehicleLineup {
+  id        String   @id @default(cuid())
+  vehicleId String
+  name      String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  trims     Trim[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([vehicleId])
 }
@@ -109,6 +126,22 @@ model TrimOption {
   isAccessory Boolean  @default(false)
   trim                Trim                @relation(fields: [trimId], references: [id], onDelete: Cascade)
   popularConfigItems  PopularConfigItem[]
+  rulesSource         OptionRule[]        @relation("SourceRule")
+  rulesTarget         OptionRule[]        @relation("TargetRule")
+
+  @@index([trimId])
+}
+
+model OptionRule {
+  id             String     @id @default(cuid())
+  trimId         String
+  ruleType       String     // "REQUIRED" | "INCLUDED" | "CONFLICT"
+  sourceOptionId String
+  targetOptionId String
+  trim           Trim       @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  sourceOption   TrimOption @relation("SourceRule", fields: [sourceOptionId], references: [id], onDelete: Cascade)
+  targetOption   TrimOption @relation("TargetRule", fields: [targetOptionId], references: [id], onDelete: Cascade)
+  createdAt      DateTime   @default(now())
 
   @@index([trimId])
 }

@@ -75,13 +75,20 @@ export function VehicleList({
                 key={v.id}
                 onClick={() => onSelect(v)}
                 className={cn(
-                  "group flex flex-col p-3 rounded-[8px] cursor-pointer transition-all border",
+                  "group flex gap-3 p-3 rounded-[8px] cursor-pointer transition-all border",
                   isSelected
                     ? "bg-white border-[#000666] shadow-sm"
                     : "bg-white border-[#E8EAF0] hover:border-[#C0C5DC]"
                 )}
               >
-                <div className="flex justify-between items-start">
+                <div className="w-16 h-12 bg-[#F8F9FC] rounded-[6px] border border-[#F0F2F8] overflow-hidden shrink-0 flex items-center justify-center">
+                  {v.thumbnailUrl ? (
+                    <img src={v.thumbnailUrl} alt={v.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Car size={16} className="text-[#D0D5E8]" strokeWidth={1.5} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 flex justify-between items-start">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 mb-1">
                       <span className="text-[10px] text-[#6B7399] border border-[#E8EAF0] px-1.5 py-0.5 rounded-[4px]">
