@@ -112,6 +112,16 @@
   }
 }
 
+/* ── 스크롤바 숨김 유틸리티 ──────────────────────────────── */
+@layer utilities {
+  .scrollbar-hide {
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* ── 미니멀 스크롤바 (Admin 전용) ─────────────────────────── */
 @layer base {
   ::-webkit-scrollbar {

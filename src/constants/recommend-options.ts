@@ -12,6 +12,7 @@ export const PURPOSE_OPTIONS = [
   { value: "영업·외근", label: "영업·외근", desc: "고객 미팅·현장 이동 잦음", icon: "📍" },
   { value: "가족", label: "가족용", desc: "가족 이동·장거리 여행", icon: "👨‍👩‍👧" },
   { value: "화물·배달", label: "화물·배달", desc: "물건 운반·배달 업무", icon: "📦" },
+  { value: "의전·임원용", label: "의전·임원용", desc: "임원·VIP 의전 차량", icon: "🎖️" },
   { value: "기타", label: "기타 목적", desc: "위에 해당 없음", icon: "✳️" },
 ] as const;
 
@@ -105,6 +106,10 @@ export const PURPOSE_DETAIL_OPTIONS: Record<string, Array<{ value: string; label
     { value: "주말만", label: "주말·레저용이에요", desc: "주로 주말에만 운행해요", icon: "⛺" },
     { value: "평일 포함 자주", label: "평일 포함 자주 써요", desc: "일상적으로 자주 운행해요", icon: "🔄" },
   ],
+  "의전·임원용": [
+    { value: "직접 운전", label: "직접 운전해요", desc: "운전자와 탑승자가 같아요", icon: "🙋" },
+    { value: "기사 운행", label: "기사가 운전해요", desc: "후석 편의·공간이 중요해요", icon: "🤵" },
+  ],
 };
 
 export const PURPOSE_DETAIL_QUESTION: Record<string, { title: string; subtitle: string }> = {
@@ -113,6 +118,7 @@ export const PURPOSE_DETAIL_QUESTION: Record<string, { title: string; subtitle: 
   가족: { title: "자녀 연령대는 어떻게 되나요?", subtitle: "연령에 맞는 안전·편의 기능을 우선으로 추천해요." },
   "화물·배달": { title: "주로 어떤 물량을 운반하시나요?", subtitle: "적재 용량에 맞는 차종을 추천해 드려요." },
   기타: { title: "차량을 얼마나 자주 이용하실 예정인가요?", subtitle: "사용 빈도에 따라 유지비 부담이 달라져요." },
+  "의전·임원용": { title: "운전은 어떻게 하시나요?", subtitle: "운전 방식에 따라 최적 사양을 달리 추천해 드려요." },
 };
 
 export const BUDGET_DETAIL_OPTIONS: Record<string, Array<{ value: string; label: string; desc?: string; icon?: string }>> = {

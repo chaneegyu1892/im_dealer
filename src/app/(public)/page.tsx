@@ -75,6 +75,7 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
         : null,
       monthlyFrom,
       highlights: v.recConfigs?.highlights ?? [],
+      tags: v.tags,
     };
   });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { StepIndicator, type StepId } from "./StepIndicator";
 import { StepIndustry } from "./StepIndustry";
@@ -58,6 +58,10 @@ export function RecommendFlow() {
   const [error, setError] = useState<string | null>(null);
 
   const canProceed = isStepValid(step, state);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
 
   const handleNext = async () => {
     if (!canProceed) return;
