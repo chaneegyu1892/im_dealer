@@ -406,6 +406,40 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
   return { data, total };
 }
 
+// ─── Inventory (재고 관리) ──────────────────────────────
+export interface AdminInventoryItem extends AdminInventory {}
+
+export async function getAdminInventory(): Promise<AdminInventory[]> {
+  const inventory = await prisma.inventory.findMany({
+    orderBy: { updatedAt: "desc" },
+    include: {
+      trim: {
+        include: {
+          vehicle: {
+            select: { name: true, brand: true },
+          },
+        },
+      },
+    },
+  });
+
+  return inventory.map((i) => ({
+    id: i.id,
+    trimId: i.trimId,
+    vehicleName: i.trim.vehicle.name,
+    trimName: i.trim.name,
+    stockCount: i.stockCount,
+    location: i.location,
+    status: i.status as AdminInventory["status"],
+    colorExt: i.colorExt,
+    colorInt: i.colorInt,
+    vin: i.vin,
+    memo: i.memo,
+    createdAt: i.createdAt.toISOString(),
+    updatedAt: i.updatedAt.toISOString(),
+  }));
+}
+
 // ─── 유틸 ───────────────────────────────────────────────
 function aggregateDailyFromGroupBy(
   rows: { createdAt: Date; _count: { id: number } }[],
