@@ -1,3 +1,4 @@
+'use client';
 export const dynamic = 'force-dynamic';
 import { notFound } from "next/navigation";
 import { getVehicleById } from "@/lib/admin-queries";
