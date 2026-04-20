@@ -78,8 +78,8 @@ export function Header() {
             </span>
           </Link>
 
-          {/* 데스크톱 네비게이션 — 항상 중앙 고정 */}
-          <nav className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
+          {/* 데스크톱 네비게이션 — md 이상에서만 표시 */}
+          <nav className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-1">
             {NAV_LINKS.map(({ href, label }) => {
               const active = isActive(href);
               return (

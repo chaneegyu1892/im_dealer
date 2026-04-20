@@ -44,7 +44,7 @@ export function ServiceIntroSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-8 mb-14">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-10 md:mb-14">
           {STEPS.map((step, i) => (
             <motion.div
               key={step.title}
@@ -63,7 +63,7 @@ export function ServiceIntroSection() {
                 <step.icon size={22} style={{ color: step.color }} />
               </div>
               <div
-                className="absolute top-8 right-8 font-display text-[64px] font-bold leading-none select-none"
+                className="absolute top-8 right-8 font-display text-[44px] md:text-[64px] font-bold leading-none select-none"
                 style={{ color: "rgba(0,0,0,0.03)" }}
               >
                 {i + 1}

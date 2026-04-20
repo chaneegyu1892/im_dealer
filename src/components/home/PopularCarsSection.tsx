@@ -23,7 +23,7 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
                    transition-all duration-300 hover:shadow-card-hover hover:border-primary-200 hover:-translate-y-1"
       >
         {/* 썸네일 */}
-        <div className="relative h-[180px] bg-neutral overflow-hidden">
+        <div className="relative aspect-video md:aspect-auto md:h-[180px] bg-neutral overflow-hidden">
           {vehicle.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -83,7 +83,7 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
 export function PopularCarsSection({ vehicles }: { vehicles: VehicleListItem[] }) {
   return (
     <section className="page-container py-16">
-      <div className="flex items-end justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 mb-8">
         <div>
           <p className="section-label mb-2">주목할 차량</p>
           <h2 className="font-display text-headline-sm text-ink">
@@ -92,13 +92,13 @@ export function PopularCarsSection({ vehicles }: { vehicles: VehicleListItem[] }
         </div>
         <Link
           href="/cars"
-          className="text-[13px] text-primary font-medium flex items-center gap-1 hover:underline"
+          className="text-[13px] text-primary font-medium flex items-center gap-1 hover:underline shrink-0"
         >
           전체 보기 <ArrowRight size={13} />
         </Link>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
         {vehicles.map((v, i) => (
           <PopularCard key={v.id} vehicle={v} index={i} />
         ))}

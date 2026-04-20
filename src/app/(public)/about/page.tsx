@@ -73,7 +73,7 @@ export default function AboutPage() {
               <ShieldCheck size={13} />
               아임딜러 소개
             </div>
-            <h1 className="font-display text-[48px] font-light text-white leading-[1.1] mb-5" style={{ letterSpacing: "-0.02em" }}>
+            <h1 className="font-display text-[30px] md:text-[48px] font-light text-white leading-[1.1] mb-5" style={{ letterSpacing: "-0.02em" }}>
               기존 견적사이트와
               <br />
               <span className="font-medium">완전히 다릅니다.</span>
@@ -106,7 +106,7 @@ export default function AboutPage() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* 기존 방식 */}
           <div className="bg-white rounded-card p-8 border border-[#F0F0F0] shadow-card">
             <div className="flex items-center gap-2 mb-6">
@@ -158,7 +158,7 @@ export default function AboutPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
             {PILLARS.map((pillar, i) => (
               <div key={i} className="group">
                 <div className="w-14 h-14 rounded-[12px] flex items-center justify-center mb-5
@@ -190,7 +190,7 @@ export default function AboutPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-10 max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10 max-w-3xl mx-auto">
           {FLOW_STEPS.map((item, i) => (
             <div key={i} className="relative flex flex-col items-center text-center">
               <div className="w-12 h-12 rounded-full bg-primary text-white text-[13px] font-semibold
@@ -211,7 +211,7 @@ export default function AboutPage() {
       {/* ── 신뢰 배지 ───────────────────────────────────── */}
       <section className="bg-primary-100 border-y border-primary-200">
         <div className="page-container py-10">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-0">
             <p className="text-[15px] font-medium text-primary">
               아임딜러는 이렇게 약속합니다
             </p>
@@ -251,19 +251,19 @@ export default function AboutPage() {
               "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
           }}
         >
-          <div className="px-12 py-14 flex items-center justify-between gap-8">
+          <div className="px-6 md:px-12 py-10 md:py-14 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 md:gap-8">
             <div>
-              <h3 className="font-display text-[24px] font-light text-white mb-2">
+              <h3 className="font-display text-[20px] md:text-[24px] font-light text-white mb-2">
                 지금 바로 시작해보세요
               </h3>
               <p className="text-[14px] text-white/50">
                 이름도, 전화번호도 필요 없습니다
               </p>
             </div>
-            <div className="flex gap-3 shrink-0">
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0">
               <Link
                 href="/recommend"
-                className="inline-flex items-center gap-2 bg-white text-primary text-[14px] font-semibold
+                className="inline-flex items-center justify-center gap-2 bg-white text-primary text-[14px] font-semibold
                            px-7 py-3.5 rounded-btn hover:shadow-lg transition-shadow duration-200"
               >
                 <Sparkles size={15} />
@@ -271,7 +271,7 @@ export default function AboutPage() {
               </Link>
               <Link
                 href="/quote"
-                className="inline-flex items-center gap-2 bg-white/10 text-white text-[14px] font-medium
+                className="inline-flex items-center justify-center gap-2 bg-white/10 text-white text-[14px] font-medium
                            px-7 py-3.5 rounded-btn hover:bg-white/15 transition-colors duration-200
                            border border-white/20"
               >

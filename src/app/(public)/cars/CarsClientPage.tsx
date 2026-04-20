@@ -47,7 +47,7 @@ function FeaturedCard({ vehicle, size = "large" }: { vehicle: VehicleListItem; s
 
         <div className={cn(
           "relative z-10 flex flex-col justify-between h-full",
-          size === "large" ? "p-10 min-h-[340px]" : "p-8 min-h-[340px]"
+          size === "large" ? "p-6 md:p-10 min-h-[240px] md:min-h-[340px]" : "p-6 md:p-8 min-h-[240px] md:min-h-[340px]"
         )}>
           <div>
             <div className="flex items-center gap-2 mb-4">
@@ -64,7 +64,7 @@ function FeaturedCard({ vehicle, size = "large" }: { vehicle: VehicleListItem; s
 
             <h2 className={cn(
               "font-display font-light text-white leading-tight mb-2 tracking-tight",
-              size === "large" ? "text-[40px]" : "text-[32px]"
+              size === "large" ? "text-[26px] md:text-[40px]" : "text-[22px] md:text-[32px]"
             )}>
               {vehicle.name}
             </h2>
@@ -112,7 +112,7 @@ function FeaturedCard({ vehicle, size = "large" }: { vehicle: VehicleListItem; s
         className={cn(
           "absolute z-20 flex items-center gap-2 bg-white text-primary text-[13px] font-semibold",
           "px-5 py-2.5 rounded-btn transition-all duration-200 group-hover:gap-3 group-hover:shadow-lg",
-          size === "large" ? "bottom-10 right-10" : "bottom-8 right-8"
+          size === "large" ? "bottom-6 right-6 md:bottom-10 md:right-10" : "bottom-5 right-5 md:bottom-8 md:right-8"
         )}
       >
         견적 보기
@@ -217,70 +217,73 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
 
       {/* Sticky 필터 바 */}
       <div className="sticky top-[72px] z-40 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
-        <div className="page-container py-3.5">
-          <div className="flex items-center gap-6">
-            {/* 카테고리 */}
-            <div className="flex items-center gap-1">
-              {VEHICLE_CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategoryFilter(cat)}
-                  className={cn(
-                    "px-3.5 py-1.5 text-[13px] font-medium rounded-btn transition-all duration-150",
-                    categoryFilter === cat
-                      ? "bg-primary text-white"
-                      : "text-ink-label hover:text-ink hover:bg-neutral"
-                  )}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            <div className="h-4 w-px bg-neutral-800" />
-
-            {/* 브랜드 (가로 스크롤) */}
-            <div className="relative flex-1 min-w-0">
-              {canScrollLeft && (
-                <div className="absolute left-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-r from-white/95 to-transparent pointer-events-none" />
-              )}
-              {canScrollRight && (
-                <div className="absolute right-0 top-0 bottom-0 w-10 z-10 bg-gradient-to-l from-white/95 to-transparent pointer-events-none flex items-center justify-end pr-1">
-                  <ChevronRight size={13} className="text-ink-caption" />
-                </div>
-              )}
-              <div
-                ref={brandScrollRef}
-                className="flex items-center gap-1 overflow-x-auto scrollbar-hide"
-              >
-                {brands.map((brand) => (
+        <div className="page-container py-2.5 md:py-3.5">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
+            {/* 1단(모바일) / 좌측(데스크톱): 카테고리 + 구분선 + 브랜드 */}
+            <div className="flex items-center gap-2 md:gap-6 min-w-0">
+              {/* 카테고리 */}
+              <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
+                {VEHICLE_CATEGORIES.map((cat) => (
                   <button
-                    key={brand}
-                    onClick={() => setBrandFilter(brand)}
+                    key={cat}
+                    onClick={() => setCategoryFilter(cat)}
                     className={cn(
-                      "flex-shrink-0 px-3.5 py-1.5 text-[13px] font-medium rounded-btn transition-all duration-150",
-                      brandFilter === brand
-                        ? "bg-primary-100 text-primary border border-primary-200"
-                        : "text-ink-label hover:text-ink hover:bg-neutral border border-transparent"
+                      "px-2.5 md:px-3.5 py-1.5 text-[12px] md:text-[13px] font-medium rounded-btn transition-all duration-150",
+                      categoryFilter === cat
+                        ? "bg-primary text-white"
+                        : "text-ink-label hover:text-ink hover:bg-neutral"
                     )}
                   >
-                    {brand}
+                    {cat}
                   </button>
                 ))}
               </div>
+
+              <div className="h-4 w-px bg-neutral-800 shrink-0" />
+
+              {/* 브랜드 (가로 스크롤) */}
+              <div className="relative flex-1 min-w-0">
+                {canScrollLeft && (
+                  <div className="absolute left-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-r from-white/95 to-transparent pointer-events-none" />
+                )}
+                {canScrollRight && (
+                  <div className="absolute right-0 top-0 bottom-0 w-10 z-10 bg-gradient-to-l from-white/95 to-transparent pointer-events-none flex items-center justify-end pr-1">
+                    <ChevronRight size={13} className="text-ink-caption" />
+                  </div>
+                )}
+                <div
+                  ref={brandScrollRef}
+                  className="flex items-center gap-1 overflow-x-auto scrollbar-hide"
+                >
+                  {brands.map((brand) => (
+                    <button
+                      key={brand}
+                      onClick={() => setBrandFilter(brand)}
+                      className={cn(
+                        "flex-shrink-0 px-2.5 md:px-3.5 py-1.5 text-[12px] md:text-[13px] font-medium rounded-btn transition-all duration-150",
+                        brandFilter === brand
+                          ? "bg-primary-100 text-primary border border-primary-200"
+                          : "text-ink-label hover:text-ink hover:bg-neutral border border-transparent"
+                      )}
+                    >
+                      {brand}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {/* 우측: 검색 + 정렬 + 필터 초기화 */}
-            <div className="flex items-center gap-3 ml-auto">
+            {/* 2단(모바일) / 우측(데스크톱): 검색 + 정렬 + 필터 초기화 */}
+            <div className="flex items-center gap-2 md:gap-3 md:ml-auto">
               {/* 검색바 */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn border border-[#E8E8F0] bg-neutral focus-within:border-primary/40 transition-colors duration-150">
+              <div className="flex-1 md:flex-none flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn border border-[#E8E8F0] bg-neutral focus-within:border-primary/40 transition-colors duration-150">
                 <Search size={12} className="text-ink-caption flex-shrink-0" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="차량 검색"
-                  className="w-28 text-[12px] text-ink bg-transparent outline-none placeholder:text-ink-caption"
+                  className="w-full md:w-24 text-[12px] text-ink bg-transparent outline-none placeholder:text-ink-caption"
                 />
               </div>
 
@@ -290,16 +293,16 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     setCategoryFilter("전체");
                     setBrandFilter("전체");
                   }}
-                  className="text-[12px] text-ink-caption hover:text-ink-label flex items-center gap-1"
+                  className="text-[12px] text-ink-caption hover:text-ink-label flex items-center gap-1 shrink-0"
                 >
                   <SlidersHorizontal size={11} />
-                  필터 초기화
+                  <span className="hidden sm:inline">필터 초기화</span>
                 </button>
               )}
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="text-[13px] text-ink-label bg-transparent border-none outline-none cursor-pointer
+                className="shrink-0 text-[12px] md:text-[13px] text-ink-label bg-transparent border-none outline-none cursor-pointer
                            hover:text-ink transition-colors duration-150"
               >
                 {SORT_OPTIONS.map((opt) => (
@@ -319,14 +322,14 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         {!searchQuery && categoryFilter === "전체" && brandFilter === "전체" && featured.length > 0 && (
           <section className="mb-12">
             <p className="section-label mb-4">주목할 차량</p>
-            <div className="grid grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               {featured[0] && (
-                <div className="col-span-2">
+                <div className="lg:col-span-2">
                   <FeaturedCard vehicle={featured[0]} size="large" />
                 </div>
               )}
               {featured[1] && (
-                <div className="col-span-1">
+                <div className="lg:col-span-1">
                   <FeaturedCard vehicle={featured[1]} size="small" />
                 </div>
               )}
@@ -353,7 +356,7 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="grid grid-cols-4 gap-5"
+                className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5"
               >
                 {filteredVehicles.map((vehicle, idx) => (
                   <CarCard key={vehicle.id} vehicle={vehicle} index={idx} />
@@ -395,7 +398,7 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
             <p className="text-[13px] text-ink-label mb-5">
               같은 카테고리의 다른 차량들이에요
             </p>
-            <div className="grid grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
               {suggestedVehicles.map((vehicle, idx) => (
                 <CarCard key={vehicle.id} vehicle={vehicle} index={idx} />
               ))}
@@ -408,7 +411,7 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           className="mt-16 rounded-card overflow-hidden"
           style={{ background: "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)" }}
         >
-          <div className="px-12 py-10 flex items-center justify-between">
+          <div className="px-6 md:px-12 py-8 md:py-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 md:gap-0">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles size={14} className="text-white/50" />
@@ -416,7 +419,7 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   AI 추천
                 </span>
               </div>
-              <h3 className="font-display text-[22px] font-light text-white mb-1.5">
+              <h3 className="font-display text-[20px] md:text-[22px] font-light text-white mb-1.5">
                 어떤 차가 맞는지 모르겠다면?
               </h3>
               <p className="text-[13px] text-white/50">
@@ -425,7 +428,7 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
             </div>
             <Link
               href="/recommend"
-              className="shrink-0 inline-flex items-center gap-2 bg-white text-primary
+              className="w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-2 bg-white text-primary
                          text-[13px] font-semibold px-7 py-3 rounded-btn
                          hover:shadow-lg transition-shadow duration-200"
             >
