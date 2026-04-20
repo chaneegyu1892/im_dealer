@@ -1,4 +1,4 @@
-import Groq from "groq-sdk";
+import { GoogleGenAI } from "@google/genai";
 
 interface ReasonParams {
   industry: string;
@@ -38,29 +38,28 @@ function buildPrompt(p: ReasonParams): string {
 - 반드시 한글만 사용, 한자·영문·특수문자 금지${officialNote}`;
 }
 
-let groqClient: Groq | null = null;
+let genAI: GoogleGenAI | null = null;
 
-function getGroqClient(): Groq | null {
-  if (!process.env.GROQ_API_KEY) return null;
-  if (!groqClient) groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
-  return groqClient;
+function getGenAI(): GoogleGenAI | null {
+  if (!process.env.GEMINI_API_KEY) return null;
+  if (!genAI) genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  return genAI;
 }
 
 export async function generateReason(params: ReasonParams): Promise<string> {
-  const client = getGroqClient();
+  const client = getGenAI();
   if (!client) return params.fallback;
 
   try {
-    const completion = await client.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      messages: [{ role: "user", content: buildPrompt(params) }],
-      max_tokens: 120,
-      temperature: 0.7,
+    const response = await client.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: buildPrompt(params),
+      config: { maxOutputTokens: 120, temperature: 0.7 },
     });
-    const text = completion.choices[0]?.message?.content?.trim() ?? "";
+    const text = response.text?.trim() ?? "";
     return text.length > 10 ? text : params.fallback;
   } catch (e) {
-    console.error("[llm-reason] Groq error:", e);
+    console.error("[llm-reason] Gemini error:", e);
     return params.fallback;
   }
 }

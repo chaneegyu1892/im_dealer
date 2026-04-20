@@ -184,6 +184,16 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     }
   }, [vehicles, categoryFilter, brandFilter, sortBy, featuredIds, searchQuery]);
 
+  const suggestedVehicles = useMemo(() => {
+    if (!searchQuery.trim() || filteredVehicles.length === 0) return [];
+    const filteredIds = new Set(filteredVehicles.map((v) => v.id));
+    const categories = new Set(filteredVehicles.map((v) => v.category));
+    return vehicles
+      .filter((v) => !filteredIds.has(v.id) && categories.has(v.category))
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .slice(0, 4);
+  }, [searchQuery, filteredVehicles, vehicles]);
+
   const totalCount = vehicles.length;
   const activeFilterCount =
     (categoryFilter !== "전체" ? 1 : 0) + (brandFilter !== "전체" ? 1 : 0);
@@ -377,6 +387,21 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
             )}
           </AnimatePresence>
         </section>
+
+        {/* 이런 차량은 어떠세요 */}
+        {searchQuery && suggestedVehicles.length > 0 && (
+          <section className="mt-12">
+            <p className="section-label mb-1">이런 차량은 어떠세요?</p>
+            <p className="text-[13px] text-ink-label mb-5">
+              같은 카테고리의 다른 차량들이에요
+            </p>
+            <div className="grid grid-cols-4 gap-5">
+              {suggestedVehicles.map((vehicle, idx) => (
+                <CarCard key={vehicle.id} vehicle={vehicle} index={idx} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* 하단 AI 추천 배너 */}
         <section
