@@ -98,6 +98,7 @@ model Trim {
   vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   options        TrimOption[]
   rules          OptionRule[]
+  inventory      Inventory[]
 
   @@index([vehicleId])
   @@index([lineupId])
@@ -339,4 +340,21 @@ model CustomerVerification {
   updatedAt         DateTime  @updatedAt
 
   @@index([sessionId])
+}
+
+model Inventory {
+  id            String   @id @default(cuid())
+  trimId        String
+  stockCount    Int      @default(0)
+  location      String?
+  status        String   @default("AVAILABLE") // AVAILABLE, RESERVED, SOLD
+  colorExt      String?
+  colorInt      String?
+  vin           String?  @unique
+  memo          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  trim          Trim     @relation(fields: [trimId], references: [id], onDelete: Cascade)
+
+  @@index([trimId])
 }

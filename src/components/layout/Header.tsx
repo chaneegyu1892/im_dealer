@@ -133,6 +133,12 @@ export function Header() {
 
                 {dropdownOpen && (
                   <div className="absolute right-0 top-full mt-1.5 w-40 bg-white border border-[#F0F0F0] rounded-xl shadow-lg py-1 z-50">
+                    <Link
+                      href="/admin"
+                      className="w-full block text-left px-4 py-2.5 text-[13px] text-primary font-medium hover:bg-primary/[0.04] transition-colors border-b border-[#F0F0F0]"
+                    >
+                      관리자 콘솔
+                    </Link>
                     <button
                       type="button"
                       onClick={handleLogout}

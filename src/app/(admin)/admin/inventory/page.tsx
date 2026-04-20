@@ -1,7 +1,6 @@
-'use client';
-
 import { prisma } from "@/lib/prisma";
 import { InventoryClient } from "./InventoryClient";
+import { Suspense } from "react";
 
 export type VehicleTrimOption = {
   id: string;
@@ -65,8 +64,6 @@ async function getVehiclesForInventory(): Promise<VehicleForInventory[]> {
   }));
 }
 
-import { Suspense } from "react";
-
 export default async function AdminInventoryPage() {
   const vehicles = await getVehiclesForInventory();
 
@@ -80,3 +77,4 @@ export default async function AdminInventoryPage() {
     </Suspense>
   );
 }
+

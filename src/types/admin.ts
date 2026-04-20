@@ -131,3 +131,20 @@ export interface AdminSavedQuote {
   totalCost: number;
   createdAt: string;
 }
+
+// ─── Inventory (재고 관리) ──────────────────────────────
+export interface AdminInventory {
+  id: string;
+  trimId: string;
+  vehicleName: string;
+  trimName: string;
+  stockCount: number;
+  location: string | null;
+  status: "AVAILABLE" | "RESERVED" | "SOLD";
+  colorExt: string | null;
+  colorInt: string | null;
+  vin: string | null;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
