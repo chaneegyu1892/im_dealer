@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { notFound } from "next/navigation";
 import { getVehicleById } from "@/lib/admin-queries";
 import { VehicleEditor } from "@/components/admin/vehicles/edit/VehicleEditor";
