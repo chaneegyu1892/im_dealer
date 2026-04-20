@@ -43,7 +43,7 @@ export const MOCK_VEHICLES: MockVehicle[] = [
   {
     id: "2",
     slug: "ev6",
-    name: "EV6",
+    name: "더 뉴 EV6",
     brand: "기아",
     category: "세단",
     engineType: "EV",
@@ -85,7 +85,7 @@ export const MOCK_VEHICLES: MockVehicle[] = [
   {
     id: "4",
     slug: "tucson",
-    name: "투싼",
+    name: "더 뉴 투싼",
     brand: "현대",
     category: "SUV",
     engineType: "하이브리드",
@@ -127,7 +127,7 @@ export const MOCK_VEHICLES: MockVehicle[] = [
   {
     id: "6",
     slug: "g80",
-    name: "G80",
+    name: "더 뉴 G80",
     brand: "제네시스",
     category: "세단",
     engineType: "가솔린",
@@ -148,7 +148,7 @@ export const MOCK_VEHICLES: MockVehicle[] = [
   {
     id: "7",
     slug: "palisade",
-    name: "팰리세이드",
+    name: "더 뉴 팰리세이드",
     brand: "현대",
     category: "SUV",
     engineType: "디젤",
@@ -169,7 +169,7 @@ export const MOCK_VEHICLES: MockVehicle[] = [
   {
     id: "8",
     slug: "k8",
-    name: "K8",
+    name: "더 뉴 K8",
     brand: "기아",
     category: "세단",
     engineType: "하이브리드",

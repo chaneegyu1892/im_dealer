@@ -19,9 +19,17 @@ export const vehicleCreateSchema = z.object({
 
 export const vehicleUpdateSchema = vehicleCreateSchema.partial();
 
+// ─── Lineup ─────────────────────────────────────────────
+export const lineupCreateSchema = z.object({
+  name: z.string().min(1, "라인업명을 입력하세요"),
+});
+
+export const lineupUpdateSchema = lineupCreateSchema.partial();
+
 // ─── Trim ───────────────────────────────────────────────
 export const trimCreateSchema = z.object({
   name: z.string().min(1, "트림명을 입력하세요"),
+  lineupId: z.string().min(1, "라인업을 선택하세요"),
   price: z.number().int().positive("가격은 양수여야 합니다"),
   engineType: z.enum(["가솔린", "디젤", "하이브리드", "EV"]),
   isDefault: z.boolean().default(false),
@@ -43,6 +51,13 @@ export const optionCreateSchema = z.object({
 });
 
 export const optionUpdateSchema = optionCreateSchema.partial();
+
+// ─── OptionRule ─────────────────────────────────────────
+export const ruleCreateSchema = z.object({
+  ruleType: z.enum(["REQUIRED", "INCLUDED", "CONFLICT"]),
+  sourceOptionId: z.string().min(1, "기준 옵션을 선택하세요"),
+  targetOptionId: z.string().min(1, "대상 옵션을 선택하세요"),
+});
 
 // ─── Slug 생성 유틸 ─────────────────────────────────────
 export function generateSlug(brand: string, name: string): string {
