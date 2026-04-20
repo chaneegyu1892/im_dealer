@@ -37,7 +37,7 @@ function VerifyStepIndicator({ currentStep }: { currentStep: Step }) {
             {idx > 0 && (
               <div
                 className={cn(
-                  "h-[2px] w-16 flex-shrink-0 rounded-sm transition-colors duration-300",
+                  "h-[2px] w-8 sm:w-12 md:w-16 flex-shrink-0 rounded-sm transition-colors duration-300",
                   isDone ? "bg-primary" : "bg-[#F0F0F0]"
                 )}
               />

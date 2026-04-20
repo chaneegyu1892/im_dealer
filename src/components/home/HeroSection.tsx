@@ -34,18 +34,18 @@ export function HeroSection() {
         {/* 이미지 위 어두운 오버레이 — 텍스트 가독성 확보 */}
         <div className="absolute inset-0 bg-black/55" />
 
-        {/* 2컬럼 레이아웃 */}
+        {/* 반응형 레이아웃: 모바일 세로 / 데스크톱 가로 */}
         <motion.div
           variants={stagger}
           initial="hidden"
           animate="show"
-          className="relative z-10 flex items-center justify-between gap-16 px-16 py-20"
+          className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8 md:gap-16 px-6 md:px-16 py-12 md:py-20"
         >
           {/* 좌측: 텍스트 */}
-          <div className="max-w-[560px]">
+          <div className="w-full md:max-w-[560px]">
             <motion.div
               variants={fadeUp}
-              className="mb-8 inline-flex items-center gap-2 rounded-full px-4 py-1.5 border border-white/20"
+              className="mb-6 md:mb-8 inline-flex items-center gap-2 rounded-full px-4 py-1.5 border border-white/20"
               style={{ background: "rgba(255,255,255,0.1)" }}
             >
               <Sparkles size={13} className="text-white/80" />
@@ -56,8 +56,8 @@ export function HeroSection() {
 
             <motion.h1
               variants={fadeUp}
-              className="font-display text-white font-light leading-[1.1] mb-5"
-              style={{ fontSize: "48px", letterSpacing: "-0.02em" }}
+              className="font-display text-white font-light leading-[1.1] mb-5 text-[30px] md:text-[48px]"
+              style={{ letterSpacing: "-0.02em" }}
             >
               차 뽑기 전에,
               <br />
@@ -68,7 +68,7 @@ export function HeroSection() {
 
             <motion.p
               variants={fadeUp}
-              className="text-[16px] leading-relaxed mb-10 max-w-[400px]"
+              className="text-[15px] md:text-[16px] leading-relaxed mb-8 md:mb-10 w-full md:max-w-[400px]"
               style={{ color: "rgba(255,255,255,0.55)" }}
             >
               업종 · 목적 · 예산만 입력하면
@@ -76,11 +76,11 @@ export function HeroSection() {
               실제 계약 가능한 견적을 바로 확인할 수 있어요.
             </motion.p>
 
-            <motion.div variants={fadeUp} className="flex items-center gap-4">
+            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
               <Button
                 variant="secondary"
                 size="lg"
-                className="bg-white text-primary border-none font-semibold shadow-lg hover:bg-white/90 hover:shadow-xl transition-shadow"
+                className="bg-white text-primary border-none font-semibold shadow-lg hover:bg-white/90 hover:shadow-xl transition-shadow justify-center"
                 asChild
               >
                 <Link href="/recommend">
@@ -91,7 +91,7 @@ export function HeroSection() {
               <Button
                 variant="outlined"
                 size="lg"
-                className="border-white/30 text-white hover:bg-white/10 hover:border-white/50"
+                className="border-white/30 text-white hover:bg-white/10 hover:border-white/50 justify-center"
                 asChild
               >
                 <Link href="/cars">차량 직접 탐색</Link>
@@ -100,7 +100,7 @@ export function HeroSection() {
           </div>
 
           {/* 우측: 하이라이트 카드 */}
-          <motion.div variants={fadeUp} className="w-[360px] shrink-0">
+          <motion.div variants={fadeUp} className="w-full md:w-[360px] md:shrink-0">
             <div
               className="rounded-2xl p-7 space-y-5"
               style={{

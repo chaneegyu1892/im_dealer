@@ -380,7 +380,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
       {/* ──────────────────────────────────────────────────
           HERO: 차량 이미지 배경 + 어두운 오버레이 + 텍스트
       ────────────────────────────────────────────────── */}
-      <section className="relative h-[62vh] min-h-[500px] overflow-hidden">
+      <section className="relative h-[56vh] md:h-[62vh] min-h-[380px] md:min-h-[500px] overflow-hidden">
         {/* 배경 이미지 */}
         {heroImage && (
           <div
@@ -447,7 +447,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               </div>
 
               {/* 차량명 */}
-              <h1 className="font-display text-[54px] font-light text-white leading-none tracking-tight mb-3 drop-shadow-md">
+              <h1 className="font-display text-[32px] md:text-[54px] font-light text-white leading-none tracking-tight mb-3 drop-shadow-md">
                 {vehicle.name}
               </h1>
 
@@ -483,12 +483,12 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               </div>
             </motion.div>
 
-            {/* 월납입 카드 */}
+            {/* 월납입 카드 — 데스크톱에서만 Hero 내 우측에 표시 */}
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.15 }}
-              className="shrink-0 bg-white/10 backdrop-blur-md border border-white/15
+              className="hidden md:block shrink-0 bg-white/10 backdrop-blur-md border border-white/15
                          rounded-card p-6 min-w-[240px]"
             >
               <p className="text-[11px] text-white/45 mb-1">표준형 48개월 기준</p>
@@ -519,13 +519,44 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
       {/* ──────────────────────────────────────────────────
           MAIN CONTENT
       ────────────────────────────────────────────────── */}
-      <div className="page-container py-10">
-        <div className="grid grid-cols-3 gap-8">
+      <div className="page-container py-6 md:py-10">
+        {/* 모바일 전용 월납입 카드 — Hero 아래 풀폭 */}
+        <div className="block md:hidden mb-4">
+          <div className="bg-white rounded-card border border-[#F0F0F0] p-5 shadow-card">
+            <p className="text-[11px] text-ink-caption mb-1">표준형 48개월 기준</p>
+            <div className="flex items-baseline gap-1 mb-3">
+              <span className="text-[30px] font-semibold text-ink leading-none">
+                {currentMonthly ? formatMonthlyShort(currentMonthly) : "---"}
+              </span>
+              <span className="text-[14px] text-ink-caption">~</span>
+            </div>
+            <button
+              onClick={handleContractApply}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-btn
+                         bg-primary text-white text-[14px] font-semibold
+                         hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 mb-2"
+            >
+              <ClipboardCheck size={15} strokeWidth={2} />
+              계약 신청하기
+            </button>
+            <Link
+              href={`/quote?vehicle=${vehicle.slug}`}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-btn
+                         border border-primary/30 text-primary text-[13px] font-medium
+                         hover:bg-primary/[0.04] transition-all duration-150"
+            >
+              <Calculator size={14} strokeWidth={2} />
+              견적 세부 조정
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
 
           {/* ────────────────────────────────────────────
               LEFT: 이미지 갤러리 + 차량 스펙 정보
           ──────────────────────────────────────────── */}
-          <div className="col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6">
 
             {/* ── 이미지 갤러리 ─────────────────────── */}
             {allImages.length > 0 && (
@@ -661,7 +692,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-px bg-white/10 border-t border-white/10">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-px bg-white/10 border-t border-white/10">
                 {[
                   {
                     icon: <Receipt size={16} />,
@@ -708,9 +739,9 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
           </div>
 
           {/* ────────────────────────────────────────────
-              RIGHT: 스티키 사이드바
+              RIGHT: 스티키 사이드바 (데스크톱 전용)
           ──────────────────────────────────────────── */}
-          <div className="col-span-1">
+          <div className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24 space-y-4">
               {/* 월납입 + 견적내기 + 상담 버튼 */}
               <motion.div
@@ -845,7 +876,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
           }}
         >
-          <div className="px-12 py-10 flex items-center justify-between gap-6">
+          <div className="px-6 md:px-12 py-8 md:py-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 md:gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles size={14} className="text-white/60" />
@@ -853,7 +884,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                   AI 추천
                 </span>
               </div>
-              <h3 className="font-display text-[22px] font-light text-white mb-1.5">
+              <h3 className="font-display text-[20px] md:text-[22px] font-light text-white mb-1.5">
                 나에게 맞는 차량이 따로 있을 수 있어요
               </h3>
               <p className="text-[13px] text-white/60">
@@ -862,7 +893,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
             </div>
             <Link
               href="/"
-              className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-btn
+              className="w-full md:w-auto shrink-0 flex items-center justify-center gap-2 px-6 py-3 rounded-btn
                          bg-white text-primary text-[13px] font-semibold
                          hover:bg-white/90 transition-colors duration-150"
             >

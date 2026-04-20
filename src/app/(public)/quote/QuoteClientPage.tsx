@@ -518,7 +518,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       검색 결과가 없습니다
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                       {filteredVehicles.map((v) => (
                         <VehiclePickCard
                           key={v.id}

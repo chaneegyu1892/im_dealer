@@ -58,7 +58,7 @@ export function QuoteBreakdownTabs({ scenarios, defaultTab = "standard" }: Props
         <div className="flex items-end justify-between">
           <div>
             <p className="text-[11px] text-ink-caption mb-1">월 납입금</p>
-            <p className="text-[32px] font-light text-ink leading-none">
+            <p className="text-[26px] md:text-[32px] font-light text-ink leading-none">
               {formatMonthly(data.monthlyPayment)}
             </p>
           </div>

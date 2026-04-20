@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { Header } from "@/components/layout/Header";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 export default function PublicLayout({
   children,
@@ -11,7 +12,10 @@ export default function PublicLayout({
       <Suspense fallback={<div className="h-[72px] bg-white border-b border-[#F0F0F0]" />}>
         <Header />
       </Suspense>
-      <main>{children}</main>
+      <main className="pb-[calc(62px+env(safe-area-inset-bottom,0px))] md:pb-0">
+        {children}
+      </main>
+      <BottomNav />
     </div>
   );
 }
