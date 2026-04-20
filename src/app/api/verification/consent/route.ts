@@ -38,7 +38,6 @@ export async function POST(request: NextRequest) {
     const record = await prisma.customerVerification.create({
       data: {
         sessionId,
-        userId: user.id,
         customerType,
         consentedAt: new Date(consentedAt),
       },

@@ -9,6 +9,7 @@ import type {
   AdminVehicleDetail,
   AdminBrand,
   AdminSavedQuote,
+  AdminOptionRule,
 } from "@/types/admin";
 
 // ─── 서류 인증 목록 (admin) ─────────────────────────────

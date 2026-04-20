@@ -89,9 +89,16 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
   // 3) 차량별 점수 계산
   const scored: ScoredVehicle[] = [];
 
+  const isOfficial = input.purpose === "의전·임원용";
+
   for (const v of vehicles) {
-    const defaultTrim = v.trims.find((t) => t.isDefault) ?? v.trims[0];
+    let defaultTrim = v.trims.find((t) => t.isDefault) ?? v.trims[0];
+    if (isOfficial && v.trims.length > 0) {
+      const mostExpensive = v.trims.reduce((max, t) => (t.price > max.price ? t : max), v.trims[0]);
+      defaultTrim = mostExpensive;
+    }
     if (!defaultTrim) continue;
+    if (isOfficial && defaultTrim.price < 60_000_000) continue;
 
     // 공통코드로 RateConfig 찾기
     const configs = v.vehicleCode ? ratesByCode.get(v.vehicleCode) : undefined;
@@ -169,6 +176,9 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       if (input.purpose === "기타" && input.purposeDetail === "평일 포함 자주") {
         if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 12) score += 3;
       }
+      if (input.purpose === "의전·임원용" && input.purposeDetail === "기사 운행") {
+        if (v.category?.includes("대형") || v.category?.includes("세단")) score += 10;
+      }
     }
 
     // (f) 예산 추가 답변 스코어링
@@ -183,6 +193,18 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       if (defaultTrim.price > 40_000_000) score += 5;
     }
 
+    // (g-1) 의전·임원용 스코어링
+    if (isOfficial) {
+      const cat = v.category ?? "";
+      if (cat.includes("대형") || cat.includes("세단") || cat.includes("프리미엄")) {
+        score += 15;
+      } else if (cat === "SUV") {
+        score += 8;
+      } else if (cat.includes("경차") || cat.includes("소형") || cat === "밴" || cat === "트럭") {
+        score -= 15;
+      }
+    }
+
     // (g) 연료 방식 스코어링
     if (input.fuelPreference && input.fuelPreference !== "상관없음") {
       const trimFuel = (defaultTrim as { fuelType?: string }).fuelType ?? "";
@@ -193,8 +215,8 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       else if (input.fuelPreference !== "상관없음") score -= 5;
     }
 
-    // 예산 40% 초과 시 제외 (조금 타협 가능이면 실질 한도 적용)
-    if (bestMonthly > effectiveBudgetMax * 1.4) continue;
+    // 의전용은 예산 필터 적용 안 함, 그 외 40% 초과 시 제외
+    if (!isOfficial && bestMonthly > effectiveBudgetMax * 1.4) continue;
 
     // ── 추천 이유 생성 ────────────────────────────
     const reasons: string[] = [];

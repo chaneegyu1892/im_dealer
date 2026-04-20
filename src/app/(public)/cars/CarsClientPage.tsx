@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Sparkles, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, Sparkles, SlidersHorizontal, Search, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CarCard } from "@/components/cars/CarCard";
 import type { VehicleListItem } from "@/types/api";
 
 const VEHICLE_CATEGORIES = ["전체", "세단", "SUV", "밴", "트럭"] as const;
-const VEHICLE_BRANDS = ["전체", "현대", "기아", "제네시스"] as const;
 type CategoryFilter = (typeof VEHICLE_CATEGORIES)[number];
-type BrandFilter = (typeof VEHICLE_BRANDS)[number];
+type BrandFilter = string;
 
 const SORT_OPTIONS = [
   { value: "popular", label: "인기순" },
@@ -128,14 +127,52 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("전체");
   const [brandFilter, setBrandFilter] = useState<BrandFilter>("전체");
   const [sortBy, setSortBy] = useState<SortOption>("popular");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const brandScrollRef = useRef<HTMLDivElement>(null);
+
+  const updateScrollState = useCallback(() => {
+    const el = brandScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  const brands = ["전체", ...Array.from(new Set(vehicles.map((v) => v.brand))).sort()];
+
+  useEffect(() => {
+    updateScrollState();
+    const el = brandScrollRef.current;
+    el?.addEventListener("scroll", updateScrollState);
+    window.addEventListener("resize", updateScrollState);
+    return () => {
+      el?.removeEventListener("scroll", updateScrollState);
+      window.removeEventListener("resize", updateScrollState);
+    };
+  }, [brands, updateScrollState]);
 
   const featured = vehicles.filter((v) => v.isPopular).slice(0, 2);
   const featuredIds = new Set(featured.map((v) => v.id));
 
   const filteredVehicles = useMemo(() => {
-    let result = vehicles.filter((v) => !featuredIds.has(v.id));
-    if (categoryFilter !== "전체") result = result.filter((v) => v.category === categoryFilter);
-    if (brandFilter !== "전체") result = result.filter((v) => v.brand === brandFilter);
+    const query = searchQuery.trim().toLowerCase();
+    const matchesQuery = (v: VehicleListItem) => {
+      const fields = [
+        v.name,
+        v.brand,
+        v.category,
+        v.description ?? "",
+        ...v.highlights,
+        ...v.tags,
+      ].map((f) => f.toLowerCase());
+      return fields.some((f) => f.includes(query));
+    };
+    let result = query
+      ? vehicles.filter(matchesQuery)
+      : vehicles.filter((v) => !featuredIds.has(v.id));
+    if (!query && categoryFilter !== "전체") result = result.filter((v) => v.category === categoryFilter);
+    if (!query && brandFilter !== "전체") result = result.filter((v) => v.brand === brandFilter);
 
     switch (sortBy) {
       case "price-asc":
@@ -145,7 +182,7 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       default:
         return [...result].sort((a, b) => a.displayOrder - b.displayOrder);
     }
-  }, [vehicles, categoryFilter, brandFilter, sortBy, featuredIds]);
+  }, [vehicles, categoryFilter, brandFilter, sortBy, featuredIds, searchQuery]);
 
   const totalCount = vehicles.length;
   const activeFilterCount =
@@ -192,26 +229,51 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
 
             <div className="h-4 w-px bg-neutral-800" />
 
-            {/* 브랜드 */}
-            <div className="flex items-center gap-1">
-              {VEHICLE_BRANDS.map((brand) => (
-                <button
-                  key={brand}
-                  onClick={() => setBrandFilter(brand)}
-                  className={cn(
-                    "px-3.5 py-1.5 text-[13px] font-medium rounded-btn transition-all duration-150",
-                    brandFilter === brand
-                      ? "bg-primary-100 text-primary border border-primary-200"
-                      : "text-ink-label hover:text-ink hover:bg-neutral border border-transparent"
-                  )}
-                >
-                  {brand}
-                </button>
-              ))}
+            {/* 브랜드 (가로 스크롤) */}
+            <div className="relative flex-1 min-w-0">
+              {canScrollLeft && (
+                <div className="absolute left-0 top-0 bottom-0 w-8 z-10 bg-gradient-to-r from-white/95 to-transparent pointer-events-none" />
+              )}
+              {canScrollRight && (
+                <div className="absolute right-0 top-0 bottom-0 w-10 z-10 bg-gradient-to-l from-white/95 to-transparent pointer-events-none flex items-center justify-end pr-1">
+                  <ChevronRight size={13} className="text-ink-caption" />
+                </div>
+              )}
+              <div
+                ref={brandScrollRef}
+                className="flex items-center gap-1 overflow-x-auto scrollbar-hide"
+              >
+                {brands.map((brand) => (
+                  <button
+                    key={brand}
+                    onClick={() => setBrandFilter(brand)}
+                    className={cn(
+                      "flex-shrink-0 px-3.5 py-1.5 text-[13px] font-medium rounded-btn transition-all duration-150",
+                      brandFilter === brand
+                        ? "bg-primary-100 text-primary border border-primary-200"
+                        : "text-ink-label hover:text-ink hover:bg-neutral border border-transparent"
+                    )}
+                  >
+                    {brand}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* 우측: 정렬 + 필터 초기화 */}
+            {/* 우측: 검색 + 정렬 + 필터 초기화 */}
             <div className="flex items-center gap-3 ml-auto">
+              {/* 검색바 */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn border border-[#E8E8F0] bg-neutral focus-within:border-primary/40 transition-colors duration-150">
+                <Search size={12} className="text-ink-caption flex-shrink-0" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="차량 검색"
+                  className="w-28 text-[12px] text-ink bg-transparent outline-none placeholder:text-ink-caption"
+                />
+              </div>
+
               {activeFilterCount > 0 && (
                 <button
                   onClick={() => {
@@ -244,7 +306,7 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       {/* 컨텐츠 영역 */}
       <div className="page-container py-10">
         {/* 피처드 섹션 */}
-        {categoryFilter === "전체" && brandFilter === "전체" && featured.length > 0 && (
+        {!searchQuery && categoryFilter === "전체" && brandFilter === "전체" && featured.length > 0 && (
           <section className="mb-12">
             <p className="section-label mb-4">주목할 차량</p>
             <div className="grid grid-cols-3 gap-5">

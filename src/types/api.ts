@@ -23,6 +23,7 @@ export interface VehicleListItem {
   } | null;
   monthlyFrom: number;
   highlights: string[];
+  tags: string[];
 }
 
 export interface VehicleDetailedSpecs {
