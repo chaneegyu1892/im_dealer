@@ -53,37 +53,32 @@ export async function GET(request: NextRequest) {
       prisma.vehicle.count({ where }),
     ]);
 
-    // 최저가 견적 산출을 위해 RateConfig도 조회
-    const vehicleCodes = vehicles
-      .map((v) => v.vehicleCode)
+    // 최저가 견적 산출 — 각 차량 defaultTrim의 활성 capitalRateSheet 조회
+    const defaultTrimIds = vehicles
+      .map((v) => v.trims[0]?.id)
       .filter(Boolean) as string[];
 
-    const rateConfigs = await prisma.rateConfig.findMany({
-      where: {
-        vehicleCode: { in: vehicleCodes },
-        productType: "렌트",
-        isActive: true,
-        financeCompany: { isActive: true },
-      },
-      include: { financeCompany: { select: { surchargeRate: true } } },
-    });
+    const rateSheets = defaultTrimIds.length > 0
+      ? await (prisma as any).capitalRateSheet.findMany({
+          where: { trimId: { in: defaultTrimIds }, isActive: true },
+          select: { trimId: true, minRateMatrix: true },
+        })
+      : [];
 
-    // vehicleCode → 최저 회수율 맵
-    const lowestRateByCode = new Map<string, number>();
-    for (const rc of rateConfigs) {
-      const rates = rc.minPriceRates as Record<string, Record<string, number>>;
-      const rate48 = rates["20000"]?.["48"] ?? 0;
+    // trimId → 최저 회수율 맵 (48개월, 2만km 기준, 최소가 기준)
+    const lowestRateByTrimId = new Map<string, number>();
+    for (const rs of rateSheets) {
+      const rate48 = (rs.minRateMatrix as Record<string, number>)?.["48_20000"] ?? 0;
       if (rate48 <= 0) continue;
-
-      const existing = lowestRateByCode.get(rc.vehicleCode) ?? Infinity;
+      const existing = lowestRateByTrimId.get(rs.trimId) ?? Infinity;
       if (rate48 < existing) {
-        lowestRateByCode.set(rc.vehicleCode, rate48);
+        lowestRateByTrimId.set(rs.trimId, rate48);
       }
     }
 
     const data = vehicles.map((v) => {
       const defaultTrim = v.trims[0];
-      const rate = v.vehicleCode ? lowestRateByCode.get(v.vehicleCode) : undefined;
+      const rate = defaultTrim ? lowestRateByTrimId.get(defaultTrim.id) : undefined;
       const trimPrice = defaultTrim?.price ?? v.basePrice;
       const monthlyFrom = rate ? Math.round(trimPrice * rate) : 0;
       const highlights = v.recConfigs?.highlights ?? [];

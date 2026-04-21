@@ -9,36 +9,49 @@ datasource db {
 }
 
 model FinanceCompany {
-  id            String       @id @default(cuid())
-  name          String       @unique
-  code          String       @unique
-  surchargeRate Float        @default(0)
-  isActive      Boolean      @default(true)
-  displayOrder  Int          @default(0)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  rateConfigs   RateConfig[]
+  id            String             @id @default(cuid())
+  name          String             @unique
+  code          String             @unique
+  surchargeRate Float              @default(0)
+  isActive      Boolean            @default(true)
+  displayOrder  Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  rateSheets    CapitalRateSheet[]
 }
 
-model RateConfig {
+// 주별 캐피탈사 견적 입력 및 계산된 회수율 보관
+model CapitalRateSheet {
   id                  String         @id @default(cuid())
   financeCompanyId    String
-  vehicleCode         String
-  productType         String
-  minVehiclePrice     Int
-  maxVehiclePrice     Int
-  minPriceRates       Json
-  maxPriceRates       Json
-  depositDiscountRate Float
-  prepayAdjustRate    Float
+  trimId              String
+  weekOf              DateTime       // 해당 주 시작일 (월요일 기준)
+  // 가격 범위
+  minVehiclePrice     Int            // 최소 차량가
+  maxVehiclePrice     Int            // 최대 차량가
+  // 캐피탈사 원본 견적 (최소가 기준)
+  minBaseRates        Json           // {"36_10000": 500000, ...} 최소가 기준 견적
+  minDepositRates     Json           // 최소가 + 보증금 10%
+  minPrepayRates      Json           // 최소가 + 선납금 10%
+  // 캐피탈사 원본 견적 (최대가 기준)
+  maxBaseRates        Json           // {"36_10000": 540000, ...} 최대가 기준 견적
+  maxDepositRates     Json           // 최대가 + 보증금 10%
+  maxPrepayRates      Json           // 최대가 + 선납금 10%
+  // 자동 계산 결과
+  minRateMatrix       Json           // 최소가 기준 회수율 매트릭스
+  maxRateMatrix       Json           // 최대가 기준 회수율 매트릭스
+  depositDiscountRate Float          // 보증금 할인 회수율 (min·max 평균)
+  prepayAdjustRate    Float          // 선납금 조정 회수율 (min·max 평균)
   isActive            Boolean        @default(true)
   memo                String?
   createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
   financeCompany      FinanceCompany @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
+  trim                Trim           @relation(fields: [trimId], references: [id], onDelete: Cascade)
 
-  @@unique([financeCompanyId, vehicleCode, productType])
-  @@index([vehicleCode])
+  @@unique([financeCompanyId, trimId, weekOf])
+  @@index([financeCompanyId, trimId])
+  @@index([financeCompanyId, weekOf])
+  @@index([isActive])
 }
 
 model RankSurchargeConfig {
@@ -99,6 +112,7 @@ model Trim {
   options        TrimOption[]
   rules          OptionRule[]
   inventory      Inventory[]
+  rateSheets     CapitalRateSheet[]
 
   @@index([vehicleId])
   @@index([lineupId])

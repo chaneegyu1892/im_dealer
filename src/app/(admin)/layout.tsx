@@ -12,7 +12,7 @@ export default async function AdminLayout({
     <div className="min-h-screen flex bg-[#F4F5F8]">
       {admin && <AdminSidebar />}
       {/* 사이드바 너비만큼 밀림 (어드민 세션이 있을 때만 마진 적용) */}
-      <main className={admin ? "flex-1 ml-[220px] min-h-screen overflow-x-hidden" : "flex-1 min-h-screen"}>
+      <main className={admin ? "flex-1 ml-[220px] min-h-screen overflow-x-hidden p-5" : "flex-1 min-h-screen p-5"}>
         {children}
       </main>
     </div>
