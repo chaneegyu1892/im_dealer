@@ -22,7 +22,6 @@ import type {
   RecommendedVehicleDetail,
   RecommendScenarios,
 } from "@/types/recommendation";
-import type { RateMatrix } from "@/types/quote";
 
 interface ScoredVehicle {
   vehicleId: string;
@@ -49,8 +48,8 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     },
   });
 
-  // 2) 활성 금융사의 RateConfig 전체 조회
-  const rateConfigs = await prisma.rateConfig.findMany({
+  // 2) 활성 capitalRateSheet 전체 조회 (trimId → RateConfigData[] 맵)
+  const allSheets = await (prisma as any).capitalRateSheet.findMany({
     where: { isActive: true, financeCompany: { isActive: true } },
     include: { financeCompany: true },
   });
@@ -63,24 +62,23 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     ? rankSurcharges.map((r) => r.rate)
     : [...RANK_SURCHARGE_RATES];
 
-  // vehicleCode → RateConfigData[] 맵
-  const ratesByCode = new Map<string, RateConfigData[]>();
-  for (const rc of rateConfigs) {
-    const key = rc.vehicleCode;
+  // trimId → RateConfigData[] 맵
+  const ratesByTrimId = new Map<string, RateConfigData[]>();
+  for (const rs of allSheets) {
     const data: RateConfigData = {
-      financeCompanyId: rc.financeCompanyId,
-      financeCompanyName: rc.financeCompany.name,
-      minVehiclePrice: rc.minVehiclePrice,
-      maxVehiclePrice: rc.maxVehiclePrice,
-      minPriceRates: rc.minPriceRates as RateMatrix,
-      maxPriceRates: rc.maxPriceRates as RateMatrix,
-      depositDiscountRate: rc.depositDiscountRate,
-      prepayAdjustRate: rc.prepayAdjustRate,
-      financeSurchargeRate: rc.financeCompany.surchargeRate,
+      financeCompanyId: rs.financeCompanyId,
+      financeCompanyName: rs.financeCompany.name,
+      financeSurchargeRate: rs.financeCompany.surchargeRate,
+      minVehiclePrice: rs.minVehiclePrice,
+      maxVehiclePrice: rs.maxVehiclePrice,
+      minRateMatrix: rs.minRateMatrix,
+      maxRateMatrix: rs.maxRateMatrix,
+      depositDiscountRate: rs.depositDiscountRate,
+      prepayAdjustRate: rs.prepayAdjustRate,
     };
-    const existing = ratesByCode.get(key) ?? [];
+    const existing = ratesByTrimId.get(rs.trimId) ?? [];
     existing.push(data);
-    ratesByCode.set(key, existing);
+    ratesByTrimId.set(rs.trimId, existing);
   }
 
   // 약정거리 매핑 (고객 입력 → 가장 가까운 키)
@@ -100,8 +98,8 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     if (!defaultTrim) continue;
     if (isOfficial && defaultTrim.price < 60_000_000) continue;
 
-    // 공통코드로 RateConfig 찾기
-    const configs = v.vehicleCode ? ratesByCode.get(v.vehicleCode) : undefined;
+    // trimId로 RateConfigData 찾기
+    const configs = ratesByTrimId.get(defaultTrim.id);
     if (!configs || configs.length === 0) continue;
 
     // 최저가 금융사 찾기 (표준형, 48개월 기준)

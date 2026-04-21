@@ -2,95 +2,88 @@
  * 견적 계산 엔진 — 회수율(Recovery Rate) 기반
  *
  * 핵심 공식:
- *   기준 대여료 = 차량가 × 회수율(선형보간)
+ *   기준 대여료 = 차량가 × 회수율
  *   보증금 적용 = 차량가 × (기준회수율 + 보증금할인회수율 × 보증금10%단위수)
  *   선납금 적용 = (기준대여료 - 선납금/개월수) - 차량가 × 선납금조정회수율 × 선납금10%단위수
  *   최종 대여료 = 보증금or선납금 적용 대여료 × (1+순위가산율) × (1+차량가산율) × (1+금융사가산율)
  */
 
 import type {
-  RateMatrix,
   FinanceQuoteResult,
   QuoteBreakdown,
   SurchargeDetail,
 } from "@/types/quote";
+import type { RateSheetKey, RateSheetRaw } from "@/types/admin";
 
 // ─── 입력 타입 ──────────────────────────────────────────
 
 export interface RateConfigData {
   financeCompanyId: string;
   financeCompanyName: string;
-  minVehiclePrice: number;
-  maxVehiclePrice: number;
-  minPriceRates: RateMatrix;       // {"10000":{"36":0.0123,...},...}
-  maxPriceRates: RateMatrix;
-  depositDiscountRate: number;      // 보증금 10%당 회수율 변동 (음수=할인)
-  prepayAdjustRate: number;         // 선납금 10%당 회수율 변동
   financeSurchargeRate: number;     // 금융사 가산율 (%)
+  minVehiclePrice: number;          // 최소 차량가
+  maxVehiclePrice: number;          // 최대 차량가
+  minRateMatrix: RateSheetRaw;      // 최소가 기준 회수율 (9개)
+  maxRateMatrix: RateSheetRaw;      // 최대가 기준 회수율 (9개)
+  depositDiscountRate: number;      // 보증금 할인 회수율
+  prepayAdjustRate: number;         // 선납금 조정 회수율
 }
 
 export interface CalcInput {
   vehiclePrice: number;
-  contractMonths: number;          // 36 | 48 | 60
-  annualMileage: number;           // 10000 | 20000 | 30000
-  depositRate: number;             // 보증금 비율 (0, 10, 20, 30)
-  prepayRate: number;              // 선납금 비율 (0, 10, 20, 30)
-  vehicleSurchargeRate: number;    // 차량 가산율 (%)
-  rankSurchargeRates: number[];    // [1순위%, 2순위%, 3순위%, 4순위+%]
-  rateConfigs: RateConfigData[];   // 금융사별 회수율 데이터
+  contractMonths: number;           // 36 | 48 | 60
+  annualMileage: number;            // 10000 | 20000 | 30000
+  depositRate: number;              // 보증금 비율 (0, 10, 20, 30)
+  prepayRate: number;               // 선납금 비율 (0, 10, 20, 30)
+  vehicleSurchargeRate: number;     // 차량 가산율 (%)
+  rankSurchargeRates: number[];     // [1순위%, 2순위%, 3순위%, 4순위+%]
+  rateConfigs: RateConfigData[];    // 금융사별 회수율 데이터
 }
 
-// ─── 선형보간 ───────────────────────────────────────────
+// ─── 회수율 조회 ─────────────────────────────────────────
 
-function lerp(x: number, x0: number, x1: number, y0: number, y1: number): number {
-  if (x1 === x0) return y0;
-  const t = Math.max(0, Math.min(1, (x - x0) / (x1 - x0)));
-  return y0 + t * (y1 - y0);
-}
-
-/** 차량가격 기준으로 회수율 선형보간 */
-export function interpolateRate(
-  vehiclePrice: number,
-  minPrice: number,
-  maxPrice: number,
-  minRates: RateMatrix,
-  maxRates: RateMatrix,
-  mileageKey: string,
-  monthsKey: string
+export function getRateFromMatrix(
+  rateMatrix: RateSheetRaw,
+  contractMonths: number,
+  annualMileage: number
 ): number {
-  const minRate = minRates[mileageKey]?.[monthsKey] ?? 0;
-  const maxRate = maxRates[mileageKey]?.[monthsKey] ?? 0;
+  const key = `${contractMonths}_${annualMileage}` as RateSheetKey;
+  return rateMatrix[key] ?? 0;
+}
 
-  // 최대값이 0이면 최소값만 사용 (아직 미입력)
-  if (maxRate === 0) return minRate;
-
-  return lerp(vehiclePrice, minPrice, maxPrice, minRate, maxRate);
+/** 차량 실제 가격으로 min·max 사이를 선형보간한 회수율 반환 */
+function getInterpolatedRate(
+  config: RateConfigData,
+  vehiclePrice: number,
+  contractMonths: number,
+  annualMileage: number
+): number {
+  const minRate = getRateFromMatrix(config.minRateMatrix, contractMonths, annualMileage);
+  const maxRate = getRateFromMatrix(config.maxRateMatrix, contractMonths, annualMileage);
+  if (minRate <= 0 && maxRate <= 0) return 0;
+  if (config.maxVehiclePrice <= config.minVehiclePrice) return minRate;
+  const t = Math.max(0, Math.min(1, (vehiclePrice - config.minVehiclePrice) / (config.maxVehiclePrice - config.minVehiclePrice)));
+  return minRate + t * (maxRate - minRate);
 }
 
 // ─── 단일 금융사 기준 대여료 계산 ─────────────────────────
 
-function calcBaseMonthly(
-  vehiclePrice: number,
-  recoveryRate: number
-): number {
-  return vehiclePrice * recoveryRate; // [수정] 중간 단계 float 유지 (최종 단계에서만 Math.round)
+function calcBaseMonthly(vehiclePrice: number, recoveryRate: number): number {
+  return vehiclePrice * recoveryRate;
 }
 
 /** 보증금 적용 월 대여료 계산 */
 function applyDeposit(
   vehiclePrice: number,
   baseRate: number,
-  depositRate: number,   // 0, 10, 20, 30
+  depositRate: number,
   depositDiscountRate: number
 ): { monthly: number; depositAmount: number; discount: number } {
-  const steps = depositRate / 10;  // 10% 단위수
+  const steps = depositRate / 10;
   const depositAmount = Math.round(vehiclePrice * (depositRate / 100));
-
-  // 보증금 적용 회수율 = 기준 회수율 + 할인회수율 × 단위수
   const adjustedRate = baseRate + depositDiscountRate * steps;
-  const monthly = vehiclePrice * adjustedRate; // [수정] 중간 단계 float 유지
+  const monthly = vehiclePrice * adjustedRate;
   const discount = Math.round(vehiclePrice * Math.abs(depositDiscountRate) * steps);
-
   return { monthly, depositAmount, discount };
 }
 
@@ -99,17 +92,14 @@ function applyPrepay(
   vehiclePrice: number,
   baseMonthly: number,
   contractMonths: number,
-  prepayRate: number,   // 0, 10, 20, 30
+  prepayRate: number,
   prepayAdjustRate: number
 ): { monthly: number; prepayAmount: number; adjust: number } {
   const steps = prepayRate / 10;
   const prepayAmount = Math.round(vehiclePrice * (prepayRate / 100));
-
-  // 선납금 로직: (기준대여료 - 선납금/개월수) - 차량가 × 선납금조정회수율 × 단위수
-  const prepayDeduction = prepayAmount / contractMonths; // [수정] 중간 단계 float 유지
-  const adjustAmount = vehiclePrice * prepayAdjustRate * steps; // [수정] 중간 단계 float 유지
+  const prepayDeduction = prepayAmount / contractMonths;
+  const adjustAmount = vehiclePrice * prepayAdjustRate * steps;
   const monthly = baseMonthly - prepayDeduction - adjustAmount;
-
   return { monthly, prepayAmount, adjust: -(prepayDeduction + adjustAmount) };
 }
 
@@ -127,10 +117,6 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
     rateConfigs,
   } = input;
 
-  const mileageKey = String(annualMileage);
-  const monthsKey = String(contractMonths);
-
-  // 1) 각 금융사별 기본 대여료 계산
   type Intermediate = {
     config: RateConfigData;
     recoveryRate: number;
@@ -145,17 +131,7 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
   const intermediates: Intermediate[] = [];
 
   for (const cfg of rateConfigs) {
-    // 회수율 선형보간
-    const recoveryRate = interpolateRate(
-      vehiclePrice,
-      cfg.minVehiclePrice,
-      cfg.maxVehiclePrice,
-      cfg.minPriceRates,
-      cfg.maxPriceRates,
-      mileageKey,
-      monthsKey
-    );
-
+    const recoveryRate = getInterpolatedRate(cfg, vehiclePrice, contractMonths, annualMileage);
     if (recoveryRate <= 0) continue;
 
     const baseMonthly = calcBaseMonthly(vehiclePrice, recoveryRate);
@@ -166,13 +142,11 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
     let prepayAdjust = 0;
 
     if (depositRate > 0) {
-      // 보증금 적용 (보증금과 선납금은 동시 적용 안 함)
       const result = applyDeposit(vehiclePrice, recoveryRate, depositRate, cfg.depositDiscountRate);
       monthlyBeforeSurcharge = result.monthly;
       depositAmount = result.depositAmount;
       depositDiscount = result.discount;
     } else if (prepayRate > 0) {
-      // 선납금 적용
       const result = applyPrepay(vehiclePrice, baseMonthly, contractMonths, prepayRate, cfg.prepayAdjustRate);
       monthlyBeforeSurcharge = result.monthly;
       prepayAmount = result.prepayAmount;
@@ -193,14 +167,12 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
     });
   }
 
-  // 2) 기본 대여료 기준으로 1차 정렬 (순위 결정)
+  // 기본 대여료 기준 1차 정렬 (순위 결정)
   intermediates.sort((a, b) => a.monthlyBeforeSurcharge - b.monthlyBeforeSurcharge);
 
-  // 3) 순위 가산 + 차량 가산 + 금융사 가산 적용
+  // 순위 가산 → 차량 가산 → 금융사 가산 누적 곱셈
   const results: FinanceQuoteResult[] = intermediates.map((item, idx) => {
     const rank = idx + 1;
-
-    // 순위 가산 → 차량 가산 → 금융사 가산 순서로 누적 곱셈
     const rankRate = rank <= rankSurchargeRates.length
       ? rankSurchargeRates[rank - 1]
       : rankSurchargeRates[rankSurchargeRates.length - 1];
@@ -209,7 +181,6 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
     const afterVehicle = afterRank * (1 + vehicleSurchargeRate / 100);
     const monthlyPayment = Math.round(afterVehicle * (1 + item.config.financeSurchargeRate / 100));
 
-    // breakdown 표시용 중간값 (반올림)
     const rankSurcharge    = Math.round(afterRank - item.monthlyBeforeSurcharge);
     const vehicleSurcharge = Math.round(afterVehicle - afterRank);
     const financeSurcharge = monthlyPayment - Math.round(afterVehicle);
@@ -236,7 +207,7 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
     return {
       financeCompanyId: item.config.financeCompanyId,
       financeCompanyName: item.config.financeCompanyName,
-      rank, // 임시 (아래에서 재정렬)
+      rank,
       baseMonthly: item.monthlyBeforeSurcharge,
       monthlyPayment,
       breakdown,
@@ -244,7 +215,6 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
     };
   });
 
-  // 4) 최종 가격 기준 재정렬 + 순위 재할당
   results.sort((a, b) => a.monthlyPayment - b.monthlyPayment);
   results.forEach((r, i) => { r.rank = i + 1; });
 
@@ -259,19 +229,7 @@ export function estimateMonthly(
   contractMonths: number = 48,
   annualMileage: number = 20000
 ): number {
-  const mileageKey = String(annualMileage);
-  const monthsKey = String(contractMonths);
-
-  const rate = interpolateRate(
-    vehiclePrice,
-    rateConfig.minVehiclePrice,
-    rateConfig.maxVehiclePrice,
-    rateConfig.minPriceRates,
-    rateConfig.maxPriceRates,
-    mileageKey,
-    monthsKey
-  );
-
+  const rate = getInterpolatedRate(rateConfig, vehiclePrice, contractMonths, annualMileage);
   return rate > 0 ? Math.round(vehiclePrice * rate) : 0;
 }
 
@@ -287,9 +245,9 @@ export interface ScenarioResult {
 }
 
 export interface ScenarioResults {
-  conservative: ScenarioResult; // 보수형: 보증금 20%
-  standard: ScenarioResult;     // 표준형: 보증금·선납금 0%
-  aggressive: ScenarioResult;   // 공격형: 선납금 30%
+  conservative: ScenarioResult;
+  standard: ScenarioResult;
+  aggressive: ScenarioResult;
 }
 
 export function calculateScenarios(
@@ -298,25 +256,10 @@ export function calculateScenarios(
   annualMileage: number = 20000,
   contractMonths: number = 48
 ): ScenarioResults {
-  const mileageKey = String(annualMileage);
-  const monthsKey = String(contractMonths);
-
-  const rate = interpolateRate(
-    vehiclePrice,
-    rateConfig.minVehiclePrice,
-    rateConfig.maxVehiclePrice,
-    rateConfig.minPriceRates,
-    rateConfig.maxPriceRates,
-    mileageKey,
-    monthsKey
-  );
-
+  const rate = getInterpolatedRate(rateConfig, vehiclePrice, contractMonths, annualMileage);
   const baseMonthly = Math.round(vehiclePrice * rate);
 
-  // 보수형: 보증금 20%
   const conserv = applyDeposit(vehiclePrice, rate, 20, rateConfig.depositDiscountRate);
-  // 표준형: 보증금·선납금 0%
-  // 공격형: 선납금 30%
   const aggress = applyPrepay(vehiclePrice, baseMonthly, contractMonths, 30, rateConfig.prepayAdjustRate);
 
   return {
@@ -345,4 +288,73 @@ export function calculateScenarios(
       contractType: "반납형",
     },
   };
+}
+
+// ─── 회수율 계산 헬퍼 (관리자 입력 시 자동 계산용) ─────────
+
+export const RATE_KEYS: RateSheetKey[] = [
+  "36_10000", "36_20000", "36_30000",
+  "48_10000", "48_20000", "48_30000",
+  "60_10000", "60_20000", "60_30000",
+];
+
+/** 캐피탈사 원본 견적 → 회수율 매트릭스 계산 */
+export function calcRateMatrix(
+  baseRates: RateSheetRaw,
+  vehicleBasePrice: number
+): RateSheetRaw {
+  const result = {} as RateSheetRaw;
+  for (const key of RATE_KEYS) {
+    const monthly = baseRates[key] ?? 0;
+    result[key] = monthly > 0
+      ? Math.round((monthly / vehicleBasePrice) * 100_000) / 100_000
+      : 0;
+  }
+  return result;
+}
+
+/** 보증금 10% 견적 → depositDiscountRate 계산 */
+export function calcDepositDiscountRate(
+  baseRates: RateSheetRaw,
+  depositRates: RateSheetRaw,
+  vehicleBasePrice: number
+): number {
+  const discounts: number[] = [];
+  for (const key of RATE_KEYS) {
+    const base = baseRates[key] ?? 0;
+    const dep = depositRates[key] ?? 0;
+    if (base > 0 && dep > 0) {
+      discounts.push((base - dep) / vehicleBasePrice);
+    }
+  }
+  if (discounts.length === 0) return 0;
+  const avg = discounts.reduce((a, b) => a + b, 0) / discounts.length;
+  return Math.round(avg * 100_000) / 100_000;
+}
+
+/** 선납금 10% 견적 → prepayAdjustRate 계산 */
+export function calcPrepayAdjustRate(
+  baseRates: RateSheetRaw,
+  prepayRates: RateSheetRaw,
+  vehicleBasePrice: number
+): number {
+  const adjustRates: number[] = [];
+  for (const key of RATE_KEYS) {
+    const [monthsStr] = key.split("_");
+    const months = Number(monthsStr);
+    const base = baseRates[key] ?? 0;
+    const prepay = prepayRates[key] ?? 0;
+    if (base > 0 && prepay > 0) {
+      // 총할인 = base - prepay
+      // 월선납할인 = vehicleBasePrice * 10% / months
+      // 추가할인 = 총할인 - 월선납할인
+      const totalDiscount = base - prepay;
+      const monthlyPrepayDeduction = (vehicleBasePrice * 0.1) / months;
+      const extraDiscount = totalDiscount - monthlyPrepayDeduction;
+      adjustRates.push(extraDiscount / vehicleBasePrice);
+    }
+  }
+  if (adjustRates.length === 0) return 0;
+  const avg = adjustRates.reduce((a, b) => a + b, 0) / adjustRates.length;
+  return Math.round(avg * 100_000) / 100_000;
 }

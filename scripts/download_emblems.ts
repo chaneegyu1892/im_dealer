@@ -6,7 +6,7 @@ import https from 'https';
 const BRAND_LOGOS = [
   { name: 'hyundai', url: 'https://upload.wikimedia.org/wikipedia/commons/b/b7/Hyundai_symbol.svg' },
   { name: 'mercedes', url: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Mercedes-Benz_Star.svg' },
-  { name: 'kgm', url: 'https://upload.wikimedia.org/wikipedia/commons/2/23/SsangYong_winged_logo.svg' },
+  { name: 'kgm', url: 'https://upload.wikimedia.org/wikipedia/commons/4/4b/KGMobility_logo.svg' },
   { name: 'chevrolet', url: 'https://upload.wikimedia.org/wikipedia/commons/a/a8/Chevrolet_bowtie_2023.svg' }
 ];
 

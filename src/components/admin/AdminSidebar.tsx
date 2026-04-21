@@ -52,8 +52,7 @@ const NAV: NavGroup[] = [
   {
     group: "정책 및 AI",
     items: [
-      { href: "/admin/recovery-rates", label: "회수율 설정", icon: TrendingUp },
-      { href: "/admin/finance", label: "금융사 관리", icon: Building2 },
+      { href: "/admin/finance", label: "견적 산출 로직 관리", icon: Building2 },
       { href: "/admin/ai", label: "AI관리", icon: Sparkles },
     ],
   },

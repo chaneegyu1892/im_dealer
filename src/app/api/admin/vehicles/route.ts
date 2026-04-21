@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const brand = searchParams.get("brand") ?? undefined;
     const search = searchParams.get("search") ?? undefined;
-
+    const includeTrims = searchParams.get("includeTrims") === "true";
     const where = {
       ...(brand ? { brand } : {}),
       ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
     const vehicles = await prisma.vehicle.findMany({
       where,
       orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }],
-      include: { _count: { select: { trims: true } } },
+      include: { 
+        _count: { select: { trims: true } },
+        ...(includeTrims ? { trims: { orderBy: { price: "asc" } } } : {}),
+      },
     });
 
     const data = vehicles.map((v) => ({
@@ -42,6 +45,7 @@ export async function GET(request: NextRequest) {
       createdAt: v.createdAt.toISOString(),
       updatedAt: v.updatedAt.toISOString(),
       _count: v._count,
+      ...(includeTrims ? { trims: (v as any).trims } : {}),
     }));
 
     return NextResponse.json({ success: true, data });
