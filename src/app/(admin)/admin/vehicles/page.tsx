@@ -1,4 +1,3 @@
-'use client';
 
 import { getAdminVehicles, getAdminBrands } from "@/lib/admin-queries";
 import { VehicleManager } from "@/components/admin/vehicles/VehicleManager";

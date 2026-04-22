@@ -33,11 +33,9 @@ export async function proxy(request: NextRequest) {
 
   // ── 어드민 라우트 보호 ────────────────────────────────────
   if (pathname.startsWith("/admin")) {
-    // 1단계: 접근 토큰 확인 (URL 은닉)
-    //   - 쿼리 파라미터 ?t=TOKEN 으로 최초 진입 시 쿠키 발급
-    //   - 이후 쿠키만으로 접근 허용
     const queryToken = searchParams.get("t");
     const accessCookie = request.cookies.get(ADMIN_ACCESS_COOKIE)?.value;
+    const jwtToken = request.cookies.get(ADMIN_JWT_COOKIE)?.value;
 
     const hasValidAccessCookie = accessCookie
       ? isValidAccessToken(accessCookie)
@@ -47,8 +45,11 @@ export async function proxy(request: NextRequest) {
       ? isValidAccessToken(queryToken)
       : false;
 
-    if (!hasValidAccessCookie && !hasValidQueryToken) {
-      // 접근 토큰 없으면 404로 존재 자체를 숨김
+    const hasValidJwt = jwtToken ? await isValidAdminJwt(jwtToken) : false;
+
+    // 로그인 페이지거나, 유효한 JWT(세션)가 있거나, 액세스 토큰이 있는 경우에만 페이지 노출
+    if (!hasValidAccessCookie && !hasValidQueryToken && !hasValidJwt && pathname !== "/admin/login") {
+      // 존재 자체를 숨김
       return new NextResponse(null, { status: 404 });
     }
 
@@ -70,10 +71,7 @@ export async function proxy(request: NextRequest) {
 
     // 2단계: 로그인 인증 확인 (/admin/login 제외)
     if (pathname !== "/admin/login") {
-      const jwtToken = request.cookies.get(ADMIN_JWT_COOKIE)?.value;
-      const validJwt = jwtToken ? await isValidAdminJwt(jwtToken) : false;
-
-      if (!validJwt) {
+      if (!hasValidJwt) {
         return NextResponse.redirect(new URL("/admin/login", request.url));
       }
     }

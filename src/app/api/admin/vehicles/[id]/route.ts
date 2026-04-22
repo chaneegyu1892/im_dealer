@@ -15,6 +15,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const vehicle = await prisma.vehicle.findUnique({
       where: { id },
       include: {
+        lineups: { orderBy: { createdAt: "asc" } },
         trims: {
           orderBy: [{ isDefault: "desc" }, { price: "asc" }],
           include: { options: { orderBy: { price: "asc" } } },
