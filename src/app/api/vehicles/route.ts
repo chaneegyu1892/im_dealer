@@ -61,26 +61,47 @@ export async function GET(request: NextRequest) {
     const rateSheets = defaultTrimIds.length > 0
       ? await (prisma as any).capitalRateSheet.findMany({
           where: { trimId: { in: defaultTrimIds }, isActive: true },
-          select: { trimId: true, minRateMatrix: true },
+          select: { trimId: true, minRateMatrix: true, financeCompany: { select: { surchargeRate: true } } },
         })
       : [];
 
-    // trimId → 최저 회수율 맵 (48개월, 2만km 기준, 최소가 기준)
-    const lowestRateByTrimId = new Map<string, number>();
+    // 순위 가산율 조회 (1순위 값만 사용)
+    const rankSurcharges = await prisma.rankSurchargeConfig.findMany({ orderBy: { rank: "asc" } });
+    const rank1Rate = rankSurcharges.length > 0 ? rankSurcharges[0].rate : 1.0; // 기본 1%
+
+    // trimId → 최저 월납입 맵 (48개월, 2만km 기준, 가산율 반영)
+    const lowestMonthlyByTrimId = new Map<string, number>();
+    // vehicleId → trimId 매핑 (차량 가산율 적용용)
+    const trimToVehicle = new Map<string, typeof vehicles[0]>();
+    for (const v of vehicles) {
+      const defaultTrim = v.trims[0];
+      if (defaultTrim) trimToVehicle.set(defaultTrim.id, v);
+    }
+
     for (const rs of rateSheets) {
       const rate48 = (rs.minRateMatrix as Record<string, number>)?.["48_20000"] ?? 0;
       if (rate48 <= 0) continue;
-      const existing = lowestRateByTrimId.get(rs.trimId) ?? Infinity;
-      if (rate48 < existing) {
-        lowestRateByTrimId.set(rs.trimId, rate48);
+
+      const vehicle = trimToVehicle.get(rs.trimId);
+      const vehicleSurchargeRate = vehicle?.surchargeRate ?? 0;
+      const financeSurchargeRate = rs.financeCompany?.surchargeRate ?? 0;
+      const trimPrice = vehicle?.trims[0]?.price ?? vehicle?.basePrice ?? 0;
+
+      // 전체 파이프라인: 기준대여료 × (1+순위가산) × (1+차량가산) × (1+금융사가산)
+      const base = trimPrice * rate48;
+      const withRank = base * (1 + rank1Rate / 100);
+      const withVehicle = withRank * (1 + vehicleSurchargeRate / 100);
+      const monthly = Math.round(withVehicle * (1 + financeSurchargeRate / 100));
+
+      const existing = lowestMonthlyByTrimId.get(rs.trimId) ?? Infinity;
+      if (monthly < existing) {
+        lowestMonthlyByTrimId.set(rs.trimId, monthly);
       }
     }
 
     const data = vehicles.map((v) => {
       const defaultTrim = v.trims[0];
-      const rate = defaultTrim ? lowestRateByTrimId.get(defaultTrim.id) : undefined;
-      const trimPrice = defaultTrim?.price ?? v.basePrice;
-      const monthlyFrom = rate ? Math.round(trimPrice * rate) : 0;
+      const monthlyFrom = defaultTrim ? (lowestMonthlyByTrimId.get(defaultTrim.id) ?? 0) : 0;
       const highlights = v.recConfigs?.highlights ?? [];
 
       return {

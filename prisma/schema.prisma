@@ -87,6 +87,7 @@ model Vehicle {
   trims          Trim[]
   lineups        VehicleLineup[]
   popularConfigs PopularConfig[]
+  quoteCalcLogs  QuoteCalcLog[]
 
   @@index([isVisible, isPopular])
   @@index([category])
@@ -280,6 +281,46 @@ model ExplorationLog {
 
   @@index([sessionId])
   @@index([eventType, createdAt])
+}
+
+model QuoteCalcLog {
+  id                 String   @id @default(cuid())
+  sessionId          String
+  userId             String?
+
+  // ── 입력 조건 (독립 컬럼 → SQL 집계·ML 학습에 최적) ──
+  vehicleId          String
+  vehicleSlug        String
+  trimId             String?
+  optionIds          String[]
+  contractMonths     Int
+  annualMileage      Int
+  depositRate        Float                     // 0, 10, 20, 30 등
+  prepayRate         Float                     // 0, 10, 20, 30 등
+  contractType       String                    // 반납형 / 인수형
+  productType        String                    // 장기렌트 / 리스
+
+  // ── 계산 결과 (독립 컬럼) ──
+  resultMonthly      Int                       // 최종 월 납입금
+  bestFinanceCompany String
+  scenarioType       String                    // conservative / standard / aggressive
+
+  // ── 행동 추적 ──
+  clickedApply       Boolean  @default(false)  // 계약 신청 클릭 여부
+
+  // ── 메타 ──
+  deviceType         String?
+  referrer           String?
+  userAgent          String?
+  ipHash             String?
+  createdAt          DateTime @default(now())
+
+  vehicle            Vehicle  @relation(fields: [vehicleId], references: [id])
+
+  @@index([vehicleSlug, createdAt])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@index([scenarioType, createdAt])
 }
 
 model RecommendationConfig {

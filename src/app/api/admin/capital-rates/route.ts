@@ -122,8 +122,14 @@ export async function POST(request: NextRequest) {
     const minRateMatrix = calcRateMatrix(minBaseRates, minVehiclePrice);
     const maxRateMatrix = calcRateMatrix(maxBaseRates, maxVehiclePrice);
 
-    const depositDiscountRate = calcDepositDiscountRate(minBaseRates, minDepositRates, minVehiclePrice);
-    const prepayAdjustRate = calcPrepayAdjustRate(minBaseRates, minPrepayRates, minVehiclePrice);
+    // 보증금/선납금 조정률: min·max 각각 계산 후 평균 (차량가 범위 전체 반영)
+    const depositMin = calcDepositDiscountRate(minBaseRates, minDepositRates, minVehiclePrice);
+    const depositMax = calcDepositDiscountRate(maxBaseRates, maxDepositRates, maxVehiclePrice);
+    const depositDiscountRate = Math.round(((depositMin + depositMax) / 2) * 100_000) / 100_000;
+
+    const prepayMin = calcPrepayAdjustRate(minBaseRates, minPrepayRates, minVehiclePrice);
+    const prepayMax = calcPrepayAdjustRate(maxBaseRates, maxPrepayRates, maxVehiclePrice);
+    const prepayAdjustRate = Math.round(((prepayMin + prepayMax) / 2) * 100_000) / 100_000;
 
     const weekDate = new Date(weekOf);
     const db = prisma as any;

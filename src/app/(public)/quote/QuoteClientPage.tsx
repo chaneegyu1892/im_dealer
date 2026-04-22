@@ -358,6 +358,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            sessionId: quoteSessionId,
             trimId: selectedTrimId ?? undefined,
             selectedOptionIds: Array.from(selectedOptionIds),
             contractMonths: conditions.contractMonths,
@@ -666,27 +667,27 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       상품 유형
                     </p>
                     <p className="text-[12px] text-ink-caption mb-3">
-                      장기렌트: 보험·세금 포함, 전액 비용처리 · 리스: 차량 소유권 이전 가능
+                      장기렌트: 보험·세금 포함, 전액 비용처리
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {CONTRACT_CATEGORIES.map((c) => (
-                        <OptionButton
-                          key={c}
-                          selected={contractCategory === c}
-                          onClick={() => setContractCategory(c)}
-                        >
-                          {c}
-                        </OptionButton>
-                      ))}
+                      <OptionButton
+                        selected={contractCategory === "장기렌트"}
+                        onClick={() => setContractCategory("장기렌트")}
+                      >
+                        장기렌트
+                      </OptionButton>
+                      <button
+                        type="button"
+                        disabled
+                        className="px-4 py-2 rounded-btn text-[13px] font-medium border border-neutral-800 bg-neutral-800 text-ink-caption cursor-not-allowed opacity-60 inline-flex items-center gap-1.5"
+                      >
+                        리스
+                        <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded-[4px]">
+                          준비중
+                        </span>
+                      </button>
                     </div>
                   </div>
-
-                  {contractCategory === "리스" && (
-                    <div className="bg-neutral border border-neutral-800 rounded-[8px] p-4 text-[13px] text-ink-caption mb-6 flex items-start gap-2">
-                      <Sparkles size={13} className="text-primary shrink-0 mt-0.5" />
-                      <p>리스 견적은 임시 데이터 기준입니다. 실제 금융사 조건과 다를 수 있습니다.</p>
-                    </div>
-                  )}
 
                   {(contractCategory === "장기렌트" || contractCategory === "리스") && (
                     <>
