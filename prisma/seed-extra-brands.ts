@@ -162,36 +162,7 @@ async function seed() {
       });
     }
 
-    // RateConfigs for all finance companies
-    const baseRate = v.category === "세단" ? 0.0215 : 0.0225;
-    const matrix = generateRateMatrix(baseRate);
-
-    for (const fcId of fcIds) {
-      await prisma.rateConfig.upsert({
-        where: {
-          financeCompanyId_vehicleCode_productType: {
-            financeCompanyId: fcId,
-            vehicleCode: v.vehicleCode,
-            productType: "렌트",
-          },
-        },
-        update: {
-          minPriceRates: matrix,
-          maxPriceRates: matrix,
-        },
-        create: {
-          financeCompanyId: fcId,
-          vehicleCode: v.vehicleCode,
-          productType: "렌트",
-          minVehiclePrice: v.basePrice * 0.8,
-          maxVehiclePrice: v.basePrice * 1.5,
-          minPriceRates: matrix,
-          maxPriceRates: matrix,
-          depositDiscountRate: -0.0005,
-          prepayAdjustRate: 0.00007,
-        },
-      });
-    }
+    // CapitalRateSheet는 /admin/finance에서 직접 입력 (RateConfig 제거됨)
 
     // RecommendationConfig
     await prisma.recommendationConfig.upsert({
@@ -213,23 +184,6 @@ async function seed() {
   console.log("\n✨ 추가 브랜드 시딩 완료!");
 }
 
-function generateRateMatrix(baseRate: number) {
-  const matrix: any = {};
-  const mileages = [10000, 20000, 30000];
-  const months = [36, 48, 60];
-
-  for (const mileage of mileages) {
-    matrix[mileage] = {};
-    for (const month of months) {
-      let rate = baseRate;
-      if (month === 36) rate += baseRate * 0.2;
-      if (month === 60) rate -= baseRate * 0.15;
-      if (mileage === 30000) rate += 0.001;
-      matrix[mileage][month] = parseFloat(rate.toFixed(6));
-    }
-  }
-  return matrix;
-}
 
 seed()
   .catch(console.error)

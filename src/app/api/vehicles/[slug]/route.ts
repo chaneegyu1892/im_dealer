@@ -2,9 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   calculateScenarios,
+  estimateMonthly,
   type RateConfigData,
 } from "@/lib/quote-calculator";
-import type { RateMatrix } from "@/types/quote";
 
 // ─── GET /api/vehicles/:slug ────────────────────────────
 // 차량 상세 + 기본 트림 기준 시나리오 견적
@@ -37,47 +37,37 @@ export async function GET(
       );
     }
 
-    // 회수율 데이터 조회
-    const rateConfigs = vehicle.vehicleCode
-      ? await prisma.rateConfig.findMany({
-          where: {
-            vehicleCode: vehicle.vehicleCode,
-            productType: "렌트",
-            isActive: true,
-            financeCompany: { isActive: true },
-          },
-          include: { financeCompany: true },
-        })
-      : [];
-
-    // 최저가 금융사 기준 시나리오 계산
     const defaultTrim = vehicle.trims.find((t) => t.isDefault) ?? vehicle.trims[0];
 
     let scenarios = null;
     let bestFinanceName = null;
+    let rateSheets: any[] = [];
 
-    if (defaultTrim && rateConfigs.length > 0) {
-      const configs: RateConfigData[] = rateConfigs.map((rc) => ({
-        financeCompanyId: rc.financeCompanyId,
-        financeCompanyName: rc.financeCompany.name,
-        minVehiclePrice: rc.minVehiclePrice,
-        maxVehiclePrice: rc.maxVehiclePrice,
-        minPriceRates: rc.minPriceRates as RateMatrix,
-        maxPriceRates: rc.maxPriceRates as RateMatrix,
-        depositDiscountRate: rc.depositDiscountRate,
-        prepayAdjustRate: rc.prepayAdjustRate,
-        financeSurchargeRate: rc.financeCompany.surchargeRate,
+    if (defaultTrim) {
+      rateSheets = await (prisma as any).capitalRateSheet.findMany({
+        where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
+        include: { financeCompany: true },
+      });
+    }
+
+    if (defaultTrim && rateSheets.length > 0) {
+      const configs: RateConfigData[] = rateSheets.map((rs: any) => ({
+        financeCompanyId: rs.financeCompanyId,
+        financeCompanyName: rs.financeCompany.name,
+        financeSurchargeRate: rs.financeCompany.surchargeRate,
+        minVehiclePrice: rs.minVehiclePrice,
+        maxVehiclePrice: rs.maxVehiclePrice,
+        minRateMatrix: rs.minRateMatrix,
+        maxRateMatrix: rs.maxRateMatrix,
+        depositDiscountRate: rs.depositDiscountRate,
+        prepayAdjustRate: rs.prepayAdjustRate,
       }));
 
-      // 최저가 금융사 찾기
       let bestConfig = configs[0];
       let bestMonthly = Infinity;
-
       for (const cfg of configs) {
-        const rates = cfg.minPriceRates as Record<string, Record<string, number>>;
-        const rate = rates["20000"]?.["48"] ?? 0;
-        const monthly = rate > 0 ? Math.round(defaultTrim.price * rate) : Infinity;
-        if (monthly < bestMonthly) {
+        const monthly = estimateMonthly(defaultTrim.price, cfg, 48, 20000);
+        if (monthly > 0 && monthly < bestMonthly) {
           bestMonthly = monthly;
           bestConfig = cfg;
         }
@@ -134,7 +124,7 @@ export async function GET(
         bestFinanceName,
         highlights: recConfig?.highlights ?? [],
         aiCaption: recConfig?.aiCaption ?? null,
-        hasRateConfig: rateConfigs.length > 0,
+        hasRateConfig: rateSheets.length > 0,
       },
     });
   } catch (error) {

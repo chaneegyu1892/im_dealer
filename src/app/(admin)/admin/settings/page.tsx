@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, User, ShieldCheck, Settings2, Sparkles } from "lucide-react";
+import PolicyManager from "@/components/admin/settings/PolicyManager";
+import AdminManager from "@/components/admin/settings/AdminManager";
+import { Check } from "lucide-react";
 
 interface AdminInfo {
   id: string;
@@ -13,21 +16,19 @@ interface AdminInfo {
 
 export default function AdminSettingsPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("profile");
   const [info, setInfo] = useState<AdminInfo | null>(null);
 
-  // 폼 상태
+  // 폼 상태 (개인 정보)
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // 피드백 상태
-  const [profileError, setProfileError] = useState("");
-  const [profileSuccess, setProfileSuccess] = useState(false);
-  const [pwError, setPwError] = useState("");
-  const [pwSuccess, setPwSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/auth/me")
@@ -41,190 +42,170 @@ export default function AdminSettingsPage() {
       });
   }, []);
 
-  async function handleProfileUpdate(e: React.FormEvent) {
+  const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileError("");
-    setProfileSuccess(false);
     setLoading(true);
-
     const res = await fetch("/api/admin/auth/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email }),
     });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if (!res.ok) {
-      setProfileError(data.error ?? "수정 실패");
-    } else {
-      setInfo(data.data);
+    if (res.ok) {
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
     }
-  }
+    setLoading(false);
+  };
 
-  async function handlePasswordUpdate(e: React.FormEvent) {
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPwError("");
-    setPwSuccess(false);
-
-    if (newPassword !== confirmPassword) {
-      setPwError("새 비밀번호가 일치하지 않습니다.");
-      return;
-    }
-    if (newPassword.length < 8) {
-      setPwError("비밀번호는 8자 이상이어야 합니다.");
-      return;
-    }
-
+    if (newPassword !== confirmPassword) return alert("비밀번호 불일치");
     setLoading(true);
     const res = await fetch("/api/admin/auth/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ currentPassword, newPassword }),
     });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if (!res.ok) {
-      setPwError(data.error ?? "비밀번호 변경 실패");
-    } else {
+    if (res.ok) {
       setPwSuccess(true);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => setPwSuccess(false), 3000);
+    } else {
+      const d = await res.json();
+      alert(d.error || "비밀번호 변경 실패");
     }
-  }
+    setLoading(false);
+  };
+
+  const tabs = [
+    { id: "profile", label: "내 정보 설정", icon: User },
+    { id: "policy", label: "운영 정책 관리", icon: Settings2, hide: info?.role !== "admin" },
+    { id: "admins", label: "운영자 권한 관리", icon: ShieldCheck, hide: info?.role !== "admin" },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#F4F5F8] p-8">
-      <div className="max-w-xl mx-auto">
-        {/* 헤더 */}
-        <div className="flex items-center gap-3 mb-8">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white transition-colors text-[#9BA4C0]"
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <div>
-            <h1 className="text-[20px] font-semibold text-[#1A1A2E]">계정 설정</h1>
-            <p className="text-[12px] text-[#9BA4C0] mt-0.5">{info?.role === "admin" ? "관리자" : "운영자"} · {info?.email}</p>
-          </div>
+    <div className="flex flex-col h-full space-y-6">
+      <div className="flex flex-col">
+          <h1 className="text-2xl font-bold text-[#1A1A2E]">시스템 설정</h1>
+          <p className="text-sm text-[#9BA4C0] mt-1">계정 관리와 서비스 운영에 필요한 정책을 설정합니다.</p>
+      </div>
+
+      <div className="flex gap-8">
+        {/* 사이드 탭 */}
+        <div className="w-64 flex flex-col gap-1 shrink-0">
+          {tabs.filter(t => !t.hide).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
+                activeTab === tab.id
+                  ? "bg-[#6066EE] text-white shadow-lg shadow-indigo-100 translate-x-1"
+                  : "bg-white text-[#9BA4C0] hover:bg-[#F8F9FC] hover:text-[#5A6080] border border-transparent hover:border-[#E8EAF0]"
+              }`}
+            >
+              <tab.icon size={18} />
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* 기본 정보 */}
-        <form onSubmit={handleProfileUpdate} className="bg-white rounded-xl border border-[#E8EAF0] p-6 mb-5">
-          <h2 className="text-[14px] font-semibold text-[#1A1A2E] mb-4">기본 정보</h2>
+        {/* 컨텐츠 영역 */}
+        <div className="flex-1 min-w-0">
+          {activeTab === "profile" && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+               <div className="bg-white rounded-3xl border border-[#E8EAF0] p-8 shadow-sm">
+                 <h2 className="text-lg font-bold text-[#1A1A2E] mb-6 flex items-center gap-2">
+                    <User size={20} className="text-[#6066EE]" />
+                    기본 프로필 정보
+                 </h2>
+                 <form onSubmit={handleProfileUpdate} className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-[#9BA4C0] ml-1">이름</label>
+                      <input
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl border border-[#E8EAF0] text-sm focus:outline-none focus:border-[#6066EE]"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-[#9BA4C0] ml-1">이메일 계정</label>
+                      <input
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl border border-[#E8EAF0] text-sm focus:outline-none focus:border-[#6066EE]"
+                      />
+                    </div>
+                    <div className="col-span-2 flex justify-end items-center gap-4 border-t border-[#F8F9FC] pt-6">
+                      {profileSuccess && <span className="text-emerald-500 text-xs font-bold animate-pulse">정상적으로 저장되었습니다.</span>}
+                      <button className="px-8 py-3 bg-[#000666] text-white rounded-2xl text-sm font-bold hover:bg-[#000888] transition-all">
+                        기본 정보 저장
+                      </button>
+                    </div>
+                 </form>
+               </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-[11px] font-medium text-[#9BA4C0] mb-1.5">이름</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="w-full px-3 py-2.5 rounded-lg border border-[#E8EAF0] text-[13px] text-[#1A1A2E] focus:outline-none focus:border-[#6066EE] transition-colors"
-              />
+               <div className="bg-white rounded-3xl border border-[#E8EAF0] p-8 shadow-sm">
+                 <h2 className="text-lg font-bold text-[#1A1A2E] mb-6 flex items-center gap-2">
+                    <ShieldCheck size={20} className="text-orange-500" />
+                    비밀번호 변경
+                 </h2>
+                 <form onSubmit={handlePasswordUpdate} className="space-y-4 max-w-md">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-[#9BA4C0] ml-1">현재 비밀번호</label>
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl border border-[#E8EAF0] text-sm focus:outline-none focus:border-[#6066EE]"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-[#9BA4C0] ml-1">새 비밀번호</label>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full px-4 py-3 rounded-2xl border border-[#E8EAF0] text-sm focus:outline-none focus:border-[#6066EE]"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-[#9BA4C0] ml-1">비밀번호 확인</label>
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full px-4 py-3 rounded-2xl border border-[#E8EAF0] text-sm focus:outline-none focus:border-[#6066EE]"
+                        />
+                      </div>
+                    </div>
+                    <div className="pt-4 flex justify-end items-center gap-4">
+                      {pwSuccess && <span className="text-emerald-500 text-xs font-bold">비밀번호가 변경되었습니다.</span>}
+                      <button className="px-8 py-3 bg-[#1A1A2E] text-white rounded-2xl text-sm font-bold hover:bg-[#2A2A4E] transition-all">
+                        보안 업데이트
+                      </button>
+                    </div>
+                 </form>
+               </div>
             </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-[#9BA4C0] mb-1.5">이메일</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-3 py-2.5 rounded-lg border border-[#E8EAF0] text-[13px] text-[#1A1A2E] focus:outline-none focus:border-[#6066EE] transition-colors"
-              />
-            </div>
-          </div>
-
-          {profileError && (
-            <p className="mt-3 text-[12px] text-red-500 bg-red-50 rounded-lg px-3 py-2">{profileError}</p>
-          )}
-          {profileSuccess && (
-            <p className="mt-3 text-[12px] text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2 flex items-center gap-1.5">
-              <Check size={12} /> 저장됐습니다.
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-4 px-4 py-2 rounded-lg bg-[#000666] text-white text-[13px] font-semibold hover:bg-[#000555] disabled:opacity-60 transition-colors"
-          >
-            저장
-          </button>
-        </form>
-
-        {/* 비밀번호 변경 */}
-        <form onSubmit={handlePasswordUpdate} className="bg-white rounded-xl border border-[#E8EAF0] p-6">
-          <h2 className="text-[14px] font-semibold text-[#1A1A2E] mb-4">비밀번호 변경</h2>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-[11px] font-medium text-[#9BA4C0] mb-1.5">현재 비밀번호</label>
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                className="w-full px-3 py-2.5 rounded-lg border border-[#E8EAF0] text-[13px] text-[#1A1A2E] focus:outline-none focus:border-[#6066EE] transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-[#9BA4C0] mb-1.5">새 비밀번호</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                placeholder="8자 이상"
-                className="w-full px-3 py-2.5 rounded-lg border border-[#E8EAF0] text-[13px] text-[#1A1A2E] placeholder:text-[#C5CAD9] focus:outline-none focus:border-[#6066EE] transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-medium text-[#9BA4C0] mb-1.5">새 비밀번호 확인</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                className="w-full px-3 py-2.5 rounded-lg border border-[#E8EAF0] text-[13px] text-[#1A1A2E] focus:outline-none focus:border-[#6066EE] transition-colors"
-              />
-            </div>
-          </div>
-
-          {pwError && (
-            <p className="mt-3 text-[12px] text-red-500 bg-red-50 rounded-lg px-3 py-2">{pwError}</p>
-          )}
-          {pwSuccess && (
-            <p className="mt-3 text-[12px] text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2 flex items-center gap-1.5">
-              <Check size={12} /> 비밀번호가 변경됐습니다.
-            </p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-4 px-4 py-2 rounded-lg bg-[#1A1A2E] text-white text-[13px] font-semibold hover:bg-[#2A2A4E] disabled:opacity-60 transition-colors"
-          >
-            비밀번호 변경
-          </button>
-        </form>
+          {activeTab === "policy" && info?.role === "admin" && (
+            <div className="animate-in slide-in-from-right-4 duration-300">
+              <PolicyManager />
+            </div>
+          )}
+
+          {activeTab === "admins" && info?.role === "admin" && (
+            <div className="animate-in slide-in-from-right-4 duration-300">
+              <AdminManager />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+

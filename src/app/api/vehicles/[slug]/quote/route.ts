@@ -6,7 +6,7 @@ import {
   type RateConfigData,
   type CalcInput,
 } from "@/lib/quote-calculator";
-import type { RateMatrix, FinanceQuoteResult } from "@/types/quote";
+import type { FinanceQuoteResult } from "@/types/quote";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 
 const quoteSchema = z.object({
@@ -75,24 +75,15 @@ export async function POST(
     const optionsTotalPrice = trimOptionsTotalPrice + (input.extraOptionsPrice ?? 0);
 
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
-    const [rateConfigs, rankSurcharges] = await Promise.all([
-      vehicle.vehicleCode
-        ? prisma.rateConfig.findMany({
-            where: {
-              vehicleCode: vehicle.vehicleCode,
-              productType: input.productType === "리스" ? "리스" : "렌트",
-              isActive: true,
-              financeCompany: { isActive: true },
-            },
-            include: { financeCompany: true },
-          })
-        : Promise.resolve([]),
-      prisma.rankSurchargeConfig.findMany({
-        orderBy: { rank: "asc" },
+    const [rateSheets, rankSurcharges] = await Promise.all([
+      (prisma as any).capitalRateSheet.findMany({
+        where: { trimId: trim.id, isActive: true, financeCompany: { isActive: true } },
+        include: { financeCompany: true },
       }),
+      prisma.rankSurchargeConfig.findMany({ orderBy: { rank: "asc" } }),
     ]);
 
-    if (rateConfigs.length === 0) {
+    if (rateSheets.length === 0) {
       return NextResponse.json(
         { error: "이 차량의 견적 데이터가 아직 준비되지 않았습니다." },
         { status: 404 }
@@ -100,16 +91,16 @@ export async function POST(
     }
 
     // 3) 데이터 매핑
-    const configs: RateConfigData[] = rateConfigs.map((rc) => ({
-      financeCompanyId: rc.financeCompanyId,
-      financeCompanyName: rc.financeCompany.name,
-      minVehiclePrice: rc.minVehiclePrice,
-      maxVehiclePrice: rc.maxVehiclePrice,
-      minPriceRates: rc.minPriceRates as RateMatrix,
-      maxPriceRates: rc.maxPriceRates as RateMatrix,
-      depositDiscountRate: rc.depositDiscountRate,
-      prepayAdjustRate: rc.prepayAdjustRate,
-      financeSurchargeRate: rc.financeCompany.surchargeRate,
+    const configs: RateConfigData[] = rateSheets.map((rs: any) => ({
+      financeCompanyId: rs.financeCompanyId,
+      financeCompanyName: rs.financeCompany.name,
+      financeSurchargeRate: rs.financeCompany.surchargeRate,
+      minVehiclePrice: rs.minVehiclePrice,
+      maxVehiclePrice: rs.maxVehiclePrice,
+      minRateMatrix: rs.minRateMatrix,
+      maxRateMatrix: rs.maxRateMatrix,
+      depositDiscountRate: rs.depositDiscountRate,
+      prepayAdjustRate: rs.prepayAdjustRate,
     }));
 
     // 순위 가산율: DB에 있으면 DB, 없으면 상수 fallback

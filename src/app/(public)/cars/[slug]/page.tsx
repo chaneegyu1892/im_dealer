@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
 import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput } from "@/lib/quote-calculator";
-import type { RateMatrix } from "@/types/quote";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
@@ -28,34 +27,30 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
 
   if (!vehicle || !vehicle.isVisible) return null;
 
-  const rateConfigs = vehicle.vehicleCode
-    ? await prisma.rateConfig.findMany({
-        where: {
-          vehicleCode: vehicle.vehicleCode,
-          productType: "렌트",
-          isActive: true,
-          financeCompany: { isActive: true },
-        },
-        include: { financeCompany: true },
-      })
-    : [];
-
   const defaultTrim = vehicle.trims.find((t) => t.isDefault) ?? vehicle.trims[0];
 
   let scenarios: RecommendScenarios | null = null;
   let bestFinanceName: string | null = null;
+  let rateSheets: any[] = [];
 
-  if (defaultTrim && rateConfigs.length > 0) {
-    const configs: RateConfigData[] = rateConfigs.map((rc) => ({
-      financeCompanyId: rc.financeCompanyId,
-      financeCompanyName: rc.financeCompany.name,
-      minVehiclePrice: rc.minVehiclePrice,
-      maxVehiclePrice: rc.maxVehiclePrice,
-      minPriceRates: rc.minPriceRates as RateMatrix,
-      maxPriceRates: rc.maxPriceRates as RateMatrix,
-      depositDiscountRate: rc.depositDiscountRate,
-      prepayAdjustRate: rc.prepayAdjustRate,
-      financeSurchargeRate: rc.financeCompany.surchargeRate,
+  if (defaultTrim) {
+    rateSheets = await (prisma as any).capitalRateSheet.findMany({
+      where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
+      include: { financeCompany: true },
+    });
+  }
+
+  if (defaultTrim && rateSheets.length > 0) {
+    const configs: RateConfigData[] = rateSheets.map((rs: any) => ({
+      financeCompanyId: rs.financeCompanyId,
+      financeCompanyName: rs.financeCompany.name,
+      financeSurchargeRate: rs.financeCompany.surchargeRate,
+      minVehiclePrice: rs.minVehiclePrice,
+      maxVehiclePrice: rs.maxVehiclePrice,
+      minRateMatrix: rs.minRateMatrix,
+      maxRateMatrix: rs.maxRateMatrix,
+      depositDiscountRate: rs.depositDiscountRate,
+      prepayAdjustRate: rs.prepayAdjustRate,
     }));
 
     // 순위 가산율: DB 조회 → fallback 상수
@@ -162,7 +157,7 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     bestFinanceName,
     highlights: recConfig?.highlights ?? [],
     aiCaption: recConfig?.aiCaption ?? null,
-    hasRateConfig: rateConfigs.length > 0,
+    hasRateConfig: rateSheets.length > 0,
     detailedSpecs: (vehicle.detailedSpecs as VehicleDetailedSpecs | null) ?? null,
   };
 }

@@ -131,3 +131,80 @@ export interface AdminSavedQuote {
   totalCost: number;
   createdAt: string;
 }
+
+// ─── CapitalRateSheet (주별 캐피탈사 견적 회수율) ─────────
+
+/** 9개 조합 키: "36_10000" | "36_20000" | ... | "60_30000" */
+export type RateSheetKey =
+  | "36_10000" | "36_20000" | "36_30000"
+  | "48_10000" | "48_20000" | "48_30000"
+  | "60_10000" | "60_20000" | "60_30000";
+
+export type RateSheetRaw = Record<RateSheetKey, number>;
+
+export interface CapitalRateSheet {
+  id: string;
+  financeCompanyId: string;
+  financeCompanyName: string;
+  trimId: string;
+  trimName: string;
+  vehicleName: string;
+  lineupName: string | null;
+  weekOf: string;
+  minVehiclePrice: number;
+  maxVehiclePrice: number;
+  minBaseRates: RateSheetRaw;
+  minDepositRates: RateSheetRaw;
+  minPrepayRates: RateSheetRaw;
+  maxBaseRates: RateSheetRaw;
+  maxDepositRates: RateSheetRaw;
+  maxPrepayRates: RateSheetRaw;
+  minRateMatrix: RateSheetRaw;
+  maxRateMatrix: RateSheetRaw;
+  depositDiscountRate: number;
+  prepayAdjustRate: number;
+  isActive: boolean;
+  memo: string | null;
+  createdAt: string;
+}
+
+export interface CapitalRateSheetInput {
+  financeCompanyId: string;
+  trimId: string;
+  weekOf: string;
+  minVehiclePrice: number;
+  maxVehiclePrice: number;
+  minBaseRates: RateSheetRaw;
+  minDepositRates: RateSheetRaw;
+  minPrepayRates: RateSheetRaw;
+  maxBaseRates: RateSheetRaw;
+  maxDepositRates: RateSheetRaw;
+  maxPrepayRates: RateSheetRaw;
+  memo?: string;
+}
+
+export interface AdminFinanceCompany {
+  id: string;
+  name: string;
+  code: string;
+  surchargeRate: number;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+// ─── Inventory (재고 관리) ──────────────────────────────
+export interface AdminInventory {
+  id: string;
+  trimId: string;
+  vehicleName: string;
+  trimName: string;
+  stockCount: number;
+  location: string | null;
+  status: "AVAILABLE" | "RESERVED" | "SOLD";
+  colorExt: string | null;
+  colorInt: string | null;
+  vin: string | null;
+  memo: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

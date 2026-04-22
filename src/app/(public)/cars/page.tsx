@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
-import type { RateMatrix } from "@/types/quote";
 import { CarsClientPage } from "./CarsClientPage";
 
 async function getVehicles(): Promise<VehicleListItem[]> {
@@ -23,34 +22,26 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     },
   });
 
-  // 최저가 견적 산출
-  const vehicleCodes = vehicles
-    .map((v) => v.vehicleCode)
-    .filter(Boolean) as string[];
+  // 최저가 견적 산출 — defaultTrim 기준 capitalRateSheet
+  const defaultTrimIds = vehicles.map((v) => v.trims[0]?.id).filter(Boolean) as string[];
+  const rateSheets = defaultTrimIds.length > 0
+    ? await (prisma as any).capitalRateSheet.findMany({
+        where: { trimId: { in: defaultTrimIds }, isActive: true },
+        select: { trimId: true, minRateMatrix: true },
+      })
+    : [];
 
-  const rateConfigs = await prisma.rateConfig.findMany({
-    where: {
-      vehicleCode: { in: vehicleCodes },
-      productType: "렌트",
-      isActive: true,
-      financeCompany: { isActive: true },
-    },
-  });
-
-  const lowestRateByCode = new Map<string, number>();
-  for (const rc of rateConfigs) {
-    const rates = rc.minPriceRates as Record<string, Record<string, number>>;
-    const rate48 = rates["20000"]?.["48"] ?? 0;
+  const lowestRateByTrimId = new Map<string, number>();
+  for (const rs of rateSheets) {
+    const rate48 = (rs.minRateMatrix as Record<string, number>)?.["48_20000"] ?? 0;
     if (rate48 <= 0) continue;
-    const existing = lowestRateByCode.get(rc.vehicleCode) ?? Infinity;
-    if (rate48 < existing) {
-      lowestRateByCode.set(rc.vehicleCode, rate48);
-    }
+    const existing = lowestRateByTrimId.get(rs.trimId) ?? Infinity;
+    if (rate48 < existing) lowestRateByTrimId.set(rs.trimId, rate48);
   }
 
   return vehicles.map((v) => {
     const defaultTrim = v.trims[0];
-    const rate = v.vehicleCode ? lowestRateByCode.get(v.vehicleCode) : undefined;
+    const rate = defaultTrim ? lowestRateByTrimId.get(defaultTrim.id) : undefined;
     const trimPrice = defaultTrim?.price ?? v.basePrice;
     const monthlyFrom = rate ? Math.round(trimPrice * rate) : 0;
 
