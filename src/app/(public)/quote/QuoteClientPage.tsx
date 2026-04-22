@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Check,
   ClipboardCheck,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
@@ -232,6 +233,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   // 추천 프리필을 한 번만 적용하기 위한 플래그
   const hasPrefilled = useRef(false);
@@ -344,6 +346,70 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       ? true
       : v.name.includes(search) || v.brand.includes(search)
   );
+
+  const handlePdfDownload = useCallback(async () => {
+    if (!quoteResult || !selectedVehicle) return;
+
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent("/quote")}`);
+      return;
+    }
+
+    setIsPdfLoading(true);
+    try {
+      const extResult = quoteResult as QuoteResponse & { trimPrice?: number; totalVehiclePrice?: number };
+      const selectedOpts = selectedTrim
+        ? selectedTrim.options
+            .filter((o) => selectedOptionIds.has(o.id))
+            .map((o) => ({ name: o.name, price: o.price }))
+        : [];
+      const trimPrice = extResult.trimPrice ?? 0;
+      const totalVehiclePrice = extResult.totalVehiclePrice ?? trimPrice + optionsTotalPrice;
+
+      const res = await fetch("/api/quote/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleName: selectedVehicle.name,
+          vehicleBrand: selectedVehicle.brand,
+          trimName: quoteResult.trimName,
+          trimPrice,
+          selectedOptions: selectedOpts,
+          totalVehiclePrice,
+          productType: contractCategory,
+          contractMonths: quoteResult.contractMonths,
+          annualMileage: quoteResult.annualMileage,
+          contractType: quoteResult.contractType,
+          scenarios: quoteResult.scenarios,
+        }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.push(`/login?next=${encodeURIComponent("/quote")}`);
+          return;
+        }
+        throw new Error("PDF 생성에 실패했습니다.");
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      a.href = url;
+      a.download = `아임딜러_견적서_${selectedVehicle.name}_${today}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("견적서 다운로드에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsPdfLoading(false);
+    }
+  }, [quoteResult, selectedVehicle, selectedTrim, selectedOptionIds, optionsTotalPrice, contractCategory, router]);
 
   // Step 2 → Step 3: 견적 계산 API 호출
   async function fetchQuote() {
@@ -897,6 +963,41 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   차량 상태·옵션·프로모션에 따라 달라질 수 있습니다. 전문가
                   상담을 통해 확정 견적을 받으시길 권장합니다.
                 </div>
+
+                {/* PDF 오류 표시 */}
+                {error && (
+                  <div className="bg-[#FFEBEB] border border-red-100 rounded-[8px] p-3 text-[13px] text-destructive flex items-start gap-2 mb-3">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                    <button type="button" onClick={() => setError(null)} className="ml-auto text-ink-caption hover:text-ink">✕</button>
+                  </div>
+                )}
+
+                {/* 견적서 PDF 다운로드 */}
+                <button
+                  type="button"
+                  onClick={handlePdfDownload}
+                  disabled={isPdfLoading}
+                  className={cn(
+                    "flex items-center justify-center gap-2 w-full py-3 rounded-btn text-[14px] font-medium transition-all duration-150 mb-2 border",
+                    isPdfLoading
+                      ? "bg-neutral border-neutral-800 text-ink-caption cursor-not-allowed"
+                      : "bg-white border-primary text-primary hover:bg-primary-100"
+                  )}
+                >
+                  {isPdfLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                      견적서 생성 중...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={15} strokeWidth={2} />
+                      견적서 PDF 다운로드
+                      <span className="text-[11px] text-ink-caption font-normal ml-0.5">(로그인 필요)</span>
+                    </>
+                  )}
+                </button>
 
                 {/* 계약 신청하기 */}
                 <button
