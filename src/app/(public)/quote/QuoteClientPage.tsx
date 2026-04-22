@@ -13,12 +13,13 @@ import {
   Calculator,
   AlertCircle,
   Check,
-  ChevronDown,
   ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
+import { SelectRow, OptionButton } from "@/components/quote/primitives";
+import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
 
@@ -59,51 +60,6 @@ interface TrimData {
   isDefault: boolean;
   specs: Record<string, string> | null;
   options: TrimOption[];
-}
-
-// ─── 캐스케이딩 셀렉트 행 ─────────────────────────────────
-function SelectRow({
-  label,
-  value,
-  placeholder,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  options: { value: string; label: string }[];
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div>
-      <p className="text-[12px] font-medium text-ink-caption mb-1.5 uppercase tracking-wide">
-        {label}
-      </p>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none bg-white border border-neutral-800 rounded-btn
-                     px-4 py-2.5 text-[14px] pr-9
-                     focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10
-                     transition-colors duration-150 cursor-pointer
-                     text-ink disabled:text-ink-caption"
-        >
-          <option value="">{placeholder}</option>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          size={15}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-caption pointer-events-none"
-        />
-      </div>
-    </div>
-  );
 }
 
 // ─── 스텝 인디케이터 ──────────────────────────────────────
@@ -152,32 +108,6 @@ function StepBar({ currentStep }: { currentStep: number }) {
         );
       })}
     </div>
-  );
-}
-
-// ─── 선택 옵션 버튼 ──────────────────────────────────────
-function OptionButton({
-  selected,
-  onClick,
-  children,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "px-5 py-2.5 rounded-btn text-[14px] font-medium transition-all duration-150 border",
-        selected
-          ? "bg-primary text-white border-primary"
-          : "bg-white text-ink-label border-neutral-800 hover:border-secondary-400 hover:text-ink"
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -940,6 +870,25 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   </div>
                   <QuoteBreakdownTabs scenarios={quoteResult.scenarios} />
                 </div>
+
+                {/* 비교 섹션 */}
+                {selectedVehicle && (
+                  <ComparisonSection
+                    primary={{
+                      slug: selectedVehicle.slug,
+                      brand: selectedVehicle.brand,
+                      name: selectedVehicle.name,
+                      result: quoteResult,
+                    }}
+                    conditions={{
+                      contractMonths: conditions.contractMonths,
+                      annualMileage: conditions.annualMileage,
+                      contractType: conditions.contractType,
+                      productType: contractCategory,
+                    }}
+                    allVehicles={vehicles}
+                  />
+                )}
 
                 {/* 면책 안내 */}
                 <div className="bg-neutral rounded-[8px] border border-[#F0F0F0] p-4 text-[12px] text-ink-caption mb-4 leading-relaxed">
