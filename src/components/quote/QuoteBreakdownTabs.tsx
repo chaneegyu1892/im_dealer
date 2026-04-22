@@ -234,6 +234,23 @@ function BreakdownDetail({ data }: { data: QuoteScenarioDetail }) {
         </div>
       </div>
 
+      {/* 인수형 가산 */}
+      {data.purchaseSurcharge > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider">
+            인수형 가산
+          </p>
+          <CalcRow
+            label="인수형 가산 (+12%)"
+            value={`+${formatCurrency(data.purchaseSurcharge)}`}
+            plus
+          />
+          <p className="text-[11px] text-ink-caption leading-relaxed">
+            계약 종료 후 잔존가치로 차량을 인수하기 위한 추가 비용입니다.
+          </p>
+        </div>
+      )}
+
       {/* 최종 결과 */}
       <div className="rounded-[8px] bg-primary-100 border border-primary-200 px-4 py-3 flex items-center justify-between">
         <span className="text-[13px] font-semibold text-primary">최종 월 납입금</span>

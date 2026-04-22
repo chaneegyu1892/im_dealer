@@ -76,6 +76,7 @@ export interface QuoteScenarioDetail {
   annualMileage: number;
   contractType: string;
   bestFinanceCompany: string;
+  purchaseSurcharge: number;       // 인수형 가산액 (반납형이면 0)
   breakdown: QuoteBreakdown | null;
   surcharges: SurchargeDetail | null;
   allFinanceResults: FinanceCompanyQuote[];

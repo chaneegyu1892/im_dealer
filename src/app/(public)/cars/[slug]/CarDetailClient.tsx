@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -12,7 +10,6 @@ import {
   ChevronRight,
   Images,
   Calculator,
-  ClipboardCheck,
   Building2,
   Leaf,
   TrendingDown,
@@ -302,31 +299,13 @@ function DetailedSpecsSection({ specs }: { specs: VehicleDetailedSpecs }) {
 // CarDetailClient
 // ══════════════════════════════════════════════════════════
 export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
-  const router = useRouter();
-
   // 사이드바용 초기 시나리오 (서버에서 받은 간단 버전)
   const [simpleScenarios] = useState<RecommendScenarios | null>(vehicle.scenarios);
 
   // 이미지 갤러리 선택
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
-  // 서류 제출용 세션 ID — 페이지 방문 시 1회 생성, 리렌더링에도 유지
-  const verifySessionId = useRef(
-    typeof crypto !== "undefined" ? crypto.randomUUID() : `car-${vehicle.slug}-${Date.now()}`
-  ).current;
-
   const engineType = (vehicle.defaultTrim?.engineType ?? "가솔린") as EngineType;
-
-  const handleContractApply = useCallback(async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const target = `/verify?sessionId=${verifySessionId}&vehicle=${vehicle.slug}`;
-    if (!user) {
-      router.push(`/login?next=${encodeURIComponent(target)}`);
-      return;
-    }
-    router.push(target);
-  }, [router, verifySessionId, vehicle.slug]);
 
   // ── 현재 월납입 (사이드바 표시용) ────────────────────────
   const currentMonthly = simpleScenarios?.standard?.monthlyPayment;
@@ -530,24 +509,16 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               </span>
               <span className="text-[14px] text-ink-caption">~</span>
             </div>
-            <button
-              onClick={handleContractApply}
+            <Link
+              href={`/quote?vehicle=${vehicle.slug}`}
               className="flex items-center justify-center gap-2 w-full py-3 rounded-btn
                          bg-primary text-white text-[14px] font-semibold
                          hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 mb-2"
             >
-              <ClipboardCheck size={15} strokeWidth={2} />
-              계약 신청하기
-            </button>
-            <Link
-              href={`/quote?vehicle=${vehicle.slug}`}
-              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-btn
-                         border border-primary/30 text-primary text-[13px] font-medium
-                         hover:bg-primary/[0.04] transition-all duration-150"
-            >
-              <Calculator size={14} strokeWidth={2} />
-              견적 세부 조정
+              <Calculator size={15} strokeWidth={2} />
+              견적 내기
             </Link>
+            <ChannelTalkButton vehicleName={vehicle.name} label="상담하기" size="md" />
           </div>
         </div>
 
@@ -770,32 +741,20 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 </div>
                 <div className="h-px bg-[#F0F0F0] my-4" />
 
-                {/* 계약 신청하기 — 1순위 CTA */}
-                <button
-                  onClick={handleContractApply}
+                {/* 견적 내기 */}
+                <Link
+                  href={`/quote?vehicle=${vehicle.slug}`}
                   className="flex items-center justify-center gap-2 w-full py-3 rounded-btn
                              bg-primary text-white text-[14px] font-semibold
                              hover:bg-primary/90 active:scale-[0.98]
                              transition-all duration-150 mb-2.5"
                 >
-                  <ClipboardCheck size={15} strokeWidth={2} />
-                  계약 신청하기
-                </button>
-
-                {/* 견적 세부 조정 — 2순위 CTA */}
-                <Link
-                  href={`/quote?vehicle=${vehicle.slug}`}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-btn
-                             border border-primary/30 text-primary text-[13px] font-medium
-                             hover:bg-primary/[0.04] active:scale-[0.98]
-                             transition-all duration-150 mb-2"
-                >
-                  <Calculator size={14} strokeWidth={2} />
-                  견적 세부 조정
+                  <Calculator size={15} strokeWidth={2} />
+                  견적 내기
                 </Link>
 
                 {/* 상담하기 */}
-                <ChannelTalkButton vehicleName={vehicle.name} size="md" />
+                <ChannelTalkButton vehicleName={vehicle.name} label="상담하기" size="md" />
 
                 <p className="text-[11px] text-ink-caption text-center mt-3">
                   상담 전 이름·전화번호 요구 없음

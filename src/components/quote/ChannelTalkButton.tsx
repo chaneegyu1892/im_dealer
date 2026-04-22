@@ -5,12 +5,14 @@ import { cn } from "@/lib/utils";
 
 interface ChannelTalkButtonProps {
   vehicleName?: string;
+  label?: string;
   className?: string;
   size?: "sm" | "md";
 }
 
 export function ChannelTalkButton({
   vehicleName,
+  label,
   className,
   size = "md",
 }: ChannelTalkButtonProps) {
@@ -44,7 +46,7 @@ export function ChannelTalkButton({
       )}
     >
       <MessageCircle size={size === "md" ? 16 : 14} />
-      {vehicleName ? `${vehicleName} 상담하기` : "전문가와 상담하기"}
+      {label ?? (vehicleName ? `${vehicleName} 상담하기` : "전문가와 상담하기")}
     </button>
   );
 }

@@ -324,7 +324,7 @@ export function calcDepositDiscountRate(
     const base = baseRates[key] ?? 0;
     const dep = depositRates[key] ?? 0;
     if (base > 0 && dep > 0) {
-      discounts.push((base - dep) / vehicleBasePrice);
+      discounts.push((dep - base) / vehicleBasePrice);
     }
   }
   if (discounts.length === 0) return 0;
