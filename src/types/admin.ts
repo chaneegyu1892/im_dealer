@@ -117,6 +117,9 @@ export interface AnalyticsData {
 export interface AdminSavedQuote {
   id: string;
   sessionId: string;
+  userId: string | null;
+  customerName: string | null;
+  phone: string | null;
   vehicleId: string;
   vehicleName: string;
   vehicleBrand: string;
@@ -129,6 +132,19 @@ export interface AdminSavedQuote {
   contractType: string;
   monthlyPayment: number;
   totalCost: number;
+  status: "NEW" | "CONTACTED" | "IN_PROGRESS" | "CONVERTED" | "LOST";
+  internalMemo: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminNotification {
+  id: string;
+  type: "NEW_QUOTE" | "SYSTEM" | "INQUIRY";
+  title: string;
+  content: string;
+  linkUrl: string | null;
+  isRead: boolean;
   createdAt: string;
 }
 

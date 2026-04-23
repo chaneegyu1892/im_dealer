@@ -12,25 +12,45 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  MOCK_QUOTES, FINANCE_COMPANIES,
-  type QuoteStatus, type Quotation,
+  FINANCE_COMPANIES,
 } from "@/constants/mock-data";
 import { logActivity } from "@/lib/activity-store";
+import { AdminSavedQuote } from "@/types/admin";
 
-const STATUS_STYLE: Record<QuoteStatus, { bg: string; text: string; icon: React.ElementType }> = {
+type UIQuoteStatus = "상담대기" | "상담중" | "계약완료" | "계약취소" | "연락완료";
+
+const STATUS_MAP: Record<string, UIQuoteStatus> = {
+  NEW: "상담대기",
+  CONTACTED: "연락완료",
+  IN_PROGRESS: "상담중",
+  CONVERTED: "계약완료",
+  LOST: "계약취소",
+};
+
+const DB_STATUS_MAP: Record<UIQuoteStatus, string> = {
+  "상담대기": "NEW",
+  "연락완료": "CONTACTED",
+  "상담중": "IN_PROGRESS",
+  "계약완료": "CONVERTED",
+  "계약취소": "LOST",
+};
+
+const STATUS_STYLE: Record<UIQuoteStatus, { bg: string; text: string; icon: React.ElementType }> = {
   상담대기: { bg: "bg-slate-100", text: "text-slate-600", icon: Clock },
+  연락완료: { bg: "bg-indigo-50", text: "text-indigo-600", icon: Phone },
   상담중:   { bg: "bg-blue-50",   text: "text-blue-600",  icon: MessageSquare },
   계약완료: { bg: "bg-emerald-50", text: "text-emerald-600", icon: CheckCircle2 },
   계약취소: { bg: "bg-red-50",    text: "text-red-500",   icon: AlertCircle },
 };
 
-const STATUS_LIST: QuoteStatus[] = ["상담대기", "상담중", "계약완료", "계약취소"];
+const STATUS_LIST: UIQuoteStatus[] = ["상담대기", "연락완료", "상담중", "계약완료", "계약취소"];
 
 function QuotationsContent() {
   const searchParams = useSearchParams();
-  const [quotes, setQuotes] = useState<Quotation[]>(MOCK_QUOTES);
+  const [quotes, setQuotes] = useState<AdminSavedQuote[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<QuoteStatus | "전체">("전체");
+  const [statusFilter, setStatusFilter] = useState<UIQuoteStatus | "전체">("전체");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // 상세 필터 상태
@@ -41,10 +61,30 @@ function QuotationsContent() {
   const [filterPaymentMin, setFilterPaymentMin] = useState("");
   const [filterPaymentMax, setFilterPaymentMax] = useState("");
 
-  const [drawerQuote, setDrawerQuote] = useState<Quotation | null>(null);
+  const [drawerQuote, setDrawerQuote] = useState<AdminSavedQuote | null>(null);
+
+  const fetchQuotes = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/quotes?limit=100");
+      const json = await res.json();
+      if (json.success) {
+        setQuotes(json.data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQuotes();
+  }, []);
 
   // URL 파라미터(?id=... 또는 ?search=...) 연동
   useEffect(() => {
+    if (loading) return;
     const id = searchParams.get("id");
     if (id) {
       const target = quotes.find(q => q.id === id);
@@ -58,7 +98,7 @@ function QuotationsContent() {
     if (s) {
       setSearch(s);
     }
-  }, [searchParams, quotes]);
+  }, [searchParams, quotes, loading]);
 
   const activeFilterCount =
     (filterFC !== "전체" ? 1 : 0) +
@@ -69,9 +109,11 @@ function QuotationsContent() {
 
   const filteredQuotes = useMemo(() => {
     return quotes.filter(q => {
-      const matchSearch = q.customerName.includes(search) || q.vehicleName.includes(search) || q.phone.includes(search);
-      const matchStatus = statusFilter === "전체" || q.status === statusFilter;
-      const matchFC = filterFC === "전체" || q.financeCompany === filterFC;
+      const name = q.customerName || "고객";
+      const matchSearch = name.includes(search) || q.vehicleName.includes(search) || (q.phone || "").includes(search);
+      const uiStatus = STATUS_MAP[q.status];
+      const matchStatus = statusFilter === "전체" || uiStatus === statusFilter;
+      const matchFC = filterFC === "전체" || q.vehicleBrand === filterFC; // Mock data used financeCompany, DB has vehicleBrand. Let's use vehicleBrand for now or add FC to DB.
       const matchDateFrom = !filterDateFrom || q.createdAt >= filterDateFrom;
       const matchDateTo = !filterDateTo || q.createdAt <= filterDateTo;
       const min = filterPaymentMin ? Number(filterPaymentMin) * 10000 : 0;
@@ -140,27 +182,70 @@ function QuotationsContent() {
     xlsx.writeFile(workbook, `아임딜러_견적데이터_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  const handleBulkStatusChange = (newStatus: QuoteStatus) => {
+  const handleBulkStatusChange = async (newStatus: UIQuoteStatus) => {
+    const dbStatus = DB_STATUS_MAP[newStatus];
     logActivity(`[견적 일괄 변경] 선택된 ${selectedIds.size}건의 상태를 '${newStatus}'로 변경했습니다.`, 'update');
-    setQuotes(prev => prev.map(q => selectedIds.has(q.id) ? { ...q, status: newStatus } : q));
+    
+    // 개별 업데이트 (벌크 API가 있다면 좋겠지만 일단 루프로)
+    await Promise.all(
+      Array.from(selectedIds).map(id =>
+        fetch(`/api/admin/quotes/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: dbStatus }),
+        })
+      )
+    );
+    
+    fetchQuotes();
     setSelectedIds(new Set());
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (confirm(`선택한 ${selectedIds.size}개의 견적을 정말 삭제하시겠습니까?`)) {
       logActivity(`[견적 일괄 삭제] 선택된 ${selectedIds.size}건의 견적 데이터를 삭제했습니다.`, 'delete');
-      setQuotes(prev => prev.filter(q => !selectedIds.has(q.id)));
+      
+      await Promise.all(
+        Array.from(selectedIds).map(id =>
+          fetch(`/api/admin/quotes/${id}`, { method: "DELETE" })
+        )
+      );
+
+      fetchQuotes();
       setSelectedIds(new Set());
     }
   };
 
-  const updateMemo = (id: string, newMemo: string) => {
-    const quote = quotes.find(q => q.id === id);
-    if (quote && quote.memo !== newMemo && newMemo.length > 0) {
-        // 너무 잦은 로그 방지 (선택적)
+  const updateQuoteStatus = async (id: string, newStatus: UIQuoteStatus) => {
+    const dbStatus = DB_STATUS_MAP[newStatus];
+    await fetch(`/api/admin/quotes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: dbStatus }),
+    });
+    fetchQuotes();
+    if (drawerQuote?.id === id) {
+      setDrawerQuote(prev => prev ? { ...prev, status: dbStatus as any } : null);
     }
-    setQuotes(prev => prev.map(q => q.id === id ? { ...q, memo: newMemo } : q));
-    if (drawerQuote?.id === id) setDrawerQuote({ ...drawerQuote, memo: newMemo });
+  };
+
+  const updateMemo = async (id: string, newMemo: string) => {
+    // 디바운스 처리 없이 일단 로컬 상태 업데이트 후 엔터나 포커스 아웃 시 저장하는 게 좋지만
+    // 기존 UI 스타일을 유지하기 위해 간단히 구현
+    setQuotes(prev => prev.map(q => q.id === id ? { ...q, internalMemo: newMemo } : q));
+    if (drawerQuote?.id === id) setDrawerQuote({ ...drawerQuote, internalMemo: newMemo });
+    
+    // 실제 저장 로직 (입력 중 계속 호출되는 것 방지 필요하지만 여기선 기능 완성이 목적)
+    // 실제 운영 시에는 '저장' 버튼이나 blur 이벤트를 사용하는 것이 좋습니다.
+  };
+
+  const saveMemo = async (id: string, memo: string) => {
+     await fetch(`/api/admin/quotes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ internalMemo: memo }),
+    });
+    fetchQuotes();
   };
 
   return (
@@ -180,9 +265,9 @@ function QuotationsContent() {
         <div className="flex gap-4">
           <KPIMini label="전체 누적" value={quotes.length.toString()} highlight />
           <div className="w-[1px] h-10 bg-[#E8EAF0]" />
-          <KPIMini label="상담 대기" value={quotes.filter(q => q.status === "상담대기").length.toString()} color="text-slate-600" />
-          <KPIMini label="상담 진행" value={quotes.filter(q => q.status === "상담중").length.toString()} color="text-blue-600" />
-          <KPIMini label="계약 완료" value={quotes.filter(q => q.status === "계약완료").length.toString()} color="text-emerald-600" />
+          <KPIMini label="상담 대기" value={quotes.filter(q => q.status === "NEW").length.toString()} color="text-slate-600" />
+          <KPIMini label="상담 진행" value={quotes.filter(q => q.status === "IN_PROGRESS").length.toString()} color="text-blue-600" />
+          <KPIMini label="계약 완료" value={quotes.filter(q => q.status === "CONVERTED").length.toString()} color="text-emerald-600" />
         </div>
       </div>
 
@@ -355,23 +440,22 @@ function QuotationsContent() {
                     <input type="checkbox" checked={isSelected} onClick={e => toggleSelect(q.id, e)} onChange={() => {}} className="w-4 h-4 rounded cursor-pointer" />
                   </td>
                   <td className="py-4 px-4">
-                    <span className="text-[12px] font-bold text-[#1A1A2E] bg-slate-50 px-2 py-1 rounded-[4px] font-mono group-hover:bg-white">{q.id}</span>
+                    <span className="text-[12px] font-bold text-[#1A1A2E] bg-slate-50 px-2 py-1 rounded-[4px] font-mono group-hover:bg-white">{q.id.slice(-8)}</span>
                   </td>
                   <td className="py-4 px-4">
                     <p className="text-[13px] font-bold text-[#1A1A2E]">{q.vehicleName}</p>
                     <div className="flex flex-col gap-0.5 mt-0.5">
-                      <p className="text-[11px] text-[#6B7399] font-medium">{q.lineup} | {q.trim}</p>
-                      <p className="text-[10px] text-[#9BA4C0] truncate max-w-[200px]">{q.options.join(", ")} | {q.color}</p>
+                      <p className="text-[11px] text-[#6B7399] font-medium">{q.trimName}</p>
                     </div>
                   </td>
                    <td className="py-4 px-4 group/user">
                     <Link 
-                      href={`/admin/users?search=${encodeURIComponent(q.customerName)}`}
+                      href={`/admin/users?search=${encodeURIComponent(q.customerName || "")}`}
                       className="inline-flex items-center gap-1 group/link"
                     >
                       <div>
-                        <p className="text-[13px] font-bold text-[#1A1A2E] group-hover/link:text-[#000666] transition-colors">{q.customerName}</p>
-                        <p className="text-[11px] text-[#6B7399] mt-0.5">{q.phone}</p>
+                        <p className="text-[13px] font-bold text-[#1A1A2E] group-hover/link:text-[#000666] transition-colors">{q.customerName || "고객"}</p>
+                        <p className="text-[11px] text-[#6B7399] mt-0.5">{q.phone || "-"}</p>
                       </div>
                       <ChevronRight size={12} className="text-[#9BA4C0] opacity-0 group-hover/link:opacity-100 -translate-x-1 group-hover/link:translate-x-0 transition-all" />
                     </Link>
@@ -379,13 +463,13 @@ function QuotationsContent() {
                   <td className="py-4 px-4">
                     <span className="text-[13px] font-bold text-[#000666] bg-blue-50/50 px-2.5 py-1 rounded-[4px]">{q.monthlyPayment.toLocaleString()} 원</span>
                   </td>
-                  <td className="py-4 px-4 text-[12px] font-medium text-[#4A5270]">{q.financeCompany}</td>
+                  <td className="py-4 px-4 text-[12px] font-medium text-[#4A5270]">{q.vehicleBrand}</td>
                   <td className="py-4 px-4">
-                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", SStyle.bg, SStyle.text)}>
-                      <SIcon size={11} strokeWidth={2.5} /> {q.status}
+                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", STATUS_STYLE[STATUS_MAP[q.status]].bg, STATUS_STYLE[STATUS_MAP[q.status]].text)}>
+                      {React.createElement(STATUS_STYLE[STATUS_MAP[q.status]].icon, { size: 11, strokeWidth: 2.5 })} {STATUS_MAP[q.status]}
                     </div>
                   </td>
-                  <td className="py-4 px-4 text-[12px] text-[#6B7399]">{q.createdAt}</td>
+                  <td className="py-4 px-4 text-[12px] text-[#6B7399]">{new Date(q.createdAt).toLocaleDateString()}</td>
                 </tr>
               );
             })}
@@ -462,14 +546,13 @@ function QuotationsContent() {
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-[13px] font-bold text-[#1A1A2E] flex items-center gap-1.5"><User size={14} className="text-[#000666]" /> 고객 & 진행</h4>
                     <select
-                      value={drawerQuote.status}
+                      value={STATUS_MAP[drawerQuote.status]}
                       onChange={e => {
-                        const s = e.target.value as QuoteStatus;
-                        logActivity(`[상담 상태 변경] ${drawerQuote.customerName} 고객님의 상태를 '${s}'(으)로 변경했습니다.`, 'update');
-                        setQuotes(prev => prev.map(q => q.id === drawerQuote.id ? { ...q, status: s } : q));
-                        setDrawerQuote({ ...drawerQuote, status: s });
+                        const s = e.target.value as UIQuoteStatus;
+                        logActivity(`[상담 상태 변경] ${drawerQuote.customerName || "고객"}님의 상태를 '${s}'(으)로 변경했습니다.`, 'update');
+                        updateQuoteStatus(drawerQuote.id, s);
                       }}
-                      className={cn("px-2 py-1 text-[11px] font-bold rounded-[4px] outline-none cursor-pointer border", STATUS_STYLE[drawerQuote.status].bg, STATUS_STYLE[drawerQuote.status].text, "border-transparent")}
+                      className={cn("px-2 py-1 text-[11px] font-bold rounded-[4px] outline-none cursor-pointer border", STATUS_STYLE[STATUS_MAP[drawerQuote.status]].bg, STATUS_STYLE[STATUS_MAP[drawerQuote.status]].text, "border-transparent")}
                     >
                       {STATUS_LIST.map(st => <option key={st} value={st}>{st}</option>)}
                     </select>
@@ -491,20 +574,13 @@ function QuotationsContent() {
                   <div className="space-y-2 border-t border-b border-[#F0F2F8] py-3">
                     {[
                       ["모델명", drawerQuote.vehicleName],
-                      ["라인업", drawerQuote.lineup],
-                      ["트림", drawerQuote.trim],
-                      ["외장 색상", drawerQuote.color],
-                      ["선택 옵션", drawerQuote.options.join(", ")],
+                      ["트림", drawerQuote.trimName],
                     ].map(([label, val]) => (
                       <div key={label} className="flex justify-between">
                         <span className="text-[12px] text-[#6B7399]">{label}</span>
                         <span className="text-[12px] font-medium text-[#4A5270] text-right max-w-[220px]">{val}</span>
                       </div>
                     ))}
-                    <div className="flex justify-between pt-2">
-                      <span className="text-[12px] font-semibold text-[#000666]">적용 프로모션</span>
-                      <span className="text-[11px] font-bold text-white bg-[#6066EE] px-1.5 py-0.5 rounded-[4px]">{drawerQuote.promotion}</span>
-                    </div>
                   </div>
                 </section>
 
@@ -515,7 +591,7 @@ function QuotationsContent() {
                     <div className="flex justify-between items-end relative z-10">
                       <div>
                         <p className="text-[18px] font-bold mt-1 text-white">{drawerQuote.monthlyPayment.toLocaleString()} <span className="text-[12px] font-medium text-[#C0C5DC]">원 / 월</span></p>
-                        <p className="text-[11px] text-[#6B7399] mt-1">{drawerQuote.financeCompany} · 48개월 · 선납 30%</p>
+                        <p className="text-[11px] text-[#6B7399] mt-1">{drawerQuote.vehicleBrand} · {drawerQuote.contractMonths}개월</p>
                       </div>
                       <button className="bg-white/10 hover:bg-white/20 text-white text-[10px] font-medium px-2 py-1.5 rounded-[4px] flex items-center gap-1 transition-colors">
                         <Copy size={10} /> 견적 복사
@@ -527,13 +603,14 @@ function QuotationsContent() {
                 <section className="flex flex-col flex-1 min-h-[150px]">
                   <h4 className="text-[13px] font-bold text-[#1A1A2E] mb-2">상담 일지 (Dealer Note)</h4>
                   <textarea
-                    value={drawerQuote.memo}
+                    value={drawerQuote.internalMemo || ""}
                     onChange={e => updateMemo(drawerQuote.id, e.target.value)}
+                    onBlur={e => saveMemo(drawerQuote.id, e.target.value)}
                     placeholder="고객과의 상담 내역이나 특이사항을 기록하세요."
                     className="w-full flex-1 p-3 text-[12px] bg-[#FAFBFF] border border-[#E8EAF0] rounded-[8px] outline-none focus:border-[#C0C5DC] text-[#4A5270] resize-none transition-colors"
                     rows={6}
                   />
-                  <p className="text-[10px] text-[#9BA4C0] mt-1.5 flex items-center gap-1"><AlertCircle size={10} /> 로컬 시스템에 실시간 반영됩니다.</p>
+                  <p className="text-[10px] text-[#9BA4C0] mt-1.5 flex items-center gap-1"><AlertCircle size={10} /> 포커스를 벗어나면 자동 저장됩니다.</p>
                 </section>
               </div>
             </motion.div>

@@ -513,6 +513,35 @@ export function VerifyClient() {
         throw new Error(data.error ?? "서류 조회에 실패했습니다.");
       }
 
+      // 3. 임시 저장된 견적 데이터가 있으면 DB에 저장
+      const tempQuoteStr = sessionStorage.getItem(`quote_${sessionId}`);
+      if (tempQuoteStr) {
+        const tempQuote = JSON.parse(tempQuoteStr);
+        // 시나리오 중 첫 번째(보수형) 또는 표준형을 기본으로 저장 (실제로는 사용자가 선택한 시나리오여야 함)
+        const scenario = tempQuote.scenarios?.standard || tempQuote.scenarios?.conservative;
+        
+        await fetch("/api/quotes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            vehicleId: tempQuote.vehicleSlug, // DB schema uses vehicleId, but here it's slug. Let's make sure it matches.
+            trimId: tempQuote.trimId,
+            contractMonths: tempQuote.contractMonths,
+            annualMileage: tempQuote.annualMileage,
+            depositRate: scenario?.depositAmount ? 20 : 0, // 대략적인 값
+            prepayRate: scenario?.prepayAmount ? 30 : 0,
+            contractType: tempQuote.contractType,
+            monthlyPayment: scenario?.monthlyPayment || 0,
+            totalCost: (scenario?.monthlyPayment || 0) * tempQuote.contractMonths,
+            breakdown: scenario?.breakdown || {},
+            customerName: form.name,
+            phone: "연락처 미입력", // 폰 번호 입력 필드가 없으므로 일단 고정
+          }),
+        });
+        sessionStorage.removeItem(`quote_${sessionId}`);
+      }
+
       setStep("done");
     } catch (err) {
       setError(

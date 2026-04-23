@@ -391,6 +391,9 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
     return {
       id: q.id,
       sessionId: q.sessionId,
+      userId: q.userId,
+      customerName: q.customerName,
+      phone: q.phone,
       vehicleId: q.vehicleId,
       vehicleName: vehicle?.name ?? "삭제된 차량",
       vehicleBrand: vehicle?.brand ?? "",
@@ -403,7 +406,10 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       contractType: q.contractType,
       monthlyPayment: q.monthlyPayment,
       totalCost: q.totalCost,
+      status: q.status as AdminSavedQuote["status"],
+      internalMemo: q.internalMemo,
       createdAt: q.createdAt.toISOString(),
+      updatedAt: q.updatedAt.toISOString(),
     };
   });
 

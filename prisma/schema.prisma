@@ -20,28 +20,23 @@ model FinanceCompany {
   rateSheets    CapitalRateSheet[]
 }
 
-// 주별 캐피탈사 견적 입력 및 계산된 회수율 보관
 model CapitalRateSheet {
   id                  String         @id @default(cuid())
   financeCompanyId    String
   trimId              String
-  weekOf              DateTime       // 해당 주 시작일 (월요일 기준)
-  // 가격 범위
-  minVehiclePrice     Int            // 최소 차량가
-  maxVehiclePrice     Int            // 최대 차량가
-  // 캐피탈사 원본 견적 (최소가 기준)
-  minBaseRates        Json           // {"36_10000": 500000, ...} 최소가 기준 견적
-  minDepositRates     Json           // 최소가 + 보증금 10%
-  minPrepayRates      Json           // 최소가 + 선납금 10%
-  // 캐피탈사 원본 견적 (최대가 기준)
-  maxBaseRates        Json           // {"36_10000": 540000, ...} 최대가 기준 견적
-  maxDepositRates     Json           // 최대가 + 보증금 10%
-  maxPrepayRates      Json           // 최대가 + 선납금 10%
-  // 자동 계산 결과
-  minRateMatrix       Json           // 최소가 기준 회수율 매트릭스
-  maxRateMatrix       Json           // 최대가 기준 회수율 매트릭스
-  depositDiscountRate Float          // 보증금 할인 회수율 (min·max 평균)
-  prepayAdjustRate    Float          // 선납금 조정 회수율 (min·max 평균)
+  weekOf              DateTime
+  minVehiclePrice     Int
+  maxVehiclePrice     Int
+  minBaseRates        Json
+  minDepositRates     Json
+  minPrepayRates      Json
+  maxBaseRates        Json
+  maxDepositRates     Json
+  maxPrepayRates      Json
+  minRateMatrix       Json
+  maxRateMatrix       Json
+  depositDiscountRate Float
+  prepayAdjustRate    Float
   isActive            Boolean        @default(true)
   memo                String?
   createdAt           DateTime       @default(now())
@@ -61,32 +56,33 @@ model RankSurchargeConfig {
 }
 
 model Vehicle {
-  id            String                @id @default(cuid())
-  slug          String                @unique
-  name          String
-  brand         String
-  category      String
-  vehicleCode   String?
-  basePrice     Int
-  thumbnailUrl  String
-  imageUrls     String[]
-  surchargeRate Float                 @default(0)
-  isVisible     Boolean               @default(true)
-  isPopular     Boolean               @default(false)
-  displayOrder  Int                   @default(0)
-  description   String?
-  tags          String[]
-  detailedSpecs Json?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  exploLogs     ExplorationLog[]
-  notes         OperationalNote[]
-  quoteVars     QuoteVariable[]
+  id             String                @id @default(cuid())
+  slug           String                @unique
+  name           String
+  brand          String
+  category       String
+  vehicleCode    String?
+  basePrice      Int
+  thumbnailUrl   String
+  imageUrls      String[]
+  surchargeRate  Float                 @default(0)
+  isVisible      Boolean               @default(true)
+  isPopular      Boolean               @default(false)
+  displayOrder   Int                   @default(0)
+  description    String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  detailedSpecs  Json?
+  tags           String[]
+  exploLogs      ExplorationLog[]
+  notes          OperationalNote[]
+  popularConfigs PopularConfig[]
+  QuoteCalcLog   QuoteCalcLog[]
+  quoteVars      QuoteVariable[]
   recConfigs     RecommendationConfig?
   recLogs        RecommendationLog[]
   trims          Trim[]
   lineups        VehicleLineup[]
-  popularConfigs PopularConfig[]
 
   @@index([isVisible, isPopular])
   @@index([category])
@@ -94,25 +90,25 @@ model Vehicle {
 }
 
 model Trim {
-  id             String          @id @default(cuid())
+  id             String             @id @default(cuid())
   vehicleId      String
   name           String
   price          Int
   engineType     String
   fuelEfficiency Float?
-  isDefault      Boolean         @default(false)
-  isVisible      Boolean         @default(true)
+  isDefault      Boolean            @default(false)
+  isVisible      Boolean            @default(true)
   specs          Json?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  quoteVars      QuoteVariable[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
   lineupId       String?
-  lineup         VehicleLineup?  @relation(fields: [lineupId], references: [id], onDelete: Cascade)
-  vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  options        TrimOption[]
-  rules          OptionRule[]
-  inventory      Inventory[]
   rateSheets     CapitalRateSheet[]
+  inventory      Inventory[]
+  rules          OptionRule[]
+  quoteVars      QuoteVariable[]
+  lineup         VehicleLineup?     @relation(fields: [lineupId], references: [id], onDelete: Cascade)
+  vehicle        Vehicle            @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  options        TrimOption[]
 
   @@index([vehicleId])
   @@index([lineupId])
@@ -122,28 +118,28 @@ model VehicleLineup {
   id        String   @id @default(cuid())
   vehicleId String
   name      String
-  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  trims     Trim[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  trims     Trim[]
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
   @@index([vehicleId])
 }
 
 model TrimOption {
-  id          String   @id @default(cuid())
-  trimId      String
-  name        String
-  price       Int      @default(0)
-  category    String?
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  description String?
-  isAccessory Boolean  @default(false)
-  trim                Trim                @relation(fields: [trimId], references: [id], onDelete: Cascade)
-  popularConfigItems  PopularConfigItem[]
-  rulesSource         OptionRule[]        @relation("SourceRule")
-  rulesTarget         OptionRule[]        @relation("TargetRule")
+  id                 String              @id @default(cuid())
+  trimId             String
+  name               String
+  price              Int                 @default(0)
+  category           String?
+  isDefault          Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  description        String?
+  isAccessory        Boolean             @default(false)
+  rulesSource        OptionRule[]        @relation("SourceRule")
+  rulesTarget        OptionRule[]        @relation("TargetRule")
+  popularConfigItems PopularConfigItem[]
+  trim               Trim                @relation(fields: [trimId], references: [id], onDelete: Cascade)
 
   @@index([trimId])
 }
@@ -151,13 +147,13 @@ model TrimOption {
 model OptionRule {
   id             String     @id @default(cuid())
   trimId         String
-  ruleType       String     // "REQUIRED" | "INCLUDED" | "CONFLICT"
+  ruleType       String
   sourceOptionId String
   targetOptionId String
-  trim           Trim       @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  createdAt      DateTime   @default(now())
   sourceOption   TrimOption @relation("SourceRule", fields: [sourceOptionId], references: [id], onDelete: Cascade)
   targetOption   TrimOption @relation("TargetRule", fields: [targetOptionId], references: [id], onDelete: Cascade)
-  createdAt      DateTime   @default(now())
+  trim           Trim       @relation(fields: [trimId], references: [id], onDelete: Cascade)
 
   @@index([trimId])
 }
@@ -217,9 +213,8 @@ model QuoteVariable {
 }
 
 model SavedQuote {
-  id                    String   @id @default(cuid())
+  id                    String             @id @default(cuid())
   sessionId             String
-  userId                String?
   vehicleId             String
   trimId                String
   contractMonths        Int
@@ -230,11 +225,23 @@ model SavedQuote {
   monthlyPayment        Int
   totalCost             Int
   breakdown             Json
-  createdAt             DateTime @default(now())
+  createdAt             DateTime           @default(now())
   expiresAt             DateTime
+  userId                String?
   verificationSessionId String?
+  assigneeId            String?
+  contactedAt           DateTime?
+  convertedAt           DateTime?
+  internalMemo          String?
+  customerName          String?            // 추가: 고객명
+  phone                 String?            // 추가: 연락처
+  status                QuoteStatus        @default(NEW)
+  QuoteActivityLog      QuoteActivityLog[]
 
   @@index([sessionId])
+  @@index([status])
+  @@index([assigneeId])
+  @@index([userId])
 }
 
 model RecommendationLog {
@@ -249,10 +256,6 @@ model RecommendationLog {
   returnType            String
   recommendedVehicleIds String[]
   recommendedReason     Json
-  industryDetail        String?
-  purposeDetail         String?
-  budgetDetail          String?
-  fuelPreference        String?
   clickedVehicleId      String?
   clickedAt             DateTime?
   proceedToQuote        Boolean   @default(false)
@@ -260,6 +263,10 @@ model RecommendationLog {
   createdAt             DateTime  @default(now())
   userAgent             String?
   ipHash                String?
+  industryDetail        String?
+  purposeDetail         String?
+  budgetDetail          String?
+  fuelPreference        String?
   vehicle               Vehicle?  @relation(fields: [vehicleId], references: [id])
 
   @@index([sessionId])
@@ -357,18 +364,84 @@ model CustomerVerification {
 }
 
 model Inventory {
-  id            String   @id @default(cuid())
-  trimId        String
-  stockCount    Int      @default(0)
-  location      String?
-  status        String   @default("AVAILABLE") // AVAILABLE, RESERVED, SOLD
-  colorExt      String?
-  colorInt      String?
-  vin           String?  @unique
-  memo          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  trim          Trim     @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  trimId     String
+  stockCount Int      @default(0)
+  location   String?
+  status     String   @default("AVAILABLE")
+  colorExt   String?
+  colorInt   String?
+  vin        String?  @unique
+  memo       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  trim       Trim     @relation(fields: [trimId], references: [id], onDelete: Cascade)
 
   @@index([trimId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model QuoteActivityLog {
+  id         String     @id
+  quoteId    String
+  actorId    String
+  action     String
+  payload    Json?
+  createdAt  DateTime   @default(now())
+  SavedQuote SavedQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model QuoteCalcLog {
+  id                 String   @id
+  sessionId          String
+  userId             String?
+  vehicleId          String
+  vehicleSlug        String
+  trimId             String?
+  optionIds          String[]
+  contractMonths     Int
+  annualMileage      Int
+  depositRate        Float
+  prepayRate         Float
+  contractType       String
+  productType        String
+  resultMonthly      Int
+  bestFinanceCompany String
+  scenarioType       String
+  clickedApply       Boolean  @default(false)
+  deviceType         String?
+  referrer           String?
+  userAgent          String?
+  ipHash             String?
+  createdAt          DateTime @default(now())
+  Vehicle            Vehicle  @relation(fields: [vehicleId], references: [id])
+
+  @@index([createdAt])
+  @@index([scenarioType, createdAt])
+  @@index([sessionId])
+  @@index([vehicleSlug, createdAt])
+}
+
+enum QuoteStatus {
+  NEW
+  CONTACTED
+  IN_PROGRESS
+  CONVERTED
+  LOST
+}
+
+model AdminNotification {
+  id        String   @id @default(cuid())
+  type      String   // "NEW_QUOTE", "SYSTEM", "INQUIRY"
+  title     String
+  content   String
+  linkUrl   String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead])
+  @@index([createdAt])
 }

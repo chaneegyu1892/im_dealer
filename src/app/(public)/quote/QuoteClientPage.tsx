@@ -270,13 +270,22 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const handleContractApply = useCallback(async () => {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    
+    // 견적 데이터를 세션 스토리지에 임시 저장 (인증 후 저장하기 위함)
+    if (quoteResult) {
+      sessionStorage.setItem(`quote_${quoteSessionId}`, JSON.stringify({
+        ...quoteResult,
+        sessionId: quoteSessionId,
+      }));
+    }
+
     const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}`;
     if (!user) {
       router.push(`/login?next=${encodeURIComponent(target)}`);
       return;
     }
     router.push(target);
-  }, [router, quoteSessionId, selectedVehicle?.slug]);
+  }, [router, quoteSessionId, selectedVehicle?.slug, quoteResult]);
 
   // 트림/옵션 상태
   const [trims, setTrims] = useState<TrimData[]>([]);
