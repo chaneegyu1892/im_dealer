@@ -242,8 +242,32 @@ export default function AdminDashboard() {
   const [activities, setActivities] = useState<AdminActivity[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [isSystemActive, setIsSystemActive] = useState(true); // 시스템 활성 상태
+  
+  // 리얼 데이터 상태
+  const [realStats, setRealStats] = useState<any>(null);
+  const [weeklyData, setWeeklyData] = useState<any[]>(WEEKLY_QUOTE_DATA);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/admin/dashboard/stats");
+      const json = await res.json();
+      if (json.success) {
+        setRealStats(json.data.stats);
+        if (json.data.weeklyQuoteData?.length > 0) {
+          setWeeklyData(json.data.weeklyQuoteData);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
+    fetchDashboardData();
     // 초기 로딩
     setActivities(getActivities());
 
@@ -261,7 +285,21 @@ export default function AdminDashboard() {
   };
   const chartJump = (i: number) => { if (i !== chartPage) { setChartDir(i > chartPage ? 1 : -1); setChartPage(i); } };
 
-  const visibleCharts = CHARTS.slice(chartPage * CHART_PER_PAGE, (chartPage + 1) * CHART_PER_PAGE);
+  // 통계 UI 데이터 가공
+  const displayStats = [
+    { label: "등록 차량",    value: realStats?.totalVehicles ?? DASHBOARD_STATS.totalVehicles, unit: "대", icon: Car,       trend: "+1",   isUp: true,  trendLabel: "전월 대비",  color: "#000666", bg: "#E5E5FA" },
+    { label: "노출 중",      value: realStats?.visibleVehicles ?? DASHBOARD_STATS.visibleVehicles, unit: "대", icon: Eye,       trend: "0",   isUp: true, trendLabel: "이번 달",   color: "#059669", bg: "#ECFDF5" },
+    { label: "오늘 견적 조회", value: realStats?.todayQuoteViews ?? DASHBOARD_STATS.todayQuoteViews, unit: "회", icon: TrendingUp, trend: "+5%",  isUp: true,  trendLabel: "어제 대비",  color: "#D97706", bg: "#FFFBEB" },
+    { label: "AI 추천 세션", value: realStats?.todayAISessions ?? DASHBOARD_STATS.todayAISessions, unit: "회", icon: Sparkles,  trend: "0%", isUp: true,  trendLabel: "어제 대비",  color: "#7C3AED", bg: "#F5F3FF" },
+    { label: "이달 신규 상담", value: realStats?.monthlyConsultations ?? DASHBOARD_STATS.monthlyConsultations, unit: "건", icon: Users,     trend: `+${(realStats?.monthlyConsultations ?? 0) - (realStats?.lastMonthConsultations ?? 0)}`, isUp: (realStats?.monthlyConsultations ?? 0) >= (realStats?.lastMonthConsultations ?? 0),  trendLabel: "지난달 대비", color: "#0EA5E9", bg: "#E0F2FE" },
+    { label: "계약 전환율",  value: realStats?.conversionRate ?? DASHBOARD_STATS.conversionRate, unit: "%", icon: Percent,   trend: "0%p", isUp: true,  trendLabel: "지난달 대비", color: "#059669", bg: "#ECFDF5" },
+  ];
+
+  // 차트 데이터 주입
+  const currentCharts = [...CHARTS];
+  currentCharts[0] = { ...CHARTS[0], lineData: weeklyData };
+
+  const visibleCharts = currentCharts.slice(chartPage * CHART_PER_PAGE, (chartPage + 1) * CHART_PER_PAGE);
 
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
 
@@ -280,6 +318,12 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {isLoading && (
+            <div className="flex items-center gap-2 text-[11px] text-[#9BA4C0] animate-pulse">
+              <RefreshCw size={12} className="animate-spin" />
+              최신 데이터 동기화 중...
+            </div>
+          )}
           {/* 시스템 상태 인디케이터 (상태에 따라 색상 및 텍스트 변경) */}
           <div className={cn(
             "flex items-center gap-2 px-3 py-1.5 border rounded-full shadow-sm transition-all duration-300",
@@ -318,7 +362,7 @@ export default function AdminDashboard() {
       <div className="flex-1 overflow-auto p-5 flex flex-col gap-4 scrollbar-hide">
         {/* ── 2. KPI 6개 ───────────────────────── */}
         <div className="grid grid-cols-6 gap-4">
-          {STATS.map((stat) => {
+          {displayStats.map((stat) => {
             const Icon = stat.icon;
             return (
               <div key={stat.label}
@@ -396,21 +440,31 @@ export default function AdminDashboard() {
               </Link>
             </div>
             <div className="flex-1 max-h-[325px] overflow-y-auto divide-y divide-[#F8F9FC] relative scrollbar-hide">
-              {RECENT_CONSULTATIONS.map(c => (
-                <Link key={c.id} href={`/admin/quotations?id=${c.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-[#F8F9FC] transition-colors">
-                  <div className="w-6 h-6 rounded-full bg-[#E5E5FA] flex items-center justify-center shrink-0">
-                    <span className="text-[10px] font-bold text-[#000666]">{c.name[0]}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-bold text-[#1A1A2E] truncate">{c.name} · {c.vehicle}</p>
-                    <p className="flex items-center gap-1 text-[10px] text-[#9BA4C0] mt-0.5">
-                      <Clock size={8} /> {c.time}
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-[4px] shrink-0"
-                    style={{ color: c.sc, background: c.sb }}>{c.status}</span>
-                </Link>
-              ))}
+              {(realStats?.recentQuotes || RECENT_CONSULTATIONS).map((c: any) => {
+                // 상태별 컬러 매핑 (StatusMap이 있으면 좋지만 일단 수동으로)
+                const statusColors: any = {
+                  'NEW': { b: '#E5E5FA', c: '#000666', l: '신규' },
+                  'CONTACTED': { b: '#E0F2FE', c: '#0EA5E9', l: '상담중' },
+                  'CONVERTED': { b: '#ECFDF5', c: '#059669', l: '계약완료' },
+                };
+                const s = statusColors[c.status] || { b: '#F4F5F8', c: '#9BA4C0', l: c.status };
+                
+                return (
+                  <Link key={c.id} href={`/admin/quotations?id=${c.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-[#F8F9FC] transition-colors">
+                    <div className="w-6 h-6 rounded-full bg-[#E5E5FA] flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-bold text-[#000666]">{c.name?.[0] || 'G'}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-bold text-[#1A1A2E] truncate">{c.name} · {c.vehicle}</p>
+                      <p className="flex items-center gap-1 text-[10px] text-[#9BA4C0] mt-0.5">
+                        <Clock size={8} /> {typeof c.time === 'string' ? c.time : new Date(c.time).toLocaleTimeString()}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-[4px] shrink-0"
+                      style={{ color: s.c, background: s.b }}>{s.l}</span>
+                  </Link>
+                );
+              })}
               <div className="h-10 shrink-0" />
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-90" />
