@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       ...(!history ? { isActive: true } : {}),
     };
 
-    const rows = await (prisma as any).capitalRateSheet.findMany({
+    const rows = await prisma.capitalRateSheet.findMany({
       where,
       orderBy: { weekOf: "desc" },
       include: {
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const data = rows.map((r: any) => ({
+    const data = rows.map((r) => ({
       id: r.id,
       financeCompanyId: r.financeCompanyId,
       financeCompanyName: r.financeCompany.name,
@@ -132,9 +132,8 @@ export async function POST(request: NextRequest) {
     const prepayAdjustRate = Math.round(((prepayMin + prepayMax) / 2) * 100_000) / 100_000;
 
     const weekDate = new Date(weekOf);
-    const db = prisma as any;
-
-    const existing = await db.capitalRateSheet.findUnique({
+    
+    const existing = await prisma.capitalRateSheet.findUnique({
       where: {
         financeCompanyId_trimId_weekOf: { financeCompanyId, trimId, weekOf: weekDate },
       },
@@ -159,16 +158,16 @@ export async function POST(request: NextRequest) {
 
     let sheet;
     if (existing) {
-      sheet = await db.capitalRateSheet.update({
+      sheet = await prisma.capitalRateSheet.update({
         where: { id: existing.id },
         data: sheetData,
       });
     } else {
-      await db.capitalRateSheet.updateMany({
+      await prisma.capitalRateSheet.updateMany({
         where: { financeCompanyId, trimId, isActive: true },
         data: { isActive: false },
       });
-      sheet = await db.capitalRateSheet.create({
+      sheet = await prisma.capitalRateSheet.create({
         data: { financeCompanyId, trimId, weekOf: weekDate, ...sheetData },
       });
     }

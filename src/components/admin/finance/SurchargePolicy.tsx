@@ -1,14 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Landmark, CarFront, Percent, Search, Save, Loader2 } from "lucide-react";
+import { Landmark, CarFront, Percent, Search, Loader2 } from "lucide-react";
 import PolicyManager from "../settings/PolicyManager";
 
+interface FinanceCompanySurcharge {
+  id: string;
+  name: string;
+  surchargeRate: number;
+  isActive: boolean;
+}
+
+interface VehicleSurcharge {
+  id: string;
+  name: string;
+  brand: string;
+  surchargeRate: number;
+  isVisible: boolean;
+}
+
 export default function SurchargePolicy() {
-  const [fcs, setFcs] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [fcs, setFcs] = useState<FinanceCompanySurcharge[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleSurcharge[]>([]);
   const [vSearch, setVSearch] = useState("");
-  const [loadingFcs, setLoadingFcs] = useState(true);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -19,9 +33,7 @@ export default function SurchargePolicy() {
         const res = await fetch("/api/admin/finance-companies");
         const data = await res.json();
         if (data.success) setFcs(data.data);
-      } finally {
-        setLoadingFcs(false);
-      }
+      } catch {}
     }
     loadFcs();
   }, []);

@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       createdAt: v.createdAt.toISOString(),
       updatedAt: v.updatedAt.toISOString(),
       _count: v._count,
-      ...(includeTrims ? { trims: (v as any).trims } : {}),
+      ...(includeTrims ? { trims: v.trims } : {}),
     }));
 
     return NextResponse.json({ success: true, data });

@@ -34,7 +34,10 @@ export function RecoveryRateTable({ data, onUpdateRate, currentBrand }: Recovery
   const filterButtonRef = useRef<HTMLButtonElement>(null);
 
   // 카테고리 셋은 전체 데이터 기준
-  const availableCategories = Array.from(new Set(data.map(d => d.category)));
+  const availableCategories = useMemo(
+    () => Array.from(new Set(data.map(d => d.category))),
+    [data],
+  );
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set(availableCategories));
 
   // Inline editing state: { id, field, value }
@@ -48,11 +51,6 @@ export function RecoveryRateTable({ data, onUpdateRate, currentBrand }: Recovery
       return matchesSearch && matchesCategory;
     });
   }, [data, searchTerm, selectedCategories]);
-
-  // 카테고리 필터 변경이 있을 때 전체 선택 셋 유지 로직 (안정성을 위해 모든 카테고리 포함되도록 유지)
-  useEffect(() => {
-    setSelectedCategories(new Set(availableCategories));
-  }, [data, availableCategories.length]);
 
   // 외부 클릭 시 필터 팝오버 닫기
   useEffect(() => {

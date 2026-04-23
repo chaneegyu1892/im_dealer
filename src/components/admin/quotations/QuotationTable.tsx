@@ -1,49 +1,19 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, X, ExternalLink, Copy, Check as CheckIcon } from "lucide-react";
+import { Search, X, ExternalLink, Copy, Check as CheckIcon, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatKRWMan, formatDateKR, formatDateTimeKR } from "@/lib/format";
-import type { AdminSavedQuote } from "@/types/admin";
+import type { AdminSavedQuote, QuoteCrmStatus } from "@/types/admin";
 import { VerificationResult } from "@/components/admin/VerificationResult";
 
-// DB가 비어있을 때 Drawer UI 테스트용 fallback 데이터
-const MOCK_QUOTES: AdminSavedQuote[] = [
-  {
-    id: "mock-1",
-    sessionId: "test-session-001",
-    vehicleId: "mock-vehicle-1",
-    vehicleName: "아이오닉 6",
-    vehicleBrand: "현대",
-    trimId: "mock-trim-1",
-    trimName: "Standard",
-    contractMonths: 48,
-    annualMileage: 20000,
-    depositRate: 20,
-    prepayRate: 0,
-    contractType: "반납형",
-    monthlyPayment: 820000,
-    totalCost: 39360000,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "mock-2",
-    sessionId: "test-session-002",
-    vehicleId: "mock-vehicle-2",
-    vehicleName: "EV6",
-    vehicleBrand: "기아",
-    trimId: "mock-trim-2",
-    trimName: "Air",
-    contractMonths: 36,
-    annualMileage: 30000,
-    depositRate: 0,
-    prepayRate: 30,
-    contractType: "인수형",
-    monthlyPayment: 950000,
-    totalCost: 34200000,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
+const CRM_STATUS_CONFIG: Record<QuoteCrmStatus, { label: string; color: string; bg: string }> = {
+  NEW:         { label: "신규",     color: "#6B7399", bg: "#F4F5F8" },
+  CONTACTED:   { label: "연락함",   color: "#000666", bg: "#E5E5FA" },
+  IN_PROGRESS: { label: "진행중",   color: "#D97706", bg: "#FFFBEB" },
+  CONVERTED:   { label: "계약완료", color: "#059669", bg: "#ECFDF5" },
+  LOST:        { label: "이탈",     color: "#DC2626", bg: "#FEF2F2" },
+};
 
 interface QuotationTableProps {
   initialQuotes: AdminSavedQuote[];
@@ -53,18 +23,43 @@ interface QuotationTableProps {
 export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<QuoteCrmStatus | "ALL">("ALL");
+  const [quoteOverrides, setQuoteOverrides] = useState<Record<string, Partial<AdminSavedQuote>>>({});
+  const [memoInput, setMemoInput] = useState("");
+  const [savingMemo, setSavingMemo] = useState(false);
 
-  const quotes = initialQuotes.length > 0 ? initialQuotes : MOCK_QUOTES;
+  const quotes = initialQuotes.map(q => ({ ...q, ...quoteOverrides[q.id] }));
 
   const selectedQuote = quotes.find((q) => q.id === selectedId);
 
-  const filtered = search
-    ? quotes.filter(
-        (q) =>
-          q.vehicleName.toLowerCase().includes(search.toLowerCase()) ||
-          q.trimName.toLowerCase().includes(search.toLowerCase())
-      )
-    : quotes;
+  useEffect(() => {
+    if (selectedQuote) setMemoInput(selectedQuote.internalMemo ?? "");
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function patchQuote(id: string, body: Record<string, unknown>) {
+    const res = await fetch(`/api/admin/quotes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (json.success) {
+      setQuoteOverrides(prev => ({
+        ...prev,
+        [id]: { ...prev[id], ...body },
+      }));
+    }
+  }
+
+  const filtered = quotes.filter(q => {
+    if (statusFilter !== "ALL" && q.status !== statusFilter) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      return q.vehicleName.toLowerCase().includes(s) || q.trimName.toLowerCase().includes(s);
+    }
+    return true;
+  });
 
   // ESC 키 + backdrop 클릭으로 Drawer 닫기
   const closeDrawer = useCallback(() => setSelectedId(null), []);
@@ -110,16 +105,40 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
         </div>
       </div>
 
-      {/* 검색 */}
-      <div className="relative w-[300px]">
-        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B0B8D0]" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="차량명 또는 트림으로 검색"
-          className="w-full pl-8 pr-3 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] outline-none focus:border-[#000666] transition-colors placeholder:text-[#B0B8D0]"
-        />
+      {/* 검색 + 상태 필터 */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative w-[260px]">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B0B8D0]" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="차량명 또는 트림으로 검색"
+            className="w-full pl-8 pr-3 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] outline-none focus:border-[#000666] transition-colors placeholder:text-[#B0B8D0]"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setStatusFilter("ALL")}
+            className={cn("px-2.5 py-1 rounded-[6px] text-[11px] font-semibold transition-all border", statusFilter === "ALL" ? "bg-[#000666] text-white border-[#000666]" : "bg-[#F4F5F8] text-[#9BA4C0] border-transparent")}
+          >
+            전체
+          </button>
+          {(Object.keys(CRM_STATUS_CONFIG) as QuoteCrmStatus[]).map(s => {
+            const cfg = CRM_STATUS_CONFIG[s];
+            const isActive = statusFilter === s;
+            return (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className="px-2.5 py-1 rounded-[6px] text-[11px] font-semibold transition-all border"
+                style={isActive ? { color: cfg.color, background: cfg.bg, borderColor: cfg.color } : { color: "#9BA4C0", background: "#F4F5F8", borderColor: "transparent" }}
+              >
+                {cfg.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* 테이블 */}
@@ -237,6 +256,58 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
             <DetailRow label="총 비용" value={formatKRWMan(selectedQuote.totalCost)} />
             <DetailRow label="세션 ID" value={selectedQuote.sessionId} />
             <DetailRow label="접수일" value={formatDateTimeKR(selectedQuote.createdAt)} />
+
+            {/* ── CRM 섹션 ── */}
+            <div className="border-t border-[#E8EAF0] pt-4 space-y-3">
+              <p className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider">CRM 관리</p>
+              {/* 상태 */}
+              <div>
+                <p className="text-[11px] text-[#6B7399] mb-1.5">진행 상태</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(Object.keys(CRM_STATUS_CONFIG) as QuoteCrmStatus[]).map(s => {
+                    const cfg = CRM_STATUS_CONFIG[s];
+                    const isActive = selectedQuote.status === s;
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => patchQuote(selectedQuote.id, { status: s })}
+                        className="px-2.5 py-1 rounded-[6px] text-[11px] font-semibold transition-all border"
+                        style={isActive
+                          ? { color: cfg.color, background: cfg.bg, borderColor: cfg.color }
+                          : { color: "#9BA4C0", background: "#F4F5F8", borderColor: "transparent" }
+                        }
+                      >
+                        {cfg.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* 메모 */}
+              <div>
+                <p className="text-[11px] text-[#6B7399] mb-1.5">내부 메모</p>
+                <textarea
+                  value={memoInput}
+                  onChange={e => setMemoInput(e.target.value)}
+                  rows={3}
+                  placeholder="담당자 메모를 입력하세요..."
+                  className="w-full text-[12px] px-3 py-2 border border-[#E8EAF0] rounded-[8px] resize-none focus:border-[#000666] outline-none text-[#1A1A2E] placeholder:text-[#C0C5D8]"
+                />
+                <button
+                  onClick={async () => {
+                    setSavingMemo(true);
+                    await patchQuote(selectedQuote.id, { internalMemo: memoInput });
+                    setSavingMemo(false);
+                  }}
+                  disabled={savingMemo}
+                  className="mt-1.5 flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold bg-[#000666] text-white rounded-[6px] hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  <Save size={11} />
+                  {savingMemo ? "저장 중…" : "메모 저장"}
+                </button>
+              </div>
+            </div>
+
             <VerifyLinkSection sessionId={selectedQuote.sessionId} />
             <VerificationResult sessionId={selectedQuote.sessionId} />
           </div>

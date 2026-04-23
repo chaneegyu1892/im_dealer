@@ -5,6 +5,7 @@ import {
   type RateConfigData,
   type CalcInput,
 } from "@/lib/quote-calculator";
+import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 
 // ─── GET /api/vehicles/:slug ────────────────────────────
@@ -42,24 +43,22 @@ export async function GET(
 
     let scenarios = null;
     let bestFinanceName: string | null = null;
-    let rateSheets: any[] = [];
-
-    if (defaultTrim) {
-      rateSheets = await (prisma as any).capitalRateSheet.findMany({
-        where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
-        include: { financeCompany: true },
-      });
-    }
+    const rateSheets = defaultTrim
+      ? await prisma.capitalRateSheet.findMany({
+          where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
+          include: { financeCompany: true },
+        })
+      : [];
 
     if (defaultTrim && rateSheets.length > 0) {
-      const configs: RateConfigData[] = rateSheets.map((rs: any) => ({
+      const configs: RateConfigData[] = rateSheets.map((rs) => ({
         financeCompanyId: rs.financeCompanyId,
         financeCompanyName: rs.financeCompany.name,
         financeSurchargeRate: rs.financeCompany.surchargeRate,
         minVehiclePrice: rs.minVehiclePrice,
         maxVehiclePrice: rs.maxVehiclePrice,
-        minRateMatrix: rs.minRateMatrix,
-        maxRateMatrix: rs.maxRateMatrix,
+        minRateMatrix: rs.minRateMatrix as RateSheetRaw,
+        maxRateMatrix: rs.maxRateMatrix as RateSheetRaw,
         depositDiscountRate: rs.depositDiscountRate,
         prepayAdjustRate: rs.prepayAdjustRate,
       }));

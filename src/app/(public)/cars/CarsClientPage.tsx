@@ -139,7 +139,10 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
   }, []);
 
-  const brands = ["전체", ...Array.from(new Set(vehicles.map((v) => v.brand))).sort()];
+  const brands = useMemo(
+    () => ["전체", ...Array.from(new Set(vehicles.map((v) => v.brand))).sort()],
+    [vehicles],
+  );
 
   useEffect(() => {
     updateScrollState();
@@ -152,10 +155,13 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     };
   }, [brands, updateScrollState]);
 
-  const featured = vehicles.filter((v) => v.isPopular).slice(0, 2);
-  const featuredIds = new Set(featured.map((v) => v.id));
+  const featured = useMemo(
+    () => vehicles.filter((v) => v.isPopular).slice(0, 2),
+    [vehicles],
+  );
 
   const filteredVehicles = useMemo(() => {
+    const featuredIds = new Set(featured.map((v) => v.id));
     const query = searchQuery.trim().toLowerCase();
     const matchesQuery = (v: VehicleListItem) => {
       const fields = [
@@ -182,7 +188,7 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       default:
         return [...result].sort((a, b) => a.displayOrder - b.displayOrder);
     }
-  }, [vehicles, categoryFilter, brandFilter, sortBy, featuredIds, searchQuery]);
+  }, [vehicles, categoryFilter, brandFilter, sortBy, featured, searchQuery]);
 
   const suggestedVehicles = useMemo(() => {
     if (!searchQuery.trim() || filteredVehicles.length === 0) return [];

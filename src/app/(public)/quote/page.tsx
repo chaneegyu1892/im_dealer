@@ -1,3 +1,14 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "견적 계산기",
+  description: "장기렌트·리스 실시간 견적 계산기. 차량·트림·옵션을 선택하고 보수형·표준형·공격형 3가지 시나리오로 비교하세요.",
+  openGraph: {
+    title: "견적 계산기 | 아임딜러",
+    description: "장기렌트·리스 실시간 견적 계산기. 3가지 시나리오로 비교하세요.",
+  },
+};
+
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";

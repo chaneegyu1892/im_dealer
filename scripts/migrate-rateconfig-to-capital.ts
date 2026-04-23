@@ -10,7 +10,6 @@
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const db = prisma as any;
 
 // ─── 구 RateConfig 시드와 동일한 로직 ─────────────────────────
 
@@ -127,7 +126,7 @@ async function main() {
 
       // Trim 단위로 upsert
       for (const trim of v.trims) {
-        await db.capitalRateSheet.upsert({
+        await prisma.capitalRateSheet.upsert({
           where: {
             financeCompanyId_trimId_weekOf: {
               financeCompanyId: fcId,

@@ -89,8 +89,8 @@ const config: Config = {
       },
 
       fontFamily: {
-        display: ["var(--font-outfit)", "ui-sans-serif", "system-ui", "sans-serif"],
-        sans: ["var(--font-noto)", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["var(--font-pretendard)", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["var(--font-pretendard)", "ui-sans-serif", "system-ui", "sans-serif"],
       },
 
       fontSize: {

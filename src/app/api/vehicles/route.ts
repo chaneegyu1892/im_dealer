@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       .filter(Boolean) as string[];
 
     const rateSheets = defaultTrimIds.length > 0
-      ? await (prisma as any).capitalRateSheet.findMany({
+      ? await prisma.capitalRateSheet.findMany({
           where: { trimId: { in: defaultTrimIds }, isActive: true },
           select: { trimId: true, minRateMatrix: true, financeCompany: { select: { surchargeRate: true } } },
         })

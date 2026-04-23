@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Car, Eye, TrendingUp, Sparkles, Users, ChevronLeft, ChevronRight,
-  Plus, CheckCircle2, AlertCircle, BarChart2, Star, Clock,
+  CheckCircle2, BarChart2, Star, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LineChart } from "./charts/LineChart";
@@ -20,11 +20,6 @@ const STAT_CONFIG = [
   { key: "todayAiSessions", label: "AI 추천 세션", unit: "회", icon: Sparkles, color: "#7C3AED", bg: "#F5F3FF" },
   { key: "monthlyQuotes", label: "이달 저장 견적", unit: "건", icon: Users, color: "#0EA5E9", bg: "#E0F2FE" },
 ] as const;
-
-const ACTIVITY_ICONS: Record<string, typeof CheckCircle2> = {
-  update: CheckCircle2,
-  info: AlertCircle,
-};
 
 // ─── Props ──────────────────────────────────────────────
 interface DashboardClientProps {

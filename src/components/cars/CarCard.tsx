@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight, Zap, Leaf, Fuel, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -67,9 +68,11 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
         {/* 이미지 영역 */}
         <div className="relative overflow-hidden aspect-[16/9]">
           {vehicle.thumbnailUrl ? (
-            <img
+            <Image
               src={vehicle.thumbnailUrl}
               alt={`${vehicle.brand} ${vehicle.name}`}
+              fill
+              sizes="(max-width: 768px) 100vw, 33vw"
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (

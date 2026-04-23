@@ -461,31 +461,6 @@ const vehicles: VehicleSeed[] = [
  *   20000km: 기준
  *   30000km: 차량 소모 커 잔존가치 낮음 → 약 +5% 회수율
  */
-function generateRateMatrix(baseRate: number): Record<string, Record<string, number>> {
-  // 계약기간별 조정 (baseRate 대비 절대값 조정)
-  const monthsAdjust: Record<string, number> = {
-    "36": baseRate * 0.20,   // +20%: 36개월은 단기계약, 회수율 높음
-    "48": 0,                 // 기준
-    "60": baseRate * -0.16,  // -16%: 60개월 장기계약, 회수율 낮음
-  };
-
-  // 주행거리별 조정 (baseRate 대비 절대값 조정)
-  const mileageAdjust: Record<string, number> = {
-    "10000": baseRate * -0.05,  // -5%: 저주행 → 잔존가치 높음
-    "20000": 0,                 // 기준
-    "30000": baseRate * 0.05,   // +5%: 고주행 → 잔존가치 낮음
-  };
-
-  const matrix: Record<string, Record<string, number>> = {};
-  for (const [mileage, mAdj] of Object.entries(mileageAdjust)) {
-    matrix[mileage] = {};
-    for (const [months, tAdj] of Object.entries(monthsAdjust)) {
-      matrix[mileage][months] = parseFloat((baseRate + mAdj + tAdj).toFixed(6));
-    }
-  }
-  return matrix;
-}
-
 // ─── 메인 시드 함수 ─────────────────────────────────────
 
 async function main() {

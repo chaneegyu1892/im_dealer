@@ -17,9 +17,14 @@ const TABS: { key: ScenarioKey; label: string; desc: string }[] = [
 interface Props {
   scenarios: QuoteScenarioDetails;
   defaultTab?: ScenarioKey;
+  onTabChange?: (tab: ScenarioKey) => void;
 }
 
-export function QuoteBreakdownTabs({ scenarios, defaultTab = "standard" }: Props) {
+export function QuoteBreakdownTabs({
+  scenarios,
+  defaultTab = "standard",
+  onTabChange,
+}: Props) {
   const [active, setActive] = useState<ScenarioKey>(defaultTab);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -35,6 +40,7 @@ export function QuoteBreakdownTabs({ scenarios, defaultTab = "standard" }: Props
             type="button"
             onClick={() => {
               setActive(tab.key);
+              onTabChange?.(tab.key);
               setBreakdownOpen(false);
             }}
             className={cn(

@@ -11,7 +11,6 @@ import {
   Package,
   Sparkles,
   BarChart2,
-  TrendingUp,
   Building2,
   Settings,
   ClipboardList,

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { AdminBrand } from "@/types/admin";
 
@@ -52,7 +53,7 @@ export function BrandList({ brands, selected, onSelect }: BrandListProps) {
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 bg-white rounded-[8px] flex items-center justify-center p-1.5 shrink-0 border border-[#E8EAF0]">
                     {logoPath ? (
-                      <img src={logoPath} alt={b.name} className="w-full h-full object-contain" />
+                      <Image src={logoPath} alt={b.name} width={40} height={40} className="w-full h-full object-contain" />
                     ) : (
                       <div className="text-[9px] font-bold text-[#6B7399] tracking-tighter">
                         {b.name.substring(0, 2)}

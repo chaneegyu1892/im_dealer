@@ -8,6 +8,7 @@ import {
   type CalcInput,
 } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
+import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 
 const quoteSchema = z.object({
@@ -78,7 +79,7 @@ export async function POST(
 
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
-      (prisma as any).capitalRateSheet.findMany({
+      prisma.capitalRateSheet.findMany({
         where: { trimId: trim.id, isActive: true, financeCompany: { isActive: true } },
         include: { financeCompany: true },
       }),
@@ -93,14 +94,14 @@ export async function POST(
     }
 
     // 3) 데이터 매핑
-    const configs: RateConfigData[] = rateSheets.map((rs: any) => ({
+    const configs: RateConfigData[] = rateSheets.map((rs) => ({
       financeCompanyId: rs.financeCompanyId,
       financeCompanyName: rs.financeCompany.name,
       financeSurchargeRate: rs.financeCompany.surchargeRate,
       minVehiclePrice: rs.minVehiclePrice,
       maxVehiclePrice: rs.maxVehiclePrice,
-      minRateMatrix: rs.minRateMatrix,
-      maxRateMatrix: rs.maxRateMatrix,
+      minRateMatrix: rs.minRateMatrix as RateSheetRaw,
+      maxRateMatrix: rs.maxRateMatrix as RateSheetRaw,
       depositDiscountRate: rs.depositDiscountRate,
       prepayAdjustRate: rs.prepayAdjustRate,
     }));

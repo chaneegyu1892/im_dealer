@@ -114,10 +114,6 @@ const extraVehicles = [
 async function seed() {
   console.log("🌱 추가 브랜드 데이터 시딩 시작...");
 
-  // 1. Get Finance Companies
-  const fcs = await prisma.financeCompany.findMany();
-  const fcIds = fcs.map(f => f.id);
-
   for (const v of extraVehicles) {
     console.log(`\nAdding ${v.brand} ${v.name}...`);
 

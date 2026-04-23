@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Sparkles, ShieldCheck, Eye, MessageCircle } from "lucide-react";
 import { TrustBadgeGroup } from "@/components/ui/TrustBadge";
@@ -54,6 +55,15 @@ const FLOW_STEPS = [
     description: "충분히 이해한 다음, 전문가와 상담으로 최종 계약을 완성하세요",
   },
 ];
+
+export const metadata: Metadata = {
+  title: "아임딜러 소개",
+  description: "허위견적 없는 AI 기반 장기렌트·리스 견적 서비스. 기존 견적사이트와 완전히 다른, 고객이 먼저 탐색하고 이해하는 구조입니다.",
+  openGraph: {
+    title: "아임딜러 소개",
+    description: "허위견적 없는 AI 기반 장기렌트·리스 견적 서비스.",
+  },
+};
 
 export default function AboutPage() {
   return (

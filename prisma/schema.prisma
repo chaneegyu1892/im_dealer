@@ -217,8 +217,16 @@ model QuoteVariable {
   @@index([vehicleId, trimId])
 }
 
+enum QuoteStatus {
+  NEW
+  CONTACTED
+  IN_PROGRESS
+  CONVERTED
+  LOST
+}
+
 model SavedQuote {
-  id                    String   @id @default(cuid())
+  id                    String      @id @default(cuid())
   sessionId             String
   userId                String?
   vehicleId             String
@@ -231,11 +239,36 @@ model SavedQuote {
   monthlyPayment        Int
   totalCost             Int
   breakdown             Json
-  createdAt             DateTime @default(now())
+  createdAt             DateTime    @default(now())
   expiresAt             DateTime
   verificationSessionId String?
 
+  // CRM 필드
+  status                QuoteStatus @default(NEW)
+  assigneeId            String?
+  internalMemo          String?
+  contactedAt           DateTime?
+  convertedAt           DateTime?
+
+  activityLogs          QuoteActivityLog[]
+
   @@index([sessionId])
+  @@index([status])
+  @@index([assigneeId])
+  @@index([userId])
+}
+
+model QuoteActivityLog {
+  id         String    @id @default(cuid())
+  quoteId    String
+  actorId    String
+  action     String
+  payload    Json?
+  createdAt  DateTime  @default(now())
+
+  quote      SavedQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
 }
 
 model RecommendationLog {

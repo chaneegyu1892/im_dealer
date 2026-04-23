@@ -68,29 +68,31 @@ export function ComparisonSlotPicker({
   // 차량 선택 시 트림 로드
   useEffect(() => {
     if (!selectedSlug) {
-      setTrims([]);
-      setSelectedLineup(null);
-      setSelectedTrimName(null);
       return;
     }
 
     let aborted = false;
-    setTrimsLoading(true);
-    setTrims([]);
-    setSelectedLineup(null);
-    setSelectedTrimName(null);
 
-    fetch(`/api/vehicles/${selectedSlug}/trims`)
-      .then((r) => r.json())
-      .then((json) => {
+    async function fetchTrims() {
+      setTrimsLoading(true);
+      setTrims([]);
+      setSelectedLineup(null);
+      setSelectedTrimName(null);
+
+      try {
+        const response = await fetch(`/api/vehicles/${selectedSlug}/trims`);
+        const json = await response.json();
         if (aborted) return;
         if (!json.success || !Array.isArray(json.data)) return;
         setTrims(json.data as TrimData[]);
-      })
-      .catch(() => {})
-      .finally(() => {
+      } catch {
+        // Keep the picker empty on trim fetch failure.
+      } finally {
         if (!aborted) setTrimsLoading(false);
-      });
+      }
+    }
+
+    void fetchTrims();
 
     return () => {
       aborted = true;
@@ -187,7 +189,12 @@ export function ComparisonSlotPicker({
           value={selectedSlug}
           placeholder="비교할 차량을 선택하세요"
           options={vehicleOptions}
-          onChange={(v) => setSelectedSlug(v)}
+	          onChange={(v) => {
+	            setSelectedSlug(v);
+	            setTrims([]);
+	            setSelectedLineup(null);
+	            setSelectedTrimName(null);
+	          }}
         />
 
         {selectedSlug && trimsLoading && (

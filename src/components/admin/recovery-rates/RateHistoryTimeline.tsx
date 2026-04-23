@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Clock, User, ChevronRight, FileEdit, History } from "lucide-react";
+import { X, User, ChevronRight, FileEdit, History } from "lucide-react";
 import { RecoveryRateHistory } from "@/constants/mock-data";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +45,7 @@ export function RateHistoryTimeline({ isOpen, onClose, historyData }: RateHistor
 
             <div className="flex-1 overflow-y-auto px-5 py-6">
               <div className="relative border-l-2 border-[#F0F2F8] ml-3 space-y-8 pb-4">
-                {historyData.map((item, index) => {
+                {historyData.map((item) => {
                   const dateObj = new Date(item.changedAt);
                   const dateStr = dateObj.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
                   const timeStr = dateObj.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
