@@ -32,7 +32,7 @@ export async function PATCH(
   }
 
   const updateData: Record<string, unknown> = {};
-  const payload: Record<string, unknown> = {};
+  const payload: Record<string, string> = {};
 
   if (status !== undefined && status !== quote.status) {
     updateData.status = status;
@@ -43,7 +43,7 @@ export async function PATCH(
   }
   if (assigneeId !== undefined) {
     updateData.assigneeId = assigneeId;
-    payload.assigneeId = assigneeId;
+    payload.assigneeId = assigneeId ?? "";
   }
   if (internalMemo !== undefined) {
     updateData.internalMemo = internalMemo;
@@ -55,13 +55,13 @@ export async function PATCH(
   }
 
   const [updated] = await prisma.$transaction([
-    prisma.savedQuote.update({ where: { id: params.id }, data: updateData }),
+    prisma.savedQuote.update({ where: { id }, data: updateData }),
     prisma.quoteActivityLog.create({
       data: {
-        quoteId: params.id,
+        quoteId: id,
         actorId: admin!.id,
         action: status !== undefined ? "STATUS_CHANGED" : assigneeId !== undefined ? "ASSIGNED" : "MEMO_UPDATED",
-        payload: payload as Record<string, string>,
+        payload,
       },
     }),
   ]);
@@ -71,13 +71,14 @@ export async function PATCH(
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const { error } = await requireAdmin();
   if (error) return error;
 
   const quote = await prisma.savedQuote.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { activityLogs: { orderBy: { createdAt: "desc" }, take: 20 } },
   });
   if (!quote) {
