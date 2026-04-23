@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, Pencil, Trash2, ChevronDown, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatKRWMan } from "@/lib/format";
 import type { AdminVehicleDetail, AdminTrim } from "@/types/admin";

@@ -13,7 +13,7 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    await (prisma as any).capitalRateSheet.delete({ where: { id } });
+    await prisma.capitalRateSheet.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);
@@ -34,19 +34,18 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     const { memo, setActive } = body as { memo?: string; setActive?: boolean };
-    const db = prisma as any;
-
+    
     if (setActive) {
-      const target = await db.capitalRateSheet.findUnique({ where: { id } });
+      const target = await prisma.capitalRateSheet.findUnique({ where: { id } });
       if (!target) return NextResponse.json({ error: "없는 시트" }, { status: 404 });
 
-      await db.capitalRateSheet.updateMany({
+      await prisma.capitalRateSheet.updateMany({
         where: { financeCompanyId: target.financeCompanyId, trimId: target.trimId, isActive: true },
         data: { isActive: false },
       });
-      await db.capitalRateSheet.update({ where: { id }, data: { isActive: true } });
+      await prisma.capitalRateSheet.update({ where: { id }, data: { isActive: true } });
     } else if (memo !== undefined) {
-      await db.capitalRateSheet.update({ where: { id }, data: { memo } });
+      await prisma.capitalRateSheet.update({ where: { id }, data: { memo } });
     }
 
     return NextResponse.json({ ok: true });

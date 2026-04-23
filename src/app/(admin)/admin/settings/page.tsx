@@ -1,11 +1,9 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, User, ShieldCheck, Settings2, Sparkles } from "lucide-react";
+import { User, ShieldCheck, Settings2 } from "lucide-react";
 import PolicyManager from "@/components/admin/settings/PolicyManager";
 import AdminManager from "@/components/admin/settings/AdminManager";
-import { Check } from "lucide-react";
 
 interface AdminInfo {
   id: string;
@@ -15,7 +13,6 @@ interface AdminInfo {
 }
 
 export default function AdminSettingsPage() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState("profile");
   const [info, setInfo] = useState<AdminInfo | null>(null);
 
@@ -26,7 +23,6 @@ export default function AdminSettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [loading, setLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [pwSuccess, setPwSuccess] = useState(false);
 
@@ -44,7 +40,6 @@ export default function AdminSettingsPage() {
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     const res = await fetch("/api/admin/auth/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -54,13 +49,11 @@ export default function AdminSettingsPage() {
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
     }
-    setLoading(false);
   };
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) return alert("비밀번호 불일치");
-    setLoading(true);
     const res = await fetch("/api/admin/auth/me", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -76,7 +69,6 @@ export default function AdminSettingsPage() {
       const d = await res.json();
       alert(d.error || "비밀번호 변경 실패");
     }
-    setLoading(false);
   };
 
   const tabs = [
@@ -208,4 +200,3 @@ export default function AdminSettingsPage() {
     </div>
   );
 }
-

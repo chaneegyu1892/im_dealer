@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Tag, Settings, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatKRWMan } from "@/lib/format";
@@ -25,9 +26,11 @@ export function VehicleDetail({ vehicle, onToggleVisibility }: VehicleDetailProp
           style={{ background: BRAND_COLORS[vehicle.brand] ?? BRAND_COLORS["현대"] }}
         >
           {vehicle.thumbnailUrl && (
-            <img
+            <Image
               src={vehicle.thumbnailUrl}
               alt={vehicle.name}
+              fill
+              sizes="100vw"
               className="absolute inset-0 w-full h-full object-cover"
             />
           )}

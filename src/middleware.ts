@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { apiRateLimit, strictRateLimit } from "@/lib/rate-limit";
 
 const ADMIN_JWT_COOKIE = "admin_token";
 const ADMIN_ACCESS_COOKIE = "admin_access";
@@ -28,51 +29,62 @@ function isValidAccessToken(token: string): boolean {
   return token === expected;
 }
 
-export async function proxy(request: NextRequest) {
-  const { pathname, searchParams } = request.nextUrl;
+export default async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  const isAdminPage = pathname.startsWith("/admin");
+  const isAdminApi = pathname.startsWith("/api/admin");
+
+  // ── API 라우트 Rate Limit 보호 ────────────────────────────────────
+  if (pathname.startsWith("/api/") && !isAdminApi) {
+    const isStrictApi = pathname.includes("/quote") || pathname.includes("/recommend");
+    const ratelimit = isStrictApi ? strictRateLimit : apiRateLimit;
+
+    if (ratelimit) {
+      const ip = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
+      const { success, limit, reset, remaining } = await ratelimit.limit(ip);
+
+      if (!success) {
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          {
+            status: 429,
+            headers: {
+              "X-RateLimit-Limit": limit.toString(),
+              "X-RateLimit-Remaining": remaining.toString(),
+              "X-RateLimit-Reset": reset.toString(),
+            },
+          }
+        );
+      }
+    }
+  }
 
   // ── 어드민 라우트 보호 ────────────────────────────────────
-  if (pathname.startsWith("/admin")) {
-    const queryToken = searchParams.get("t");
+  if (isAdminPage || isAdminApi) {
     const accessCookie = request.cookies.get(ADMIN_ACCESS_COOKIE)?.value;
     const jwtToken = request.cookies.get(ADMIN_JWT_COOKIE)?.value;
 
-    const hasValidAccessCookie = accessCookie
-      ? isValidAccessToken(accessCookie)
-      : false;
-
-    const hasValidQueryToken = queryToken
-      ? isValidAccessToken(queryToken)
-      : false;
-
+    const hasValidAccessCookie = accessCookie ? isValidAccessToken(accessCookie) : false;
     const hasValidJwt = jwtToken ? await isValidAdminJwt(jwtToken) : false;
 
-    // 로그인 페이지거나, 유효한 JWT(세션)가 있거나, 액세스 토큰이 있는 경우에만 페이지 노출
-    if (!hasValidAccessCookie && !hasValidQueryToken && !hasValidJwt && pathname !== "/admin/login") {
-      // 존재 자체를 숨김
-      return new NextResponse(null, { status: 404 });
-    }
+    if (isAdminApi) {
+      if (pathname !== "/api/admin/auth/login" && pathname !== "/api/admin/auth/logout") {
+        if (!hasValidJwt) {
+          return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+        }
+      }
+    } else {
+      // 액세스 쿠키 또는 JWT 없이 /admin/login 이외 경로 접근 → 존재 숨김
+      if (!hasValidAccessCookie && !hasValidJwt && pathname !== "/admin/login") {
+        return new NextResponse(null, { status: 404 });
+      }
 
-    // 쿼리 토큰으로 진입한 경우 → 쿠키 발급 후 clean URL로 리다이렉트
-    if (hasValidQueryToken && !hasValidAccessCookie) {
-      const cleanUrl = new URL(pathname, request.url);
-      const response = NextResponse.redirect(cleanUrl);
-      response.cookies.set({
-        name: ADMIN_ACCESS_COOKIE,
-        value: queryToken!,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 30, // 30일
-      });
-      return response;
-    }
-
-    // 2단계: 로그인 인증 확인 (/admin/login 제외)
-    if (pathname !== "/admin/login") {
-      if (!hasValidJwt) {
-        return NextResponse.redirect(new URL("/admin/login", request.url));
+      // 액세스 쿠키는 있지만 JWT(로그인 세션) 없음 → 로그인 페이지로
+      if (pathname !== "/admin/login" && !hasValidJwt) {
+        const loginUrl = new URL("/admin/login", request.url);
+        loginUrl.searchParams.set("from", pathname);
+        return NextResponse.redirect(loginUrl);
       }
     }
   }

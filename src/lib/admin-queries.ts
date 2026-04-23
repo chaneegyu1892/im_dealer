@@ -404,6 +404,9 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       monthlyPayment: q.monthlyPayment,
       totalCost: q.totalCost,
       createdAt: q.createdAt.toISOString(),
+      status: q.status,
+      assigneeId: q.assigneeId,
+      internalMemo: q.internalMemo,
     };
   });
 
@@ -411,8 +414,6 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
 }
 
 // ─── Inventory (재고 관리) ──────────────────────────────
-export interface AdminInventoryItem extends AdminInventory {}
-
 export async function getAdminInventory(): Promise<AdminInventory[]> {
   const inventory = await prisma.inventory.findMany({
     orderBy: { updatedAt: "desc" },
@@ -465,8 +466,7 @@ export async function getAdminFinanceCompanies(): Promise<AdminFinanceCompany[]>
 export async function getActiveRateSheets(
   financeCompanyId: string
 ): Promise<CapitalRateSheet[]> {
-  const db = prisma as any;
-  const rows = await db.capitalRateSheet.findMany({
+  const rows = await prisma.capitalRateSheet.findMany({
     where: { financeCompanyId, isActive: true },
     orderBy: { createdAt: "desc" },
     include: {
@@ -487,8 +487,7 @@ export async function getRateSheetHistory(
   financeCompanyId: string,
   trimId: string
 ): Promise<CapitalRateSheet[]> {
-  const db = prisma as any;
-  const rows = await db.capitalRateSheet.findMany({
+  const rows = await prisma.capitalRateSheet.findMany({
     where: { financeCompanyId, trimId },
     orderBy: { weekOf: "desc" },
     include: {

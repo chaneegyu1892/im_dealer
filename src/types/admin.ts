@@ -114,6 +114,8 @@ export interface AnalyticsData {
 }
 
 // ─── SavedQuote (admin 조회용) ──────────────────────────
+export type QuoteCrmStatus = "NEW" | "CONTACTED" | "IN_PROGRESS" | "CONVERTED" | "LOST";
+
 export interface AdminSavedQuote {
   id: string;
   sessionId: string;
@@ -130,6 +132,10 @@ export interface AdminSavedQuote {
   monthlyPayment: number;
   totalCost: number;
   createdAt: string;
+  // CRM
+  status: QuoteCrmStatus;
+  assigneeId: string | null;
+  internalMemo: string | null;
 }
 
 // ─── CapitalRateSheet (주별 캐피탈사 견적 회수율) ─────────

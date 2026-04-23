@@ -96,16 +96,6 @@ export async function GET(request: NextRequest) {
       quoteViewCount: s._count.vehicleId,
     }));
 
-    // 전체 견적 조회 트렌드 (일별)
-    const dailyTrend = await prisma.explorationLog.groupBy({
-      by: ["createdAt"],
-      where: {
-        eventType: "quote_start",
-        createdAt: { gte: from, lte: to },
-      },
-      _count: { id: true },
-    });
-
     return NextResponse.json({
       success: true,
       data: {

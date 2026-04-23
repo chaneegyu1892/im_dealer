@@ -300,29 +300,29 @@ interface DonutSlice {
 }
 
 function DonutPie({ data }: { data: DonutSlice[] }) {
-  let cumulative = 0;
+  const slices = data.reduce<Array<DonutSlice & { offset: number }>>((acc, pt) => {
+    const cumulative = acc.reduce((sum, item) => sum + item.percent, 0);
+    return [...acc, { ...pt, offset: -cumulative }];
+  }, []);
+
   return (
     <div className="w-[120px] h-[120px] relative shrink-0">
       <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
-        {data.map((pt) => {
-          const offset = -cumulative;
-          cumulative += pt.percent;
-          return (
-            <motion.circle
-              key={pt.engineType}
-              cx="50"
-              cy="50"
-              r="40"
-              fill="transparent"
-              stroke={pt.color}
-              strokeWidth="16"
-              strokeDasharray={`${pt.percent} 100`}
-              initial={{ strokeDashoffset: -100 }}
-              animate={{ strokeDashoffset: offset }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
-            />
-          );
-        })}
+        {slices.map((pt) => (
+          <motion.circle
+            key={pt.engineType}
+            cx="50"
+            cy="50"
+            r="40"
+            fill="transparent"
+            stroke={pt.color}
+            strokeWidth="16"
+            strokeDasharray={`${pt.percent} 100`}
+            initial={{ strokeDashoffset: -100 }}
+            animate={{ strokeDashoffset: pt.offset }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+          />
+        ))}
       </svg>
     </div>
   );

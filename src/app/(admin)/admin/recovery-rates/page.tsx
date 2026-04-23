@@ -1,11 +1,8 @@
 'use client';
 
 import { useState, useMemo } from "react";
-import { motion } from "framer-motion";
 import { 
-  BarChart2, History, Settings2, Activity, 
-  AlertCircle, CheckCircle2, TrendingUp, Edit,
-  Building2, Layers
+  History, Settings2, Edit,
 } from "lucide-react";
 import { 
   MOCK_RECOVERY_RATES, 
@@ -19,7 +16,17 @@ import { BatchUpdateModal } from "@/components/admin/recovery-rates/BatchUpdateM
 import { RateHistoryTimeline } from "@/components/admin/recovery-rates/RateHistoryTimeline";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { Suspense } from "react";
+
+type RecoveryRateField = "baseRate";
+
+interface BatchApplyParams {
+  brand: string;
+  category: string;
+  adjustmentType: "increase" | "decrease";
+  value: number;
+  reason: string;
+}
 
 function RecoveryRatesContent() {
   const searchParams = useSearchParams();
@@ -27,18 +34,10 @@ function RecoveryRatesContent() {
   const [history, setHistory] = useState(MOCK_RECOVERY_HISTORY);
   
   const [selectedBrand, setSelectedBrand] = useState("전체");
-  const [search, setSearch] = useState("");
+  const [search] = useState(searchParams.get("search") ?? "");
   
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
-
-  // URL 파라미터(?search=...) 연동
-  useEffect(() => {
-    const s = searchParams.get("search");
-    if (s) {
-      setSearch(s);
-    }
-  }, [searchParams]);
 
   // 현재 선택된 브랜드 및 검색어에 맞는 데이터 필터링
   const filteredRates = useMemo(() => {
@@ -55,9 +54,10 @@ function RecoveryRatesContent() {
   }, [rates, selectedBrand, search]);
 
   const handleUpdateRate = (id: string, field: string, newValue: number) => {
+    const rateField = field as RecoveryRateField;
     setRates(prev => prev.map(item => {
       if (item.id === id) {
-        return { ...item, [field]: newValue, updatedAt: new Date().toISOString().split('T')[0] };
+        return { ...item, [rateField]: newValue, updatedAt: new Date().toISOString().split('T')[0] };
       }
       return item;
     }));
@@ -68,7 +68,7 @@ function RecoveryRatesContent() {
         id: `RH-${Date.now()}`,
         vehicleName: item.vehicleName,
         field: field === 'baseRate' ? '기본 잔존가치율' : field,
-        oldValue: (item as any)[field] as number,
+        oldValue: item[rateField],
         newValue,
         changedBy: "현재(나)",
         changedAt: new Date().toISOString(),
@@ -78,7 +78,7 @@ function RecoveryRatesContent() {
     }
   };
 
-  const handleBatchApply = (params: any) => {
+  const handleBatchApply = (params: BatchApplyParams) => {
     alert(`[일괄 적용 대상: ${params.brand} > ${params.category}]\n수치: ${params.adjustmentType === 'increase' ? '+' : '-'}${params.value}%\n사유: ${params.reason}`);
     const factor = params.adjustmentType === 'increase' ? 1 : -1;
     const diff = params.value * factor;
@@ -245,4 +245,3 @@ export default function RecoveryRatesPage() {
     </Suspense>
   );
 }
-

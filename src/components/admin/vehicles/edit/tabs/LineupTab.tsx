@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus, Pencil, Trash2, Save, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AdminVehicleDetail, AdminVehicleLineup } from "@/types/admin";

@@ -53,34 +53,33 @@ export function ComparisonSection({
   useEffect(() => {
     if (!selection || !selection.slug || !selection.trimId) {
       abortRef.current?.abort();
-      setResult(null);
-      setError(null);
-      setIsLoading(false);
       return;
     }
+    const currentSelection = selection;
 
     abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
-    setIsLoading(true);
-    setError(null);
+    async function fetchComparisonQuote() {
+      setIsLoading(true);
+      setError(null);
 
-    fetch(`/api/vehicles/${selection.slug}/quote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        trimId: selection.trimId,
-        selectedOptionIds: [],
-        contractMonths: conditions.contractMonths,
-        annualMileage: conditions.annualMileage,
-        contractType: conditions.contractType,
-        productType: conditions.productType,
-      }),
-      signal: ctrl.signal,
-    })
-      .then((r) => r.json())
-      .then((json) => {
+      try {
+        const response = await fetch(`/api/vehicles/${currentSelection.slug}/quote`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            trimId: currentSelection.trimId,
+            selectedOptionIds: [],
+            contractMonths: conditions.contractMonths,
+            annualMileage: conditions.annualMileage,
+            contractType: conditions.contractType,
+            productType: conditions.productType,
+          }),
+          signal: ctrl.signal,
+        });
+        const json = await response.json();
         if (ctrl.signal.aborted) return;
         if (!json.success) {
           setError(json.error ?? "견적 계산에 실패했습니다.");
@@ -88,15 +87,16 @@ export function ComparisonSection({
           return;
         }
         setResult(json.data as QuoteResponse);
-      })
-      .catch((e) => {
-        if (e.name === "AbortError") return;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
         setError("네트워크 오류가 발생했습니다.");
         setResult(null);
-      })
-      .finally(() => {
+      } finally {
         if (!ctrl.signal.aborted) setIsLoading(false);
-      });
+      }
+    }
+
+    void fetchComparisonQuote();
 
     return () => ctrl.abort();
   }, [selection, conditions]);
@@ -148,7 +148,14 @@ export function ComparisonSection({
               allVehicles={allVehicles}
               excludeSlug={primary.slug}
               value={selection.slug ? selection : null}
-              onChange={(s) => setSelection(s ?? { slug: "", trimId: "", trimPrice: 0 })}
+              onChange={(s) => {
+                setSelection(s ?? { slug: "", trimId: "", trimPrice: 0 });
+                if (!s) {
+                  setResult(null);
+                  setError(null);
+                  setIsLoading(false);
+                }
+              }}
               onRemove={handleRemove}
             />
           )}

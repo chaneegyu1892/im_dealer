@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Image as ImageIcon, Save, Plus, X, Upload, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { AdminVehicleDetail } from "@/types/admin";
 import type { VehicleCategory } from "@/types/vehicle";
 
@@ -240,7 +240,7 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
               </div>
               <div className="aspect-[16/9] rounded-[8px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden flex items-center justify-center relative group">
                 {data.thumbnailUrl ? (
-                  <img src={data.thumbnailUrl} alt="Preview" className="w-full h-full object-cover" />
+	                  <Image src={data.thumbnailUrl} alt="Preview" fill sizes="50vw" className="w-full h-full object-cover" />
                 ) : (
                   <div className="text-[#B0B8D0] flex flex-col items-center gap-2">
                     <ImageIcon size={32} strokeWidth={1.5} />
@@ -290,7 +290,7 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
                   </div>
                   {url && (
                     <div className="aspect-video w-32 rounded-[4px] border border-[#E8EAF0] overflow-hidden relative group">
-                      <img src={url} alt={`Preview ${i}`} className="w-full h-full object-cover" />
+	                      <Image src={url} alt={`Preview ${i}`} fill sizes="128px" className="w-full h-full object-cover" />
                       {uploading === `image-${i}` && (
                         <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
                           <Loader2 size={16} className="text-[#000666] animate-spin" />

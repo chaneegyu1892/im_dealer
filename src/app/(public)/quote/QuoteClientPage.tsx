@@ -23,17 +23,18 @@ import { SelectRow, OptionButton } from "@/components/quote/primitives";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
+import type { QuoteScenarioDetails } from "@/types/quote";
 
 // ─── 상수 ────────────────────────────────────────────────
-const CONTRACT_CATEGORIES = ["장기렌트", "리스"] as const;
 const CONTRACT_MONTHS = [36, 48, 60] as const;
 const ANNUAL_MILEAGES = [10000, 20000, 30000] as const;
 const CONTRACT_TYPES = ["반납형", "인수형"] as const;
 
-type ContractCategory = (typeof CONTRACT_CATEGORIES)[number];
+type ContractCategory = "장기렌트" | "리스";
 type ContractMonths = (typeof CONTRACT_MONTHS)[number];
 type AnnualMileage = (typeof ANNUAL_MILEAGES)[number];
 type ContractType = (typeof CONTRACT_TYPES)[number];
+type ScenarioKey = keyof QuoteScenarioDetails;
 
 interface Conditions {
   contractMonths: ContractMonths;
@@ -198,17 +199,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     prefillSlug ? vehicles.find((v) => v.slug === prefillSlug) ?? null : null
   );
 
-  const handleContractApply = useCallback(async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}`;
-    if (!user) {
-      router.push(`/login?next=${encodeURIComponent(target)}`);
-      return;
-    }
-    router.push(target);
-  }, [router, quoteSessionId, selectedVehicle?.slug]);
-
   // 트림/옵션 상태
   const [trims, setTrims] = useState<TrimData[]>([]);
   const [trimsLoading, setTrimsLoading] = useState(false);
@@ -231,6 +221,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     }
   }, [contractCategory]);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
+  const [selectedScenarioKey, setSelectedScenarioKey] = useState<ScenarioKey>("standard");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
@@ -347,6 +338,53 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       : v.name.includes(search) || v.brand.includes(search)
   );
 
+  const handleContractApply = useCallback(async () => {
+    if (!quoteResult || !selectedVehicle || !selectedTrimId) return;
+
+    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle.slug}`;
+
+    setError(null);
+    const res = await fetch("/api/quote/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: quoteSessionId,
+        vehicleSlug: selectedVehicle.slug,
+        trimId: selectedTrimId,
+        selectedOptionIds: Array.from(selectedOptionIds),
+        contractMonths: quoteResult.contractMonths,
+        annualMileage: quoteResult.annualMileage,
+        contractType: quoteResult.contractType,
+        productType: contractCategory,
+        scenarioType: selectedScenarioKey,
+      }),
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      setError(json?.error ?? "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+      return;
+    }
+
+    router.push(target);
+  }, [
+    quoteResult,
+    selectedVehicle,
+    selectedTrimId,
+    quoteSessionId,
+    selectedOptionIds,
+    contractCategory,
+    selectedScenarioKey,
+    router,
+  ]);
+
   const handlePdfDownload = useCallback(async () => {
     if (!quoteResult || !selectedVehicle) return;
 
@@ -443,6 +481,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       }
 
       setQuoteResult(json.data as QuoteResponse);
+      setSelectedScenarioKey("standard");
       setStep(3);
     } catch {
       setError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
@@ -935,7 +974,11 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       아래 탭을 클릭해 3가지 시나리오를 비교하세요
                     </p>
                   </div>
-                  <QuoteBreakdownTabs scenarios={quoteResult.scenarios} />
+                  <QuoteBreakdownTabs
+                    scenarios={quoteResult.scenarios}
+                    defaultTab={selectedScenarioKey}
+                    onTabChange={setSelectedScenarioKey}
+                  />
                 </div>
 
                 {/* 비교 섹션 */}

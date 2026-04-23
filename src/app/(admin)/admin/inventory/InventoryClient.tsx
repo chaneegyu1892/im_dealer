@@ -4,13 +4,11 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
   Package, Search, Plus, X, AlertTriangle,
   CheckCircle2, XCircle, ChevronDown, Pencil,
   Trash2, Building2, Car, ToggleLeft, ToggleRight,
-  RefreshCw, ClipboardList, TrendingDown, Layers,
-  MessageSquare, Settings2, Settings, ChevronRight,
+  Layers, Settings,
 } from "lucide-react";
 import {
   MOCK_INVENTORY,
@@ -111,26 +109,6 @@ function KPIMini({ label, value, unit, highlight, color }: { label: string; valu
   );
 }
 
-function FilterSelect({
-  label, value, options, onChange,
-}: {
-  label: string; value: string; options: string[]; onChange: (v: string) => void;
-}) {
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="appearance-none pl-3 pr-8 py-2 text-[12px] font-medium bg-white border border-[#E8EAF0] rounded-[6px] text-[#4A5270] outline-none focus:border-[#C0C5DC] cursor-pointer shadow-sm hover:border-[#C0C5DC] transition-colors"
-      >
-        <option value="">{label} 전체</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-      <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9BA4C0] pointer-events-none" />
-    </div>
-  );
-}
-
 function QuantityCell({
   value, onSave,
 }: { value: number; onSave: (n: number) => void }) {
@@ -190,28 +168,6 @@ function DeliveryToggle({ value, onChange }: { value: boolean; onChange: (v: boo
   );
 }
 
-function KPIChip({
-  icon, label, value, unit, bg, valueColor = "text-[#000666]",
-}: {
-  icon: React.ReactNode; label: string; value: number; unit: string;
-  bg: string; valueColor?: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 px-5 first:pl-0 last:pr-0">
-      <div className={cn("w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0", bg)}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-[10px] text-[#9BA4C0] font-medium leading-none mb-1">{label}</p>
-        <p className={cn("text-[20px] font-bold leading-none tracking-tight", valueColor)}>
-          {value}
-          <span className="text-[11px] font-normal text-[#9BA4C0] ml-0.5">{unit}</span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
@@ -244,17 +200,9 @@ export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] 
     useMemo(() => buildVehicleData(vehicles), [vehicles]);
 
   const [items, setItems] = useState<InventoryItem[]>(MOCK_INVENTORY);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [finances, setFinances] = useState<string[]>(FINANCE_COMPANIES);
   const [selectedFC, setSelectedFC] = useState("전체");
-
-  // URL 파라미터(?search=...) 연동
-  useEffect(() => {
-    const s = searchParams.get("search");
-    if (s) {
-      setSearch(s);
-    }
-  }, [searchParams]);
 
   const [vehicleOptions, setVehicleOptions] = useState(initialVehicleOptions);
   const [vehicleDetails, setVehicleDetails] = useState(initialVehicleDetails);
@@ -408,9 +356,6 @@ export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] 
 
   const totalQty       = items.reduce((s, i) => s + i.quantity, 0);
   const immediateCount = items.filter((i) => i.immediateDelivery && i.quantity > 0).length;
-  const fcCount        = FINANCE_COMPANIES.length;
-  const lastUpdated    = items.reduce((latest, i) => i.registeredAt > latest ? i.registeredAt : latest, "");
-  const soginCount     = items.filter((i) => i.status === "소진").length;
 
   const handleQuantityChange = (id: string, qty: number) => {
     const item = items.find(i => i.id === id);

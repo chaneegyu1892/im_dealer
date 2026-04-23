@@ -1,19 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit, Noto_Sans_KR } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const outfit = Outfit({
-  subsets: ["latin"],
-  variable: "--font-outfit",
+const pretendard = localFont({
+  src: "./fonts/PretendardVariable.woff2",
+  variable: "--font-pretendard",
+  weight: "45 920",
+  style: "normal",
   display: "swap",
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const notoSansKr = Noto_Sans_KR({
-  subsets: ["latin"],
-  variable: "--font-noto",
-  display: "swap",
-  weight: ["300", "400", "500", "600", "700"],
 });
 
 export const viewport: Viewport = {
@@ -44,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={`${outfit.variable} ${notoSansKr.variable}`}>
+    <html lang="ko" className={pretendard.variable}>
       <body>{children}</body>
     </html>
   );

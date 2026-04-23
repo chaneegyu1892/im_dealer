@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { Plus, Pencil, Trash2, Check, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdminVehicleDetail, AdminTrimOption } from "@/types/admin";
-import { motion, AnimatePresence } from "framer-motion";
 import { OptionManager } from "../OptionManager";
 
 interface OptionTabProps {
@@ -20,16 +19,13 @@ export function OptionTab({ vehicle }: OptionTabProps) {
     return vehicle.trims.filter(t => t.lineupId === selectedLineupId);
   }, [vehicle.trims, selectedLineupId]);
 
-  const [selectedTrimId, setSelectedTrimId] = useState<string>(
+  const [selectedTrimIdState, setSelectedTrimId] = useState<string>(
     trimsOfLineup[0]?.id ?? ""
   );
 
-  // Lineup 변경 시 Trim 자동 선택
-  useMemo(() => {
-    if (selectedLineupId && !trimsOfLineup.find(t => t.id === selectedTrimId)) {
-      setSelectedTrimId(trimsOfLineup[0]?.id ?? "");
-    }
-  }, [selectedLineupId, trimsOfLineup]);
+  const selectedTrimId = trimsOfLineup.some((t) => t.id === selectedTrimIdState)
+    ? selectedTrimIdState
+    : trimsOfLineup[0]?.id ?? "";
 
   const selectedTrim = vehicle.trims.find(t => t.id === selectedTrimId);
   const options = selectedTrim?.options ?? [];

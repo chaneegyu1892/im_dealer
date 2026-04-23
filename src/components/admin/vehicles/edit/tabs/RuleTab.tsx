@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Check, ChevronRight, AlertCircle, Link2, Ban, PlusCircle } from "lucide-react";
+import { Trash2, ChevronRight, AlertCircle, Link2, Ban, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { AdminVehicleDetail, AdminOptionRule } from "@/types/admin";
-import { motion, AnimatePresence } from "framer-motion";
+import type { AdminVehicleDetail } from "@/types/admin";
 import { OptionRuleModal } from "./OptionRuleModal";
 
 interface RuleTabProps {
@@ -20,16 +19,13 @@ export function RuleTab({ vehicle }: RuleTabProps) {
     return vehicle.trims.filter(t => t.lineupId === selectedLineupId);
   }, [vehicle.trims, selectedLineupId]);
 
-  const [selectedTrimId, setSelectedTrimId] = useState<string>(
+  const [selectedTrimIdState, setSelectedTrimId] = useState<string>(
     trimsOfLineup[0]?.id ?? ""
   );
 
-  // Lineup 변경 시 Trim 자동 선택
-  useMemo(() => {
-    if (selectedLineupId && !trimsOfLineup.find(t => t.id === selectedTrimId)) {
-      setSelectedTrimId(trimsOfLineup[0]?.id ?? "");
-    }
-  }, [selectedLineupId, trimsOfLineup]);
+  const selectedTrimId = trimsOfLineup.some((t) => t.id === selectedTrimIdState)
+    ? selectedTrimIdState
+    : trimsOfLineup[0]?.id ?? "";
 
   const selectedTrim = vehicle.trims.find(t => t.id === selectedTrimId);
   const rules = selectedTrim?.rules ?? [];

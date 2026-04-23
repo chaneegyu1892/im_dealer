@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ClipboardList, Plus, Search, Filter, Pin,
-  Clock, User, MoreVertical, X, Trash2, Edit2, CheckCircle2,
+  Clock, User, X, Trash2, Edit2, CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MOCK_MEMOS, type AdminMemo, type MemoCategory } from "@/constants/mock-data";

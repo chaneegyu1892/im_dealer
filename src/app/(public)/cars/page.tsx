@@ -1,3 +1,14 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "차량 탐색",
+  description: "장기렌트·리스 가능한 전체 차량을 한눈에 비교하세요. 브랜드, 카테고리별 필터로 원하는 차량을 쉽게 찾을 수 있습니다.",
+  openGraph: {
+    title: "차량 탐색 | 아임딜러",
+    description: "장기렌트·리스 가능한 전체 차량을 한눈에 비교하세요.",
+  },
+};
+
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
@@ -25,7 +36,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
   // 최저가 견적 산출 — defaultTrim 기준 capitalRateSheet
   const defaultTrimIds = vehicles.map((v) => v.trims[0]?.id).filter(Boolean) as string[];
   const rateSheets = defaultTrimIds.length > 0
-    ? await (prisma as any).capitalRateSheet.findMany({
+    ? await prisma.capitalRateSheet.findMany({
         where: { trimId: { in: defaultTrimIds }, isActive: true },
         select: { trimId: true, minRateMatrix: true },
       })

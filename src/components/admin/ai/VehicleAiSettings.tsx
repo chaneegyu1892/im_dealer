@@ -3,14 +3,29 @@
 import { useState } from "react";
 import { Search, Save, Plus, X, Sparkles } from "lucide-react";
 
+interface VehicleAiConfig {
+  id: string;
+  vehicle: {
+    name: string;
+    brand: string;
+    category: string;
+  };
+  highlights: string[];
+  aiCaption: string | null;
+}
+
+interface VehicleAiUpdate {
+  highlights: string[];
+  aiCaption: string;
+}
+
 interface Props {
-  initialConfigs: any[];
+  initialConfigs: VehicleAiConfig[];
 }
 
 export default function VehicleAiSettings({ initialConfigs }: Props) {
   const [configs, setConfigs] = useState(initialConfigs);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -31,7 +46,7 @@ export default function VehicleAiSettings({ initialConfigs }: Props) {
     setCurrentPage(1);
   };
 
-  const handleUpdate = async (id: string, updatedData: any) => {
+  const handleUpdate = async (id: string, updatedData: VehicleAiUpdate) => {
     setSaving(true);
     try {
       const res = await fetch("/api/admin/ai/config", {
@@ -42,10 +57,9 @@ export default function VehicleAiSettings({ initialConfigs }: Props) {
       if (res.ok) {
         const result = await res.json();
         setConfigs(configs.map((c) => (c.id === id ? { ...c, ...result.data } : c)));
-        setEditingId(null);
         alert("설정이 저장되었습니다.");
       }
-    } catch (error) {
+    } catch {
       alert("저장 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
@@ -148,7 +162,15 @@ export default function VehicleAiSettings({ initialConfigs }: Props) {
   );
 }
 
-function SettingsMenu({ config, onUpdate, saving }: any) {
+function SettingsMenu({
+  config,
+  onUpdate,
+  saving,
+}: {
+  config: VehicleAiConfig;
+  onUpdate: (id: string, updatedData: VehicleAiUpdate) => Promise<void>;
+  saving: boolean;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [tempHighlights, setTempHighlights] = useState<string[]>(config.highlights || []);
   const [tempCaption, setTempCaption] = useState(config.aiCaption || "");

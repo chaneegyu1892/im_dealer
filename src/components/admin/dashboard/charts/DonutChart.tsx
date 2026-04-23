@@ -20,14 +20,13 @@ export function DonutChart({ data }: DonutChartProps) {
   const SW = 18;
   const circ = 2 * Math.PI * R;
 
-  let cum = 0;
-  const segs = data.map((d, i) => {
+  const segs = data.reduce<Array<CategoryCount & { offset: number; dash: number; color: string }>>((acc, d, i) => {
+    const cum = acc.reduce((sum, seg) => sum + seg.count / total, 0);
     const frac = d.count / total;
     const offset = circ * (1 - cum);
     const dash = circ * frac - 1.5;
-    cum += frac;
-    return { ...d, offset, dash, color: COLORS[i % COLORS.length] };
-  });
+    return [...acc, { ...d, offset, dash, color: COLORS[i % COLORS.length] }];
+  }, []);
 
   return (
     <div className="flex items-center gap-6 w-full h-full">
@@ -51,7 +50,7 @@ export function DonutChart({ data }: DonutChartProps) {
         <text x={CX} y={CY + 12} textAnchor="middle" fontSize="9" fill="#9BA4C0">총 차량</text>
       </svg>
       <div className="flex-1 space-y-2">
-        {segs.map((d, i) => (
+        {segs.map((d) => (
           <div key={d.category} className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />

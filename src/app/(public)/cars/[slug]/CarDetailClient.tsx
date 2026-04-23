@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -576,9 +577,11 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                             : "border-transparent opacity-60 hover:opacity-90",
                         )}
                       >
-                        <img
+                        <Image
                           src={url}
                           alt={`썸네일 ${i + 1}`}
+                          width={80}
+                          height={45}
                           className="w-full h-full object-cover"
                         />
                       </button>

@@ -12,7 +12,7 @@ export async function GET() {
     });
 
     return NextResponse.json({ success: true, data: configs });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, data: updated });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

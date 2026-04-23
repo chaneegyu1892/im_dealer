@@ -1,7 +1,5 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, MessageSquare, Plus, RefreshCw } from "lucide-react";
-
 export type ActivityType = 'create' | 'update' | 'delete' | 'alert' | 'info';
 
 export interface AdminActivity {
@@ -57,7 +55,7 @@ export const getActivities = (): AdminActivity[] => {
       if (diff < 3600000) return { ...item, time: `${Math.floor(diff / 60000)}분 전` };
       return { ...item, time: "오늘" };
     });
-  } catch (e) {
+  } catch {
     return [];
   }
 };

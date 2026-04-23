@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, AlertCircle, Percent, ChevronDown, Check } from "lucide-react";
+import { X, AlertCircle, ChevronDown, Check } from "lucide-react";
 import { VEHICLE_BRANDS, VehicleCategory } from "@/constants/mock-data";
 import { cn } from "@/lib/utils";
 
