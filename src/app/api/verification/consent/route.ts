@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { notifyVerificationSubmitted } from "@/lib/notify";
 
 const consentSchema = z.object({
   sessionId: z.string().min(1),
@@ -42,6 +43,8 @@ export async function POST(request: NextRequest) {
         consentedAt: new Date(consentedAt),
       },
     });
+
+    void notifyVerificationSubmitted({ sessionId });
 
     return NextResponse.json(
       { success: true, data: { verificationId: record.id } },

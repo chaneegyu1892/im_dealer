@@ -8,6 +8,7 @@ import {
   type CalcInput,
   type RateConfigData,
 } from "@/lib/quote-calculator";
+import { notifyNewQuote } from "@/lib/notify";
 import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 
@@ -200,6 +201,16 @@ export async function POST(request: NextRequest) {
         vehicleSlug: input.vehicleSlug,
       },
       data: { clickedApply: true },
+    });
+
+    // 운영자 Slack 알림 (실패해도 응답에 영향 없음)
+    void notifyNewQuote({
+      quoteId: savedQuote.id,
+      vehicleName: vehicle.name,
+      trimName: trim.name,
+      monthlyPayment: savedQuote.monthlyPayment,
+      contractMonths: savedQuote.contractMonths,
+      userId: savedQuote.userId,
     });
 
     return NextResponse.json({
