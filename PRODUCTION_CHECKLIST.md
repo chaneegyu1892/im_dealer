@@ -141,12 +141,12 @@ src/app/(admin)/admin/
 
 ### 7. 환경변수 관리
 
-**현황**: `.env.local`에 실제 키 하드코딩, `.env.example` 없음
+**현황**: `.env.example`은 존재하며, 운영 배포 환경변수와 OAuth Redirect 설정은 배포 플랫폼 기준으로 별도 확인 필요
 
 **필요 작업**:
 - [ ] `.env.example` 파일 생성 (값 없이 키 목록만)
 - [ ] `.env.local`을 `.gitignore`에 추가 확인
-- [ ] Vercel 배포 시 환경변수 설정 가이드 문서화
+- [ ] Railway 배포 시 환경변수 설정 가이드 문서화
 
 **필요 환경변수 목록**:
 ```
@@ -155,9 +155,30 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 DATABASE_URL=
 DIRECT_URL=
-NEXTAUTH_SECRET=          # 인증 추가 시
-NEXTAUTH_URL=             # 인증 추가 시
+NEXT_PUBLIC_APP_URL=      # 운영: https://<railway-public-domain>
 ```
+
+### 7-1. Supabase/Kakao OAuth Redirect 설정
+
+Railway 운영 도메인에서 카카오 로그인이 `localhost`로 돌아가면 코드보다 Supabase Auth URL 설정을 먼저 확인한다.
+
+**Supabase Dashboard**
+- Authentication > URL Configuration
+- Site URL: `https://<railway-public-domain>`
+- Redirect URLs:
+  - `https://<railway-public-domain>/auth/callback`
+  - `http://localhost:3000/auth/callback` (로컬 개발 유지)
+
+**Kakao Developers**
+- Web 플랫폼 사이트 도메인: `https://<railway-public-domain>` 추가
+- Kakao Login Redirect URI: `https://<supabase-project-ref>.supabase.co/auth/v1/callback`
+- Railway 앱의 `/auth/callback`은 Kakao Redirect URI에 넣지 않는다. Supabase가 최종적으로 앱 콜백으로 보내는 목적지다.
+
+**Railway**
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_APP_URL=https://<railway-public-domain>`
+- 환경변수 변경 후 서비스 재시작 또는 재배포
 
 ---
 

@@ -18,7 +18,9 @@ export default function LoginContent() {
 
   async function handleKakaoLogin() {
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    const redirectOrigin = getAuthRedirectOrigin();
+    const redirectTo = `${redirectOrigin}/auth/callback?next=${encodeURIComponent(next)}`;
+
     await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
@@ -74,6 +76,16 @@ export default function LoginContent() {
       </div>
     </div>
   );
+}
+
+function getAuthRedirectOrigin() {
+  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim();
+
+  if (configuredOrigin) {
+    return configuredOrigin.replace(/\/+$/, "");
+  }
+
+  return window.location.origin;
 }
 
 function KakaoIcon() {
