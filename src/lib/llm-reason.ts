@@ -41,8 +41,9 @@ function buildPrompt(p: ReasonParams): string {
 let genAI: GoogleGenAI | null = null;
 
 function getGenAI(): GoogleGenAI | null {
-  if (!process.env.GOOGLE_GENAI_API_KEY) return null;
-  if (!genAI) genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY });
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_GENAI_API_KEY;
+  if (!apiKey) return null;
+  if (!genAI) genAI = new GoogleGenAI({ apiKey });
   return genAI;
 }
 

@@ -15,12 +15,15 @@ import {
   Check,
   ChevronDown,
   ClipboardCheck,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
+import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
+import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 
 // ─── 상수 ────────────────────────────────────────────────
 const CONTRACT_CATEGORIES = ["장기렌트", "리스"] as const;
@@ -302,6 +305,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     annualMileage: 20000,
     contractType: "반납형",
   });
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   // 장기렌트 선택 시 반납형 고정
   useEffect(() => {
@@ -429,6 +434,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     if (!selectedVehicle) return;
     setIsLoading(true);
     setError(null);
+    setPdfError(null);
 
     try {
       const res = await fetch(
@@ -460,6 +466,66 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       setError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handlePdfDownload() {
+    if (!quoteResult || !selectedVehicle) return;
+
+    setIsPdfDownloading(true);
+    setPdfError(null);
+
+    const selectedOptions =
+      selectedTrim?.options
+        .filter((option) => selectedOptionIds.has(option.id))
+        .map((option) => ({ name: option.name, price: option.price })) ?? [];
+
+    const payload: Partial<PDFQuoteData> = {
+      vehicleName: selectedVehicle.name,
+      vehicleBrand: selectedVehicle.brand,
+      trimName: quoteResult.trimName,
+      trimPrice: quoteResult.trimPrice,
+      selectedOptions,
+      totalVehiclePrice:
+        quoteResult.totalVehiclePrice ??
+        quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? optionsTotalPrice),
+      productType: contractCategory,
+      contractMonths: quoteResult.contractMonths,
+      annualMileage: quoteResult.annualMileage,
+      contractType: quoteResult.contractType,
+      scenarios: quoteResult.scenarios,
+    };
+
+    try {
+      const response = await fetch("/api/quote/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const json = await response.json().catch(() => null);
+        setPdfError(json?.error ?? "PDF 다운로드에 실패했습니다.");
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/)?.[1];
+      const fallbackName = `아임딜러_견적서_${selectedVehicle.name}.pdf`;
+      const filename = encodedFilename ? decodeURIComponent(encodedFilename) : fallbackName;
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setPdfError("PDF 다운로드 중 네트워크 오류가 발생했습니다.");
+    } finally {
+      setIsPdfDownloading(false);
     }
   }
 
@@ -950,12 +1016,62 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   <QuoteBreakdownTabs scenarios={quoteResult.scenarios} />
                 </div>
 
+                {selectedVehicle && (
+                  <ComparisonSection
+                    primary={{
+                      slug: selectedVehicle.slug,
+                      brand: selectedVehicle.brand,
+                      name: selectedVehicle.name,
+                      result: quoteResult,
+                    }}
+                    conditions={{
+                      contractMonths: conditions.contractMonths,
+                      annualMileage: conditions.annualMileage,
+                      contractType: conditions.contractType,
+                      productType: contractCategory,
+                    }}
+                    allVehicles={vehicles}
+                  />
+                )}
+
                 {/* 면책 안내 */}
                 <div className="bg-neutral rounded-[8px] border border-[#F0F0F0] p-4 text-[12px] text-ink-caption mb-4 leading-relaxed">
                   위 견적은 실제 계약 가능한 기준으로 계산되었으나, 최종 금액은
                   차량 상태·옵션·프로모션에 따라 달라질 수 있습니다. 전문가
                   상담을 통해 확정 견적을 받으시길 권장합니다.
                 </div>
+
+                {/* PDF 다운로드 */}
+                <button
+                  type="button"
+                  onClick={handlePdfDownload}
+                  disabled={isPdfDownloading}
+                  className={cn(
+                    "flex items-center justify-center gap-2 w-full py-3 rounded-btn border text-[14px] font-semibold transition-all duration-150 mb-2",
+                    isPdfDownloading
+                      ? "border-neutral-800 bg-neutral text-ink-caption cursor-not-allowed"
+                      : "border-primary text-primary bg-white hover:bg-primary-100 active:scale-[0.98]"
+                  )}
+                >
+                  {isPdfDownloading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                      PDF 생성 중...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={15} strokeWidth={2} />
+                      견적서 PDF 다운로드
+                    </>
+                  )}
+                </button>
+
+                {pdfError && (
+                  <div className="bg-[#FFEBEB] border border-red-100 rounded-[8px] p-3 text-[12px] text-destructive flex items-start gap-2 mb-2">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                    <p>{pdfError}</p>
+                  </div>
+                )}
 
                 {/* 계약 신청하기 */}
                 <button

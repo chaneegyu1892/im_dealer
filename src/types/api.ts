@@ -85,6 +85,8 @@ export interface QuoteResponse {
   trimId: string;
   trimName: string;
   trimPrice: number;
+  optionsTotalPrice?: number;
+  totalVehiclePrice?: number;
   contractMonths: number;
   annualMileage: number;
   contractType: string;
