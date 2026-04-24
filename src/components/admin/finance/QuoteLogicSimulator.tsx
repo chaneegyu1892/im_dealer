@@ -1,46 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, TrendingUp } from "lucide-react";
+import { Search, Loader2, ArrowRight, TrendingUp, CarFront, Landmark, Calculator } from "lucide-react";
 import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
-import type { RateSheetRaw } from "@/types/admin";
-
-interface SimulatorTrim {
-  id: string;
-  name: string;
-  price: number;
-}
-
-interface SimulatorVehicle {
-  id: string;
-  name: string;
-  brand: string;
-  surchargeRate: number;
-  trims?: SimulatorTrim[];
-}
-
-interface PolicyRate {
-  rank: number;
-  rate: number;
-}
-
-interface CapitalRateResponseRow {
-  financeCompanyId: string;
-  financeCompanyName?: string;
-  financeCompany?: { name: string; surchargeRate: number };
-  minVehiclePrice: number;
-  maxVehiclePrice: number;
-  minRateMatrix: RateSheetRaw;
-  maxRateMatrix: RateSheetRaw;
-  depositDiscountRate: number;
-  prepayAdjustRate: number;
-}
 
 export default function QuoteLogicSimulator() {
-  const [vehicles, setVehicles] = useState<SimulatorVehicle[]>([]);
-  const [selectedVehicle, setSelectedVehicle] = useState<SimulatorVehicle | null>(null);
-  const [selectedTrim, setSelectedTrim] = useState<SimulatorTrim | null>(null);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
+  const [selectedTrim, setSelectedTrim] = useState<any>(null);
   const [months, setMonths] = useState(48);
   const [mileage, setMileage] = useState(20000);
   const [depositRate, setDepositRate] = useState(0);
@@ -62,7 +30,7 @@ export default function QuoteLogicSimulator() {
         
         if (vData.success) setVehicles(vData.data);
         if (pData.success) {
-          const rates = (pData.data as PolicyRate[]).sort((a, b) => a.rank - b.rank).map((r) => r.rate);
+          const rates = pData.data.sort((a: any, b: any) => a.rank - b.rank).map((r: any) => r.rate);
           if (rates.length > 0) setRankRates(rates);
         }
       } finally {
@@ -73,14 +41,14 @@ export default function QuoteLogicSimulator() {
   }, []);
 
   // 브랜드별 그룹화
-  const groupedVehicles = vehicles.reduce<Record<string, SimulatorVehicle[]>>((acc, v) => {
+  const groupedVehicles = vehicles.reduce((acc: any, v) => {
     if (!acc[v.brand]) acc[v.brand] = [];
     acc[v.brand].push(v);
     return acc;
   }, {});
 
   const handleCalculate = async () => {
-    if (!selectedTrim || !selectedVehicle) return;
+    if (!selectedTrim) return;
     
     // 회수율 데이터 가져오기
     const res = await fetch(`/api/admin/capital-rates?trimId=${selectedTrim.id}`);
@@ -90,10 +58,10 @@ export default function QuoteLogicSimulator() {
       return;
     }
 
-    const configs: RateConfigData[] = (data.data as CapitalRateResponseRow[]).map((rs) => ({
+    const configs: RateConfigData[] = data.data.map((rs: any) => ({
       financeCompanyId: rs.financeCompanyId,
-      financeCompanyName: rs.financeCompany?.name ?? rs.financeCompanyName ?? "",
-      financeSurchargeRate: rs.financeCompany?.surchargeRate ?? 0,
+      financeCompanyName: rs.financeCompany.name,
+      financeSurchargeRate: rs.financeCompany.surchargeRate,
       minVehiclePrice: rs.minVehiclePrice,
       maxVehiclePrice: rs.maxVehiclePrice,
       minRateMatrix: rs.minRateMatrix,
@@ -129,14 +97,14 @@ export default function QuoteLogicSimulator() {
             className="w-full px-3 py-2 bg-[#F8F9FC] border border-[#E8EAF0] rounded-xl text-xs focus:outline-none focus:border-[#6066EE] appearance-none"
             onChange={(e) => {
               const v = vehicles.find(v => v.id === e.target.value);
-              setSelectedVehicle(v ?? null);
+              setSelectedVehicle(v);
               setSelectedTrim(v?.trims?.[0] || null);
             }}
           >
             <option value="">차량 선택</option>
             {Object.keys(groupedVehicles).map(brand => (
               <optgroup key={brand} label={brand}>
-                {groupedVehicles[brand].map((v) => (
+                {groupedVehicles[brand].map((v: any) => (
                   <option key={v.id} value={v.id}>{v.name}</option>
                 ))}
               </optgroup>
@@ -150,10 +118,10 @@ export default function QuoteLogicSimulator() {
             <select 
               className="w-full px-3 py-2 bg-[#F8F9FC] border border-[#E8EAF0] rounded-xl text-xs focus:outline-none focus:border-[#6066EE] appearance-none"
               value={selectedTrim?.id || ""}
-              onChange={(e) => setSelectedTrim(selectedVehicle.trims?.find((t) => t.id === e.target.value) ?? null)}
+              onChange={(e) => setSelectedTrim(selectedVehicle.trims.find((t:any) => t.id === e.target.value))}
             >
               <option value="" disabled>트림 선택</option>
-	              {selectedVehicle.trims?.map((t) => (
+              {selectedVehicle.trims?.map((t:any) => (
                 <option key={t.id} value={t.id}>
                   {t.name} ({t.price.toLocaleString()}원)
                 </option>

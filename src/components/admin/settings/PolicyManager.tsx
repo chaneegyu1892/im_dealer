@@ -1,15 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Info, RefreshCcw } from "lucide-react";
-
-interface RankSurchargeConfig {
-  rank: number;
-  rate: number;
-}
+import { Info, Save, RefreshCcw } from "lucide-react";
 
 export default function PolicyManager() {
-  const [configs, setConfigs] = useState<RankSurchargeConfig[]>([]);
+  const [configs, setConfigs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<number | null>(null);
 

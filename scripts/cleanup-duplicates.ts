@@ -43,7 +43,7 @@ async function main() {
   for (const [key, group] of lineupGroups.entries()) {
     if (group.length <= 1) continue;
 
-    const [, name] = key.split("::");
+    const [vehicleId, name] = key.split("::");
     console.log(
       `\n[중복 라인업] "${name}" × ${group.length}개 (차량: ${group[0].vehicle.name})`
     );
@@ -101,7 +101,7 @@ async function main() {
 
   const trimToDelete: string[] = [];
 
-  for (const group of trimGroups.values()) {
+  for (const [key, group] of trimGroups.entries()) {
     if (group.length <= 1) continue;
 
     const first = group[0];

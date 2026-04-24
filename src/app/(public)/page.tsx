@@ -29,7 +29,7 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
 
   const defaultTrimIds = vehicles.map((v) => v.trims[0]?.id).filter(Boolean) as string[];
   const rateSheets = defaultTrimIds.length > 0
-    ? await prisma.capitalRateSheet.findMany({
+    ? await (prisma as any).capitalRateSheet.findMany({
         where: { trimId: { in: defaultTrimIds }, isActive: true },
         select: { trimId: true, minRateMatrix: true },
       })

@@ -35,8 +35,8 @@ describe("quote-calculator", () => {
       "60_20000": 0.012,
       "60_30000": 0.013,
     },
-    depositDiscountRate: -0.0005, // 보증금 10%당 0.05% 할인
-    prepayAdjustRate: -0.0002,    // 선납금 10%당 추가 0.02% 할인
+    depositDiscountRate: -0.0005, // 보증금 10%당 0.05% 할인 (음수 저장)
+    prepayAdjustRate: 0.0002,     // 선납금 10%당 추가 0.02% 할인 (양수 저장, CLAUDE.md 규칙)
   };
 
   const defaultInput: CalcInput = {

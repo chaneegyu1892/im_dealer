@@ -1,18 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { hashIp, getClientIp } from "@/lib/ip-hash";
 import {
   calculateMultiFinanceQuote,
   type RateConfigData,
   type CalcInput,
 } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
-import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 
 const quoteSchema = z.object({
-  sessionId: z.string().min(1).optional(),
   trimId: z.string().optional(),
   selectedOptionIds: z.array(z.string()).optional(),
   extraOptionsPrice: z.number().int().min(0).optional(),
@@ -79,7 +76,7 @@ export async function POST(
 
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
-      prisma.capitalRateSheet.findMany({
+      (prisma as any).capitalRateSheet.findMany({
         where: { trimId: trim.id, isActive: true, financeCompany: { isActive: true } },
         include: { financeCompany: true },
       }),
@@ -94,14 +91,14 @@ export async function POST(
     }
 
     // 3) 데이터 매핑
-    const configs: RateConfigData[] = rateSheets.map((rs) => ({
+    const configs: RateConfigData[] = rateSheets.map((rs: any) => ({
       financeCompanyId: rs.financeCompanyId,
       financeCompanyName: rs.financeCompany.name,
       financeSurchargeRate: rs.financeCompany.surchargeRate,
       minVehiclePrice: rs.minVehiclePrice,
       maxVehiclePrice: rs.maxVehiclePrice,
-      minRateMatrix: rs.minRateMatrix as RateSheetRaw,
-      maxRateMatrix: rs.maxRateMatrix as RateSheetRaw,
+      minRateMatrix: rs.minRateMatrix,
+      maxRateMatrix: rs.maxRateMatrix,
       depositDiscountRate: rs.depositDiscountRate,
       prepayAdjustRate: rs.prepayAdjustRate,
     }));
@@ -121,7 +118,6 @@ export async function POST(
       annualMileage: number;
       contractType: string;
       bestFinanceCompany: string;
-      purchaseSurcharge: number;
       breakdown: FinanceQuoteResult["breakdown"] | null;
       surcharges: FinanceQuoteResult["surcharges"] | null;
       allFinanceResults: {
@@ -159,7 +155,6 @@ export async function POST(
           annualMileage: input.annualMileage,
           contractType: input.contractType,
           bestFinanceCompany: "",
-          purchaseSurcharge: 0,
           breakdown: null,
           surcharges: null,
           allFinanceResults: [],
@@ -168,12 +163,11 @@ export async function POST(
       }
 
       // 인수형: 잔존가치 상쇄를 위한 12% 가산 (전체 금융사 동일 적용)
-      const isPurchase = input.contractType === "인수형";
+      const purchaseFactor = input.contractType === "인수형" ? 1.12 : 1;
 
       // 1순위(최저가) 금융사 결과
       const best = results[0];
-      const purchaseSurcharge = isPurchase ? Math.round(best.monthlyPayment * 0.12) : 0;
-      const monthlyPayment = best.monthlyPayment + purchaseSurcharge;
+      const monthlyPayment = Math.round(best.monthlyPayment * purchaseFactor);
 
       scenarios[key] = {
         monthlyPayment,
@@ -183,55 +177,17 @@ export async function POST(
         annualMileage: input.annualMileage,
         contractType: input.contractType,
         bestFinanceCompany: best.financeCompanyName,
-        purchaseSurcharge,
         breakdown: best.breakdown,
         surcharges: best.surcharges,
-        allFinanceResults: results.map((r) => {
-          const rPurchase = isPurchase ? Math.round(r.monthlyPayment * 0.12) : 0;
-          return {
-            financeCompanyName: r.financeCompanyName,
-            rank: r.rank,
-            monthlyPayment: r.monthlyPayment + rPurchase,
-            baseMonthly: r.baseMonthly,
-            surcharges: r.surcharges,
-          };
-        }),
+        allFinanceResults: results.map((r) => ({
+          financeCompanyName: r.financeCompanyName,
+          rank: r.rank,
+          monthlyPayment: Math.round(r.monthlyPayment * purchaseFactor),
+          baseMonthly: r.baseMonthly,
+          surcharges: r.surcharges,
+        })),
       };
     }
-
-    // ── 견적 로그 비동기 저장 (응답 속도 영향 없음) ──
-    const ip = getClientIp(request);
-    const ipHash = hashIp(ip);
-    const userAgent = request.headers.get("user-agent") ?? undefined;
-    const logSessionId = input.sessionId ?? `anon-${Date.now()}`;
-
-    // fire-and-forget: 로그 저장 실패해도 견적 응답에 영향 없음
-    Promise.all(
-      Object.entries(scenarios).map(([scenarioType, sc]) =>
-        prisma.quoteCalcLog.create({
-          data: {
-            sessionId: logSessionId,
-            vehicleId: vehicle.id,
-            vehicleSlug: slug,
-            trimId: trim.id,
-            optionIds: input.selectedOptionIds ?? [],
-            contractMonths: input.contractMonths,
-            annualMileage: input.annualMileage,
-            depositRate: SCENARIO_CONDITIONS[scenarioType as keyof typeof SCENARIO_CONDITIONS]?.depositRate ?? 0,
-            prepayRate: SCENARIO_CONDITIONS[scenarioType as keyof typeof SCENARIO_CONDITIONS]?.prepayRate ?? 0,
-            contractType: input.contractType,
-            productType: input.productType,
-            resultMonthly: sc.monthlyPayment,
-            bestFinanceCompany: sc.bestFinanceCompany,
-            scenarioType,
-            deviceType: /Mobile|Android|iPhone/i.test(userAgent ?? "") ? "mobile" : "desktop",
-            referrer: request.headers.get("referer") ?? undefined,
-            userAgent,
-            ipHash,
-          },
-        })
-      )
-    ).catch((err) => console.error("[QuoteCalcLog] 저장 실패:", err));
 
     return NextResponse.json({
       success: true,
