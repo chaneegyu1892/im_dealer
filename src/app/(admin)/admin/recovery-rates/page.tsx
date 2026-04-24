@@ -27,7 +27,9 @@ function RecoveryRatesContent() {
   const [history, setHistory] = useState(MOCK_RECOVERY_HISTORY);
   
   const [selectedBrand, setSelectedBrand] = useState("전체");
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set(["전체"]));
   
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
@@ -40,19 +42,49 @@ function RecoveryRatesContent() {
     }
   }, [searchParams]);
 
+  // 브랜드별 모델 트리 생성
+  const vehicleTree = useMemo(() => {
+    const tree: Record<string, Set<string>> = {};
+    rates.forEach(item => {
+      if (!tree[item.brand]) tree[item.brand] = new Set();
+      tree[item.brand].add(item.vehicleName);
+    });
+    return tree;
+  }, [rates]);
+
   // 현재 선택된 브랜드 및 검색어에 맞는 데이터 필터링
   const filteredRates = useMemo(() => {
     let result = rates;
+    
+    // 검색어가 있으면 브랜드/모델 필터보다 검색 우선 (사용자 요청: 검색 기능 유지)
+    if (search) {
+      return result.filter(item => 
+        item.vehicleName.toLowerCase().includes(search.toLowerCase()) ||
+        item.brand.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
     if (selectedBrand !== "전체") {
       result = result.filter(item => item.brand === selectedBrand);
     }
-    if (search) {
-      result = result.filter(item => 
-        item.vehicleName.toLowerCase().includes(search.toLowerCase())
-      );
+    
+    if (selectedModel) {
+      result = result.filter(item => item.vehicleName === selectedModel);
     }
+    
     return result;
-  }, [rates, selectedBrand, search]);
+  }, [rates, selectedBrand, selectedModel, search]);
+
+  const toggleBrand = (brand: string) => {
+    setExpandedBrands(prev => {
+      const next = new Set(prev);
+      if (next.has(brand)) next.delete(brand);
+      else next.add(brand);
+      return next;
+    });
+    setSelectedBrand(brand);
+    setSelectedModel(null); // 브랜드 클릭 시 모델 선택 초기화
+  };
 
   const handleUpdateRate = (id: string, field: string, newValue: number) => {
     setRates(prev => prev.map(item => {
@@ -171,35 +203,85 @@ function RecoveryRatesContent() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ── 좌측 브랜드 목록 (사이드바) ── */}
-        <div className="w-[180px] bg-white border-r border-[#E8EAF0] flex flex-col shrink-0">
-          <div className="px-4 py-3 border-b border-[#F0F2F8]">
-            <h2 className="text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">브랜드 목록</h2>
+        <div className="w-[200px] bg-white border-r border-[#E8EAF0] flex flex-col shrink-0">
+          <div className="px-4 py-3 border-b border-[#F0F2F8] flex items-center justify-between">
+            <h2 className="text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">차량 탐색</h2>
+            <Layers size={12} className="text-[#9BA4C0]" />
           </div>
-          <div className="flex-1 overflow-y-auto w-full py-2">
-            {ALL_BRANDS.map((brand) => {
-               const count = brand === "전체" 
-                 ? rates.length 
-                 : rates.filter(r => r.brand === brand || (brand === "수입/기타" && !VEHICLE_BRANDS.includes(r.brand))).length;
+          <div className="flex-1 overflow-y-auto w-full py-2 custom-scrollbar">
+            {/* 전체 선택 */}
+            <button
+              onClick={() => {
+                setSelectedBrand("전체");
+                setSelectedModel(null);
+                setSearch("");
+              }}
+              className={cn(
+                "w-full flex items-center justify-between px-4 py-2.5 text-[13px] font-medium transition-colors",
+                selectedBrand === "전체" && !search
+                  ? "bg-[#F4F5F8] text-[#000666] border-r-2 border-[#000666]"
+                  : "text-[#4A5270] hover:bg-[#FAFBFF]"
+              )}
+            >
+              <span>전체 보기</span>
+              <span className="text-[10px] text-[#9BA4C0]">{rates.length}</span>
+            </button>
+
+            <div className="my-1 border-t border-[#F0F2F8]" />
+
+            {VEHICLE_BRANDS.map((brand) => {
+               const models = Array.from(vehicleTree[brand] || []);
+               const isExpanded = expandedBrands.has(brand);
+               const isSelected = selectedBrand === brand;
                
                return (
-                 <button
-                   key={brand}
-                   onClick={() => setSelectedBrand(brand)}
-                   className={cn(
-                     "w-full flex items-center justify-between px-4 py-3 text-[13px] font-medium transition-colors",
-                     selectedBrand === brand
-                       ? "bg-[#F4F5F8] text-[#000666] border-r-2 border-[#000666]"
-                       : "text-[#4A5270] hover:bg-[#FAFBFF] hover:text-[#1A1A2E]"
-                   )}
-                 >
-                   <span className="truncate">{brand}</span>
-                   <span className={cn(
-                     "text-[10px] px-1.5 py-0.5 rounded-[4px]",
-                     selectedBrand === brand ? "bg-[#000666] text-white" : "bg-[#F0F2F8] text-[#9BA4C0]"
-                   )}>
-                     {count}
-                   </span>
-                 </button>
+                 <div key={brand} className="flex flex-col">
+                   <button
+                     onClick={() => toggleBrand(brand)}
+                     className={cn(
+                       "w-full flex items-center justify-between px-4 py-2.5 text-[13px] font-semibold transition-colors",
+                       isSelected && !selectedModel
+                         ? "text-[#000666]" 
+                         : "text-[#1A1A2E] hover:bg-[#FAFBFF]"
+                     )}
+                   >
+                     <div className="flex items-center gap-2">
+                       {isExpanded ? <ChevronDown size={14} className="text-[#9BA4C0]" /> : <ChevronRight size={14} className="text-[#9BA4C0]" />}
+                       <span>{brand}</span>
+                     </div>
+                     <span className="text-[10px] text-[#9BA4C0]">{models.length}</span>
+                   </button>
+                   
+                   <AnimatePresence>
+                     {isExpanded && (
+                       <motion.div
+                         initial={{ height: 0, opacity: 0 }}
+                         animate={{ height: "auto", opacity: 1 }}
+                         exit={{ height: 0, opacity: 0 }}
+                         className="overflow-hidden bg-[#F9FAFC]"
+                       >
+                         {models.map(model => (
+                           <button
+                             key={model}
+                             onClick={() => {
+                               setSelectedBrand(brand);
+                               setSelectedModel(model);
+                               setSearch(""); // 모델 선택 시 검색어 초기화 (또는 유지 가능)
+                             }}
+                             className={cn(
+                               "w-full flex items-center pl-9 pr-4 py-2 text-[12px] transition-colors text-left",
+                               selectedModel === model
+                                 ? "text-[#000666] font-bold bg-[#E5E5FA]"
+                                 : "text-[#6B7399] hover:bg-[#F0F2F8] hover:text-[#1A1A2E]"
+                             )}
+                           >
+                             <span className="truncate">{model.replace(brand, '').trim() || model}</span>
+                           </button>
+                         ))}
+                       </motion.div>
+                     )}
+                   </AnimatePresence>
+                 </div>
                )
             })}
           </div>
@@ -212,7 +294,7 @@ function RecoveryRatesContent() {
             <RecoveryRateTable 
               data={filteredRates} 
               onUpdateRate={handleUpdateRate} 
-              currentBrand={selectedBrand}
+              currentBrand={selectedModel || selectedBrand}
             />
           </div>
         </div>

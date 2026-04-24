@@ -115,7 +115,7 @@ export default function AnalyticsPage() {
     <div
       id="analytics-report"
       ref={printRef}
-      className="flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm"
+      className="flex flex-col h-full bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm rounded-[16px]"
       style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}
     >
       {/* 헤더 */}

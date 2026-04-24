@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, User, ShieldCheck, Settings2, Sparkles } from "lucide-react";
-import PolicyManager from "@/components/admin/settings/PolicyManager";
 import AdminManager from "@/components/admin/settings/AdminManager";
 import { Check } from "lucide-react";
 
@@ -81,7 +80,6 @@ export default function AdminSettingsPage() {
 
   const tabs = [
     { id: "profile", label: "내 정보 설정", icon: User },
-    { id: "policy", label: "운영 정책 관리", icon: Settings2, hide: info?.role !== "admin" },
     { id: "admins", label: "운영자 권한 관리", icon: ShieldCheck, hide: info?.role !== "admin" },
   ];
 
@@ -192,11 +190,6 @@ export default function AdminSettingsPage() {
             </div>
           )}
 
-          {activeTab === "policy" && info?.role === "admin" && (
-            <div className="animate-in slide-in-from-right-4 duration-300">
-              <PolicyManager />
-            </div>
-          )}
 
           {activeTab === "admins" && info?.role === "admin" && (
             <div className="animate-in slide-in-from-right-4 duration-300">

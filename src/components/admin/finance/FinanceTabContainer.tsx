@@ -21,7 +21,7 @@ export default function FinanceTabContainer({ financeCompanies, vehicles }: Prop
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 h-full overflow-hidden">
       {/* 상단 탭 네비게이션 */}
       <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-[#E8EAF0] self-start shadow-sm">
         {tabs.map((tab) => (
@@ -41,7 +41,7 @@ export default function FinanceTabContainer({ financeCompanies, vehicles }: Prop
       </div>
 
       {/* 컨텐츠 렌더링 */}
-      <div className="flex-1">
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
         {activeTab === "simulator" && (
           <div className="animate-in fade-in duration-300">
             <QuoteLogicSimulator />

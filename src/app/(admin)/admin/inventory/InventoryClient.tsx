@@ -346,6 +346,43 @@ export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] 
     return vehicleOptions.filter(v => v.brand === selectedBrand);
   }, [vehicleOptions, selectedBrand]);
 
+  // ─── 등록 수 기준 정렬된 목록 ───────────────────────────
+  const sortedFinances = useMemo(() => {
+    return [...finances].sort((a, b) => {
+      const countA = items
+        .filter(i => i.financeCompany === a && (!selectedBrand || i.brand === selectedBrand))
+        .reduce((s, i) => s + i.quantity, 0);
+      const countB = items
+        .filter(i => i.financeCompany === b && (!selectedBrand || i.brand === selectedBrand))
+        .reduce((s, i) => s + i.quantity, 0);
+      return countB - countA;
+    });
+  }, [finances, items, selectedBrand]);
+
+  const sortedBrands = useMemo(() => {
+    return [...brands].sort((a, b) => {
+      const countA = items
+        .filter(i => (selectedFC === "전체" || i.financeCompany === selectedFC) && i.brand === a)
+        .reduce((s, i) => s + i.quantity, 0);
+      const countB = items
+        .filter(i => (selectedFC === "전체" || i.financeCompany === selectedFC) && i.brand === b)
+        .reduce((s, i) => s + i.quantity, 0);
+      return countB - countA;
+    });
+  }, [brands, items, selectedFC]);
+
+  const sortedBrandOptions = useMemo(() => {
+    return [...currentBrandOptions].sort((a, b) => {
+      const countA = items
+        .filter(i => (selectedFC === "전체" || i.financeCompany === selectedFC) && i.vehicleName === a.label)
+        .reduce((s, i) => s + i.quantity, 0);
+      const countB = items
+        .filter(i => (selectedFC === "전체" || i.financeCompany === selectedFC) && i.vehicleName === b.label)
+        .reduce((s, i) => s + i.quantity, 0);
+      return countB - countA;
+    });
+  }, [currentBrandOptions, items, selectedFC]);
+
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleOption | null>(null);
 
   useEffect(() => {
@@ -530,7 +567,7 @@ export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] 
   const formDetails = form.vehicleName ? vehicleDetails[form.vehicleName] : null;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm">
+    <div className="flex flex-col h-full bg-[#F8F9FC] rounded-[16px] border border-[#E8EAF0] overflow-hidden shadow-sm">
 
       {/* ── 1. 표준 헤더 & KPI ── */}
       <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 flex items-center justify-between shrink-0 z-20">
@@ -577,7 +614,7 @@ export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] 
               </span>
             </button>
 
-            {finances.map((fc) => {
+            {sortedFinances.map((fc) => {
               const count = items
                 .filter(i => i.financeCompany === fc && (!selectedBrand || i.brand === selectedBrand))
                 .reduce((sum, item) => sum + item.quantity, 0);
@@ -624,7 +661,7 @@ export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] 
                 <button
                   onClick={() => setSelectedBrand("")}
                   className={cn(
-                    "px-3 py-1.5 text-[12px] font-bold rounded-[6px] transition-colors flex items-center gap-2",
+                    "px-2.5 py-1 text-[11px] font-bold rounded-[6px] transition-colors flex items-center gap-2",
                     selectedBrand === "" ? "bg-[#000666] text-white" : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#E8EAF0]"
                   )}
                 >
@@ -644,12 +681,12 @@ export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] 
                   })()}
                 </button>
 
-                {brands.map(brand => (
+                {sortedBrands.map(brand => (
                   <div key={brand} className="group/br relative">
                     <button
                       onClick={() => setSelectedBrand(brand)}
                       className={cn(
-                        "px-3 py-1.5 text-[12px] font-bold rounded-[6px] transition-colors flex items-center gap-2",
+                        "px-2.5 py-1 text-[11px] font-bold rounded-[6px] transition-colors flex items-center gap-2",
                         selectedBrand === brand ? "bg-[#E5E5FA] text-[#000666]" : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#E8EAF0]"
                       )}
                     >
@@ -689,7 +726,7 @@ export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] 
                 <button
                   onClick={() => { setSelectedVehicle(null); setSearch(""); }}
                   className={cn(
-                    "px-4 py-2 text-[13px] font-bold rounded-full whitespace-nowrap transition-colors border flex items-center gap-2",
+                    "px-3.5 py-1.5 text-[12px] font-bold rounded-full whitespace-nowrap transition-colors border flex items-center gap-2",
                     selectedVehicle === null
                       ? "bg-[#1A1A2E] text-white border-[#1A1A2E]"
                       : "bg-white text-[#6B7399] border-[#E8EAF0] hover:border-[#C0C5DC] hover:text-[#1A1A2E]"
@@ -714,12 +751,12 @@ export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] 
                   })()}
                 </button>
 
-                {currentBrandOptions.map((v) => (
+                {sortedBrandOptions.map((v) => (
                   <div key={v.label} className="group relative shrink-0">
                     <button
                       onClick={() => { setSelectedVehicle(v); setSearch(""); }}
                       className={cn(
-                        "px-4 py-2 text-[13px] font-bold rounded-full whitespace-nowrap transition-colors border pr-8 relative flex items-center gap-2",
+                        "px-3.5 py-1.5 text-[12px] font-bold rounded-full whitespace-nowrap transition-colors border pr-8 relative flex items-center gap-2",
                         selectedVehicle?.label === v.label
                           ? "bg-[#1A1A2E] text-white border-[#1A1A2E]"
                           : "bg-white text-[#6B7399] border-[#E8EAF0] hover:border-[#C0C5DC] hover:text-[#1A1A2E]"
