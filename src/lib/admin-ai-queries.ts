@@ -1,5 +1,4 @@
 import { prisma } from "./prisma";
-import type { RecommendationLog } from "@prisma/client";
 
 export interface AiInsightData {
   totalRecommendations: number;
@@ -16,7 +15,7 @@ export interface AiInsightData {
     clickCount: number;
     ctr: number;
   }[];
-  recentLogs: RecommendationLog[];
+  recentLogs: any[];
 }
 
 export async function getAiInsights(): Promise<AiInsightData> {

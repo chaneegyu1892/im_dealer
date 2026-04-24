@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/require-admin";
@@ -11,7 +11,7 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -70,7 +70,7 @@ export async function PATCH(
 }
 
 export async function GET(
-  _request: Request,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -86,4 +86,21 @@ export async function GET(
   }
 
   return NextResponse.json({ success: true, data: quote });
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const { error } = await requireAdmin();
+  if (error) return error;
+
+  try {
+    await prisma.savedQuote.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("[DELETE /api/admin/quotes/[id]]", err);
+    return NextResponse.json({ error: "견적을 삭제하는 중 오류가 발생했습니다." }, { status: 500 });
+  }
 }

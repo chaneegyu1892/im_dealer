@@ -98,12 +98,9 @@ function applyPrepay(
   const steps = prepayRate / 10;
   const prepayAmount = Math.round(vehiclePrice * (prepayRate / 100));
   const prepayDeduction = prepayAmount / contractMonths;
-  // 선납금 추가 할인 = (차량가 * 선납금조정회수율) * 단계
   const adjustAmount = vehiclePrice * prepayAdjustRate * steps;
-  // 기존 수식에서 adjustAmount가 음수(할인)인데 빼기를 해서 오히려 값이 증가하는 문제가 있었음. 
-  // prepayAdjustRate가 음수이므로 더해주어야(+) 값이 작아짐(할인됨).
-  const monthly = baseMonthly - prepayDeduction + adjustAmount;
-  return { monthly, prepayAmount, adjust: -(prepayDeduction) + adjustAmount };
+  const monthly = baseMonthly - prepayDeduction - adjustAmount;
+  return { monthly, prepayAmount, adjust: -(prepayDeduction + adjustAmount) };
 }
 
 // ─── 다중 금융사 견적 계산 (메인 함수) ──────────────────
@@ -327,7 +324,7 @@ export function calcDepositDiscountRate(
     const base = baseRates[key] ?? 0;
     const dep = depositRates[key] ?? 0;
     if (base > 0 && dep > 0) {
-      discounts.push((dep - base) / vehicleBasePrice);
+      discounts.push((base - dep) / vehicleBasePrice);
     }
   }
   if (discounts.length === 0) return 0;

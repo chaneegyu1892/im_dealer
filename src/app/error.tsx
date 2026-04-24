@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { AlertCircle, RefreshCw, Home } from "lucide-react";
 
 interface ErrorProps {
@@ -40,13 +41,13 @@ export default function GlobalError({ error, reset }: ErrorProps) {
             <RefreshCw size={16} />
             다시 시도
           </button>
-          <a
+          <Link
             href="/"
             className="btn-secondary inline-flex items-center gap-2"
           >
             <Home size={16} />
             홈으로
-          </a>
+          </Link>
         </div>
 
         {/* 에러 다이제스트 (디버깅용) */}

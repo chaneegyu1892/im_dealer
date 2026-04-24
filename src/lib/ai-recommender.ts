@@ -22,7 +22,6 @@ import type {
   RecommendedVehicleDetail,
   RecommendScenarios,
 } from "@/types/recommendation";
-import type { RateSheetRaw } from "@/types/admin";
 
 interface ScoredVehicle {
   vehicleId: string;
@@ -50,7 +49,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
   });
 
   // 2) 활성 capitalRateSheet 전체 조회 (trimId → RateConfigData[] 맵)
-  const allSheets = await prisma.capitalRateSheet.findMany({
+  const allSheets = await (prisma as any).capitalRateSheet.findMany({
     where: { isActive: true, financeCompany: { isActive: true } },
     include: { financeCompany: true },
   });
@@ -72,8 +71,8 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       financeSurchargeRate: rs.financeCompany.surchargeRate,
       minVehiclePrice: rs.minVehiclePrice,
       maxVehiclePrice: rs.maxVehiclePrice,
-      minRateMatrix: rs.minRateMatrix as RateSheetRaw,
-      maxRateMatrix: rs.maxRateMatrix as RateSheetRaw,
+      minRateMatrix: rs.minRateMatrix,
+      maxRateMatrix: rs.maxRateMatrix,
       depositDiscountRate: rs.depositDiscountRate,
       prepayAdjustRate: rs.prepayAdjustRate,
     };
@@ -104,12 +103,14 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     if (!configs || configs.length === 0) continue;
 
     // 최저가 금융사 찾기 (표준형, 48개월 기준)
+    let bestConfig = configs[0];
     let bestMonthly = Infinity;
 
     for (const cfg of configs) {
       const monthly = estimateMonthly(defaultTrim.price, cfg, 48, mileageKey);
       if (monthly > 0 && monthly < bestMonthly) {
         bestMonthly = monthly;
+        bestConfig = cfg;
       }
     }
 

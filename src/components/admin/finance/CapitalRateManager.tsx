@@ -70,8 +70,12 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   // 차량 선택 시 상세(라인업+트림) 로드
   useEffect(() => {
     if (!selectedVehicleId) {
+      setVehicleDetail(null);
+      setSelectedLineupId("");
+      setSelectedTrimId("");
       return;
     }
+    setLoadingDetail(true);
     fetch(`/api/admin/vehicles/${selectedVehicleId}`)
       .then((r) => r.json())
       .then((res) => {
@@ -84,6 +88,9 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       .catch(console.error)
       .finally(() => setLoadingDetail(false));
   }, [selectedVehicleId]);
+
+  // 라인업 변경 시 트림 초기화
+  useEffect(() => { setSelectedTrimId(""); }, [selectedLineupId]);
 
   // 현재 라인업의 트림 목록
   const trimsInLineup = useMemo<TrimBasic[]>(() => {
@@ -139,21 +146,6 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     handleSaved();
   };
 
-  const handleSelectVehicle = (vehicleId: string) => {
-    setSelectedVehicleId(vehicleId);
-    setVehicleDetail(null);
-    setSelectedLineupId("");
-    setSelectedTrimId("");
-    setLoadingDetail(true);
-    setShowHistory(false);
-  };
-
-  const handleSelectLineup = (lineupId: string) => {
-    setSelectedLineupId(lineupId);
-    setSelectedTrimId("");
-    setShowHistory(false);
-  };
-
   return (
     <div className="flex gap-6 h-full">
       {/* ── 좌측: 캐피탈사 + 차량/라인업/트림 선택 ── */}
@@ -206,7 +198,10 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                       {brandVehicles.map((v) => (
                         <button
                           key={v.id}
-	                          onClick={() => handleSelectVehicle(v.id)}
+                          onClick={() => {
+                            setSelectedVehicleId(v.id);
+                            setShowHistory(false);
+                          }}
                           className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
                             selectedVehicleId === v.id
                               ? "bg-[#6066EE] text-white font-medium"
@@ -237,7 +232,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                   {vehicleDetail.lineups.map((lineup: VehicleLineup) => (
                     <button
                       key={lineup.id}
-	                      onClick={() => handleSelectLineup(lineup.id)}
+                      onClick={() => setSelectedLineupId(lineup.id)}
                       className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                         selectedLineupId === lineup.id
                           ? "bg-[#000666] text-white border-[#000666]"

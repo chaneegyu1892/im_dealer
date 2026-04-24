@@ -391,6 +391,9 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
     return {
       id: q.id,
       sessionId: q.sessionId,
+      userId: q.userId,
+      customerName: q.customerName,
+      phone: q.phone,
       vehicleId: q.vehicleId,
       vehicleName: vehicle?.name ?? "삭제된 차량",
       vehicleBrand: vehicle?.brand ?? "",
@@ -403,10 +406,10 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       contractType: q.contractType,
       monthlyPayment: q.monthlyPayment,
       totalCost: q.totalCost,
-      createdAt: q.createdAt.toISOString(),
-      status: q.status,
+      status: q.status as AdminSavedQuote["status"],
       assigneeId: q.assigneeId,
       internalMemo: q.internalMemo,
+      createdAt: q.createdAt.toISOString(),
     };
   });
 
@@ -414,6 +417,8 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
 }
 
 // ─── Inventory (재고 관리) ──────────────────────────────
+export interface AdminInventoryItem extends AdminInventory {}
+
 export async function getAdminInventory(): Promise<AdminInventory[]> {
   const inventory = await prisma.inventory.findMany({
     orderBy: { updatedAt: "desc" },

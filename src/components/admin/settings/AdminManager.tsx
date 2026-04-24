@@ -1,19 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserPlus, Mail, Calendar, Power } from "lucide-react";
-
-interface AdminAccount {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  isActive: boolean;
-  createdAt: string;
-}
+import { UserPlus, ShieldCheck, Mail, Calendar, Power, MoreVertical } from "lucide-react";
 
 export default function AdminManager() {
-  const [admins, setAdmins] = useState<AdminAccount[]>([]);
+  const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -51,7 +42,7 @@ export default function AdminManager() {
         const d = await res.json();
         alert(d.error || "추가 실패");
       }
-    } catch {
+    } catch (error) {
       alert("오류 발생");
     }
   };
@@ -64,7 +55,7 @@ export default function AdminManager() {
         body: JSON.stringify({ id, isActive: !currentStatus }),
       });
       fetchAdmins();
-    } catch {
+    } catch (error) {
       alert("상태 변경 실패");
     }
   };

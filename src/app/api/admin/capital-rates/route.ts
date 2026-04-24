@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       ...(!history ? { isActive: true } : {}),
     };
 
-    const rows = await prisma.capitalRateSheet.findMany({
+    const rows = await (prisma as any).capitalRateSheet.findMany({
       where,
       orderBy: { weekOf: "desc" },
       include: {
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const data = rows.map((r) => ({
+    const data = rows.map((r: any) => ({
       id: r.id,
       financeCompanyId: r.financeCompanyId,
       financeCompanyName: r.financeCompany.name,
@@ -122,18 +122,13 @@ export async function POST(request: NextRequest) {
     const minRateMatrix = calcRateMatrix(minBaseRates, minVehiclePrice);
     const maxRateMatrix = calcRateMatrix(maxBaseRates, maxVehiclePrice);
 
-    // 보증금/선납금 조정률: min·max 각각 계산 후 평균 (차량가 범위 전체 반영)
-    const depositMin = calcDepositDiscountRate(minBaseRates, minDepositRates, minVehiclePrice);
-    const depositMax = calcDepositDiscountRate(maxBaseRates, maxDepositRates, maxVehiclePrice);
-    const depositDiscountRate = Math.round(((depositMin + depositMax) / 2) * 100_000) / 100_000;
-
-    const prepayMin = calcPrepayAdjustRate(minBaseRates, minPrepayRates, minVehiclePrice);
-    const prepayMax = calcPrepayAdjustRate(maxBaseRates, maxPrepayRates, maxVehiclePrice);
-    const prepayAdjustRate = Math.round(((prepayMin + prepayMax) / 2) * 100_000) / 100_000;
+    const depositDiscountRate = calcDepositDiscountRate(minBaseRates, minDepositRates, minVehiclePrice);
+    const prepayAdjustRate = calcPrepayAdjustRate(minBaseRates, minPrepayRates, minVehiclePrice);
 
     const weekDate = new Date(weekOf);
-    
-    const existing = await prisma.capitalRateSheet.findUnique({
+    const db = prisma as any;
+
+    const existing = await db.capitalRateSheet.findUnique({
       where: {
         financeCompanyId_trimId_weekOf: { financeCompanyId, trimId, weekOf: weekDate },
       },
@@ -158,16 +153,16 @@ export async function POST(request: NextRequest) {
 
     let sheet;
     if (existing) {
-      sheet = await prisma.capitalRateSheet.update({
+      sheet = await db.capitalRateSheet.update({
         where: { id: existing.id },
         data: sheetData,
       });
     } else {
-      await prisma.capitalRateSheet.updateMany({
+      await db.capitalRateSheet.updateMany({
         where: { financeCompanyId, trimId, isActive: true },
         data: { isActive: false },
       });
-      sheet = await prisma.capitalRateSheet.create({
+      sheet = await db.capitalRateSheet.create({
         data: { financeCompanyId, trimId, weekOf: weekDate, ...sheetData },
       });
     }
