@@ -12,7 +12,7 @@ export async function GET() {
     });
 
     return NextResponse.json({ success: true, data: financeCompanies });
-  } catch {
+  } catch (error) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

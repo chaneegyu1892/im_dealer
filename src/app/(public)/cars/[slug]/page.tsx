@@ -1,35 +1,3 @@
-import type { Metadata } from "next";
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
-  const { slug } = await params;
-  const vehicle = await prisma.vehicle.findUnique({
-    where: { slug },
-    select: { name: true, brand: true, category: true, description: true, thumbnailUrl: true },
-  });
-
-  if (!vehicle) {
-    return { title: "차량을 찾을 수 없습니다" };
-  }
-
-  const title = `${vehicle.name} 장기렌트·리스 견적`;
-  const description = vehicle.description
-    ?? `${vehicle.brand} ${vehicle.name} ${vehicle.category} 장기렌트·리스 실시간 견적을 확인하세요. 허위견적 없는 AI 기반 투명한 견적 서비스.`;
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title: `${title} | 아임딜러`,
-      description,
-      images: vehicle.thumbnailUrl ? [{ url: vehicle.thumbnailUrl }] : [],
-    },
-  };
-}
-
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
@@ -38,7 +6,6 @@ import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import type { RecommendScenarios } from "@/types/recommendation";
-import type { RateSheetRaw } from "@/types/admin";
 import { notFound } from "next/navigation";
 import { CarDetailClient } from "./CarDetailClient";
 
@@ -64,22 +31,24 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
 
   let scenarios: RecommendScenarios | null = null;
   let bestFinanceName: string | null = null;
-  const rateSheets = defaultTrim
-    ? await prisma.capitalRateSheet.findMany({
-        where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
-        include: { financeCompany: true },
-      })
-    : [];
+  let rateSheets: any[] = [];
+
+  if (defaultTrim) {
+    rateSheets = await (prisma as any).capitalRateSheet.findMany({
+      where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
+      include: { financeCompany: true },
+    });
+  }
 
   if (defaultTrim && rateSheets.length > 0) {
-    const configs: RateConfigData[] = rateSheets.map((rs) => ({
+    const configs: RateConfigData[] = rateSheets.map((rs: any) => ({
       financeCompanyId: rs.financeCompanyId,
       financeCompanyName: rs.financeCompany.name,
       financeSurchargeRate: rs.financeCompany.surchargeRate,
       minVehiclePrice: rs.minVehiclePrice,
       maxVehiclePrice: rs.maxVehiclePrice,
-      minRateMatrix: rs.minRateMatrix as RateSheetRaw,
-      maxRateMatrix: rs.maxRateMatrix as RateSheetRaw,
+      minRateMatrix: rs.minRateMatrix,
+      maxRateMatrix: rs.maxRateMatrix,
       depositDiscountRate: rs.depositDiscountRate,
       prepayAdjustRate: rs.prepayAdjustRate,
     }));

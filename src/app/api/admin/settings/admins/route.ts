@@ -24,7 +24,7 @@ export async function GET() {
     });
 
     return NextResponse.json({ success: true, data: admins });
-  } catch {
+  } catch (error) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
@@ -86,7 +86,7 @@ export async function PATCH(req: Request) {
     });
 
     return NextResponse.json({ success: true, data: updated });
-  } catch {
+  } catch (error) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

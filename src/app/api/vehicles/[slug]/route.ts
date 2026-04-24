@@ -1,15 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
-  calculateMultiFinanceQuote,
+  calculateScenarios,
+  estimateMonthly,
   type RateConfigData,
-  type CalcInput,
 } from "@/lib/quote-calculator";
-import type { RateSheetRaw } from "@/types/admin";
-import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 
 // ─── GET /api/vehicles/:slug ────────────────────────────
-// 차량 상세 + 기본 트림 기준 시나리오 견적 (전체 파이프라인: 가산율 포함)
+// 차량 상세 + 기본 트림 기준 시나리오 견적
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -42,84 +40,41 @@ export async function GET(
     const defaultTrim = vehicle.trims.find((t) => t.isDefault) ?? vehicle.trims[0];
 
     let scenarios = null;
-    let bestFinanceName: string | null = null;
-    const rateSheets = defaultTrim
-      ? await prisma.capitalRateSheet.findMany({
-          where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
-          include: { financeCompany: true },
-        })
-      : [];
+    let bestFinanceName = null;
+    let rateSheets: any[] = [];
+
+    if (defaultTrim) {
+      rateSheets = await (prisma as any).capitalRateSheet.findMany({
+        where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
+        include: { financeCompany: true },
+      });
+    }
 
     if (defaultTrim && rateSheets.length > 0) {
-      const configs: RateConfigData[] = rateSheets.map((rs) => ({
+      const configs: RateConfigData[] = rateSheets.map((rs: any) => ({
         financeCompanyId: rs.financeCompanyId,
         financeCompanyName: rs.financeCompany.name,
         financeSurchargeRate: rs.financeCompany.surchargeRate,
         minVehiclePrice: rs.minVehiclePrice,
         maxVehiclePrice: rs.maxVehiclePrice,
-        minRateMatrix: rs.minRateMatrix as RateSheetRaw,
-        maxRateMatrix: rs.maxRateMatrix as RateSheetRaw,
+        minRateMatrix: rs.minRateMatrix,
+        maxRateMatrix: rs.maxRateMatrix,
         depositDiscountRate: rs.depositDiscountRate,
         prepayAdjustRate: rs.prepayAdjustRate,
       }));
 
-      // 순위 가산율: DB → fallback 상수
-      const rankSurcharges = await prisma.rankSurchargeConfig.findMany({
-        orderBy: { rank: "asc" },
-      });
-      const rankRates = rankSurcharges.length > 0
-        ? rankSurcharges.map((r) => r.rate)
-        : [...RANK_SURCHARGE_RATES];
-
-      // 시나리오별 전체 파이프라인 (순위가산 + 차량가산 + 금융사가산 포함)
-      const scenarioConditions = [
-        { key: "conservative", depositRate: 20, prepayRate: 0 },
-        { key: "standard",     depositRate: 0,  prepayRate: 0 },
-        { key: "aggressive",   depositRate: 0,  prepayRate: 30 },
-      ] as const;
-
-      const builtScenarios: Record<string, {
-        monthlyPayment: number;
-        depositAmount: number;
-        prepayAmount: number;
-        contractMonths: number;
-        annualMileage: number;
-        contractType: string;
-      }> = {};
-
-      for (const sc of scenarioConditions) {
-        const calcInput: CalcInput = {
-          vehiclePrice: defaultTrim.price,
-          contractMonths: 48,
-          annualMileage: 20000,
-          depositRate: sc.depositRate,
-          prepayRate: sc.prepayRate,
-          vehicleSurchargeRate: vehicle.surchargeRate,
-          rankSurchargeRates: rankRates,
-          rateConfigs: configs,
-        };
-
-        const results = calculateMultiFinanceQuote(calcInput);
-        const best = results[0];
-
-        if (best) {
-          if (sc.key === "conservative" || !bestFinanceName) {
-            bestFinanceName = best.financeCompanyName;
-          }
-          builtScenarios[sc.key] = {
-            monthlyPayment: best.monthlyPayment,
-            depositAmount: best.breakdown.depositAmount,
-            prepayAmount: best.breakdown.prepayAmount,
-            contractMonths: 48,
-            annualMileage: 20000,
-            contractType: "반납형",
-          };
+      let bestConfig = configs[0];
+      let bestMonthly = Infinity;
+      for (const cfg of configs) {
+        const monthly = estimateMonthly(defaultTrim.price, cfg, 48, 20000);
+        if (monthly > 0 && monthly < bestMonthly) {
+          bestMonthly = monthly;
+          bestConfig = cfg;
         }
       }
 
-      if (Object.keys(builtScenarios).length === 3) {
-        scenarios = builtScenarios;
-      }
+      scenarios = calculateScenarios(defaultTrim.price, bestConfig, 20000, 48);
+      bestFinanceName = bestConfig.financeCompanyName;
     }
 
     const recConfig = vehicle.recConfigs ?? null;

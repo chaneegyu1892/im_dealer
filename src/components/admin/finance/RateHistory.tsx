@@ -115,7 +115,7 @@ export default function RateHistory({ sheets, onActivate, onDelete }: Props) {
                       <td className="py-1.5 text-[#9BA4C0] font-medium">{MILEAGE_LABELS[mileage]}</td>
                       {MONTHS.map((months) => {
                         const key = `${months}_${mileage}` as RateSheetKey;
-                        const val = sheet.minRateMatrix[key];
+                        const val = (sheet.minRateMatrix as any)?.[key];
                         return (
                           <td key={months} className="py-1.5 text-center font-bold text-[#000666]">
                             {val ? (val * 100).toFixed(3) + "%" : "-"}
@@ -146,7 +146,7 @@ export default function RateHistory({ sheets, onActivate, onDelete }: Props) {
                       <td className="py-1.5 text-orange-400 font-medium">{MILEAGE_LABELS[mileage]}</td>
                       {MONTHS.map((months) => {
                         const key = `${months}_${mileage}` as RateSheetKey;
-                        const val = sheet.maxRateMatrix[key];
+                        const val = (sheet.maxRateMatrix as any)?.[key];
                         return (
                           <td key={months} className="py-1.5 text-center font-bold text-orange-700">
                             {val ? (val * 100).toFixed(3) + "%" : "-"}
