@@ -19,13 +19,13 @@ export async function GET(request: NextRequest) {
   const trimId = searchParams.get("trimId");
   const history = searchParams.get("history") === "true";
 
-  if (!financeCompanyId) {
-    return NextResponse.json({ error: "financeCompanyId가 필요합니다." }, { status: 400 });
+  if (!financeCompanyId && !trimId) {
+    return NextResponse.json({ error: "financeCompanyId 또는 trimId가 필요합니다." }, { status: 400 });
   }
 
   try {
     const where = {
-      financeCompanyId,
+      ...(financeCompanyId ? { financeCompanyId } : {}),
       ...(trimId ? { trimId } : {}),
       ...(!history ? { isActive: true } : {}),
     };
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: { weekOf: "desc" },
       include: {
-        financeCompany: { select: { name: true } },
+        financeCompany: { select: { name: true, surchargeRate: true } },
         trim: {
           include: {
             vehicle: { select: { name: true, brand: true } },
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const data = rows.map((r: any) => ({
       id: r.id,
       financeCompanyId: r.financeCompanyId,
-      financeCompanyName: r.financeCompany.name,
+      financeCompany: { name: r.financeCompany.name, surchargeRate: r.financeCompany.surchargeRate },
       trimId: r.trimId,
       trimName: r.trim.name,
       vehicleName: r.trim.vehicle.name,
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       createdAt: r.createdAt.toISOString(),
     }));
 
-    return NextResponse.json(data);
+    return NextResponse.json({ success: true, data });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "조회 실패" }, { status: 500 });

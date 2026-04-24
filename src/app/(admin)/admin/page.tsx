@@ -307,7 +307,7 @@ export default function AdminDashboard() {
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm">
+    <div className="flex flex-col h-full bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm rounded-[16px]">
 
       {/* ── 1. 표준 헤더 ────────────────────────────────────── */}
       <div className="bg-white border-b border-[#E8EAF0] px-6 py-3.5 flex items-center justify-between shrink-0 z-20">

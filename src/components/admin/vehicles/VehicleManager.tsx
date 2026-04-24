@@ -110,7 +110,7 @@ export function VehicleManager({ initialVehicles, initialBrands, initialSelected
   };
 
   return (
-    <div className="p-5 h-[calc(100vh-32px)]">
+    <div className="h-full">
       <div
         className="bg-white rounded-[16px] border border-[#E8EAF0] flex h-full overflow-hidden"
         style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}

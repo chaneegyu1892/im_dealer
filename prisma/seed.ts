@@ -461,6 +461,85 @@ const vehicles: VehicleSeed[] = [
  *   20000km: 기준
  *   30000km: 차량 소모 커 잔존가치 낮음 → 약 +5% 회수율
  */
+function generateRateMatrix(baseRate: number): Record<string, Record<string, number>> {
+  // 계약기간별 조정 (baseRate 대비 절대값 조정)
+  const monthsAdjust: Record<string, number> = {
+    "36": baseRate * 0.20,   // +20%: 36개월은 단기계약, 회수율 높음
+    "48": 0,                 // 기준
+    "60": baseRate * -0.16,  // -16%: 60개월 장기계약, 회수율 낮음
+  };
+
+  // 주행거리별 조정 (baseRate 대비 절대값 조정)
+  const mileageAdjust: Record<string, number> = {
+    "10000": baseRate * -0.05,  // -5%: 저주행 → 잔존가치 높음
+    "20000": 0,                 // 기준
+    "30000": baseRate * 0.05,   // +5%: 고주행 → 잔존가치 낮음
+  };
+
+  const matrix: Record<string, Record<string, number>> = {};
+  for (const [mileage, mAdj] of Object.entries(mileageAdjust)) {
+    matrix[mileage] = {};
+    for (const [months, tAdj] of Object.entries(monthsAdjust)) {
+      matrix[mileage][months] = parseFloat((baseRate + mAdj + tAdj).toFixed(6));
+    }
+  }
+  return matrix;
+}
+
+// ─── CapitalRateSheet 헬퍼 ────────────────────────────────
+
+const DEPOSIT_DISCOUNT_RATE = -0.000523; // CLAUDE.md 규칙 준수
+const PREPAY_ADJUST_RATE = 0.000073;     // CLAUDE.md 규칙 준수
+
+/** 기준 회수율 × 기간·거리 조정 → RateSheetRaw (월 지불액, 원) */
+function buildBaseRates(vehiclePrice: number, baseRate: number): Record<string, number> {
+  const monthsAdj: Record<number, number> = { 36: 1.20, 48: 1.00, 60: 0.84 };
+  const mileageAdj: Record<number, number> = { 10000: 0.95, 20000: 1.00, 30000: 1.05 };
+  const sheet: Record<string, number> = {};
+  for (const months of [36, 48, 60]) {
+    for (const mileage of [10000, 20000, 30000]) {
+      sheet[`${months}_${mileage}`] = Math.round(
+        vehiclePrice * baseRate * monthsAdj[months] * mileageAdj[mileage]
+      );
+    }
+  }
+  return sheet;
+}
+
+/** 10% 보증금 적용 월 지불액 시트 */
+function buildDepositRates(baseSheet: Record<string, number>, vehiclePrice: number): Record<string, number> {
+  const adj = Math.round(vehiclePrice * DEPOSIT_DISCOUNT_RATE * 1); // 1 step (10%)
+  return Object.fromEntries(Object.entries(baseSheet).map(([k, v]) => [k, v + adj]));
+}
+
+/** 10% 선납금 적용 월 지불액 시트 */
+function buildPrepayRates(baseSheet: Record<string, number>, vehiclePrice: number): Record<string, number> {
+  const adjustAmount = vehiclePrice * PREPAY_ADJUST_RATE * 1; // 1 step (10%)
+  return Object.fromEntries(
+    Object.entries(baseSheet).map(([key, monthly]) => {
+      const months = parseInt(key.split("_")[0]);
+      const prepayDeduction = (vehiclePrice * 0.10) / months;
+      return [key, Math.round(monthly - prepayDeduction - adjustAmount)];
+    })
+  );
+}
+
+/** 월 지불액 → 회수율 매트릭스 */
+function buildRateMatrix(baseSheet: Record<string, number>, vehiclePrice: number): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(baseSheet).map(([k, v]) => [k, parseFloat((v / vehiclePrice).toFixed(8))])
+  );
+}
+
+/** 엔진 타입·브랜드별 기준 회수율 (48개월·2만km 기준) */
+function getBaseRecoveryRate(brand: string, engineType: string): number {
+  if (brand === "제네시스") return 0.0222;
+  if (engineType === "EV") return 0.0252;
+  if (engineType === "하이브리드") return 0.0228;
+  if (engineType === "디젤") return 0.0258;
+  return 0.0242; // 가솔린
+}
+
 // ─── 메인 시드 함수 ─────────────────────────────────────
 
 async function main() {
@@ -555,9 +634,59 @@ async function main() {
     }
   }
 
-  // 4) 회수율 — RateConfig 제거됨. 관리자 페이지에서 주별 CapitalRateSheet로 입력.
-  console.log("\n📈 회수율: CapitalRateSheet 방식으로 전환 (관리자 직접 입력)");
-  console.log("   ℹ️  /admin/finance 에서 캐피탈사별 주간 견적을 입력해 주세요.\n");
+  // 4) 회수율 — CapitalRateSheet 임의 시드 데이터 생성
+  console.log("\n📈 회수율 시드 데이터 생성...");
+
+  const WEEK_OF = new Date("2026-04-21");
+  const allTrims = await prisma.trim.findMany({
+    include: { vehicle: { select: { brand: true } } },
+  });
+  const db = prisma as any;
+
+  let rateSheetCount = 0;
+  for (const trim of allTrims) {
+    const price = trim.price;
+    const baseRate = getBaseRecoveryRate(trim.vehicle.brand, trim.engineType);
+
+    const baseRates = buildBaseRates(price, baseRate);
+    const depositRates = buildDepositRates(baseRates, price);
+    const prepayRates = buildPrepayRates(baseRates, price);
+    const rateMatrix = buildRateMatrix(baseRates, price);
+
+    for (const fcId of Object.values(fcIds)) {
+      await db.capitalRateSheet.upsert({
+        where: {
+          financeCompanyId_trimId_weekOf: {
+            financeCompanyId: fcId,
+            trimId: trim.id,
+            weekOf: WEEK_OF,
+          },
+        },
+        update: {},
+        create: {
+          financeCompanyId: fcId,
+          trimId: trim.id,
+          weekOf: WEEK_OF,
+          minVehiclePrice: price,
+          maxVehiclePrice: price,
+          minBaseRates: baseRates,
+          minDepositRates: depositRates,
+          minPrepayRates: prepayRates,
+          maxBaseRates: baseRates,
+          maxDepositRates: depositRates,
+          maxPrepayRates: prepayRates,
+          minRateMatrix: rateMatrix,
+          maxRateMatrix: rateMatrix,
+          depositDiscountRate: DEPOSIT_DISCOUNT_RATE,
+          prepayAdjustRate: PREPAY_ADJUST_RATE,
+          isActive: true,
+          memo: "시드 데이터 (임의)",
+        },
+      });
+      rateSheetCount++;
+    }
+  }
+  console.log(`   ✅ ${rateSheetCount}개 회수율 시트 생성\n`);
 
   // 5) AI 추천 기초 데이터 (RecommendationConfig)
   console.log("🤖 AI 추천 기초 데이터 생성...");

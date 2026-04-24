@@ -28,7 +28,7 @@ export default function AdminLoginPage() {
         return;
       }
 
-      router.replace("/admin");
+      window.location.href = "/admin";
     } catch {
       setError("서버 연결에 실패했습니다.");
     } finally {

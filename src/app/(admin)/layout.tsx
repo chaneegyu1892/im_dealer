@@ -10,12 +10,10 @@ export default async function AdminLayout({
   const admin = await getAdminSession();
 
   return (
-    <div className="min-h-screen flex bg-[#F4F5F8]">
+    <div className="h-screen flex bg-[#F4F5F8] overflow-hidden">
       {admin && <AdminSidebar />}
-      {/* 사이드바 너비만큼 밀림 (어드민 세션이 있을 때만 마진 적용) */}
-      <div className={admin ? "flex-1 ml-[220px] flex flex-col" : "flex-1 flex flex-col"}>
-        {admin && <AdminHeader />}
-        <main className="flex-1 min-h-screen p-5">
+      <div className={admin ? "flex-1 ml-[220px] flex flex-col h-full overflow-hidden" : "flex-1 flex flex-col h-full overflow-hidden"}>
+        <main className="flex-1 min-h-0 p-5 overflow-y-auto scrollbar-hide">
           {children}
         </main>
       </div>
