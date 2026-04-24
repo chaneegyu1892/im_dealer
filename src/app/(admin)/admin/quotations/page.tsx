@@ -51,6 +51,8 @@ function QuotationsContent() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<UIQuoteStatus | "전체">("전체");
+  const [userTypeFilter, setUserTypeFilter] = useState<"Member" | "Guest" | "전체">("전체");
+  const [quoteTypeFilter, setQuoteTypeFilter] = useState<"AI" | "DETAIL" | "전체">("전체");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // 상세 필터 상태
@@ -113,15 +115,17 @@ function QuotationsContent() {
       const matchSearch = name.includes(search) || q.vehicleName.includes(search) || (q.phone || "").includes(search);
       const uiStatus = STATUS_MAP[q.status];
       const matchStatus = statusFilter === "전체" || uiStatus === statusFilter;
-      const matchFC = filterFC === "전체" || q.vehicleBrand === filterFC; // Mock data used financeCompany, DB has vehicleBrand. Let's use vehicleBrand for now or add FC to DB.
+      const matchUserType = userTypeFilter === "전체" || q.userType === userTypeFilter;
+      const matchQuoteType = quoteTypeFilter === "전체" || q.quoteType === quoteTypeFilter;
+      const matchFC = filterFC === "전체" || q.vehicleBrand === filterFC;
       const matchDateFrom = !filterDateFrom || q.createdAt >= filterDateFrom;
       const matchDateTo = !filterDateTo || q.createdAt <= filterDateTo;
       const min = filterPaymentMin ? Number(filterPaymentMin) * 10000 : 0;
       const max = filterPaymentMax ? Number(filterPaymentMax) * 10000 : Infinity;
       const matchPayment = q.monthlyPayment >= min && q.monthlyPayment <= max;
-      return matchSearch && matchStatus && matchFC && matchDateFrom && matchDateTo && matchPayment;
+      return matchSearch && matchStatus && matchUserType && matchQuoteType && matchFC && matchDateFrom && matchDateTo && matchPayment;
     });
-  }, [quotes, search, statusFilter, filterFC, filterDateFrom, filterDateTo, filterPaymentMin, filterPaymentMax]);
+  }, [quotes, search, statusFilter, userTypeFilter, quoteTypeFilter, filterFC, filterDateFrom, filterDateTo, filterPaymentMin, filterPaymentMax]);
 
   const resetDetailFilters = () => {
     setFilterFC("전체");
@@ -165,6 +169,8 @@ function QuotationsContent() {
       "프로모션": q.promotion,
       "진행 상태": q.status,
       "접수일": q.createdAt,
+      "계정 유형": q.userType === "Member" ? "회원" : "비회원",
+      "견적 방식": q.quoteType === "AI" ? "AI추천" : "세부견적",
       "메모": q.memo,
     }));
 
@@ -174,7 +180,7 @@ function QuotationsContent() {
     worksheet["!cols"] = [
       { wch: 14 }, { wch: 8 }, { wch: 16 }, { wch: 30 }, { wch: 12 },
       { wch: 16 }, { wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 18 },
-      { wch: 10 }, { wch: 12 }, { wch: 30 },
+      { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 30 },
     ];
 
     const workbook = xlsx.utils.book_new();
@@ -293,6 +299,36 @@ function QuotationsContent() {
                   statusFilter === st ? "bg-[#F4F5F8] text-[#1A1A2E]" : "text-[#9BA4C0] hover:text-[#6B7399]"
                 )}
               >{st}</button>
+            ))}
+          </div>
+          
+          {/* 계정 유형 필터 */}
+          <div className="flex bg-white rounded-[6px] border border-[#E8EAF0] p-1 shadow-sm">
+            {(["전체", "Member", "Guest"] as const).map(ut => (
+              <button
+                key={ut} onClick={() => setUserTypeFilter(ut)}
+                className={cn(
+                  "px-3 py-1 text-[11px] font-medium rounded-[4px] transition-colors",
+                  userTypeFilter === ut ? "bg-[#000666] text-white" : "text-[#9BA4C0] hover:text-[#6B7399]"
+                )}
+              >
+                {ut === "전체" ? "계정전체" : ut === "Member" ? "회원" : "비회원"}
+              </button>
+            ))}
+          </div>
+
+          {/* 견적 방식 필터 */}
+          <div className="flex bg-white rounded-[6px] border border-[#E8EAF0] p-1 shadow-sm">
+            {(["전체", "AI", "DETAIL"] as const).map(qt => (
+              <button
+                key={qt} onClick={() => setQuoteTypeFilter(qt)}
+                className={cn(
+                  "px-3 py-1 text-[11px] font-medium rounded-[4px] transition-colors",
+                  quoteTypeFilter === qt ? "bg-[#6066EE] text-white" : "text-[#9BA4C0] hover:text-[#6B7399]"
+                )}
+              >
+                {qt === "전체" ? "방식전체" : qt === "AI" ? "AI추천" : "세부견적"}
+              </button>
             ))}
           </div>
 
@@ -419,14 +455,15 @@ function QuotationsContent() {
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">고객 (연락처)</th>
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">월 납입금</th>
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">금융사</th>
+              <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-center">유형</th>
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">상태</th>
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">접수일자</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#F0F2F8]">
-            {filteredQuotes.length === 0 ? (
-              <tr><td colSpan={8} className="py-20 text-center text-[13px] text-[#9BA4C0]">해당하는 견적 데이터가 없습니다.</td></tr>
-            ) : filteredQuotes.map(q => {
+              {filteredQuotes.length === 0 ? (
+                <tr><td colSpan={9} className="py-20 text-center text-[13px] text-[#9BA4C0]">해당하는 견적 데이터가 없습니다.</td></tr>
+              ) : filteredQuotes.map(q => {
               const isSelected = selectedIds.has(q.id);
               const uiStatus = STATUS_MAP[q.status] || "상담대기";
               const SStyle = STATUS_STYLE[uiStatus];
@@ -450,21 +487,46 @@ function QuotationsContent() {
                     </div>
                   </td>
                    <td className="py-4 px-4 group/user">
-                    <Link 
-                      href={`/admin/users?search=${encodeURIComponent(q.customerName || "")}`}
-                      className="inline-flex items-center gap-1 group/link"
-                    >
-                      <div>
-                        <p className="text-[13px] font-bold text-[#1A1A2E] group-hover/link:text-[#000666] transition-colors">{q.customerName || "고객"}</p>
-                        <p className="text-[11px] text-[#6B7399] mt-0.5">{q.phone || "-"}</p>
-                      </div>
-                      <ChevronRight size={12} className="text-[#9BA4C0] opacity-0 group-hover/link:opacity-100 -translate-x-1 group-hover/link:translate-x-0 transition-all" />
-                    </Link>
+                    <div className="inline-flex items-center gap-1">
+                      {q.userType === "Member" ? (
+                        <Link 
+                          href={`/admin/users?search=${encodeURIComponent(q.customerName || "")}`}
+                          className="inline-flex items-center gap-1 group/link"
+                        >
+                          <div>
+                            <p className="text-[13px] font-bold text-[#1A1A2E] group-hover/link:text-[#000666] transition-colors">{q.customerName || "고객"}</p>
+                            <p className="text-[11px] text-[#6B7399] mt-0.5">{q.phone || "-"}</p>
+                          </div>
+                          <ChevronRight size={12} className="text-[#9BA4C0] opacity-0 group-hover/link:opacity-100 -translate-x-1 group-hover/link:translate-x-0 transition-all" />
+                        </Link>
+                      ) : (
+                        <div>
+                          <p className="text-[13px] font-bold text-[#9BA4C0]">비회원</p>
+                          <p className="text-[11px] text-[#D0D5E8] mt-0.5">-</p>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="py-4 px-4">
                     <span className="text-[13px] font-bold text-[#000666] bg-blue-50/50 px-2.5 py-1 rounded-[4px]">{q.monthlyPayment.toLocaleString()} 원</span>
                   </td>
                   <td className="py-4 px-4 text-[12px] font-medium text-[#4A5270]">{q.vehicleBrand}</td>
+                  <td className="py-4 px-4">
+                    <div className="flex flex-col gap-1.5 items-center">
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[10px] font-bold w-14 text-center",
+                        q.userType === "Member" ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : "bg-slate-50 text-slate-500 border border-slate-100"
+                      )}>
+                        {q.userType === "Member" ? "회원" : "비회원"}
+                      </span>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[10px] font-bold w-14 text-center",
+                        q.quoteType === "AI" ? "bg-purple-50 text-purple-600 border border-purple-100" : "bg-blue-50 text-blue-600 border border-blue-100"
+                      )}>
+                        {q.quoteType === "AI" ? "AI추천" : "세부견적"}
+                      </span>
+                    </div>
+                  </td>
                   <td className="py-4 px-4">
                     <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", SStyle?.bg || "bg-gray-100", SStyle?.text || "text-gray-600")}>
                       <SIcon size={11} strokeWidth={2.5} /> {uiStatus}
@@ -531,13 +593,17 @@ function QuotationsContent() {
                     <span className="text-[11px] font-bold text-[#6B7399] uppercase">상담 상세 정보</span>
                     <span className="text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-[#E8EAF0] text-[#1A1A2E]">{drawerQuote.id}</span>
                   </div>
-                   <Link 
-                    href={`/admin/users?search=${encodeURIComponent(drawerQuote.customerName)}`}
-                    className="group/name inline-flex items-center gap-1.5"
-                  >
-                    <h3 className="text-[18px] font-bold text-[#1A1A2E] group-hover/name:text-[#000666] transition-colors">{drawerQuote.customerName} 고객님</h3>
-                    <ChevronRight size={16} className="text-[#9BA4C0] group-hover/name:text-[#000666] transition-colors" />
-                  </Link>
+                  {drawerQuote.userType === "Member" ? (
+                    <Link 
+                      href={`/admin/users?search=${encodeURIComponent(drawerQuote.customerName)}`}
+                      className="group/name inline-flex items-center gap-1.5"
+                    >
+                      <h3 className="text-[18px] font-bold text-[#1A1A2E] group-hover/name:text-[#000666] transition-colors">{drawerQuote.customerName} 고객님</h3>
+                      <ChevronRight size={16} className="text-[#9BA4C0] group-hover/name:text-[#000666] transition-colors" />
+                    </Link>
+                  ) : (
+                    <h3 className="text-[18px] font-bold text-[#9BA4C0]">비회원 견적 정보</h3>
+                  )}
                 </div>
                 <button onClick={() => setDrawerQuote(null)} className="p-1.5 hover:bg-[#E8EAF0] rounded-[6px] text-[#6B7399] transition-colors"><X size={18} /></button>
               </div>
@@ -550,7 +616,8 @@ function QuotationsContent() {
                       value={STATUS_MAP[drawerQuote.status]}
                       onChange={e => {
                         const s = e.target.value as UIQuoteStatus;
-                        logActivity(`[상담 상태 변경] ${drawerQuote.customerName || "고객"}님의 상태를 '${s}'(으)로 변경했습니다.`, 'update');
+                        const name = drawerQuote.userType === "Member" ? drawerQuote.customerName : "비회원";
+                        logActivity(`[상담 상태 변경] ${name || "고객"}님의 상태를 '${s}'(으)로 변경했습니다.`, 'update');
                         updateQuoteStatus(drawerQuote.id, s);
                       }}
                       className={cn("px-2 py-1 text-[11px] font-bold rounded-[4px] outline-none cursor-pointer border", STATUS_STYLE[STATUS_MAP[drawerQuote.status]].bg, STATUS_STYLE[STATUS_MAP[drawerQuote.status]].text, "border-transparent")}
@@ -566,6 +633,24 @@ function QuotationsContent() {
                     <div>
                       <p className="text-[10px] text-[#6B7399] mb-0.5">접수 일자</p>
                       <p className="text-[12px] font-medium text-[#1A1A2E] flex items-center gap-1"><Calendar size={10} className="text-[#9BA4C0]" /> {drawerQuote.createdAt}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#6B7399] mb-0.5">계정 유형</p>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[10px] font-bold",
+                        drawerQuote.userType === "Member" ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : "bg-slate-50 text-slate-500 border border-slate-100"
+                      )}>
+                        {drawerQuote.userType === "Member" ? "회원" : "비회원"}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#6B7399] mb-0.5">견적 방식</p>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[10px] font-bold",
+                        drawerQuote.quoteType === "AI" ? "bg-purple-50 text-purple-600 border border-purple-100" : "bg-blue-50 text-blue-600 border border-blue-100"
+                      )}>
+                        {drawerQuote.quoteType === "AI" ? "AI추천" : "세부견적"}
+                      </span>
                     </div>
                   </div>
                 </section>

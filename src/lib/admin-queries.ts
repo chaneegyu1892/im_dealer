@@ -420,6 +420,8 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       totalCost: q.totalCost,
       status: q.status as AdminSavedQuote["status"],
       internalMemo: q.internalMemo,
+      userType: q.userId ? "Member" : "Guest",
+      quoteType: (q as any).quoteType || "DETAIL", // DB에 없을 수 있으므로 DETAIL 기본
       createdAt: q.createdAt.toISOString(),
       updatedAt: q.updatedAt.toISOString(),
     };
@@ -454,6 +456,8 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       monthlyPayment: mq.monthlyPayment,
       totalCost: mq.monthlyPayment * 60,
       status: statusMap[mq.status] || "NEW",
+      userType: mq.userType || "Guest",
+      quoteType: mq.quoteType || "DETAIL",
       internalMemo: mq.memo,
       createdAt: mq.createdAt + "T00:00:00.000Z",
       updatedAt: mq.createdAt + "T00:00:00.000Z",

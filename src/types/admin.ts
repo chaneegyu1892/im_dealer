@@ -134,6 +134,8 @@ export interface AdminSavedQuote {
   totalCost: number;
   status: "NEW" | "CONTACTED" | "IN_PROGRESS" | "CONVERTED" | "LOST";
   internalMemo: string | null;
+  userType: "Member" | "Guest";          // 추가: 회원/비회원 구분
+  quoteType: "AI" | "DETAIL";            // 추가: AI추천/세부견적 구분
   createdAt: string;
   updatedAt: string;
 }
