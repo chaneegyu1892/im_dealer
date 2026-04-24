@@ -249,7 +249,7 @@ function QuotationsContent() {
   };
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm">
+    <div className="relative flex flex-col h-full bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm rounded-[16px]">
 
       {/* 1. 상단 KPI & 헤더 */}
       <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 shrink-0 flex items-center justify-between z-10">
@@ -428,8 +428,9 @@ function QuotationsContent() {
               <tr><td colSpan={8} className="py-20 text-center text-[13px] text-[#9BA4C0]">해당하는 견적 데이터가 없습니다.</td></tr>
             ) : filteredQuotes.map(q => {
               const isSelected = selectedIds.has(q.id);
-              const SStyle = STATUS_STYLE[q.status];
-              const SIcon = SStyle.icon;
+              const uiStatus = STATUS_MAP[q.status] || "상담대기";
+              const SStyle = STATUS_STYLE[uiStatus];
+              const SIcon = SStyle?.icon || Clock;
               return (
                 <tr
                   key={q.id}
@@ -465,8 +466,8 @@ function QuotationsContent() {
                   </td>
                   <td className="py-4 px-4 text-[12px] font-medium text-[#4A5270]">{q.vehicleBrand}</td>
                   <td className="py-4 px-4">
-                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", STATUS_STYLE[STATUS_MAP[q.status]].bg, STATUS_STYLE[STATUS_MAP[q.status]].text)}>
-                      {React.createElement(STATUS_STYLE[STATUS_MAP[q.status]].icon, { size: 11, strokeWidth: 2.5 })} {STATUS_MAP[q.status]}
+                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", SStyle?.bg || "bg-gray-100", SStyle?.text || "text-gray-600")}>
+                      <SIcon size={11} strokeWidth={2.5} /> {uiStatus}
                     </div>
                   </td>
                   <td className="py-4 px-4 text-[12px] text-[#6B7399]">{new Date(q.createdAt).toLocaleDateString()}</td>

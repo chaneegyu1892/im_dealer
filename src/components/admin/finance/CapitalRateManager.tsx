@@ -105,7 +105,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     if (!selectedFcId) return;
     fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
       .then((r) => r.json())
-      .then(setActiveSheets)
+      .then((res) => setActiveSheets(res.data ?? []))
       .catch(console.error);
   }, [selectedFcId]);
 
@@ -114,7 +114,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     if (!selectedFcId || !selectedTrimId || !showHistory) return;
     fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}&trimId=${selectedTrimId}&history=true`)
       .then((r) => r.json())
-      .then(setHistorySheets)
+      .then((res) => setHistorySheets(res.data ?? []))
       .catch(console.error);
   }, [selectedFcId, selectedTrimId, showHistory]);
 
@@ -123,11 +123,11 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const handleSaved = () => {
     fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
       .then((r) => r.json())
-      .then(setActiveSheets);
+      .then((res) => setActiveSheets(res.data ?? []));
     if (showHistory) {
       fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}&trimId=${selectedTrimId}&history=true`)
         .then((r) => r.json())
-        .then(setHistorySheets);
+        .then((res) => setHistorySheets(res.data ?? []));
     }
   };
 
