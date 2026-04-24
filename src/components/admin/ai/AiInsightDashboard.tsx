@@ -3,18 +3,7 @@
 import { TrendingUp, Users, Target, MousePointer2 } from "lucide-react";
 
 interface Props {
-  data: {
-    totalRecommendations: number;
-    popularPersonas: Array<{ industry: string; purpose: string }>;
-    topRecommendedVehicles: Array<{
-      vehicleId: string;
-      name: string;
-      brand: string;
-      recommendCount: number;
-      clickCount: number;
-      ctr: number;
-    }>;
-  };
+  data: any;
 }
 
 export default function AiInsightDashboard({ data }: Props) {
@@ -59,7 +48,7 @@ export default function AiInsightDashboard({ data }: Props) {
           <span className="text-[10px] text-[#9BA4C0]">최근 200건 기준</span>
         </div>
         <div className="space-y-3">
-          {data.topRecommendedVehicles.map((v, i) => (
+          {data.topRecommendedVehicles.map((v: any, i: number) => (
             <div key={v.vehicleId} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-[10px] font-black text-[#9BA4C0] w-3">0{i + 1}</span>

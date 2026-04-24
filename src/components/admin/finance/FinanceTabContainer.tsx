@@ -5,19 +5,16 @@ import { Calculator, Settings2, Database } from "lucide-react";
 import CapitalRateManager from "./CapitalRateManager";
 import QuoteLogicSimulator from "./QuoteLogicSimulator";
 import SurchargePolicy from "./SurchargePolicy";
-import type { AdminFinanceCompany, AdminVehicle } from "@/types/admin";
-
-type FinanceTab = "simulator" | "policy" | "data";
 
 interface Props {
-  financeCompanies: AdminFinanceCompany[];
-  vehicles: AdminVehicle[];
+  financeCompanies: any[];
+  vehicles: any[];
 }
 
 export default function FinanceTabContainer({ financeCompanies, vehicles }: Props) {
-  const [activeTab, setActiveTab] = useState<FinanceTab>("simulator");
+  const [activeTab, setActiveTab] = useState<"simulator" | "policy" | "data">("simulator");
 
-  const tabs: Array<{ id: FinanceTab; label: string; icon: typeof Calculator }> = [
+  const tabs = [
     { id: "simulator", label: "견적 시뮬레이터", icon: Calculator },
     { id: "policy", label: "가산 정책 관리", icon: Settings2 },
     { id: "data", label: "회수율 데이터 관리", icon: Database },
@@ -30,7 +27,7 @@ export default function FinanceTabContainer({ financeCompanies, vehicles }: Prop
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
               activeTab === tab.id
                 ? "bg-[#6066EE] text-white shadow-md shadow-indigo-100"

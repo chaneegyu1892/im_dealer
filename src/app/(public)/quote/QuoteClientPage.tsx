@@ -13,28 +13,25 @@ import {
   Calculator,
   AlertCircle,
   Check,
+  ChevronDown,
   ClipboardCheck,
-  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
-import { SelectRow, OptionButton } from "@/components/quote/primitives";
-import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
-import type { QuoteScenarioDetails } from "@/types/quote";
 
 // ─── 상수 ────────────────────────────────────────────────
+const CONTRACT_CATEGORIES = ["장기렌트", "리스"] as const;
 const CONTRACT_MONTHS = [36, 48, 60] as const;
 const ANNUAL_MILEAGES = [10000, 20000, 30000] as const;
 const CONTRACT_TYPES = ["반납형", "인수형"] as const;
 
-type ContractCategory = "장기렌트" | "리스";
+type ContractCategory = (typeof CONTRACT_CATEGORIES)[number];
 type ContractMonths = (typeof CONTRACT_MONTHS)[number];
 type AnnualMileage = (typeof ANNUAL_MILEAGES)[number];
 type ContractType = (typeof CONTRACT_TYPES)[number];
-type ScenarioKey = keyof QuoteScenarioDetails;
 
 interface Conditions {
   contractMonths: ContractMonths;
@@ -62,6 +59,51 @@ interface TrimData {
   isDefault: boolean;
   specs: Record<string, string> | null;
   options: TrimOption[];
+}
+
+// ─── 캐스케이딩 셀렉트 행 ─────────────────────────────────
+function SelectRow({
+  label,
+  value,
+  placeholder,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <p className="text-[12px] font-medium text-ink-caption mb-1.5 uppercase tracking-wide">
+        {label}
+      </p>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full appearance-none bg-white border border-neutral-800 rounded-btn
+                     px-4 py-2.5 text-[14px] pr-9
+                     focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10
+                     transition-colors duration-150 cursor-pointer
+                     text-ink disabled:text-ink-caption"
+        >
+          <option value="">{placeholder}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          size={15}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-caption pointer-events-none"
+        />
+      </div>
+    </div>
+  );
 }
 
 // ─── 스텝 인디케이터 ──────────────────────────────────────
@@ -110,6 +152,32 @@ function StepBar({ currentStep }: { currentStep: number }) {
         );
       })}
     </div>
+  );
+}
+
+// ─── 선택 옵션 버튼 ──────────────────────────────────────
+function OptionButton({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "px-5 py-2.5 rounded-btn text-[14px] font-medium transition-all duration-150 border",
+        selected
+          ? "bg-primary text-white border-primary"
+          : "bg-white text-ink-label border-neutral-800 hover:border-secondary-400 hover:text-ink"
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -198,6 +266,27 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleListItem | null>(() =>
     prefillSlug ? vehicles.find((v) => v.slug === prefillSlug) ?? null : null
   );
+  const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
+
+  const handleContractApply = useCallback(async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // 견적 데이터를 세션 스토리지에 임시 저장 (인증 후 저장하기 위함)
+    if (quoteResult) {
+      sessionStorage.setItem(`quote_${quoteSessionId}`, JSON.stringify({
+        ...quoteResult,
+        sessionId: quoteSessionId,
+      }));
+    }
+
+    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}`;
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+      return;
+    }
+    router.push(target);
+  }, [router, quoteSessionId, selectedVehicle?.slug, quoteResult]);
 
   // 트림/옵션 상태
   const [trims, setTrims] = useState<TrimData[]>([]);
@@ -220,11 +309,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       setConditions((prev) => ({ ...prev, contractType: "반납형" }));
     }
   }, [contractCategory]);
-  const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
-  const [selectedScenarioKey, setSelectedScenarioKey] = useState<ScenarioKey>("standard");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   // 추천 프리필을 한 번만 적용하기 위한 플래그
   const hasPrefilled = useRef(false);
@@ -338,117 +424,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       : v.name.includes(search) || v.brand.includes(search)
   );
 
-  const handleContractApply = useCallback(async () => {
-    if (!quoteResult || !selectedVehicle || !selectedTrimId) return;
-
-    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle.slug}`;
-
-    setError(null);
-    const res = await fetch("/api/quote/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: quoteSessionId,
-        vehicleSlug: selectedVehicle.slug,
-        trimId: selectedTrimId,
-        selectedOptionIds: Array.from(selectedOptionIds),
-        contractMonths: quoteResult.contractMonths,
-        annualMileage: quoteResult.annualMileage,
-        contractType: quoteResult.contractType,
-        productType: contractCategory,
-        scenarioType: selectedScenarioKey,
-      }),
-    });
-
-    const json = await res.json().catch(() => null);
-    if (!res.ok || !json?.success) {
-      setError(json?.error ?? "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
-
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push(`/login?next=${encodeURIComponent(target)}`);
-      return;
-    }
-
-    router.push(target);
-  }, [
-    quoteResult,
-    selectedVehicle,
-    selectedTrimId,
-    quoteSessionId,
-    selectedOptionIds,
-    contractCategory,
-    selectedScenarioKey,
-    router,
-  ]);
-
-  const handlePdfDownload = useCallback(async () => {
-    if (!quoteResult || !selectedVehicle) return;
-
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push(`/login?next=${encodeURIComponent("/quote")}`);
-      return;
-    }
-
-    setIsPdfLoading(true);
-    try {
-      const extResult = quoteResult as QuoteResponse & { trimPrice?: number; totalVehiclePrice?: number };
-      const selectedOpts = selectedTrim
-        ? selectedTrim.options
-            .filter((o) => selectedOptionIds.has(o.id))
-            .map((o) => ({ name: o.name, price: o.price }))
-        : [];
-      const trimPrice = extResult.trimPrice ?? 0;
-      const totalVehiclePrice = extResult.totalVehiclePrice ?? trimPrice + optionsTotalPrice;
-
-      const res = await fetch("/api/quote/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vehicleName: selectedVehicle.name,
-          vehicleBrand: selectedVehicle.brand,
-          trimName: quoteResult.trimName,
-          trimPrice,
-          selectedOptions: selectedOpts,
-          totalVehiclePrice,
-          productType: contractCategory,
-          contractMonths: quoteResult.contractMonths,
-          annualMileage: quoteResult.annualMileage,
-          contractType: quoteResult.contractType,
-          scenarios: quoteResult.scenarios,
-        }),
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.push(`/login?next=${encodeURIComponent("/quote")}`);
-          return;
-        }
-        throw new Error("PDF 생성에 실패했습니다.");
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-      a.href = url;
-      a.download = `아임딜러_견적서_${selectedVehicle.name}_${today}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      setError("견적서 다운로드에 실패했습니다. 잠시 후 다시 시도해주세요.");
-    } finally {
-      setIsPdfLoading(false);
-    }
-  }, [quoteResult, selectedVehicle, selectedTrim, selectedOptionIds, optionsTotalPrice, contractCategory, router]);
-
   // Step 2 → Step 3: 견적 계산 API 호출
   async function fetchQuote() {
     if (!selectedVehicle) return;
@@ -462,7 +437,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            sessionId: quoteSessionId,
             trimId: selectedTrimId ?? undefined,
             selectedOptionIds: Array.from(selectedOptionIds),
             contractMonths: conditions.contractMonths,
@@ -481,7 +455,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       }
 
       setQuoteResult(json.data as QuoteResponse);
-      setSelectedScenarioKey("standard");
       setStep(3);
     } catch {
       setError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
@@ -554,7 +527,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       검색 결과가 없습니다
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                       {filteredVehicles.map((v) => (
                         <VehiclePickCard
                           key={v.id}
@@ -772,27 +745,27 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       상품 유형
                     </p>
                     <p className="text-[12px] text-ink-caption mb-3">
-                      장기렌트: 보험·세금 포함, 전액 비용처리
+                      장기렌트: 보험·세금 포함, 전액 비용처리 · 리스: 차량 소유권 이전 가능
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <OptionButton
-                        selected={contractCategory === "장기렌트"}
-                        onClick={() => setContractCategory("장기렌트")}
-                      >
-                        장기렌트
-                      </OptionButton>
-                      <button
-                        type="button"
-                        disabled
-                        className="px-4 py-2 rounded-btn text-[13px] font-medium border border-neutral-800 bg-neutral-800 text-ink-caption cursor-not-allowed opacity-60 inline-flex items-center gap-1.5"
-                      >
-                        리스
-                        <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded-[4px]">
-                          준비중
-                        </span>
-                      </button>
+                      {CONTRACT_CATEGORIES.map((c) => (
+                        <OptionButton
+                          key={c}
+                          selected={contractCategory === c}
+                          onClick={() => setContractCategory(c)}
+                        >
+                          {c}
+                        </OptionButton>
+                      ))}
                     </div>
                   </div>
+
+                  {contractCategory === "리스" && (
+                    <div className="bg-neutral border border-neutral-800 rounded-[8px] p-4 text-[13px] text-ink-caption mb-6 flex items-start gap-2">
+                      <Sparkles size={13} className="text-primary shrink-0 mt-0.5" />
+                      <p>리스 견적은 임시 데이터 기준입니다. 실제 금융사 조건과 다를 수 있습니다.</p>
+                    </div>
+                  )}
 
                   {(contractCategory === "장기렌트" || contractCategory === "리스") && (
                     <>
@@ -974,31 +947,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       아래 탭을 클릭해 3가지 시나리오를 비교하세요
                     </p>
                   </div>
-                  <QuoteBreakdownTabs
-                    scenarios={quoteResult.scenarios}
-                    defaultTab={selectedScenarioKey}
-                    onTabChange={setSelectedScenarioKey}
-                  />
+                  <QuoteBreakdownTabs scenarios={quoteResult.scenarios} />
                 </div>
-
-                {/* 비교 섹션 */}
-                {selectedVehicle && (
-                  <ComparisonSection
-                    primary={{
-                      slug: selectedVehicle.slug,
-                      brand: selectedVehicle.brand,
-                      name: selectedVehicle.name,
-                      result: quoteResult,
-                    }}
-                    conditions={{
-                      contractMonths: conditions.contractMonths,
-                      annualMileage: conditions.annualMileage,
-                      contractType: conditions.contractType,
-                      productType: contractCategory,
-                    }}
-                    allVehicles={vehicles}
-                  />
-                )}
 
                 {/* 면책 안내 */}
                 <div className="bg-neutral rounded-[8px] border border-[#F0F0F0] p-4 text-[12px] text-ink-caption mb-4 leading-relaxed">
@@ -1006,41 +956,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   차량 상태·옵션·프로모션에 따라 달라질 수 있습니다. 전문가
                   상담을 통해 확정 견적을 받으시길 권장합니다.
                 </div>
-
-                {/* PDF 오류 표시 */}
-                {error && (
-                  <div className="bg-[#FFEBEB] border border-red-100 rounded-[8px] p-3 text-[13px] text-destructive flex items-start gap-2 mb-3">
-                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                    <span>{error}</span>
-                    <button type="button" onClick={() => setError(null)} className="ml-auto text-ink-caption hover:text-ink">✕</button>
-                  </div>
-                )}
-
-                {/* 견적서 PDF 다운로드 */}
-                <button
-                  type="button"
-                  onClick={handlePdfDownload}
-                  disabled={isPdfLoading}
-                  className={cn(
-                    "flex items-center justify-center gap-2 w-full py-3 rounded-btn text-[14px] font-medium transition-all duration-150 mb-2 border",
-                    isPdfLoading
-                      ? "bg-neutral border-neutral-800 text-ink-caption cursor-not-allowed"
-                      : "bg-white border-primary text-primary hover:bg-primary-100"
-                  )}
-                >
-                  {isPdfLoading ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                      견적서 생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Download size={15} strokeWidth={2} />
-                      견적서 PDF 다운로드
-                      <span className="text-[11px] text-ink-caption font-normal ml-0.5">(로그인 필요)</span>
-                    </>
-                  )}
-                </button>
 
                 {/* 계약 신청하기 */}
                 <button
