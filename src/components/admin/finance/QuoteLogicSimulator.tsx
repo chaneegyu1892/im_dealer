@@ -58,7 +58,15 @@ export default function QuoteLogicSimulator() {
       return;
     }
 
-    const configs: RateConfigData[] = data.data.map((rs: any) => ({
+    // 캐피탈사별 최신 시트만 사용 (weekOf desc 정렬이므로 첫 번째가 최신)
+    const seen = new Set<string>();
+    const uniqueSheets = data.data.filter((rs: any) => {
+      if (seen.has(rs.financeCompanyId)) return false;
+      seen.add(rs.financeCompanyId);
+      return true;
+    });
+
+    const configs: RateConfigData[] = uniqueSheets.map((rs: any) => ({
       financeCompanyId: rs.financeCompanyId,
       financeCompanyName: rs.financeCompany.name,
       financeSurchargeRate: rs.financeCompany.surchargeRate,

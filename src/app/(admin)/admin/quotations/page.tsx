@@ -17,6 +17,15 @@ import {
 import { logActivity } from "@/lib/activity-store";
 import { AdminSavedQuote } from "@/types/admin";
 
+type ExportableQuote = AdminSavedQuote & {
+  vehicleShort?: string;
+  color?: string;
+  options?: string[];
+  financeCompany?: string;
+  promotion?: string;
+  memo?: string;
+};
+
 type UIQuoteStatus = "상담대기" | "상담중" | "계약완료" | "계약취소" | "연락완료";
 
 const STATUS_MAP: Record<string, UIQuoteStatus> = {
@@ -152,16 +161,24 @@ function QuotationsContent() {
       ? filteredQuotes.filter(q => selectedIds.has(q.id))
       : filteredQuotes;
 
-    const dataToExport = target.map(q => ({
+    const dataToExport = target.map((q) => {
+      const exportQuote = q as ExportableQuote;
+      return {
       "견적 ID": q.id,
-      "고객명": q.customerName ?? "",
-      "연락처": q.phone ?? "",
+      "고객명": q.customerName,
+      "연락처": q.phone,
       "차량명": q.vehicleName,
+      "차량 (짧은명)": exportQuote.vehicleShort ?? q.vehicleName,
+      "선택 색상": exportQuote.color ?? "",
+      "선택 옵션": (exportQuote.options ?? []).join(", "),
       "월 납입금 (원)": q.monthlyPayment,
+      "금융사": exportQuote.financeCompany ?? q.vehicleBrand,
+      "프로모션": exportQuote.promotion ?? "",
       "진행 상태": q.status,
       "접수일": q.createdAt,
-      "메모": q.internalMemo ?? "",
-    }));
+      "메모": exportQuote.memo ?? q.internalMemo ?? "",
+      };
+    });
 
     const worksheet = xlsx.utils.json_to_sheet(dataToExport);
 
@@ -244,7 +261,7 @@ function QuotationsContent() {
   };
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm">
+    <div className="relative flex flex-col h-full bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm rounded-[16px]">
 
       {/* 1. 상단 KPI & 헤더 */}
       <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 shrink-0 flex items-center justify-between z-10">
@@ -423,8 +440,9 @@ function QuotationsContent() {
               <tr><td colSpan={8} className="py-20 text-center text-[13px] text-[#9BA4C0]">해당하는 견적 데이터가 없습니다.</td></tr>
             ) : filteredQuotes.map(q => {
               const isSelected = selectedIds.has(q.id);
-              const SStyle = STATUS_STYLE[STATUS_MAP[q.status]] ?? STATUS_STYLE["상담대기"];
-              const SIcon = SStyle.icon;
+              const uiStatus = STATUS_MAP[q.status] || "상담대기";
+              const SStyle = STATUS_STYLE[uiStatus];
+              const SIcon = SStyle?.icon || Clock;
               return (
                 <tr
                   key={q.id}
@@ -460,8 +478,8 @@ function QuotationsContent() {
                   </td>
                   <td className="py-4 px-4 text-[12px] font-medium text-[#4A5270]">{q.vehicleBrand}</td>
                   <td className="py-4 px-4">
-                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", (STATUS_STYLE[STATUS_MAP[q.status]] ?? STATUS_STYLE["상담대기"]).bg, (STATUS_STYLE[STATUS_MAP[q.status]] ?? STATUS_STYLE["상담대기"]).text)}>
-                      {(() => { const IC = (STATUS_STYLE[STATUS_MAP[q.status]] ?? STATUS_STYLE["상담대기"]).icon; return <IC size={11} strokeWidth={2.5} />; })()} {STATUS_MAP[q.status]}
+                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", SStyle?.bg || "bg-gray-100", SStyle?.text || "text-gray-600")}>
+                      <SIcon size={11} strokeWidth={2.5} /> {uiStatus}
                     </div>
                   </td>
                   <td className="py-4 px-4 text-[12px] text-[#6B7399]">{new Date(q.createdAt).toLocaleDateString()}</td>

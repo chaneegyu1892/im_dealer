@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { DASHBOARD_STATS, MOCK_QUOTES, type SharedQuote } from "@/constants/mock-data";
 import type {
   DashboardData,
   DashboardStats,
@@ -9,6 +10,7 @@ import type {
   AdminVehicleDetail,
   AdminBrand,
   AdminSavedQuote,
+  QuoteCrmStatus,
   AdminOptionRule,
   AdminInventory,
   CapitalRateSheet,
@@ -165,7 +167,7 @@ export async function getAdminBrands(): Promise<AdminBrand[]> {
   const groups = await prisma.vehicle.groupBy({
     by: ["brand"],
     _count: { id: true },
-    orderBy: { brand: "asc" },
+    orderBy: { _count: { id: "desc" } },
   });
 
   return groups.map((g) => ({
@@ -198,13 +200,24 @@ export async function getDashboardData(): Promise<DashboardData> {
       }),
     ]);
 
-  const stats: DashboardStats = {
+  let stats: DashboardStats = {
     totalVehicles,
     visibleVehicles,
     todayQuoteViews,
     todayAiSessions,
     monthlyQuotes,
   };
+
+  // 개발 환경에서만 빈 DB에 목 데이터 통계 반환 (데모용)
+  if (totalVehicles === 0 && process.env.NODE_ENV === "development") {
+    stats = {
+      totalVehicles: DASHBOARD_STATS.totalVehicles,
+      visibleVehicles: DASHBOARD_STATS.visibleVehicles,
+      todayQuoteViews: DASHBOARD_STATS.todayQuoteViews,
+      todayAiSessions: DASHBOARD_STATS.todayAISessions,
+      monthlyQuotes: DASHBOARD_STATS.monthlyConsultations,
+    };
+  }
 
   // 주간 견적 조회 추이
   const weeklyQuoteLogs = await prisma.explorationLog.groupBy({
@@ -385,7 +398,7 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
   const vehicleMap = new Map(vehicles.map((v) => [v.id, v]));
   const trimMap = new Map(trims.map((t) => [t.id, t]));
 
-  const data: AdminSavedQuote[] = quotes.map((q) => {
+  const data: AdminSavedQuote[] = (quotes.length > 0 ? quotes : []).map((q) => {
     const vehicle = vehicleMap.get(q.vehicleId);
     const trim = trimMap.get(q.trimId);
     return {
@@ -412,6 +425,43 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       createdAt: q.createdAt.toISOString(),
     };
   });
+
+  // 개발 환경에서만 빈 DB에 목 데이터를 반환 (데모용)
+  if (data.length === 0 && page === 1 && process.env.NODE_ENV === "development") {
+    const statusMap: Record<string, QuoteCrmStatus> = {
+      "상담대기": "NEW",
+      "상담중": "IN_PROGRESS",
+      "계약완료": "CONVERTED",
+      "계약취소": "LOST"
+    };
+
+    const mockData: AdminSavedQuote[] = MOCK_QUOTES.map((mq: SharedQuote) => ({
+      id: mq.id,
+      sessionId: `SESS-${mq.id}`,
+      userId: `USR-${mq.id}`,
+      customerName: mq.customerName,
+      phone: mq.phone,
+      vehicleId: `V-${mq.id}`,
+      vehicleName: mq.vehicleName,
+      vehicleBrand: mq.vehicleName.split(' ')[0], // 간단 추출
+      trimId: `T-${mq.id}`,
+      trimName: mq.trim,
+      contractMonths: 60,
+      annualMileage: 20000,
+      depositRate: 0,
+      prepayRate: 0,
+      contractType: "RENT",
+      monthlyPayment: mq.monthlyPayment,
+      totalCost: mq.monthlyPayment * 60,
+      status: statusMap[mq.status] || "NEW",
+      assigneeId: null,
+      internalMemo: mq.memo,
+      createdAt: mq.createdAt + "T00:00:00.000Z",
+      updatedAt: mq.createdAt + "T00:00:00.000Z",
+    }));
+
+    return { data: mockData.slice(0, limit), total: mockData.length };
+  }
 
   return { data, total };
 }
@@ -603,4 +653,176 @@ function formatRelativeTime(date: Date): string {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}일 전`;
   return date.toLocaleDateString("ko-KR");
+}
+
+// ─── 사용자 관리 ─────────────────────────────────────────
+
+export interface AdminUserActiveItem {
+  quoteId: string;
+  vehicleName: string;
+  statusRaw: string;
+  statusLabel: string;
+}
+
+export interface AdminUserRecord {
+  id: string;                 // 첫 번째 견적의 sessionId
+  name: string;               // customerName
+  phone: string;
+  consultationCount: number;  // 총 견적 신청 건수
+  firstContactAt: string;     // 첫 견적 생성일 (ISO)
+  lastContactAt: string;      // 최근 견적 생성일 (ISO)
+  userStatus: "active" | "dormant";
+  activeItems: AdminUserActiveItem[];
+  internalMemo: string | null;
+}
+
+export interface AdminUsersStats {
+  total: number;
+  active: number;
+  dormant: number;
+  newThisMonth: number;
+}
+
+function mapQuoteStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    NEW: "상담대기",
+    CONTACTED: "상담중",
+    IN_PROGRESS: "상담중",
+    CONVERTED: "계약완료",
+    LOST: "계약취소",
+  };
+  return map[status] ?? status;
+}
+
+export async function getAdminUsers(): Promise<{
+  users: AdminUserRecord[];
+  stats: AdminUsersStats;
+}> {
+  let quotes = await prisma.savedQuote.findMany({
+    where: { phone: { not: null } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      sessionId: true,
+      vehicleId: true,
+      customerName: true,
+      phone: true,
+      status: true,
+      createdAt: true,
+      internalMemo: true,
+    },
+  });
+
+  // 개발 환경에서만 빈 DB에 목 데이터 사용
+  if (quotes.length === 0 && process.env.NODE_ENV === "development") {
+    const statusMap: Record<string, QuoteCrmStatus> = {
+      "상담대기": "NEW",
+      "상담중": "IN_PROGRESS",
+      "계약완료": "CONVERTED",
+      "계약취소": "LOST"
+    };
+
+    quotes = MOCK_QUOTES.map((mq: SharedQuote) => ({
+      id: mq.id,
+      sessionId: `SESS-${mq.id}`,
+      vehicleId: `V-${mq.id}`,
+      customerName: mq.customerName,
+      phone: mq.phone,
+      status: statusMap[mq.status] || "NEW",
+      createdAt: new Date(mq.createdAt),
+      internalMemo: mq.memo,
+    }));
+  }
+
+  if (quotes.length === 0) {
+    return {
+      users: [],
+      stats: { total: 0, active: 0, dormant: 0, newThisMonth: 0 },
+    };
+  }
+
+  // 차량 이름 조회
+  const vehicleIds = [...new Set(quotes.map((q) => q.vehicleId))];
+  const vehicles = await prisma.vehicle.findMany({
+    where: { id: { in: vehicleIds } },
+    select: { id: true, name: true },
+  });
+  const vehicleMap = new Map(vehicles.map((v) => [v.id, v.name]));
+
+  // 전화번호 기준으로 사용자 그룹화
+  const userMap = new Map<string, AdminUserRecord>();
+
+  for (const q of quotes) {
+    const phone = q.phone!;
+    const name = q.customerName ?? phone;
+
+    if (!userMap.has(phone)) {
+      userMap.set(phone, {
+        id: q.sessionId,
+        name,
+        phone,
+        consultationCount: 0,
+        firstContactAt: q.createdAt.toISOString(),
+        lastContactAt: q.createdAt.toISOString(),
+        userStatus: "active",
+        activeItems: [],
+        internalMemo: q.internalMemo ?? null,
+      });
+    }
+
+    const user = userMap.get(phone)!;
+    user.consultationCount++;
+
+    // 최초/최근 접수일 갱신
+    if (new Date(q.createdAt) < new Date(user.firstContactAt)) {
+      user.firstContactAt = q.createdAt.toISOString();
+      user.id = q.sessionId;
+    }
+    if (new Date(q.createdAt) > new Date(user.lastContactAt)) {
+      user.lastContactAt = q.createdAt.toISOString();
+      if (q.internalMemo) user.internalMemo = q.internalMemo;
+    }
+
+    // 진행 항목 추가 (LOST 제외)
+    if (q.status !== "LOST") {
+      const vehicleName = vehicleMap.get(q.vehicleId) ?? "알 수 없음";
+      user.activeItems.push({
+        quoteId: q.id,
+        vehicleName,
+        statusRaw: q.status,
+        statusLabel: mapQuoteStatusLabel(q.status),
+      });
+    }
+  }
+
+  // 30일 이상 미활동 → 휴면
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const thisMonthStart = new Date();
+  thisMonthStart.setDate(1);
+  thisMonthStart.setHours(0, 0, 0, 0);
+
+  const users = [...userMap.values()].map((user) => ({
+    ...user,
+    userStatus:
+      new Date(user.lastContactAt) < thirtyDaysAgo
+        ? ("dormant" as const)
+        : ("active" as const),
+  }));
+
+  // 최근 접수일 내림차순 정렬
+  users.sort(
+    (a, b) =>
+      new Date(b.lastContactAt).getTime() - new Date(a.lastContactAt).getTime()
+  );
+
+  const stats: AdminUsersStats = {
+    total: users.length,
+    active: users.filter((u) => u.userStatus === "active").length,
+    dormant: users.filter((u) => u.userStatus === "dormant").length,
+    newThisMonth: users.filter(
+      (u) => new Date(u.firstContactAt) >= thisMonthStart
+    ).length,
+  };
+
+  return { users, stats };
 }
