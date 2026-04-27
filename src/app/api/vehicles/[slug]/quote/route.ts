@@ -17,6 +17,8 @@ const quoteSchema = z.object({
   annualMileage: z.number().int().refine((v) => [10000, 20000, 30000].includes(v)),
   contractType: z.enum(["인수형", "반납형"]),
   productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
+  customDepositRate: z.number().int().min(0).max(30).optional(),
+  customPrepayRate: z.number().int().min(0).max(30).optional(),
 });
 
 // ── 시나리오별 보증금·선납금 조건 ───────────────────────
@@ -118,6 +120,7 @@ export async function POST(
       annualMileage: number;
       contractType: string;
       bestFinanceCompany: string;
+      purchaseSurcharge: number;
       breakdown: FinanceQuoteResult["breakdown"] | null;
       surcharges: FinanceQuoteResult["surcharges"] | null;
       allFinanceResults: {
@@ -130,7 +133,12 @@ export async function POST(
     }> = {};
 
     for (const key of scenarioKeys) {
-      const { depositRate, prepayRate } = SCENARIO_CONDITIONS[key];
+      let depositRate: number = SCENARIO_CONDITIONS[key].depositRate;
+      let prepayRate: number  = SCENARIO_CONDITIONS[key].prepayRate;
+      if (key === "standard") {
+        if (input.customDepositRate !== undefined) depositRate = input.customDepositRate;
+        if (input.customPrepayRate  !== undefined) prepayRate  = input.customPrepayRate;
+      }
 
       const calcInput: CalcInput = {
         vehiclePrice: trim.price + optionsTotalPrice,
@@ -155,6 +163,7 @@ export async function POST(
           annualMileage: input.annualMileage,
           contractType: input.contractType,
           bestFinanceCompany: "",
+          purchaseSurcharge: 0,
           breakdown: null,
           surcharges: null,
           allFinanceResults: [],
@@ -168,6 +177,10 @@ export async function POST(
       // 1순위(최저가) 금융사 결과
       const best = results[0];
       const monthlyPayment = Math.round(best.monthlyPayment * purchaseFactor);
+      // 차분으로 계산해야 segment 합 == monthlyPayment 보장 (단순 *0.12는 반올림 오차 발생)
+      const purchaseSurcharge = input.contractType === "인수형"
+        ? monthlyPayment - Math.round(best.monthlyPayment)
+        : 0;
 
       scenarios[key] = {
         monthlyPayment,
@@ -177,6 +190,7 @@ export async function POST(
         annualMileage: input.annualMileage,
         contractType: input.contractType,
         bestFinanceCompany: best.financeCompanyName,
+        purchaseSurcharge,
         breakdown: best.breakdown,
         surcharges: best.surcharges,
         allFinanceResults: results.map((r) => ({

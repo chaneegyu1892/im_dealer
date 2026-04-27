@@ -19,12 +19,18 @@ interface Props {
   scenarios: QuoteScenarioDetails;
   defaultTab?: ScenarioKey;
   onTabChange?: (tab: ScenarioKey) => void;
+  customRates?: { depositRate: number; prepayRate: number };
+  onCustomRatesChange?: (rates: { depositRate: number; prepayRate: number }) => void;
+  isRecalculating?: boolean;
 }
 
 export function QuoteBreakdownTabs({
   scenarios,
   defaultTab = "standard",
   onTabChange,
+  customRates,
+  onCustomRatesChange,
+  isRecalculating = false,
 }: Props) {
   const [active, setActive] = useState<ScenarioKey>(defaultTab);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -89,8 +95,20 @@ export function QuoteBreakdownTabs({
           </div>
         </div>
 
+        {/* 표준형 탭 전용 슬라이더 */}
+        {active === "standard" && onCustomRatesChange && customRates && (
+          <CustomRateSliders
+            depositRate={customRates.depositRate}
+            prepayRate={customRates.prepayRate}
+            isRecalculating={isRecalculating}
+            onChange={onCustomRatesChange}
+          />
+        )}
+
         {/* 도넛 — 월 납입금 구성 시각화 */}
-        <QuoteMonthlyDonut scenario={data} />
+        <div className={cn("transition-opacity duration-200", isRecalculating && active === "standard" && "opacity-60")}>
+          <QuoteMonthlyDonut scenario={data} />
+        </div>
 
         {/* ② 계약 조건 그리드 */}
         <div className="rounded-[10px] bg-neutral p-4 grid grid-cols-2 gap-y-3 gap-x-4">
@@ -112,7 +130,7 @@ export function QuoteBreakdownTabs({
 
         {/* ③ 견적 산출 내역 (펼침/접힘) */}
         {data.breakdown && data.surcharges && (
-          <div className="rounded-[10px] border border-[#E8EAF2] overflow-hidden">
+          <div className={cn("rounded-[10px] border border-[#E8EAF2] overflow-hidden transition-opacity duration-200", isRecalculating && active === "standard" && "opacity-60")}>
             <button
               type="button"
               onClick={() => setBreakdownOpen((v) => !v)}
@@ -349,6 +367,86 @@ function FinanceCompareTable({ results }: { results: FinanceCompanyQuote[] }) {
         );
       })}
 
+    </div>
+  );
+}
+
+// ─── 보증금/선납금 슬라이더 (표준형 탭 전용) ─────────────
+
+interface CustomRateSlidersProps {
+  depositRate: number;
+  prepayRate: number;
+  isRecalculating: boolean;
+  onChange: (rates: { depositRate: number; prepayRate: number }) => void;
+}
+
+function CustomRateSliders({ depositRate, prepayRate, isRecalculating, onChange }: CustomRateSlidersProps) {
+  function handleDepositChange(v: number) {
+    onChange({ depositRate: v, prepayRate: v > 0 ? 0 : prepayRate });
+  }
+  function handlePrepayChange(v: number) {
+    onChange({ depositRate: v > 0 ? 0 : depositRate, prepayRate: v });
+  }
+
+  return (
+    <div className="rounded-[10px] bg-neutral px-4 py-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-ink-label uppercase tracking-wider">
+          조건 직접 설정
+        </p>
+        {isRecalculating && (
+          <span className="flex items-center gap-1 text-[11px] text-ink-caption">
+            <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            재계산 중…
+          </span>
+        )}
+      </div>
+
+      {/* 보증금률 슬라이더 */}
+      <div className={cn("space-y-1.5", prepayRate > 0 && "opacity-50")}>
+        <div className="flex items-center justify-between">
+          <span className="text-[12px] text-ink-caption">보증금</span>
+          <span className="text-[12px] font-semibold text-ink tabular-nums">
+            {depositRate > 0 ? `${depositRate}%` : "없음"}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={30}
+          step={5}
+          value={depositRate}
+          disabled={prepayRate > 0}
+          onChange={(e) => handleDepositChange(Number(e.target.value))}
+          className="w-full accent-primary h-1.5 cursor-pointer disabled:cursor-not-allowed"
+        />
+      </div>
+
+      {/* 선납금률 슬라이더 */}
+      <div className={cn("space-y-1.5", depositRate > 0 && "opacity-50")}>
+        <div className="flex items-center justify-between">
+          <span className="text-[12px] text-ink-caption">선납금</span>
+          <span className="text-[12px] font-semibold text-ink tabular-nums">
+            {prepayRate > 0 ? `${prepayRate}%` : "없음"}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={30}
+          step={5}
+          value={prepayRate}
+          disabled={depositRate > 0}
+          onChange={(e) => handlePrepayChange(Number(e.target.value))}
+          className="w-full accent-primary h-1.5 cursor-pointer disabled:cursor-not-allowed"
+        />
+      </div>
+
+      {(depositRate > 0 || prepayRate > 0) && (
+        <p className="text-[11px] text-ink-caption">
+          보증금과 선납금은 동시에 적용할 수 없습니다.
+        </p>
+      )}
     </div>
   );
 }
