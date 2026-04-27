@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency, formatMonthly } from "@/lib/utils";
 import { Building2, ChevronDown, ChevronUp, Trophy } from "lucide-react";
 import type { QuoteScenarioDetails, QuoteScenarioDetail, FinanceCompanyQuote } from "@/types/quote";
+import { QuoteMonthlyDonut } from "./QuoteMonthlyDonut";
 
 type ScenarioKey = keyof QuoteScenarioDetails;
 
@@ -88,6 +89,9 @@ export function QuoteBreakdownTabs({
           </div>
         </div>
 
+        {/* 도넛 — 월 납입금 구성 시각화 */}
+        <QuoteMonthlyDonut scenario={data} />
+
         {/* ② 계약 조건 그리드 */}
         <div className="rounded-[10px] bg-neutral p-4 grid grid-cols-2 gap-y-3 gap-x-4">
           <ConditionRow label="계약기간" value={`${data.contractMonths}개월`} />
@@ -165,8 +169,8 @@ export function QuoteBreakdownTabs({
 // ─── 산출 내역 상세 ───────────────────────────────────────
 
 function BreakdownDetail({ data }: { data: QuoteScenarioDetail }) {
-  const { breakdown: bd, surcharges: sc } = data;
-  if (!bd || !sc) return null;
+  const { breakdown: bd } = data;
+  if (!bd) return null;
 
   const recoveryPct = (bd.recoveryRate * 100).toFixed(4);
 
@@ -202,7 +206,7 @@ function BreakdownDetail({ data }: { data: QuoteScenarioDetail }) {
           <>
             <div className="border-t border-dashed border-neutral-800 pt-2">
               <CalcRow
-                label="가산 전 대여료"
+                label="조정 후 대여료"
                 value={formatCurrency(bd.monthlyBeforeSurcharge)}
                 bold
               />
@@ -211,43 +215,14 @@ function BreakdownDetail({ data }: { data: QuoteScenarioDetail }) {
         )}
       </div>
 
-      {/* 가산 내역 */}
-      <div className="space-y-2">
-        <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider">
-          가산 내역
-        </p>
-        <CalcRow
-          label={`순위 가산 (1순위)`}
-          value={`+${formatCurrency(sc.rankSurcharge)}`}
-          plus
-        />
-        <CalcRow
-          label="차량 가산"
-          value={`+${formatCurrency(sc.vehicleSurcharge)}`}
-          plus
-        />
-        <CalcRow
-          label={`금융사 가산 (${data.bestFinanceCompany})`}
-          value={`+${formatCurrency(sc.financeSurcharge)}`}
-          plus
-        />
-        <div className="border-t border-dashed border-neutral-800 pt-2">
-          <CalcRow
-            label="가산 합계"
-            value={formatCurrency(sc.totalSurcharge)}
-            bold
-          />
-        </div>
-      </div>
-
-      {/* 인수형 가산 */}
+      {/* 인수 옵션 추가비 */}
       {data.purchaseSurcharge > 0 && (
         <div className="space-y-2">
           <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider">
-            인수형 가산
+            인수 옵션 추가비
           </p>
           <CalcRow
-            label="인수형 가산 (+12%)"
+            label="인수 옵션 추가비 (+12%)"
             value={`+${formatCurrency(data.purchaseSurcharge)}`}
             plus
           />
@@ -334,7 +309,7 @@ function FinanceCompareTable({ results }: { results: FinanceCompanyQuote[] }) {
 
         return (
           <div
-            key={r.financeCompanyName}
+            key={r.rank}
             className={cn(
               "flex items-center gap-3 px-4 py-3",
               r.rank === 1 && "bg-primary-100"
@@ -356,7 +331,7 @@ function FinanceCompareTable({ results }: { results: FinanceCompanyQuote[] }) {
               {r.financeCompanyName}
             </span>
 
-            {/* 가산 내역 요약 */}
+            {/* 금액 요약 */}
             <div className="flex flex-col items-end gap-0.5">
               <span className={cn(
                 "text-[15px] font-semibold tabular-nums",
@@ -374,12 +349,6 @@ function FinanceCompareTable({ results }: { results: FinanceCompanyQuote[] }) {
         );
       })}
 
-      {/* 가산율 설명 */}
-      <div className="px-4 py-2.5 bg-neutral">
-        <p className="text-[11px] text-ink-caption leading-relaxed">
-          순위 가산·차량 가산·금융사 가산이 반영된 최종 월 납입금 기준입니다.
-        </p>
-      </div>
     </div>
   );
 }
