@@ -316,6 +316,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   }, [contractCategory]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   // 추천 프리필을 한 번만 적용하기 위한 플래그
   const hasPrefilled = useRef(false);
@@ -468,6 +470,48 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       setIsLoading(false);
     }
   }
+
+  async function recalculateStandard() {
+    if (!selectedVehicle || !quoteResult) return;
+    setIsRecalculating(true);
+    try {
+      const res = await fetch(`/api/vehicles/${selectedVehicle.slug}/quote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trimId: selectedTrimId ?? undefined,
+          selectedOptionIds: Array.from(selectedOptionIds),
+          contractMonths: conditions.contractMonths,
+          annualMileage: conditions.annualMileage,
+          contractType: conditions.contractType,
+          productType: contractCategory,
+          customDepositRate: customRates.depositRate,
+          customPrepayRate: customRates.prepayRate,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) return;
+
+      setQuoteResult((prev) =>
+        prev
+          ? { ...prev, scenarios: { ...prev.scenarios, standard: json.data.scenarios.standard } }
+          : prev
+      );
+    } finally {
+      setIsRecalculating(false);
+    }
+  }
+
+  // 슬라이더 변경 시 400ms 디바운스 재계산
+  useEffect(() => {
+    if (!quoteResult || !selectedVehicle) return;
+    if (customRates.depositRate === 0 && customRates.prepayRate === 0) return;
+
+    const handle = setTimeout(() => { recalculateStandard(); }, 400);
+    return () => clearTimeout(handle);
+  // recalculateStandard는 같은 값 deps를 쓰므로 의도적으로 제외
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customRates.depositRate, customRates.prepayRate]);
 
   async function handlePdfDownload() {
     if (!quoteResult || !selectedVehicle) return;
@@ -1013,7 +1057,15 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       아래 탭을 클릭해 3가지 시나리오를 비교하세요
                     </p>
                   </div>
-                  <QuoteBreakdownTabs scenarios={quoteResult.scenarios} />
+                  <QuoteBreakdownTabs
+                    scenarios={quoteResult.scenarios}
+                    customRates={customRates}
+                    onCustomRatesChange={setCustomRates}
+                    isRecalculating={isRecalculating}
+                    onTabChange={(tab) => {
+                      if (tab !== "standard") setCustomRates({ depositRate: 0, prepayRate: 0 });
+                    }}
+                  />
                 </div>
 
                 {selectedVehicle && (
