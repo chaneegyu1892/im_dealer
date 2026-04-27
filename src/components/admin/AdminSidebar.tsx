@@ -25,6 +25,7 @@ interface NavItem {
   icon: LucideIcon;
   exact?: boolean;
   badge?: string;
+  roles?: string[]; // 해당 메뉴를 볼 수 있는 역할들 (없으면 전체 공개)
 }
 
 interface NavGroup {
@@ -43,33 +44,41 @@ const NAV: NavGroup[] = [
   {
     group: "핵심 관리",
     items: [
-      { href: "/admin/vehicles", label: "차량 관리", icon: Car },
-      { href: "/admin/quotations", label: "견적 데이터", icon: FileText },
-      { href: "/admin/users", label: "사용자 관리", icon: Users },
-      { href: "/admin/inventory", label: "재고관리", icon: Package },
+      { href: "/admin/vehicles", label: "차량 관리", icon: Car, roles: ["admin", "staff"] },
+      { href: "/admin/quotations", label: "견적 데이터", icon: FileText, roles: ["admin", "staff", "dealer"] },
+      { href: "/admin/users", label: "사용자 관리", icon: Users, roles: ["admin", "staff", "dealer"] },
+      { href: "/admin/inventory", label: "재고관리", icon: Package, roles: ["admin", "staff"] },
     ],
   },
   {
     group: "정책 및 AI",
     items: [
-      { href: "/admin/finance", label: "견적 산출 로직 관리", icon: Building2 },
-      { href: "/admin/ai", label: "AI관리", icon: Sparkles },
+      { href: "/admin/finance", label: "견적 산출 로직 관리", icon: Building2, roles: ["admin"] },
+      { href: "/admin/ai", label: "AI관리", icon: Sparkles, roles: ["admin"] },
     ],
   },
   {
     group: "시스템",
     items: [
-      { href: "/admin/memo", label: "운영 메모", icon: ClipboardList },
-      { href: "/admin/settings", label: "설정", icon: Settings },
+      { href: "/admin/memo", label: "운영 메모", icon: ClipboardList, roles: ["admin", "staff"] },
+      { href: "/admin/settings", label: "설정", icon: Settings, roles: ["admin"] },
     ],
   },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ admin }: { admin: any }) {
   const pathname = usePathname();
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
+
+  // 역할에 따른 메뉴 필터링
+  const filteredNav = NAV.map(section => ({
+    ...section,
+    items: section.items.filter(item => 
+      !item.roles || item.roles.includes(admin?.role)
+    )
+  })).filter(section => section.items.length > 0);
 
   return (
     <aside
@@ -93,7 +102,7 @@ export function AdminSidebar() {
 
       {/* 네비게이션 */}
       <nav className="flex-1 overflow-y-auto py-3 px-3">
-        {NAV.map((section, si) => (
+        {filteredNav.map((section, si) => (
           <div key={si} className={cn(si > 0 && "mt-5")}>
             {section.group && (
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#3D4470] px-2 mb-1.5">
@@ -144,8 +153,8 @@ export function AdminSidebar() {
             관
           </div>
           <div className="min-w-0">
-            <p className="text-[12px] font-medium text-[#C0C5DC] truncate">관리자</p>
-            <p className="text-[10px] text-[#3D4470] truncate">admin@imdealers.kr</p>
+            <p className="text-[12px] font-medium text-[#C0C5DC] truncate">{admin?.name || "관리자"}</p>
+            <p className="text-[10px] text-[#3D4470] truncate">{admin?.email}</p>
           </div>
         </div>
         <button className="flex items-center gap-2 px-2.5 py-1.5 w-full rounded-[6px] text-[12px] text-[#3D4470] hover:text-[#8890AA] hover:bg-white/[0.04] transition-all duration-150">
