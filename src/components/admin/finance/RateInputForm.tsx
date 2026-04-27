@@ -11,7 +11,7 @@ import {
 
 interface Props {
   financeCompanyId: string;
-  trimId: string;
+  trimIds: string[];
   trimPrice: number;
   existingSheet?: CapitalRateSheet;
   onSaved: () => void;
@@ -54,7 +54,7 @@ type PreviewData = {
 
 export default function RateInputForm({
   financeCompanyId,
-  trimId,
+  trimIds,
   trimPrice,
   existingSheet,
   onSaved,
@@ -97,7 +97,7 @@ export default function RateInputForm({
       setWeekOf(getWeekOf());
     }
     setPreview(null);
-  }, [existingSheet, trimId, trimPrice]);
+  }, [existingSheet, trimIds, trimPrice]);
 
   const updateRate = (
     setter: React.Dispatch<React.SetStateAction<RateSheetRaw>>,
@@ -129,7 +129,7 @@ export default function RateInputForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           financeCompanyId,
-          trimId,
+          trimIds, // 단일 ID 대신 배열 전송
           weekOf,
           minVehiclePrice,
           maxVehiclePrice,

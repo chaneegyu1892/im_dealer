@@ -112,6 +112,18 @@ export default function AdminManager() {
                   className="w-full px-3 py-2 border border-[#E8EAF0] rounded-xl text-sm focus:outline-none focus:border-[#6066EE]"
                 />
               </div>
+              <div>
+                <label className="text-[11px] font-bold text-[#9BA4C0] block mb-1">권한 역할</label>
+                <select
+                  value={newAdmin.role}
+                  onChange={(e) => setNewAdmin({ ...newAdmin, role: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#E8EAF0] rounded-xl text-sm focus:outline-none focus:border-[#6066EE] appearance-none bg-white"
+                >
+                  <option value="admin">마스터 관리자 (Admin)</option>
+                  <option value="staff">일반 운영자 (Staff)</option>
+                  <option value="dealer">제휴 딜러 (Dealer)</option>
+                </select>
+              </div>
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"

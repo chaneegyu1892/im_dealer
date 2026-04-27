@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
     const {
       financeCompanyId,
       trimId,
+      trimIds,
       weekOf,
       minVehiclePrice,
       maxVehiclePrice,
@@ -101,7 +102,8 @@ export async function POST(request: NextRequest) {
       memo,
     } = body as {
       financeCompanyId: string;
-      trimId: string;
+      trimId?: string;
+      trimIds?: string[];
       weekOf: string;
       minVehiclePrice: number;
       maxVehiclePrice: number;
@@ -114,11 +116,13 @@ export async function POST(request: NextRequest) {
       memo?: string;
     };
 
-    if (!financeCompanyId || !trimId || !weekOf || !minVehiclePrice || !maxVehiclePrice) {
+    const targetTrimIds = trimIds || (trimId ? [trimId] : []);
+
+    if (!financeCompanyId || targetTrimIds.length === 0 || !weekOf || !minVehiclePrice || !maxVehiclePrice) {
       return NextResponse.json({ error: "필수 항목이 누락되었습니다." }, { status: 400 });
     }
 
-    // 회수율 자동 계산
+    // 회수율 자동 계산 (모든 트림에 동일하게 적용됨)
     const minRateMatrix = calcRateMatrix(minBaseRates, minVehiclePrice);
     const maxRateMatrix = calcRateMatrix(maxBaseRates, maxVehiclePrice);
 
@@ -127,12 +131,6 @@ export async function POST(request: NextRequest) {
 
     const weekDate = new Date(weekOf);
     const db = prisma as any;
-
-    const existing = await db.capitalRateSheet.findUnique({
-      where: {
-        financeCompanyId_trimId_weekOf: { financeCompanyId, trimId, weekOf: weekDate },
-      },
-    });
 
     const sheetData = {
       minVehiclePrice,
@@ -151,23 +149,44 @@ export async function POST(request: NextRequest) {
       memo: memo ?? null,
     };
 
-    let sheet;
-    if (existing) {
-      sheet = await db.capitalRateSheet.update({
-        where: { id: existing.id },
-        data: sheetData,
+    const results = [];
+
+    // 각 트림별로 저장 처리
+    for (const tid of targetTrimIds) {
+      const existing = await db.capitalRateSheet.findUnique({
+        where: {
+          financeCompanyId_trimId_weekOf: { financeCompanyId, trimId: tid, weekOf: weekDate },
+        },
       });
-    } else {
-      await db.capitalRateSheet.updateMany({
-        where: { financeCompanyId, trimId, isActive: true },
-        data: { isActive: false },
-      });
-      sheet = await db.capitalRateSheet.create({
-        data: { financeCompanyId, trimId, weekOf: weekDate, ...sheetData },
-      });
+
+      if (existing) {
+        const updated = await db.capitalRateSheet.update({
+          where: { id: existing.id },
+          data: sheetData,
+        });
+        results.push(updated.id);
+      } else {
+        // 기존 활성 시트 비활성화
+        await db.capitalRateSheet.updateMany({
+          where: { financeCompanyId, trimId: tid, isActive: true },
+          data: { isActive: false },
+        });
+        // 새 시트 생성
+        const created = await db.capitalRateSheet.create({
+          data: { financeCompanyId, trimId: tid, weekOf: weekDate, ...sheetData },
+        });
+        results.push(created.id);
+      }
     }
 
-    return NextResponse.json({ id: sheet.id, minRateMatrix, maxRateMatrix, depositDiscountRate, prepayAdjustRate });
+    return NextResponse.json({ 
+      success: true, 
+      count: results.length,
+      minRateMatrix, 
+      maxRateMatrix, 
+      depositDiscountRate, 
+      prepayAdjustRate 
+    });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "저장 실패" }, { status: 500 });
