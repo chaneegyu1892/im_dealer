@@ -24,6 +24,7 @@ export interface VehicleListItem {
   monthlyFrom: number;
   highlights: string[];
   tags: string[];
+  hasAvailableInventory?: boolean;
 }
 
 export interface VehicleDetailedSpecs {
