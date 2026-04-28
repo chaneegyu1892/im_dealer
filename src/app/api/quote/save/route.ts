@@ -27,6 +27,7 @@ const saveQuoteSchema = z.object({
   contractMonths: z.number().int().refine((v) => [36, 48, 60].includes(v)),
   annualMileage: z.number().int().refine((v) => [10000, 20000, 30000].includes(v)),
   contractType: z.enum(["인수형", "반납형"]),
+  customerType: z.enum(["individual", "self_employed", "corporate", "nonprofit"]).default("individual"),
   productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
   scenarioType: z.enum(["conservative", "standard", "aggressive"]),
 });
@@ -136,6 +137,7 @@ export async function POST(request: NextRequest) {
     const breakdown = JSON.parse(JSON.stringify({
       scenarioType: input.scenarioType,
       productType: input.productType,
+      customerType: input.customerType,
       vehicleSlug: input.vehicleSlug,
       vehicleName: vehicle.name,
       vehicleBrand: vehicle.brand,
@@ -180,6 +182,7 @@ export async function POST(request: NextRequest) {
       depositRate: condition.depositRate,
       prepayRate: condition.prepayRate,
       contractType: input.contractType,
+      customerType: input.customerType,
       monthlyPayment,
       totalCost: monthlyPayment * input.contractMonths,
       breakdown,

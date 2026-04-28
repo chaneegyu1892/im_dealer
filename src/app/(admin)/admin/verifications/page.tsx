@@ -8,9 +8,10 @@ import type { AdminVerification } from "@/lib/admin-queries";
 
 // ─── 고객 유형 ────────────────────────────────────────────
 const CUSTOMER_TYPE_LABEL: Record<string, string> = {
-  individual: "직장인",
+  individual: "개인",
   self_employed: "개인사업자",
   corporate: "법인",
+  nonprofit: "비영리법인",
 };
 
 // ─── 상태 뱃지 ───────────────────────────────────────────
@@ -121,7 +122,9 @@ export default function VerificationsPage() {
                     : <span className="text-[11px] text-[#C0C5DC]">—</span>}
                 </span>
                 <span className="self-center">
-                  {row.customerType === "self_employed" || row.customerType === "corporate"
+                  {row.customerType === "self_employed" ||
+                  row.customerType === "corporate" ||
+                  row.customerType === "nonprofit"
                     ? <StatusDot ok={row.bizVerified} pending={isPending} />
                     : <span className="text-[11px] text-[#C0C5DC]">—</span>}
                 </span>

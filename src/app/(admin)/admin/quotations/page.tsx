@@ -16,6 +16,7 @@ import {
 } from "@/constants/mock-data";
 import { logActivity } from "@/lib/activity-store";
 import { AdminSavedQuote } from "@/types/admin";
+import { CUSTOMER_TYPE_LABELS, isCustomerType } from "@/constants/customer-types";
 
 type ExportableQuote = AdminSavedQuote & {
   vehicleShort?: string;
@@ -53,6 +54,10 @@ const STATUS_STYLE: Record<UIQuoteStatus, { bg: string; text: string; icon: Reac
 };
 
 const STATUS_LIST: UIQuoteStatus[] = ["상담대기", "연락완료", "상담중", "계약완료", "계약취소"];
+
+function formatCustomerType(type: string) {
+  return isCustomerType(type) ? CUSTOMER_TYPE_LABELS[type] : type;
+}
 
 function QuotationsContent() {
   const searchParams = useSearchParams();
@@ -167,6 +172,7 @@ function QuotationsContent() {
       "견적 ID": q.id,
       "고객명": q.customerName,
       "연락처": q.phone,
+      "고객 유형": formatCustomerType(q.customerType),
       "차량명": q.vehicleName,
       "차량 (짧은명)": exportQuote.vehicleShort ?? q.vehicleName,
       "선택 색상": exportQuote.color ?? "",
@@ -469,6 +475,7 @@ function QuotationsContent() {
                       <div>
                         <p className="text-[13px] font-bold text-[#1A1A2E] group-hover/link:text-[#000666] transition-colors">{q.customerName || "고객"}</p>
                         <p className="text-[11px] text-[#6B7399] mt-0.5">{q.phone || "-"}</p>
+                        <p className="text-[10px] text-[#000666] mt-1">{formatCustomerType(q.customerType)}</p>
                       </div>
                       <ChevronRight size={12} className="text-[#9BA4C0] opacity-0 group-hover/link:opacity-100 -translate-x-1 group-hover/link:translate-x-0 transition-all" />
                     </Link>
@@ -588,6 +595,7 @@ function QuotationsContent() {
                     {[
                       ["모델명", drawerQuote.vehicleName],
                       ["트림", drawerQuote.trimName],
+                      ["고객 유형", formatCustomerType(drawerQuote.customerType)],
                     ].map(([label, val]) => (
                       <div key={label} className="flex justify-between">
                         <span className="text-[12px] text-[#6B7399]">{label}</span>

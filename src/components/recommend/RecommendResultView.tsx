@@ -141,7 +141,12 @@ export function RecommendResultView() {
       {/* 차량 카드 목록 */}
       <div className="grid grid-cols-1 gap-6">
         {vehicles.map((v, i) => (
-          <RecommendVehicleCard key={v.vehicleId} vehicle={v} isTop={i === 0} />
+          <RecommendVehicleCard
+            key={v.vehicleId}
+            vehicle={v}
+            isTop={i === 0}
+            industry={input.industry}
+          />
         ))}
       </div>
 

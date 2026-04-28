@@ -26,6 +26,7 @@ const calculateSchema = z.object({
   contractMonths: z.number().int().refine((v) => [36, 48, 60].includes(v)),
   annualMileage: z.number().int().refine((v) => [10000, 20000, 30000].includes(v)),
   contractType: z.enum(["인수형", "반납형"]),
+  customerType: z.enum(["individual", "self_employed", "corporate", "nonprofit"]).default("individual"),
   productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
 });
 
@@ -237,6 +238,7 @@ export async function POST(request: NextRequest) {
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         contractType: input.contractType,
+        customerType: input.customerType,
         scenarios,
       },
     });

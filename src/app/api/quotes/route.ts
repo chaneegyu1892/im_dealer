@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminNotification } from "@/lib/admin-notification";
+import { isCustomerType } from "@/constants/customer-types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,6 +19,7 @@ export async function POST(request: NextRequest) {
       depositRate,
       prepayRate,
       contractType,
+      customerType,
       monthlyPayment,
       totalCost,
       breakdown,
@@ -25,14 +27,20 @@ export async function POST(request: NextRequest) {
       phone,
     } = body;
 
-    // vehicleId가 slug인 경우 ID로 변환
+    // vehicleId 필드로 기존 ID 또는 slug가 들어올 수 있어 저장 전 ID로 정규화
     let targetVehicleId = vehicleId;
-    if (vehicleId && !vehicleId.startsWith("cl") && !vehicleId.includes("-")) { // cuid check or slug check
-       const v = await prisma.vehicle.findUnique({
-         where: { slug: vehicleId },
-         select: { id: true }
-       });
-       if (v) targetVehicleId = v.id;
+    if (vehicleId) {
+      const byId = await prisma.vehicle.findUnique({
+        where: { id: vehicleId },
+        select: { id: true },
+      });
+      if (!byId) {
+        const bySlug = await prisma.vehicle.findUnique({
+          where: { slug: vehicleId },
+          select: { id: true },
+        });
+        if (bySlug) targetVehicleId = bySlug.id;
+      }
     }
 
     // 1. 견적 저장
@@ -47,6 +55,7 @@ export async function POST(request: NextRequest) {
         depositRate,
         prepayRate,
         contractType,
+        customerType: isCustomerType(customerType) ? customerType : "individual",
         monthlyPayment,
         totalCost,
         breakdown,

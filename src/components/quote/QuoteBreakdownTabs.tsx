@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatMonthly } from "@/lib/utils";
 import { Building2, ChevronDown, ChevronUp, Trophy } from "lucide-react";
+import { isCustomerType, type CustomerType } from "@/constants/customer-types";
 import type { QuoteScenarioDetails, QuoteScenarioDetail, FinanceCompanyQuote } from "@/types/quote";
 import { QuoteMonthlyDonut } from "./QuoteMonthlyDonut";
 
@@ -22,6 +23,7 @@ interface Props {
   customRates?: { depositRate: number; prepayRate: number };
   onCustomRatesChange?: (rates: { depositRate: number; prepayRate: number }) => void;
   isRecalculating?: boolean;
+  customerType?: string;
 }
 
 export function QuoteBreakdownTabs({
@@ -31,6 +33,7 @@ export function QuoteBreakdownTabs({
   customRates,
   onCustomRatesChange,
   isRecalculating = false,
+  customerType,
 }: Props) {
   const [active, setActive] = useState<ScenarioKey>(defaultTab);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -178,7 +181,7 @@ export function QuoteBreakdownTabs({
         )}
 
         {/* ⑤ 체크포인트 */}
-        <CostCheckpoint contractType={data.contractType} />
+        <CostCheckpoint contractType={data.contractType} customerType={customerType} />
       </div>
     </div>
   );
@@ -317,52 +320,84 @@ const RANK_LABEL: Record<number, { label: string; color: string; bg: string }> =
 };
 
 function FinanceCompareTable({ results }: { results: FinanceCompanyQuote[] }) {
-  const best = results[0]?.monthlyPayment ?? 0;
+  const sortedResults = [...results].sort((a, b) => a.monthlyPayment - b.monthlyPayment);
+  const best = sortedResults[0]?.monthlyPayment ?? 0;
+  const maxPayment = Math.max(...sortedResults.map((r) => r.monthlyPayment), best);
+  const paymentRange = maxPayment - best;
 
   return (
     <div className="divide-y divide-[#F0F2F8] bg-white">
-      {results.map((r) => {
+      {sortedResults.map((r, index) => {
         const diff = r.monthlyPayment - best;
-        const rankInfo = RANK_LABEL[r.rank] ?? RANK_LABEL[4];
+        const isBest = index === 0;
+        const displayRank = index + 1;
+        const rankInfo = RANK_LABEL[displayRank] ?? RANK_LABEL[4];
+        const barWidth = paymentRange > 0
+          ? 100 - ((r.monthlyPayment - best) / paymentRange) * 15
+          : 100;
 
         return (
           <div
-            key={r.rank}
+            key={`${r.financeCompanyName}-${r.rank}`}
             className={cn(
-              "flex items-center gap-3 px-4 py-3",
-              r.rank === 1 && "bg-primary-100"
+              "px-4 py-3 space-y-2",
+              isBest && "bg-primary-100"
             )}
           >
-            {/* 순위 배지 */}
-            <span
-              className="text-[10px] font-bold px-2 py-0.5 rounded-[4px] shrink-0 w-[46px] text-center"
-              style={{ color: rankInfo.color, background: rankInfo.bg }}
-            >
-              {rankInfo.label}
-            </span>
-
-            {/* 금융사명 */}
-            <span className={cn(
-              "flex-1 text-[13px]",
-              r.rank === 1 ? "font-semibold text-primary" : "text-ink-body"
-            )}>
-              {r.financeCompanyName}
-            </span>
-
-            {/* 금액 요약 */}
-            <div className="flex flex-col items-end gap-0.5">
-              <span className={cn(
-                "text-[15px] font-semibold tabular-nums",
-                r.rank === 1 ? "text-primary" : "text-ink"
-              )}>
-                {formatMonthly(r.monthlyPayment)}
+            <div className="flex items-center gap-3">
+              {/* 순위 배지 */}
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-[4px] shrink-0 w-[46px] text-center"
+                style={{ color: rankInfo.color, background: rankInfo.bg }}
+              >
+                {rankInfo.label}
               </span>
-              {diff > 0 && (
-                <span className="text-[10px] text-ink-caption tabular-nums">
-                  +{formatCurrency(diff)}
+
+              {/* 금융사명 */}
+              <span className={cn(
+                "min-w-0 flex-1 text-[13px] truncate",
+                isBest ? "font-semibold text-primary" : "text-ink-body"
+              )}>
+                {r.financeCompanyName}
+              </span>
+
+              {/* 금액 요약 */}
+              <div className="flex flex-col items-end gap-0.5 shrink-0">
+                <span className={cn(
+                  "text-[15px] font-semibold tabular-nums",
+                  isBest ? "text-primary" : "text-ink"
+                )}>
+                  {formatMonthly(r.monthlyPayment)}
                 </span>
-              )}
+                <span className="text-[10px] text-ink-caption tabular-nums">
+                  {diff > 0 ? `+${formatCurrency(diff)}` : "기준가"}
+                </span>
+              </div>
             </div>
+
+            <svg
+              viewBox="0 0 100 10"
+              preserveAspectRatio="none"
+              className="block h-2.5 w-full"
+              role="img"
+              aria-label={`${r.financeCompanyName} 월 납입금 ${formatMonthly(r.monthlyPayment)}`}
+            >
+              <rect
+                x="0"
+                y="0"
+                width="100"
+                height="10"
+                fill={isBest ? "#E5E5FA" : "#E8EAF2"}
+              />
+              <rect
+                x="0"
+                y="0"
+                width={barWidth}
+                height="10"
+                fill={isBest ? "#000666" : "#6066EE"}
+                opacity={isBest ? 1 : 0.92}
+              />
+            </svg>
           </div>
         );
       })}
@@ -380,6 +415,79 @@ interface CustomRateSlidersProps {
   onChange: (rates: { depositRate: number; prepayRate: number }) => void;
 }
 
+const SLIDER_STEPS = [0, 5, 10, 15, 20, 25, 30];
+
+function StyledSlider({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: number;
+  disabled: boolean;
+  onChange: (v: number) => void;
+}) {
+  const pct = (value / 30) * 100;
+
+  return (
+    <div className="relative h-6 flex items-center">
+      {/* 트랙 베이스 */}
+      <div className="absolute inset-x-0 h-[5px] rounded-full bg-neutral-700 overflow-hidden">
+        {/* 채워지는 fill — transition으로 부드럽게 */}
+        <div
+          className="h-full rounded-full transition-all duration-300 ease-out"
+          style={{
+            width: `${pct}%`,
+            background: disabled
+              ? "#C0C4D0"
+              : "linear-gradient(90deg, #000666 0%, #6066EE 100%)",
+          }}
+        />
+      </div>
+
+      {/* 눈금 점 */}
+      {SLIDER_STEPS.map((step) => {
+        const stepPct = (step / 30) * 100;
+        const isActive = value >= step;
+        return (
+          <div
+            key={step}
+            className="absolute w-[3px] h-[3px] rounded-full -translate-x-1/2 transition-colors duration-300"
+            style={{
+              left: `${stepPct}%`,
+              background: isActive && !disabled ? "#fff" : "#C0C4D0",
+              opacity: step === 0 || step === 30 ? 0 : 1,
+            }}
+          />
+        );
+      })}
+
+      {/* 썸 */}
+      <div
+        className="absolute w-[18px] h-[18px] rounded-full shadow-md -translate-x-1/2 transition-all duration-300 ease-out pointer-events-none"
+        style={{
+          left: `${pct}%`,
+          background: disabled ? "#C0C4D0" : "#fff",
+          border: `2.5px solid ${disabled ? "#C0C4D0" : "#000666"}`,
+          boxShadow: disabled ? "none" : "0 1px 6px rgba(0,6,102,0.25)",
+          transform: `translateX(-50%) scale(${value > 0 && !disabled ? 1.15 : 1})`,
+        }}
+      />
+
+      {/* 실제 input (투명, 접근성·드래그 담당) */}
+      <input
+        type="range"
+        min={0}
+        max={30}
+        step={5}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="absolute inset-0 opacity-0 w-full cursor-pointer disabled:cursor-not-allowed"
+      />
+    </div>
+  );
+}
+
 function CustomRateSliders({ depositRate, prepayRate, isRecalculating, onChange }: CustomRateSlidersProps) {
   function handleDepositChange(v: number) {
     onChange({ depositRate: v, prepayRate: v > 0 ? 0 : prepayRate });
@@ -389,61 +497,92 @@ function CustomRateSliders({ depositRate, prepayRate, isRecalculating, onChange 
   }
 
   return (
-    <div className="rounded-[10px] bg-neutral px-4 py-3 space-y-3">
+    <div className="rounded-[10px] bg-neutral px-4 py-3 space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-semibold text-ink-label uppercase tracking-wider">
           조건 직접 설정
         </p>
-        {isRecalculating && (
-          <span className="flex items-center gap-1 text-[11px] text-ink-caption">
-            <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            재계산 중…
-          </span>
-        )}
+        <span
+          className={cn(
+            "flex items-center gap-1 text-[11px] text-ink-caption transition-opacity duration-200",
+            isRecalculating ? "opacity-100" : "opacity-0 pointer-events-none"
+          )}
+        >
+          <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          재계산 중…
+        </span>
       </div>
 
       {/* 보증금률 슬라이더 */}
-      <div className={cn("space-y-1.5", prepayRate > 0 && "opacity-50")}>
+      <div
+        className={cn(
+          "space-y-2 transition-all duration-300",
+          prepayRate > 0 ? "opacity-40 pointer-events-none" : "opacity-100"
+        )}
+      >
         <div className="flex items-center justify-between">
           <span className="text-[12px] text-ink-caption">보증금</span>
-          <span className="text-[12px] font-semibold text-ink tabular-nums">
+          <span
+            className={cn(
+              "text-[13px] font-semibold tabular-nums transition-all duration-200",
+              depositRate > 0 ? "text-primary" : "text-ink-caption"
+            )}
+          >
             {depositRate > 0 ? `${depositRate}%` : "없음"}
           </span>
         </div>
-        <input
-          type="range"
-          min={0}
-          max={30}
-          step={5}
+        <StyledSlider
           value={depositRate}
           disabled={prepayRate > 0}
-          onChange={(e) => handleDepositChange(Number(e.target.value))}
-          className="w-full accent-primary h-1.5 cursor-pointer disabled:cursor-not-allowed"
+          onChange={handleDepositChange}
         />
+        {/* 눈금 레이블 */}
+        <div className="flex justify-between px-0.5">
+          {SLIDER_STEPS.filter((s) => s % 10 === 0).map((s) => (
+            <span key={s} className="text-[10px] text-ink-caption tabular-nums">
+              {s === 0 ? "없음" : `${s}%`}
+            </span>
+          ))}
+        </div>
       </div>
 
+      {/* 구분선 */}
+      <div className="border-t border-[#EBEBEB]" />
+
       {/* 선납금률 슬라이더 */}
-      <div className={cn("space-y-1.5", depositRate > 0 && "opacity-50")}>
+      <div
+        className={cn(
+          "space-y-2 transition-all duration-300",
+          depositRate > 0 ? "opacity-40 pointer-events-none" : "opacity-100"
+        )}
+      >
         <div className="flex items-center justify-between">
           <span className="text-[12px] text-ink-caption">선납금</span>
-          <span className="text-[12px] font-semibold text-ink tabular-nums">
+          <span
+            className={cn(
+              "text-[13px] font-semibold tabular-nums transition-all duration-200",
+              prepayRate > 0 ? "text-primary" : "text-ink-caption"
+            )}
+          >
             {prepayRate > 0 ? `${prepayRate}%` : "없음"}
           </span>
         </div>
-        <input
-          type="range"
-          min={0}
-          max={30}
-          step={5}
+        <StyledSlider
           value={prepayRate}
           disabled={depositRate > 0}
-          onChange={(e) => handlePrepayChange(Number(e.target.value))}
-          className="w-full accent-primary h-1.5 cursor-pointer disabled:cursor-not-allowed"
+          onChange={handlePrepayChange}
         />
+        <div className="flex justify-between px-0.5">
+          {SLIDER_STEPS.filter((s) => s % 10 === 0).map((s) => (
+            <span key={s} className="text-[10px] text-ink-caption tabular-nums">
+              {s === 0 ? "없음" : `${s}%`}
+            </span>
+          ))}
+        </div>
       </div>
 
       {(depositRate > 0 || prepayRate > 0) && (
-        <p className="text-[11px] text-ink-caption">
+        <p className="text-[11px] text-ink-caption -mt-1">
           보증금과 선납금은 동시에 적용할 수 없습니다.
         </p>
       )}
@@ -451,11 +590,35 @@ function CustomRateSliders({ depositRate, prepayRate, isRecalculating, onChange 
   );
 }
 
-function CostCheckpoint({ contractType }: { contractType: string }) {
+const CUSTOMER_TYPE_CHECKPOINTS: Partial<Record<CustomerType, string[]>> = {
+  self_employed: [
+    "개인사업자는 차량 이용 목적에 따라 비용처리와 부가세 처리 방식이 달라질 수 있습니다.",
+    "최종 세무 판단은 사업자 등록 상태와 실제 사용 목적을 기준으로 세무사와 확인해 주세요.",
+  ],
+  corporate: [
+    "법인은 업무용 차량 비용처리, 업무전용 자동차보험 가입 대상, 부가세 환급 가능 여부를 함께 확인해야 합니다.",
+    "최종 세무 판단은 법인 회계 기준과 차량 운행 목적을 기준으로 세무사와 확인해 주세요.",
+  ],
+  nonprofit: [
+    "비영리법인은 보조금 사용 가능 여부, 부가세 환급 대상 여부, 보험 조건을 기관 기준에 맞춰 확인해야 합니다.",
+    "최종 세무 판단은 기관 회계 기준과 관련 증빙을 기준으로 세무사와 확인해 주세요.",
+  ],
+};
+
+function CostCheckpoint({
+  contractType,
+  customerType,
+}: {
+  contractType: string;
+  customerType?: string;
+}) {
   const points =
     contractType === "인수형"
       ? ["잔존가치로 차량 최종 매입", "감가상각 비용처리 가능 (법인)"]
       : ["계약 종료 후 반납, 교체 자유", "전액 비용처리 가능 (법인/개인사업자)"];
+  const customerPoints = isCustomerType(customerType)
+    ? CUSTOMER_TYPE_CHECKPOINTS[customerType] ?? []
+    : [];
 
   return (
     <div className="rounded-[8px] bg-neutral p-3 space-y-1.5">
@@ -466,6 +629,17 @@ function CostCheckpoint({ contractType }: { contractType: string }) {
           {p}
         </p>
       ))}
+      {customerPoints.length > 0 && (
+        <div className="pt-2 mt-2 border-t border-[#E1E4EE] space-y-1.5">
+          <p className="text-[11px] font-semibold text-ink-label">고객 유형 안내</p>
+          {customerPoints.map((p) => (
+            <p key={p} className="text-[12px] text-ink-caption flex items-start gap-1.5">
+              <span className="text-primary mt-0.5">•</span>
+              {p}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

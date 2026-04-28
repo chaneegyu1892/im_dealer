@@ -9,10 +9,12 @@ import type { RecommendedVehicle } from "@/types/recommendation";
 import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ChevronRight, Trophy, Check, Users } from "lucide-react";
+import { industryToCustomerType } from "@/constants/customer-types";
 
 interface RecommendVehicleCardProps {
   vehicle: RecommendedVehicle;
   isTop?: boolean;
+  industry?: string;
 }
 
 const RANK_LABELS: Record<number, string> = {
@@ -21,7 +23,7 @@ const RANK_LABELS: Record<number, string> = {
   3: "3순위 추천",
 };
 
-export function RecommendVehicleCard({ vehicle, isTop = false }: RecommendVehicleCardProps) {
+export function RecommendVehicleCard({ vehicle, isTop = false, industry }: RecommendVehicleCardProps) {
   const { vehicle: detail, scenarios, reason, highlights, rank } = vehicle;
   const router = useRouter();
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -45,8 +47,11 @@ export function RecommendVehicleCard({ vehicle, isTop = false }: RecommendVehicl
 
   const hasConfigs = detail.popularConfigs.length > 0;
 
-function handleQuote() {
-    const params = new URLSearchParams({ vehicle: detail.slug });
+  function handleQuote() {
+    const params = new URLSearchParams({
+      vehicle: detail.slug,
+      customerType: industryToCustomerType(industry),
+    });
     if (selectedItems.size > 0) {
       const allItems = detail.popularConfigs.flatMap((c) => c.items);
       const trimOptionIds = Array.from(selectedItems)

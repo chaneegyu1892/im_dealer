@@ -6,7 +6,7 @@ import { notifyVerificationSubmitted } from "@/lib/notify";
 
 const consentSchema = z.object({
   sessionId: z.string().min(1),
-  customerType: z.enum(["individual", "self_employed", "corporate"]),
+  customerType: z.enum(["individual", "self_employed", "corporate", "nonprofit"]),
   consentedAt: z.string().datetime(),
 });
 
