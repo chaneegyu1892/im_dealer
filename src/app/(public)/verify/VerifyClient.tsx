@@ -11,6 +11,12 @@ import {
   CUSTOMER_TYPE_LABELS,
   isCustomerType,
 } from "@/constants/customer-types";
+import {
+  LEGACY_QUOTE_STORAGE_PREFIX,
+  QUOTE_DRAFT_STORAGE_PREFIX,
+  parseLegacyQuoteDraft,
+  parseQuoteDraft,
+} from "@/lib/quote-draft";
 
 // ─── 타입 ────────────────────────────────────────────────
 type Step = 1 | 2 | 3 | "done";
@@ -525,34 +531,54 @@ export function VerifyClient() {
         throw new Error(data.error ?? "서류 조회에 실패했습니다.");
       }
 
-      // 3. 임시 저장된 견적 데이터가 있으면 DB에 저장
-      const tempQuoteStr = sessionStorage.getItem(`quote_${sessionId}`);
-      if (tempQuoteStr) {
-        const tempQuote = JSON.parse(tempQuoteStr);
-        // 시나리오 중 첫 번째(보수형) 또는 표준형을 기본으로 저장 (실제로는 사용자가 선택한 시나리오여야 함)
-        const scenario = tempQuote.scenarios?.standard || tempQuote.scenarios?.conservative;
-        
-        await fetch("/api/quotes", {
+      // 3. 저장된 견적 초안이 있으면 DB에 저장
+      const draftKey = `${QUOTE_DRAFT_STORAGE_PREFIX}${sessionId}`;
+      const legacyKey = `${LEGACY_QUOTE_STORAGE_PREFIX}${sessionId}`;
+      const draftQuote = parseQuoteDraft(localStorage.getItem(draftKey), sessionId);
+      const legacyQuote = draftQuote
+        ? null
+        : parseLegacyQuoteDraft(sessionStorage.getItem(legacyKey), sessionId);
+      const quoteDraft = draftQuote ?? legacyQuote;
+
+      if (quoteDraft) {
+        // 시나리오 중 표준형을 기본으로 저장한다. 없으면 보수형을 사용한다.
+        const scenario = quoteDraft.scenarios.standard ?? quoteDraft.scenarios.conservative;
+
+        const saveRes = await fetch("/api/quotes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sessionId,
-            vehicleId: tempQuote.vehicleSlug, // DB schema uses vehicleId, but here it's slug. Let's make sure it matches.
-            trimId: tempQuote.trimId,
-            contractMonths: tempQuote.contractMonths,
-            annualMileage: tempQuote.annualMileage,
+            vehicleId: quoteDraft.vehicleSlug,
+            trimId: quoteDraft.trimId,
+            contractMonths: quoteDraft.contractMonths,
+            annualMileage: quoteDraft.annualMileage,
             depositRate: scenario?.depositAmount ? 20 : 0, // 대략적인 값
             prepayRate: scenario?.prepayAmount ? 30 : 0,
-            contractType: tempQuote.contractType,
-            customerType: tempQuote.customerType ?? customerType,
+            contractType: quoteDraft.contractType,
+            customerType: quoteDraft.customerType ?? customerType,
             monthlyPayment: scenario?.monthlyPayment || 0,
-            totalCost: (scenario?.monthlyPayment || 0) * tempQuote.contractMonths,
-            breakdown: scenario?.breakdown || {},
+            totalCost: (scenario?.monthlyPayment || 0) * quoteDraft.contractMonths,
+            breakdown: {
+              productType: quoteDraft.productType,
+              selectedOptionIds: quoteDraft.selectedOptionIds,
+              optionsTotalPrice: quoteDraft.optionsTotalPrice,
+              totalVehiclePrice: quoteDraft.totalVehiclePrice,
+              scenarioBreakdown: scenario?.breakdown || {},
+              surcharges: scenario?.surcharges || {},
+            },
             customerName: form.name,
             phone: "연락처 미입력", // 폰 번호 입력 필드가 없으므로 일단 고정
           }),
         });
-        sessionStorage.removeItem(`quote_${sessionId}`);
+
+        if (!saveRes.ok) {
+          const data = await saveRes.json().catch(() => ({})) as { error?: string };
+          throw new Error(data.error ?? "견적 저장에 실패했습니다.");
+        }
+
+        localStorage.removeItem(draftKey);
+        sessionStorage.removeItem(legacyKey);
       }
 
       setStep("done");

@@ -93,6 +93,14 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
 
           {/* 태그들 */}
           <div className="absolute top-3 left-3 flex gap-1.5">
+            {vehicle.hasAvailableInventory && (
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-[4px]
+                           bg-primary text-white backdrop-blur-sm"
+              >
+                즉시출고
+              </span>
+            )}
             {vehicle.highlights.slice(0, 2).map((tag) => (
               <span
                 key={tag}

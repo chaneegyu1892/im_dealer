@@ -32,6 +32,7 @@ import {
   type CustomerType,
   isCustomerType,
 } from "@/constants/customer-types";
+import { QUOTE_DRAFT_STORAGE_PREFIX, type QuoteDraft } from "@/lib/quote-draft";
 
 // ─── 상수 ────────────────────────────────────────────────
 const CONTRACT_CATEGORIES = ["장기렌트", "리스"] as const;
@@ -253,27 +254,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleContractApply = useCallback(async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    // 견적 데이터를 세션 스토리지에 임시 저장 (인증 후 저장하기 위함)
-    if (quoteResult) {
-      sessionStorage.setItem(`quote_${quoteSessionId}`, JSON.stringify({
-        ...quoteResult,
-        sessionId: quoteSessionId,
-        customerType,
-      }));
-    }
-
-    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}&customerType=${customerType}`;
-    if (!user) {
-      router.push(`/login?next=${encodeURIComponent(target)}`);
-      return;
-    }
-    router.push(target);
-  }, [router, quoteSessionId, selectedVehicle?.slug, quoteResult, customerType]);
-
   // 트림/옵션 상태
   const [trims, setTrims] = useState<TrimData[]>([]);
   const [trimsLoading, setTrimsLoading] = useState(false);
@@ -303,6 +283,49 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [isRecalculating, setIsRecalculating] = useState(false);
   const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
   const recalculateRequestId = useRef(0);
+
+  const handleContractApply = useCallback(async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // 인증 후 복원할 수 있는 안전한 견적 초안만 영구 저장소에 남긴다.
+    if (quoteResult) {
+      const quoteDraft: QuoteDraft = {
+        schemaVersion: 1,
+        sessionId: quoteSessionId,
+        vehicleSlug: quoteResult.vehicleSlug,
+        trimId: quoteResult.trimId,
+        selectedOptionIds: Array.from(selectedOptionIds),
+        contractMonths: quoteResult.contractMonths,
+        annualMileage: quoteResult.annualMileage,
+        contractType: quoteResult.contractType === "인수형" ? "인수형" : "반납형",
+        productType: contractCategory,
+        customerType,
+        scenarios: quoteResult.scenarios,
+        optionsTotalPrice: quoteResult.optionsTotalPrice,
+        totalVehiclePrice: quoteResult.totalVehiclePrice,
+      };
+      localStorage.setItem(
+        `${QUOTE_DRAFT_STORAGE_PREFIX}${quoteSessionId}`,
+        JSON.stringify(quoteDraft)
+      );
+    }
+
+    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}&customerType=${customerType}`;
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+      return;
+    }
+    router.push(target);
+  }, [
+    router,
+    quoteSessionId,
+    selectedVehicle?.slug,
+    quoteResult,
+    customerType,
+    selectedOptionIds,
+    contractCategory,
+  ]);
 
   // 추천 프리필을 한 번만 적용하기 위한 플래그
   const hasPrefilled = useRef(false);

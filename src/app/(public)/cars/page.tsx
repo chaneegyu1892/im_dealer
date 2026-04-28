@@ -13,7 +13,15 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       trims: {
         where: { isVisible: true },
         orderBy: { isDefault: "desc" },
-        take: 1,
+        include: {
+          inventory: {
+            where: {
+              status: "AVAILABLE",
+              stockCount: { gt: 0 },
+            },
+            select: { id: true },
+          },
+        },
       },
       recConfigs: {
         where: { isActive: true },
@@ -44,6 +52,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     const rate = defaultTrim ? lowestRateByTrimId.get(defaultTrim.id) : undefined;
     const trimPrice = defaultTrim?.price ?? v.basePrice;
     const monthlyFrom = rate ? Math.round(trimPrice * rate) : 0;
+    const hasAvailableInventory = v.trims.some((trim) => trim.inventory.length > 0);
 
     return {
       id: v.id,
@@ -68,6 +77,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       monthlyFrom,
       highlights: v.recConfigs?.highlights ?? [],
       tags: v.tags,
+      hasAvailableInventory,
     };
   });
 }
