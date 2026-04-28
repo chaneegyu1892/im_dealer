@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { formatKRWMan, formatDateKR, formatDateTimeKR } from "@/lib/format";
 import type { AdminSavedQuote, QuoteCrmStatus } from "@/types/admin";
 import { VerificationResult } from "@/components/admin/VerificationResult";
+import { CUSTOMER_TYPE_LABELS, isCustomerType } from "@/constants/customer-types";
 
 const CRM_STATUS_CONFIG: Record<QuoteCrmStatus, { label: string; color: string; bg: string }> = {
   NEW:         { label: "신규",     color: "#6B7399", bg: "#F4F5F8" },
@@ -14,6 +15,10 @@ const CRM_STATUS_CONFIG: Record<QuoteCrmStatus, { label: string; color: string; 
   CONVERTED:   { label: "계약완료", color: "#059669", bg: "#ECFDF5" },
   LOST:        { label: "이탈",     color: "#DC2626", bg: "#FEF2F2" },
 };
+
+function formatCustomerType(type: string) {
+  return isCustomerType(type) ? CUSTOMER_TYPE_LABELS[type] : type;
+}
 
 interface QuotationTableProps {
   initialQuotes: AdminSavedQuote[];
@@ -146,7 +151,7 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-[#F0F2F8] bg-[#FAFBFF]">
-              {["차량", "트림", "계약조건", "월 납입금", "계약유형", "접수일"].map((h) => (
+              {["차량", "트림", "계약조건", "월 납입금", "계약유형", "고객유형", "접수일"].map((h) => (
                 <th
                   key={h}
                   className="px-4 py-3 text-left text-[11px] font-semibold text-[#6B7399] uppercase tracking-wide"
@@ -159,7 +164,7 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
           <tbody className="divide-y divide-[#F0F2F8]">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-[13px] text-[#9BA4C0]">
+                <td colSpan={7} className="px-4 py-10 text-center text-[13px] text-[#9BA4C0]">
                   견적 데이터가 없습니다
                 </td>
               </tr>
@@ -197,6 +202,11 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
                       )}
                     >
                       {q.contractType}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-[10px] font-medium px-2 py-1 rounded-[4px] bg-[#F4F5F8] text-[#4A5270]">
+                      {formatCustomerType(q.customerType)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-[12px] text-[#9BA4C0]">
@@ -245,6 +255,7 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
               <DetailRow label="보증금" value={`${selectedQuote.depositRate}%`} />
               <DetailRow label="선납금" value={`${selectedQuote.prepayRate}%`} />
               <DetailRow label="계약 유형" value={selectedQuote.contractType} />
+              <DetailRow label="고객 유형" value={formatCustomerType(selectedQuote.customerType)} />
             </div>
             <div className="bg-[#000666] rounded-[10px] p-4 text-center">
               <p className="text-[11px] text-white/60 mb-1">월 납입금</p>

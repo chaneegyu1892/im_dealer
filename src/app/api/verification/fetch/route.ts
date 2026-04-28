@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
     const customerType = verification.customerType as
       | "individual"
       | "self_employed"
-      | "corporate";
+      | "corporate"
+      | "nonprofit";
 
     // 운전면허 확인 (모든 타입 공통)
     const licenseResult = await verifyDriverLicense(
@@ -66,7 +67,9 @@ export async function POST(request: NextRequest) {
 
     // 사업자등록 상태 (self_employed, corporate)
     const needsBiz =
-      customerType === "self_employed" || customerType === "corporate";
+      customerType === "self_employed" ||
+      customerType === "corporate" ||
+      customerType === "nonprofit";
     const bizResult =
       needsBiz && bizNo ? await verifyBusiness(bizNo) : null;
 

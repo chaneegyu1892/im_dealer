@@ -90,5 +90,6 @@ export interface QuoteResponse {
   contractMonths: number;
   annualMileage: number;
   contractType: string;
+  customerType?: string;
   scenarios: QuoteScenarioDetails;
 }

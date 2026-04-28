@@ -40,6 +40,7 @@ export async function GET(
         depositRate: quote.depositRate,
         prepayRate: quote.prepayRate,
         contractType: quote.contractType,
+        customerType: quote.customerType,
         monthlyPayment: quote.monthlyPayment,
         totalCost: quote.totalCost,
         breakdown: quote.breakdown,

@@ -132,6 +132,7 @@ export interface AdminSavedQuote {
   depositRate: number;
   prepayRate: number;
   contractType: string;
+  customerType: string;
   monthlyPayment: number;
   totalCost: number;
   status: "NEW" | "CONTACTED" | "IN_PROGRESS" | "CONVERTED" | "LOST";

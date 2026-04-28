@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search,
-  ChevronRight,
   ChevronLeft,
   Sparkles,
   Calculator,
@@ -16,6 +14,10 @@ import {
   ChevronDown,
   ClipboardCheck,
   Download,
+  Building2,
+  BriefcaseBusiness,
+  HeartHandshake,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
@@ -23,7 +25,13 @@ import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
+import type { QuoteScenarioDetail } from "@/types/quote";
 import type { PDFQuoteData } from "@/lib/quote-pdf-template";
+import {
+  CUSTOMER_TYPE_LABELS,
+  type CustomerType,
+  isCustomerType,
+} from "@/constants/customer-types";
 
 // ─── 상수 ────────────────────────────────────────────────
 const CONTRACT_CATEGORIES = ["장기렌트", "리스"] as const;
@@ -110,7 +118,7 @@ function SelectRow({
 }
 
 // ─── 스텝 인디케이터 ──────────────────────────────────────
-const STEPS = ["차량 선택", "조건 설정", "견적 확인"] as const;
+const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
 
 function StepBar({ currentStep }: { currentStep: number }) {
   return (
@@ -184,92 +192,66 @@ function OptionButton({
   );
 }
 
-// ─── 차량 선택 카드 ──────────────────────────────────────
-function VehiclePickCard({
-  vehicle,
-  selected,
-  onSelect,
-}: {
-  vehicle: VehicleListItem;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const price = vehicle.defaultTrim?.price ?? vehicle.basePrice;
-  const priceInManWon = Math.round(price / 10000);
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cn(
-        "w-full text-left rounded-card border transition-all duration-200 overflow-hidden group",
-        selected
-          ? "border-2 border-primary shadow-card-hover"
-          : "border border-[#F0F0F0] hover:border-primary-200 hover:shadow-card-hover"
-      )}
-    >
-      {/* 썸네일 */}
-      <div className="relative h-28 bg-neutral overflow-hidden">
-        {vehicle.thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={vehicle.thumbnailUrl}
-            alt={vehicle.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-ink-caption text-[12px]">
-            이미지 준비중
-          </div>
-        )}
-        {selected && (
-          <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-            <Check size={13} className="text-white" strokeWidth={2.5} />
-          </div>
-        )}
-        {vehicle.isPopular && !selected && (
-          <div className="absolute top-2 right-2 bg-primary-100 text-primary text-[10px] font-semibold px-2 py-0.5 rounded-[4px]">
-            인기
-          </div>
-        )}
-      </div>
-
-      <div className="p-3">
-        <p className="text-[11px] text-ink-caption mb-0.5">{vehicle.brand}</p>
-        <p className="text-[14px] font-medium text-ink leading-snug">
-          {vehicle.name}
-        </p>
-        {vehicle.defaultTrim && (
-          <p className="text-[12px] text-secondary mt-1">
-            {vehicle.defaultTrim.engineType} · {vehicle.defaultTrim.name}
-          </p>
-        )}
-        <p className="text-[12px] text-ink-label mt-1.5">
-          차량가 <span className="font-medium text-ink">{priceInManWon.toLocaleString()}만원~</span>
-        </p>
-      </div>
-    </button>
-  );
-}
+const CUSTOMER_TYPE_OPTIONS: {
+  type: CustomerType;
+  desc: string;
+  icon: ReactNode;
+}[] = [
+  {
+    type: "individual",
+    desc: "개인 명의로 계약을 진행합니다.",
+    icon: <User size={18} />,
+  },
+  {
+    type: "self_employed",
+    desc: "개인사업자 등록 기준으로 서류를 확인합니다.",
+    icon: <BriefcaseBusiness size={18} />,
+  },
+  {
+    type: "corporate",
+    desc: "법인 사업자등록 기준으로 진행합니다.",
+    icon: <Building2 size={18} />,
+  },
+  {
+    type: "nonprofit",
+    desc: "비영리법인 사업자등록 기준으로 진행합니다.",
+    icon: <HeartHandshake size={18} />,
+  },
+];
 
 // ─── 메인 ────────────────────────────────────────────────
 export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefillSlug = searchParams.get("vehicle") ?? undefined;
+  const customerTypeParam = searchParams.get("customerType");
+  const initialCustomerType = isCustomerType(customerTypeParam) ? customerTypeParam : null;
   const quoteSessionId = useRef(
     typeof crypto !== "undefined" ? crypto.randomUUID() : `quote-${Date.now()}`
   ).current;
   // 추천 결과에서 넘어온 TrimOption IDs (pre-select용)
   const prefillOptionIds = searchParams.get("options")?.split(",").filter(Boolean) ?? [];
 
-  // 추천에서 넘어온 경우 처음부터 step=2, 차량 pre-select (lazy init으로 SSR flash 방지)
-  const [step, setStep] = useState<1 | 2 | 3>(() => (prefillSlug ? 2 : 1));
-  const [search, setSearch] = useState("");
-  const [selectedVehicle, setSelectedVehicle] = useState<VehicleListItem | null>(() =>
+  const [step, setStep] = useState<1 | 2 | 3>(() => (initialCustomerType ? 2 : 1));
+  const [customerType, setCustomerType] = useState<CustomerType>(
+    initialCustomerType ?? "individual"
+  );
+  const [selectedVehicle] = useState<VehicleListItem | null>(() =>
     prefillSlug ? vehicles.find((v) => v.slug === prefillSlug) ?? null : null
   );
+
+  // 차량 없이 직접 접근한 경우 차량 탐색으로 redirect
+  useEffect(() => {
+    if (!prefillSlug) {
+      router.replace("/cars");
+    }
+  }, [prefillSlug, router]);
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
+
+  const goToStep = useCallback((s: 1 | 2 | 3) => {
+    setStep(s);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const handleContractApply = useCallback(async () => {
     const supabase = createClient();
@@ -280,16 +262,17 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       sessionStorage.setItem(`quote_${quoteSessionId}`, JSON.stringify({
         ...quoteResult,
         sessionId: quoteSessionId,
+        customerType,
       }));
     }
 
-    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}`;
+    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}&customerType=${customerType}`;
     if (!user) {
       router.push(`/login?next=${encodeURIComponent(target)}`);
       return;
     }
     router.push(target);
-  }, [router, quoteSessionId, selectedVehicle?.slug, quoteResult]);
+  }, [router, quoteSessionId, selectedVehicle?.slug, quoteResult, customerType]);
 
   // 트림/옵션 상태
   const [trims, setTrims] = useState<TrimData[]>([]);
@@ -318,6 +301,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [error, setError] = useState<string | null>(null);
   const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
+  const recalculateRequestId = useRef(0);
 
   // 추천 프리필을 한 번만 적용하기 위한 플래그
   const hasPrefilled = useRef(false);
@@ -424,12 +409,18 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         .reduce((sum, o) => sum + o.price, 0)
     : 0;
 
-  // 차량 필터
-  const filteredVehicles = vehicles.filter((v) =>
-    search.trim() === ""
-      ? true
-      : v.name.includes(search) || v.brand.includes(search)
-  );
+  const restoreBaseStandardScenario = useCallback(() => {
+    recalculateRequestId.current += 1;
+    setIsRecalculating(false);
+    const standard = baseStandardScenario.current;
+    if (!standard) return;
+
+    setQuoteResult((prev) =>
+      prev
+        ? { ...prev, scenarios: { ...prev.scenarios, standard } }
+        : prev
+    );
+  }, []);
 
   // Step 2 → Step 3: 견적 계산 API 호출
   async function fetchQuote() {
@@ -451,6 +442,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
             annualMileage: conditions.annualMileage,
             contractType: conditions.contractType,
             productType: contractCategory,
+            customerType,
           }),
         }
       );
@@ -462,8 +454,12 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         return;
       }
 
-      setQuoteResult(json.data as QuoteResponse);
-      setStep(3);
+      const nextResult = json.data as QuoteResponse;
+      recalculateRequestId.current += 1;
+      baseStandardScenario.current = nextResult.scenarios.standard;
+      setCustomRates({ depositRate: 0, prepayRate: 0 });
+      setQuoteResult(nextResult);
+      goToStep(3);
     } catch {
       setError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
@@ -471,8 +467,16 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     }
   }
 
-  async function recalculateStandard() {
+  async function recalculateStandard(rates: { depositRate: number; prepayRate: number }) {
     if (!selectedVehicle || !quoteResult) return;
+    const requestId = recalculateRequestId.current + 1;
+    recalculateRequestId.current = requestId;
+
+    if (rates.depositRate === 0 && rates.prepayRate === 0) {
+      restoreBaseStandardScenario();
+      return;
+    }
+
     setIsRecalculating(true);
     try {
       const res = await fetch(`/api/vehicles/${selectedVehicle.slug}/quote`, {
@@ -485,12 +489,14 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           annualMileage: conditions.annualMileage,
           contractType: conditions.contractType,
           productType: contractCategory,
-          customDepositRate: customRates.depositRate,
-          customPrepayRate: customRates.prepayRate,
+          customDepositRate: rates.depositRate,
+          customPrepayRate: rates.prepayRate,
+          customerType,
         }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) return;
+      if (requestId !== recalculateRequestId.current) return;
 
       setQuoteResult((prev) =>
         prev
@@ -498,16 +504,18 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           : prev
       );
     } finally {
-      setIsRecalculating(false);
+      if (requestId === recalculateRequestId.current) {
+        setIsRecalculating(false);
+      }
     }
   }
 
-  // 슬라이더 변경 시 400ms 디바운스 재계산
+  // 슬라이더 변경 시 500ms 디바운스 재계산
   useEffect(() => {
     if (!quoteResult || !selectedVehicle) return;
-    if (customRates.depositRate === 0 && customRates.prepayRate === 0) return;
 
-    const handle = setTimeout(() => { recalculateStandard(); }, 400);
+    const rates = customRates;
+    const handle = setTimeout(() => { recalculateStandard(rates); }, 500);
     return () => clearTimeout(handle);
   // recalculateStandard는 같은 값 deps를 쓰므로 의도적으로 제외
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -600,7 +608,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           <StepBar currentStep={step} />
 
           <AnimatePresence mode="wait">
-            {/* ── STEP 1: 차량 선택 ── */}
+            {/* ── STEP 1: 고객 유형 선택 ── */}
             {step === 1 && (
               <motion.div
                 key="step1"
@@ -610,61 +618,73 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 transition={{ duration: 0.25 }}
               >
                 <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card p-6 mb-4">
-                  <h2 className="text-[17px] font-medium text-ink mb-4">
-                    견적을 확인할 차량을 선택하세요
+                  <h2 className="text-[17px] font-medium text-ink mb-2">
+                    계약할 고객 유형을 선택하세요
                   </h2>
+                  <p className="text-[13px] text-ink-caption mb-5">
+                    선택한 유형은 견적 저장과 계약 신청 서류 확인에 사용됩니다.
+                  </p>
 
-                  {/* 검색 */}
-                  <div className="relative mb-5">
-                    <Search
-                      size={16}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-caption"
-                    />
-                    <input
-                      type="text"
-                      placeholder="차량명 또는 브랜드로 검색"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 text-[14px] border border-neutral-800 rounded-btn
-                                 placeholder:text-ink-caption focus:outline-none focus:border-primary
-                                 transition-colors duration-150"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {CUSTOMER_TYPE_OPTIONS.map((option) => {
+                      const selected = customerType === option.type;
+                      return (
+                        <button
+                          key={option.type}
+                          type="button"
+                          onClick={() => setCustomerType(option.type)}
+                          className={cn(
+                            "flex items-start gap-3 rounded-[8px] border p-4 text-left transition-all duration-150",
+                            selected
+                              ? "border-primary bg-primary-100"
+                              : "border-[#F0F0F0] bg-white hover:border-primary/30 hover:bg-neutral"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                              selected
+                                ? "bg-primary text-white"
+                                : "bg-neutral text-ink-label"
+                            )}
+                          >
+                            {option.icon}
+                          </span>
+                          <span className="min-w-0">
+                            <span
+                              className={cn(
+                                "block text-[14px] font-semibold",
+                                selected ? "text-primary" : "text-ink"
+                              )}
+                            >
+                              {CUSTOMER_TYPE_LABELS[option.type]}
+                            </span>
+                            <span className="mt-1 block text-[12px] leading-relaxed text-ink-caption">
+                              {option.desc}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-
-                  {/* 차량 그리드 */}
-                  {filteredVehicles.length === 0 ? (
-                    <div className="text-center py-10 text-ink-caption text-[14px]">
-                      검색 결과가 없습니다
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-4">
-                      {filteredVehicles.map((v) => (
-                        <VehiclePickCard
-                          key={v.id}
-                          vehicle={v}
-                          selected={selectedVehicle?.id === v.id}
-                          onSelect={() => setSelectedVehicle(v)}
-                        />
-                      ))}
-                    </div>
-                  )}
                 </div>
 
-                {/* 다음 버튼 */}
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between">
                   <button
                     type="button"
-                    disabled={!selectedVehicle}
-                    onClick={() => setStep(2)}
-                    className={cn(
-                      "inline-flex items-center gap-2 px-6 py-3 rounded-btn text-[14px] font-medium transition-all duration-200",
-                      selectedVehicle
-                        ? "bg-primary text-white hover:opacity-90"
-                        : "bg-neutral-800 text-ink-caption cursor-not-allowed"
-                    )}
+                    onClick={() => router.push("/cars")}
+                    className="inline-flex items-center gap-1.5 text-[13px] text-ink-caption hover:text-ink transition-colors"
+                  >
+                    <ChevronLeft size={15} />
+                    차량 탐색으로 돌아가기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goToStep(2)}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-btn bg-primary text-white text-[14px] font-medium hover:opacity-90 transition-all duration-200"
                   >
                     조건 설정하기
-                    <ChevronRight size={16} />
+                    <Calculator size={15} />
                   </button>
                 </div>
               </motion.div>
@@ -696,19 +716,16 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             </span>
                           )}
                         </p>
+                        <p className="text-[12px] text-ink-caption mt-0.5">
+                          고객 유형: {CUSTOMER_TYPE_LABELS[customerType]}
+                        </p>
                       </div>
                       <button
                         type="button"
-                        onClick={() => {
-                          setStep(1);
-                          setTrims([]);
-                          setSelectedLineup(null);
-                          setSelectedTrimName(null);
-                          setSelectedOptionIds(new Set());
-                        }}
+                        onClick={() => goToStep(1)}
                         className="ml-auto text-[12px] text-ink-caption hover:text-primary transition-colors"
                       >
-                        변경
+                        유형 변경
                       </button>
                     </div>
                   )}
@@ -971,11 +988,11 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 <div className="flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={() => setStep(1)}
+                    onClick={() => router.push("/cars")}
                     className="inline-flex items-center gap-1.5 text-[13px] text-ink-caption hover:text-ink transition-colors"
                   >
                     <ChevronLeft size={15} />
-                    차량 다시 선택
+                    차량 탐색으로 돌아가기
                   </button>
                   <button
                     type="button"
@@ -1035,10 +1052,13 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       연 {(quoteResult.annualMileage / 10000).toFixed(0)}만km
                     </span>
                     <span className="text-ink-label">{quoteResult.contractType}</span>
+                    <span className="text-ink-label">
+                      {CUSTOMER_TYPE_LABELS[customerType]}
+                    </span>
                     <button
                       type="button"
                       onClick={() => {
-                        setStep(2);
+                        goToStep(2);
                         setQuoteResult(null);
                         setError(null);
                       }}
@@ -1059,11 +1079,15 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   </div>
                   <QuoteBreakdownTabs
                     scenarios={quoteResult.scenarios}
+                    customerType={customerType}
                     customRates={customRates}
                     onCustomRatesChange={setCustomRates}
                     isRecalculating={isRecalculating}
                     onTabChange={(tab) => {
-                      if (tab !== "standard") setCustomRates({ depositRate: 0, prepayRate: 0 });
+                      if (tab !== "standard") {
+                        setCustomRates({ depositRate: 0, prepayRate: 0 });
+                        restoreBaseStandardScenario();
+                      }
                     }}
                   />
                 </div>
@@ -1145,13 +1169,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#F0F0F0]">
                   <button
                     type="button"
-                    onClick={() => {
-                      setStep(1);
-                      setSelectedVehicle(null);
-                      setQuoteResult(null);
-                      setError(null);
-                      setSearch("");
-                    }}
+                    onClick={() => router.push("/cars")}
                     className="text-[13px] text-ink-caption hover:text-ink transition-colors"
                   >
                     ← 다른 차량 계산하기
@@ -1169,43 +1187,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         </div>
       </div>
 
-      {/* AI 추천 배너 */}
-      {step === 1 && (
-        <div className="page-container pb-12">
-          <div className="max-w-4xl mx-auto">
-            <div
-              className="rounded-card overflow-hidden"
-              style={{
-                background:
-                  "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
-              }}
-            >
-              <div className="px-10 py-8 flex items-center justify-between gap-6">
-                <div>
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Sparkles size={13} className="text-white/60" />
-                    <span className="text-[11px] font-semibold text-white/60 uppercase tracking-wider">
-                      어떤 차가 맞는지 모르겠다면?
-                    </span>
-                  </div>
-                  <p className="text-[16px] font-light text-white">
-                    AI 추천으로 먼저 차량을 찾아보세요
-                  </p>
-                </div>
-                <Link
-                  href="/recommend"
-                  className="shrink-0 inline-flex items-center gap-2 bg-white text-primary
-                             text-[13px] font-semibold px-5 py-2.5 rounded-btn
-                             hover:bg-primary-100 transition-colors duration-200"
-                >
-                  AI 추천 받기
-                  <ChevronRight size={14} />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

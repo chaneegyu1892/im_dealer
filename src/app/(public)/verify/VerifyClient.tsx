@@ -6,9 +6,13 @@ import { Check, ChevronLeft, Shield, FileText, Building2, HeartPulse, CheckCircl
 import { Button } from "@/components/ui/Button";
 import { SelectionCard } from "@/components/recommend/SelectionCard";
 import { cn } from "@/lib/utils";
+import {
+  type CustomerType,
+  CUSTOMER_TYPE_LABELS,
+  isCustomerType,
+} from "@/constants/customer-types";
 
 // ─── 타입 ────────────────────────────────────────────────
-type CustomerType = "individual" | "self_employed" | "corporate";
 type Step = 1 | 2 | 3 | "done";
 
 interface FormState {
@@ -199,9 +203,10 @@ const CUSTOMER_TYPE_OPTIONS: {
   label: string;
   desc: string;
 }[] = [
-  { type: "individual", icon: "👔", label: "직장인", desc: "건강보험 직장 가입자" },
+  { type: "individual", icon: "👔", label: "개인", desc: "운전면허와 건강보험 자격 확인" },
   { type: "self_employed", icon: "💼", label: "개인사업자", desc: "건강보험 지역 가입자 + 사업자등록" },
   { type: "corporate", icon: "🏢", label: "법인", desc: "법인 사업자등록 조회" },
+  { type: "nonprofit", icon: "🏛️", label: "비영리법인", desc: "비영리법인 사업자등록 조회" },
 ];
 
 function Step2CustomerType({ value, onChange, onNext, onBack }: Step2Props) {
@@ -304,7 +309,10 @@ function Step3Form({
   loading,
   error,
 }: Step3Props) {
-  const needsBiz = customerType === "self_employed" || customerType === "corporate";
+  const needsBiz =
+    customerType === "self_employed" ||
+    customerType === "corporate" ||
+    customerType === "nonprofit";
 
   const isValid =
     form.name.trim() !== "" &&
@@ -440,10 +448,14 @@ export function VerifyClient() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
   const vehicleSlug = searchParams.get("vehicle");
+  const customerTypeParam = searchParams.get("customerType");
+  const presetCustomerType = isCustomerType(customerTypeParam) ? customerTypeParam : null;
 
   const [step, setStep] = useState<Step>(1);
   const [consents, setConsents] = useState({ privacy: false, codef: false });
-  const [customerType, setCustomerType] = useState<CustomerType>("individual");
+  const [customerType, setCustomerType] = useState<CustomerType>(
+    presetCustomerType ?? "individual"
+  );
   const [form, setForm] = useState<FormState>({
     name: "",
     birthDate: "",
@@ -532,6 +544,7 @@ export function VerifyClient() {
             depositRate: scenario?.depositAmount ? 20 : 0, // 대략적인 값
             prepayRate: scenario?.prepayAmount ? 30 : 0,
             contractType: tempQuote.contractType,
+            customerType: tempQuote.customerType ?? customerType,
             monthlyPayment: scenario?.monthlyPayment || 0,
             totalCost: (scenario?.monthlyPayment || 0) * tempQuote.contractMonths,
             breakdown: scenario?.breakdown || {},
@@ -565,6 +578,9 @@ export function VerifyClient() {
           <span className="text-[13px] font-semibold text-primary">
             {formatVehicleSlug(vehicleSlug)}
           </span>
+          <span className="ml-auto text-[12px] font-medium text-primary/70">
+            {CUSTOMER_TYPE_LABELS[customerType]}
+          </span>
         </div>
       )}
 
@@ -580,7 +596,7 @@ export function VerifyClient() {
         <Step1Consent
           consents={consents}
           onChange={toggleConsent}
-          onNext={() => setStep(2)}
+          onNext={() => setStep(presetCustomerType ? 3 : 2)}
         />
       )}
 
@@ -599,7 +615,7 @@ export function VerifyClient() {
           form={form}
           onChange={handleFormChange}
           onSubmit={handleSubmit}
-          onBack={() => setStep(2)}
+          onBack={() => setStep(presetCustomerType ? 1 : 2)}
           loading={loading}
           error={error}
         />

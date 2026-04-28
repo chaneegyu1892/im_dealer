@@ -236,6 +236,7 @@ model SavedQuote {
   depositRate           Int
   prepayRate            Int
   contractType          String
+  customerType          String      @default("individual")
   monthlyPayment        Int
   totalCost             Int
   breakdown             Json

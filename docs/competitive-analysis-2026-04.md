@@ -109,21 +109,22 @@ STEP 2: 조건 설정
   - 계약기간: 36/48/60개월 (고정 버튼)
   - 연간 약정거리: 1/2/3만km (고정 버튼)
   - 계약 종류: 반납형/인수형 (고정 버튼)
-  → "견적 보기" 버튼 클릭 → POST /api/quote/calculate → setStep(3)
+  → "견적 계산하기" 버튼 클릭 → POST /api/vehicles/[slug]/quote → setStep(3)
 STEP 3: 결과 확인
   - 보수형/표준형/공격형 탭 (API에서 3개 시나리오 반환)
   - QuoteBreakdownTabs 컴포넌트
     ① 월 납입금 + 금융사 배지
-    ② 도넛 차트 (QuoteMonthlyDonut) ← 2026-04-27 추가
+    ② 표준형 전용 보증금/선납금 슬라이더 + 도넛 차트
     ③ 계약 조건 그리드
     ④ 견적 산출 내역 (accordion)
     ⑤ 금융사별 비교 (accordion)
     ⑥ 체크포인트
 ```
 
-### 현재 API 구조 (src/app/api/quote/calculate/route.ts)
-- POST `/api/quote/calculate` — contractMonths, annualMileage, contractType, vehicleId, trimId 받아 3개 시나리오 반환
-- 3개 시나리오는 내부적으로 보수형(보증금 10%), 표준형(없음), 공격형(선납금 10%) 고정 조건으로 계산
+### 현재 API 구조 (src/app/api/vehicles/[slug]/quote/route.ts)
+- POST `/api/vehicles/[slug]/quote` — trimId, selectedOptionIds, contractMonths, annualMileage, contractType, productType 받아 3개 시나리오 반환
+- 3개 시나리오는 내부적으로 보수형(보증금 20%), 표준형(없음), 공격형(선납금 30%) 고정 조건으로 계산
+- customDepositRate/customPrepayRate가 들어오면 표준형(standard)만 해당 조건으로 재계산해 반환
 
 ### 현재 sessionStorage 임시저장 위치
 ```
@@ -179,25 +180,29 @@ model SavedQuote {
 **목표**: 고객이 STEP3 결과 화면에서 보증금률/선납금률을 직접 조절하면 도넛 차트와 월 납입금이 실시간으로 바뀌는 경험
 
 **현재 상태**:
-- STEP2에서 조건 고정 후 "견적 보기" 클릭 → 1회 API 호출
-- 3개 시나리오(보수/표준/공격)는 API 내부에서 고정값(10%/0%/10%)으로 계산
-- 결과 화면에서 재계산 방법 없음
+- STEP2에서 조건 고정 후 "견적 계산하기" 클릭 → 1회 API 호출
+- 3개 시나리오(보수/표준/공격)는 API 내부에서 고정값(20%/0%/30%)으로 계산
+- STEP3 표준형 탭에서 보증금/선납금 슬라이더로 standard 시나리오만 실시간 재계산
+- 슬라이더를 0%로 되돌리거나 다른 탭으로 이동하면 기본 표준형 견적으로 복원
 
 **구현 스펙**:
 
-1. **`src/app/api/quote/calculate/route.ts` 수정**  
+1. **`src/app/api/vehicles/[slug]/quote/route.ts` 수정**  
    요청 body에 optional 파라미터 추가:
    ```typescript
-   // 현재
-   { vehicleId, trimId, contractMonths, annualMileage, contractType }
-   
-   // 변경 후
-   { vehicleId, trimId, contractMonths, annualMileage, contractType,
-     customDepositRate?: number,   // 0~30 (%), 없으면 기존 3시나리오 고정값 사용
-     customPrepayRate?: number     // 0~30 (%)
+   {
+     trimId?: string;
+     selectedOptionIds?: string[];
+     extraOptionsPrice?: number;
+     contractMonths: 36 | 48 | 60;
+     annualMileage: 10000 | 20000 | 30000;
+     contractType: "반납형" | "인수형";
+     productType: "장기렌트" | "리스";
+     customDepositRate?: number;   // 0~30 (%), 표준형만 재계산
+     customPrepayRate?: number;    // 0~30 (%), 표준형만 재계산
    }
    ```
-   `customDepositRate` 또는 `customPrepayRate`가 있으면 해당 조건으로 단일 시나리오(standard만) 재계산해서 반환.
+   `customDepositRate` 또는 `customPrepayRate`가 있으면 해당 조건으로 standard 시나리오를 재계산해서 반환.
 
 2. **`src/components/quote/QuoteBreakdownTabs.tsx` 수정**  
    Props에 슬라이더 콜백 추가:
@@ -206,48 +211,37 @@ model SavedQuote {
      scenarios: QuoteScenarioDetails;
      defaultTab?: ScenarioKey;
      onTabChange?: (tab: ScenarioKey) => void;
-     onConditionChange?: (depositRate: number, prepayRate: number) => void; // 신규
+     customRates?: { depositRate: number; prepayRate: number };
+     onCustomRatesChange?: (rates: { depositRate: number; prepayRate: number }) => void;
+     isRecalculating?: boolean;
    }
    ```
    STEP3 결과 상단(도넛 차트 위)에 슬라이더 UI 추가:
    - 보증금률 슬라이더: 0% ~ 30% (step: 5%)
    - 선납금률 슬라이더: 0% ~ 30% (step: 5%)
    - 둘 중 하나를 0 이상으로 올리면 다른 하나는 자동으로 0으로 리셋 (동시 적용 불가 — CLAUDE.md 규칙)
-   - 슬라이더 값 변경 시 `onConditionChange` 호출 (debounce 500ms)
+   - 슬라이더 값 변경 시 `onCustomRatesChange` 호출 (debounce 500ms)
 
 3. **`src/app/(public)/quote/QuoteClientPage.tsx` 수정**  
-   `QuoteBreakdownTabs`에 `onConditionChange` 연결:
+   `QuoteBreakdownTabs`에 `customRates`와 `onCustomRatesChange` 연결:
    ```typescript
-   const handleConditionChange = useCallback(
-     debounce(async (depositRate: number, prepayRate: number) => {
-       // 현재 선택된 조건 + 새 rates로 API 재호출
-       // 로딩 표시 (isLoading state 재사용)
-       // 결과로 quoteResult 업데이트
-     }, 500),
-     [selectedVehicle, selectedTrim, conditions]
-   );
+   const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
+
+   useEffect(() => {
+     // 500ms debounce 후 /api/vehicles/[slug]/quote 재호출
+     // 0/0이면 최초 standard 시나리오로 복원
+   }, [customRates.depositRate, customRates.prepayRate]);
    ```
 
-**사용 가능한 debounce 유틸**: `usehooks-ts` 또는 `lodash.debounce` 없으면 직접 구현:
-```typescript
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(id);
-  }, [value, delay]);
-  return debounced;
-}
-```
-
 **수정 파일**:
-- `src/app/api/quote/calculate/route.ts`
+- `src/app/api/vehicles/[slug]/quote/route.ts`
 - `src/components/quote/QuoteBreakdownTabs.tsx`
 - `src/app/(public)/quote/QuoteClientPage.tsx`
 
 **검증**:
 - 보증금 슬라이더를 10%로 올리면 → 도넛 "차량 대여료" 비중 감소 확인
 - 선납금을 올리면 보증금은 자동 0으로 리셋 확인
+- 슬라이더를 다시 0%로 내리면 기본 표준형 견적으로 복원 확인
 - 500ms 후 API 호출 (중간에 연속 변경 시 마지막 한 번만 호출)
 - `npx tsc --noEmit` 통과
 
@@ -310,7 +304,7 @@ model SavedQuote {
 ```
 
 **Step 3 — customerType을 API 및 저장 로직에 전달**  
-- `POST /api/quote/calculate` body에 `customerType` 추가 (현재 미사용이어도 저장)
+- `POST /api/vehicles/[slug]/quote` body에 `customerType` 추가 (현재 미사용이어도 저장)
 - `POST /api/quote/save` body에 `customerType` 추가 → DB 저장
 - `src/app/api/quote/save/route.ts` 수정
 
@@ -320,7 +314,7 @@ model SavedQuote {
 **수정 파일**:
 - `prisma/schema.prisma`
 - `src/app/(public)/quote/QuoteClientPage.tsx`
-- `src/app/api/quote/calculate/route.ts`
+- `src/app/api/vehicles/[slug]/quote/route.ts`
 - `src/app/api/quote/save/route.ts`
 - `src/app/(public)/verify/VerifyClient.tsx`
 
@@ -565,8 +559,8 @@ export async function createConnectedId(params: {
 ```
 Phase A (투자자 데모 임팩트 — 즉시)
   [x] A1  도넛 차트 (완료 2026-04-27)
-  [ ] A2  슬라이더 + 실시간 재계산 ← 다음 작업
-  [ ] A3  금융사 비교 막대그래프
+  [x] A2  슬라이더 + 실시간 재계산 (완료 2026-04-28)
+  [x] A3  금융사 비교 막대그래프 (완료 2026-04-28)
 
 Phase B (사업자 분기 + 카카오 — 1~2주)
   [ ] B1  사업자 유형 진입 분기 + 스키마

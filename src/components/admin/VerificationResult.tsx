@@ -90,9 +90,10 @@ function ResultRow({
 // ─── 고객 유형 한글 변환 ──────────────────────────────────
 function formatCustomerType(type: string) {
   const map: Record<string, string> = {
-    individual: "직장인",
+    individual: "개인",
     self_employed: "개인사업자",
     corporate: "법인",
+    nonprofit: "비영리법인",
   };
   return map[type] ?? type;
 }
@@ -239,7 +240,8 @@ export function VerificationResult({ sessionId }: Props) {
 
             {/* 사업자등록 (개인사업자/법인) */}
             {(state.data.customerType === "self_employed" ||
-              state.data.customerType === "corporate") && (
+              state.data.customerType === "corporate" ||
+              state.data.customerType === "nonprofit") && (
               <ResultRow
                 label="사업자등록 상태"
                 status={
