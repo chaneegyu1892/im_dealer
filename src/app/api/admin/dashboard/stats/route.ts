@@ -69,8 +69,14 @@ export async function GET(request: NextRequest) {
     const recentQuotes = await prisma.savedQuote.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,
-      include: { Vehicle: { select: { name: true } } }
     });
+
+    const vehicleIds = [...new Set(recentQuotes.map(q => q.vehicleId))];
+    const vehicles = await prisma.vehicle.findMany({
+      where: { id: { in: vehicleIds } },
+      select: { id: true, name: true },
+    });
+    const vehicleMap = new Map(vehicles.map(v => [v.id, v.name]));
 
     // 6. 주간 데이터 (최근 7일)
     const weeklyData = [];
@@ -105,7 +111,7 @@ export async function GET(request: NextRequest) {
         recentQuotes: recentQuotes.map(q => ({
           id: q.id,
           name: q.customerName,
-          vehicle: q.Vehicle.name,
+          vehicle: vehicleMap.get(q.vehicleId) || "알 수 없음",
           time: q.createdAt,
           status: q.status,
         })),
