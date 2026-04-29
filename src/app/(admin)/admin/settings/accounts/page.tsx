@@ -81,6 +81,19 @@ export default function AccountsPage() {
     }
   }
 
+  async function toggleRole(account: Account) {
+    const newRole = account.role === "admin" ? "operator" : "admin";
+    const res = await fetch(`/api/admin/accounts/${account.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: newRole }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setAccounts((prev) => prev.map((a) => (a.id === account.id ? data.data : a)));
+    }
+  }
+
   async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault();
     if (!resetTarget) return;
@@ -255,6 +268,19 @@ export default function AccountsPage() {
                     {/* 액션 */}
                     {!isMe && (
                       <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => toggleRole(account)}
+                          className={cn(
+                            "w-7 h-7 flex items-center justify-center rounded-lg border transition-colors",
+                            account.role === "admin"
+                              ? "border-[#E8EAF0] text-[#6066EE] hover:bg-[#EEF0FF]"
+                              : "border-[#E8EAF0] text-[#9BA4C0] hover:text-[#6066EE] hover:border-[#6066EE]"
+                          )}
+                          title={account.role === "admin" ? "운영자로 변경" : "관리자로 변경"}
+                        >
+                          <Shield size={13} />
+                        </button>
                         <button
                           type="button"
                           onClick={() => { setResetTarget(account); setResetPassword(""); setResetError(""); }}
