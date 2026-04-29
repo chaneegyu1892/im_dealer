@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { 
   BarChart2, History, Settings2, Activity, 
   AlertCircle, CheckCircle2, TrendingUp, Edit,
-  Building2, Layers
+  Building2, Layers, Search, X
 } from "lucide-react";
 import { 
   MOCK_RECOVERY_RATES, 
@@ -291,6 +291,29 @@ function RecoveryRatesContent() {
         <div className="flex-1 flex flex-col min-w-0 bg-[#FAFBFF]">
           {/* 테이블 컴포넌트 렌더링 영역 - 스크롤은 테이블 내부에서 관리 */}
           <div className="flex-1 p-5 overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <div className="relative w-[300px]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0]" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="차량명 또는 브랜드 검색"
+                  className="w-full pl-9 pr-4 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[8px] outline-none focus:border-[#6066EE] text-[#1A1A2E] shadow-sm"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9BA4C0] hover:text-[#4A5270]"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <span className="text-[11px] text-[#9BA4C0]">
+                검색 결과: <strong>{filteredRates.length}</strong>건
+              </span>
+            </div>
             <RecoveryRateTable 
               data={filteredRates} 
               onUpdateRate={handleUpdateRate} 
