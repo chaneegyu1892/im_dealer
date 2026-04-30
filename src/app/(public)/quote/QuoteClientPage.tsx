@@ -62,6 +62,13 @@ interface TrimOption {
   isDefault: boolean;
 }
 
+interface TrimRule {
+  id: string;
+  ruleType: string;
+  sourceOptionId: string;
+  targetOptionId: string;
+}
+
 interface TrimData {
   id: string;
   name: string;
@@ -71,6 +78,9 @@ interface TrimData {
   isDefault: boolean;
   specs: Record<string, string> | null;
   options: TrimOption[];
+  rules: TrimRule[];
+  lineupId: string | null;
+  lineup: { id: string; name: string } | null;
 }
 
 // ─── 캐스케이딩 셀렉트 행 ─────────────────────────────────
@@ -353,12 +363,14 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           hasPrefilled.current = true;
           const defaultTrim = loadedTrims.find((t) => t.isDefault) ?? loadedTrims[0];
           const specs = defaultTrim.specs as Record<string, string> | null;
+          const resolvedLineupName =
+            defaultTrim.lineup?.name ?? specs?.lineup ?? "";
           const hasLineup = loadedTrims.some(
-            (t) => (t.specs as Record<string, string> | null)?.lineup
+            (t) => t.lineup?.name ?? (t.specs as Record<string, string> | null)?.lineup
           );
-          if (hasLineup && specs?.lineup) {
-            setSelectedLineup(specs.lineup);
-            setSelectedTrimName(specs.trimName ?? defaultTrim.name);
+          if (hasLineup && resolvedLineupName) {
+            setSelectedLineup(resolvedLineupName);
+            setSelectedTrimName(specs?.trimName ?? defaultTrim.name);
           } else {
             setSelectedLineup(defaultTrim.id);
           }
@@ -376,13 +388,16 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   }, [selectedVehicle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── 캐스케이딩 파생 값 ──────────────────────────────────
-  // 트림에 lineup 스펙이 있는지 확인
-  const hasCascade = trims.some((t) => (t.specs as Record<string, string> | null)?.lineup);
+  // 트림에 lineup 관계 또는 lineup 스펙이 있는지 확인
+  const getLineupName = (t: TrimData): string =>
+    t.lineup?.name ?? (t.specs as Record<string, string> | null)?.lineup ?? "";
+
+  const hasCascade = trims.some((t) => getLineupName(t));
 
   // 1단계: 유니크 라인업 목록
   const availableLineups = hasCascade
     ? (() => {
-        const all = [...new Set(trims.map((t) => (t.specs as Record<string, string>)?.lineup ?? "").filter(Boolean))];
+        const all = [...new Set(trims.map((t) => getLineupName(t)).filter(Boolean))];
         const getYear = (s: string) => parseInt(s.match(/\d{4}/)?.[0] ?? "0");
         const getGroup = (s: string) => s.replace(/^\d{4}년형\s*/, "");
         const groupOrder: string[] = [];
@@ -401,7 +416,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
 
   // 2단계: 선택된 라인업에 속하는 트림들
   const trimsForLineup = selectedLineup
-    ? trims.filter((t) => (t.specs as Record<string, string>)?.lineup === selectedLineup)
+    ? trims.filter((t) => getLineupName(t) === selectedLineup)
     : [];
 
   // 유니크 트림명 (가격 포함)
@@ -825,14 +840,36 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                                 <button
                                   key={opt.id}
                                   type="button"
-                                  onClick={() =>
+                                  onClick={() => {
+                                    const rules = selectedTrim?.rules ?? [];
                                     setSelectedOptionIds((prev) => {
                                       const next = new Set(prev);
-                                      if (next.has(opt.id)) next.delete(opt.id);
-                                      else next.add(opt.id);
+                                      if (next.has(opt.id)) {
+                                        next.delete(opt.id);
+                                      } else {
+                                        next.add(opt.id);
+                                        // Enforce REQUIRED and INCLUDED rules
+                                        for (const rule of rules) {
+                                          if (
+                                            rule.sourceOptionId === opt.id &&
+                                            (rule.ruleType === "REQUIRED" || rule.ruleType === "INCLUDED")
+                                          ) {
+                                            next.add(rule.targetOptionId);
+                                          }
+                                        }
+                                        // Enforce CONFLICT rules: remove conflicting options
+                                        for (const rule of rules) {
+                                          if (
+                                            rule.sourceOptionId === opt.id &&
+                                            rule.ruleType === "CONFLICT"
+                                          ) {
+                                            next.delete(rule.targetOptionId);
+                                          }
+                                        }
+                                      }
                                       return next;
-                                    })
-                                  }
+                                    });
+                                  }}
                                   className={cn(
                                     "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100",
                                     isOptSelected ? "bg-primary-100" : "bg-white hover:bg-neutral"

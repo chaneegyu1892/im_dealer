@@ -38,6 +38,17 @@ export async function GET(
             isDefault: true,
           },
         },
+        lineup: {
+          select: { id: true, name: true },
+        },
+        rules: {
+          select: {
+            id: true,
+            ruleType: true,
+            sourceOptionId: true,
+            targetOptionId: true,
+          },
+        },
       },
     });
 
@@ -52,6 +63,9 @@ export async function GET(
         isDefault: t.isDefault,
         specs: t.specs,
         options: t.options,
+        rules: t.rules,
+        lineupId: t.lineupId,
+        lineup: t.lineup ? { id: t.lineup.id, name: t.lineup.name } : null,
       })),
     });
   } catch {

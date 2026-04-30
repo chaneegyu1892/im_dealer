@@ -36,12 +36,19 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
               이미지 준비중
             </div>
           )}
-          {vehicle.isPopular && (
-            <span className="absolute top-3 left-3 inline-flex items-center gap-1 bg-primary text-white text-[10px] font-semibold px-2.5 py-1 rounded-[4px]">
-              <Sparkles size={9} />
-              인기
-            </span>
-          )}
+          <div className="absolute top-3 left-3 flex items-center gap-1.5">
+            {vehicle.isPopular && (
+              <span className="inline-flex items-center gap-1 bg-primary text-white text-[10px] font-semibold px-2.5 py-1 rounded-[4px]">
+                <Sparkles size={9} />
+                인기
+              </span>
+            )}
+            {vehicle.hasAvailableInventory && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-primary text-white px-2.5 py-1 rounded-[4px]">
+                즉시출고
+              </span>
+            )}
+          </div>
         </div>
 
         {/* 정보 */}

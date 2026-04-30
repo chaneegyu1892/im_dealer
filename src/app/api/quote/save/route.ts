@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -228,6 +229,7 @@ export async function POST(request: NextRequest) {
       );
     }
     console.error("[POST /api/quote/save]", error);
+    Sentry.captureException(error, { tags: { route: "quote/save" } });
     return NextResponse.json(
       { error: "견적 저장 중 오류가 발생했습니다." },
       { status: 500 }

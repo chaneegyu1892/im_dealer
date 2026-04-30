@@ -16,7 +16,12 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
       trims: {
         where: { isVisible: true },
         orderBy: { isDefault: "desc" },
-        take: 1,
+        include: {
+          inventory: {
+            where: { status: "AVAILABLE", stockCount: { gt: 0 } },
+            select: { id: true },
+          },
+        },
       },
       recConfigs: {
         where: { isActive: true },
@@ -72,6 +77,7 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
       monthlyFrom,
       highlights: v.recConfigs?.highlights ?? [],
       tags: v.tags,
+      hasAvailableInventory: v.trims.some((trim) => trim.inventory.length > 0),
     };
   });
 }

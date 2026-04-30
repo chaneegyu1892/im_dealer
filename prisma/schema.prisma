@@ -18,6 +18,7 @@ model FinanceCompany {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   rateSheets    CapitalRateSheet[]
+  inventories   Inventory[]
 }
 
 // 주별 캐피탈사 견적 입력 및 계산된 회수율 보관
@@ -262,6 +263,8 @@ model SavedQuote {
   @@index([status])
   @@index([assigneeId])
   @@index([userId])
+  @@index([expiresAt])
+  @@index([createdAt])
 }
 
 model QuoteActivityLog {
@@ -437,20 +440,27 @@ model CustomerVerification {
 }
 
 model Inventory {
-  id            String   @id @default(cuid())
-  trimId        String
-  stockCount    Int      @default(0)
-  location      String?
-  status        String   @default("AVAILABLE") // AVAILABLE, RESERVED, SOLD
-  colorExt      String?
-  colorInt      String?
-  vin           String?  @unique
-  memo          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  trim          Trim     @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  id                String          @id @default(cuid())
+  trimId            String
+  stockCount        Int             @default(0)
+  location          String?
+  status            String          @default("AVAILABLE") // AVAILABLE, RESERVED, SOLD
+  colorExt          String?
+  colorInt          String?
+  vin               String?         @unique
+  memo              String?
+  financeCompanyId  String?
+  immediateDelivery Boolean         @default(false)
+  selectedOptions   String[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  trim              Trim            @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  financeCompany    FinanceCompany? @relation(fields: [financeCompanyId], references: [id], onDelete: SetNull)
 
   @@index([trimId])
+  @@index([financeCompanyId])
+  @@index([status])
+  @@index([updatedAt])
 }
 
 model AdminNotification {

@@ -3,12 +3,28 @@
 import { useState } from "react";
 import { Search, Save, Plus, X, Sparkles } from "lucide-react";
 
+interface RecommendationConfigEntry {
+  id: string;
+  highlights: string[];
+  aiCaption: string | null;
+  scoreMatrix: unknown;
+  vehicle: { name: string; brand: string; category: string };
+}
+
+function toScoreMatrix(value: unknown): Record<string, Record<string, number>> | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, Record<string, number>>;
+  }
+  return null;
+}
+
 interface Props {
-  initialConfigs: any[];
+  initialConfigs: RecommendationConfigEntry[];
 }
 
 export default function VehicleAiSettings({ initialConfigs }: Props) {
-  const [configs, setConfigs] = useState(initialConfigs);
+  const [configs, setConfigs] = useState<RecommendationConfigEntry[]>(initialConfigs);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -31,7 +47,14 @@ export default function VehicleAiSettings({ initialConfigs }: Props) {
     setCurrentPage(1);
   };
 
-  const handleUpdate = async (id: string, updatedData: any) => {
+  const handleUpdate = async (
+    id: string,
+    updatedData: {
+      highlights: string[];
+      aiCaption: string;
+      scoreMatrix?: Record<string, Record<string, number>>;
+    }
+  ) => {
     setSaving(true);
     try {
       const res = await fetch("/api/admin/ai/config", {
@@ -148,11 +171,26 @@ export default function VehicleAiSettings({ initialConfigs }: Props) {
   );
 }
 
-function SettingsMenu({ config, onUpdate, saving }: any) {
+interface SettingsMenuProps {
+  config: RecommendationConfigEntry;
+  onUpdate: (id: string, data: {
+    highlights: string[];
+    aiCaption: string;
+    scoreMatrix?: Record<string, Record<string, number>>;
+  }) => Promise<void>;
+  saving: boolean;
+}
+
+function SettingsMenu({ config, onUpdate, saving }: SettingsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [tempHighlights, setTempHighlights] = useState<string[]>(config.highlights || []);
   const [tempCaption, setTempCaption] = useState(config.aiCaption || "");
   const [newTag, setNewTag] = useState("");
+  const scoreMatrixValue = toScoreMatrix(config.scoreMatrix);
+  const [scoreMatrixJson, setScoreMatrixJson] = useState<string>(
+    scoreMatrixValue ? JSON.stringify(scoreMatrixValue, null, 2) : "{}"
+  );
+  const [scoreMatrixError, setScoreMatrixError] = useState<string | null>(null);
 
   if (!isOpen) return (
     <button onClick={() => setIsOpen(true)} className="text-xs font-bold text-[#6066EE] hover:underline">
@@ -173,7 +211,7 @@ function SettingsMenu({ config, onUpdate, saving }: any) {
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
           <div>
             <p className="text-sm font-bold text-[#1A1A2E] mb-1">{config.vehicle.name}</p>
             <p className="text-xs text-[#9BA4C0]">{config.vehicle.brand} · {config.vehicle.category}</p>
@@ -227,6 +265,30 @@ function SettingsMenu({ config, onUpdate, saving }: any) {
                 className="w-full px-4 py-3 border border-[#E8EAF2] rounded-2xl text-xs focus:outline-none focus:border-[#6066EE] resize-none"
               />
             </div>
+
+            <div>
+              <label className="text-xs font-bold text-[#1A1A2E] block mb-1">추천 점수 매트릭스 (JSON)</label>
+              <p className="text-[10px] text-[#9BA4C0] mb-2">
+                업종(industry) × 용도(purpose) 별 점수. 예: {`{ "IT": { "영업": 8, "배송": 3 } }`}
+              </p>
+              <textarea
+                value={scoreMatrixJson}
+                onChange={(e) => {
+                  setScoreMatrixJson(e.target.value);
+                  setScoreMatrixError(null);
+                }}
+                rows={6}
+                placeholder={`{\n  "IT": { "영업": 8, "배송": 3 },\n  "금융": { "영업": 6 }\n}`}
+                className={`w-full px-4 py-3 border rounded-2xl text-xs focus:outline-none resize-none font-mono ${
+                  scoreMatrixError
+                    ? "border-red-400 focus:border-red-500"
+                    : "border-[#E8EAF2] focus:border-[#6066EE]"
+                }`}
+              />
+              {scoreMatrixError && (
+                <p className="mt-1 text-[10px] text-red-500">{scoreMatrixError}</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -238,12 +300,27 @@ function SettingsMenu({ config, onUpdate, saving }: any) {
             취소
           </button>
           <button
-            onClick={() => onUpdate(config.id, { highlights: tempHighlights, aiCaption: tempCaption })}
+            onClick={() => {
+              let parsedMatrix: Record<string, Record<string, number>> | undefined;
+              try {
+                const parsed: unknown = JSON.parse(scoreMatrixJson);
+                parsedMatrix = parsed as Record<string, Record<string, number>>;
+                setScoreMatrixError(null);
+              } catch {
+                setScoreMatrixError("올바른 JSON 형식이 아닙니다.");
+                return;
+              }
+              onUpdate(config.id, {
+                highlights: tempHighlights,
+                aiCaption: tempCaption,
+                scoreMatrix: parsedMatrix,
+              });
+            }}
             disabled={saving}
             className="flex-1 py-3 bg-[#000666] text-white rounded-2xl text-sm font-bold hover:bg-[#000888] transition-all flex items-center justify-center gap-2"
           >
             <Save size={18} />
-            {saving ? "저장 중..." : "설정 저장기기"}
+            {saving ? "저장 중..." : "설정 저장"}
           </button>
         </div>
       </div>

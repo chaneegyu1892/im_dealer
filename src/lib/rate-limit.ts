@@ -37,3 +37,14 @@ export const strictRateLimit = redis
       prefix: "ratelimit:strict",
     })
   : null;
+
+// 3. 어드민 로그인 — 5분당 최대 5회. 무차별 대입 방어.
+export const loginRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, "5 m"),
+      ephemeralCache: cache,
+      analytics: true,
+      prefix: "ratelimit:login",
+    })
+  : null;

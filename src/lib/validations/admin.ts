@@ -59,6 +59,67 @@ export const ruleCreateSchema = z.object({
   targetOptionId: z.string().min(1, "대상 옵션을 선택하세요"),
 });
 
+// ─── PopularConfig ──────────────────────────────────────
+export const popularConfigItemSchema = z.object({
+  name: z.string().min(1, "항목명을 입력하세요"),
+  price: z.number().int().min(0, "가격은 0 이상이어야 합니다"),
+  trimOptionId: z.string().nullable().optional(),
+  displayOrder: z.number().int().default(0),
+});
+
+export const popularConfigCreateSchema = z.object({
+  name: z.string().min(1, "구성명을 입력하세요"),
+  note: z.string().nullable().optional(),
+  displayOrder: z.number().int().default(0),
+  isActive: z.boolean().default(true),
+  items: z.array(popularConfigItemSchema).default([]),
+});
+
+export const popularConfigUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  note: z.string().nullable().optional(),
+  displayOrder: z.number().int().optional(),
+  isActive: z.boolean().optional(),
+  items: z.array(popularConfigItemSchema).optional(),
+});
+
+// ─── Inventory ──────────────────────────────────────────
+export const inventoryCreateSchema = z.object({
+  vehicleSlug: z.string().min(1, "차량 slug 가 필요합니다"),
+  trimName: z.string().min(1, "트림명이 필요합니다"),
+  financeCompanyName: z.string().optional(),
+  stockCount: z.number().int().min(0).max(9999),
+  immediateDelivery: z.boolean().default(false),
+  colorExt: z.string().max(50).optional(),
+  selectedOptions: z.array(z.string().max(200)).max(50).default([]),
+  memo: z.string().max(2000).optional(),
+});
+
+export const inventoryUpdateSchema = z.object({
+  stockCount: z.number().int().min(0).max(9999).optional(),
+  immediateDelivery: z.boolean().optional(),
+  colorExt: z.string().max(50).optional(),
+  selectedOptions: z.array(z.string().max(200)).max(50).optional(),
+  memo: z.string().max(2000).optional(),
+  financeCompanyName: z.string().optional(),
+  trimName: z.string().min(1).optional(),
+  vehicleName: z.string().optional(),
+});
+
+// ─── AI Recommendation Config ───────────────────────────
+// scoreMatrix 는 카테고리별 가중치 맵: { [category]: { [key]: 0..1 } }
+export const aiConfigUpdateSchema = z.object({
+  id: z.string().min(1, "config id 가 필요합니다"),
+  highlights: z.array(z.string().max(200)).max(20).optional(),
+  aiCaption: z.string().max(1000).optional(),
+  scoreMatrix: z
+    .record(
+      z.string(),
+      z.record(z.string(), z.number().min(0).max(1))
+    )
+    .optional(),
+});
+
 // ─── Slug 생성 유틸 ─────────────────────────────────────
 export function generateSlug(brand: string, name: string): string {
   const korean: Record<string, string> = {

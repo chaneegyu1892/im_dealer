@@ -24,6 +24,29 @@ export interface AdminVehicle {
 export interface AdminVehicleDetail extends AdminVehicle {
   trims: AdminTrim[];
   lineups: AdminVehicleLineup[];
+  popularConfigs?: AdminPopularConfig[];
+}
+
+// ─── PopularConfig ──────────────────────────────────────
+export interface AdminPopularConfigItem {
+  id: string;
+  configId: string;
+  name: string;
+  price: number;
+  trimOptionId: string | null;
+  displayOrder: number;
+}
+
+export interface AdminPopularConfig {
+  id: string;
+  vehicleId: string;
+  name: string;
+  note: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  items: AdminPopularConfigItem[];
 }
 
 export interface AdminVehicleLineup {

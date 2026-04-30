@@ -203,6 +203,12 @@ export function InventoryClient({
     useMemo(() => buildVehicleData(vehicles), [vehicles]);
 
   const [items, setItems] = useState<InventoryItem[]>(initialItems);
+  const [notice, setNotice] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [finances, setFinances] = useState<string[]>(
     Array.from(new Set([...financeCompanies, ...initialItems.map((item) => item.financeCompany)]))
@@ -404,6 +410,7 @@ export function InventoryClient({
     if (item) {
       logActivity(`[수량 변경] ${item.vehicleShort}의 재고가 ${qty}대로 조정되었습니다.`, 'update');
     }
+    const snapshot = items;
     setItems((prev) =>
       prev.map((item) =>
         item.id === id
@@ -411,12 +418,47 @@ export function InventoryClient({
           : item
       )
     );
+    fetch(`/api/admin/inventory/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stockCount: qty }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((res: { success?: boolean }) => {
+        if (!res.success) throw new Error("서버 응답 실패");
+      })
+      .catch((e) => {
+        console.error("재고 수량 업데이트 실패:", e);
+        setItems(snapshot);
+        setNotice({ kind: "err", msg: "재고 수량 변경에 실패했습니다. 다시 시도해주세요." });
+      });
   };
 
   const handleDeliveryToggle = (id: string, val: boolean) => {
+    const snapshot = items;
     setItems((prev) =>
       prev.map((item) => item.id === id ? { ...item, immediateDelivery: val } : item)
     );
+    fetch(`/api/admin/inventory/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ immediateDelivery: val }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((res: { success?: boolean }) => {
+        if (!res.success) throw new Error("서버 응답 실패");
+      })
+      .catch((e) => {
+        console.error("즉시출고 업데이트 실패:", e);
+        setItems(snapshot);
+        setNotice({ kind: "err", msg: "즉시출고 변경에 실패했습니다." });
+      });
   };
 
   const currentDetails = selectedVehicle ? vehicleDetails[selectedVehicle.label] : null;
@@ -472,12 +514,40 @@ export function InventoryClient({
             : item
         )
       );
+      const editSnapshot = items;
+      fetch(`/api/admin/inventory/${editTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stockCount: qty,
+          immediateDelivery: form.immediateDelivery,
+          colorExt: form.color,
+          selectedOptions: form.options,
+          memo: form.memo,
+          financeCompanyName: form.financeCompany,
+          trimName: form.trim,
+          vehicleName: form.vehicleName,
+        }),
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then((res: { success?: boolean }) => {
+          if (!res.success) throw new Error("서버 응답 실패");
+          setNotice({ kind: "ok", msg: "재고가 수정되었습니다." });
+        })
+        .catch((e) => {
+          console.error("재고 수정 실패:", e);
+          setItems(editSnapshot);
+          setNotice({ kind: "err", msg: "재고 수정에 실패했습니다. 다시 시도해주세요." });
+        });
     } else {
-      const newId = `INV-${String(items.length + 1).padStart(3, "0")}-NEW`;
+      const tempId = `TEMP-${Date.now()}`;
       logActivity(`[신규 재고] ${form.vehicleShort} (${form.financeCompany}) 재고가 신규 등록되었습니다.`, 'create');
       setItems((prev) => [
         {
-          id: newId,
+          id: tempId,
           vehicleName:       form.vehicleName,
           vehicleShort:      form.vehicleShort,
           brand:             form.brand,
@@ -493,14 +563,49 @@ export function InventoryClient({
         },
         ...prev,
       ]);
+      const createSnapshot = items;
+      fetch("/api/admin/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleSlug: vehicleOptions.find(v => v.label === form.vehicleName)?.slug ?? "",
+          trimName: form.trim,
+          financeCompanyName: form.financeCompany,
+          stockCount: qty,
+          immediateDelivery: form.immediateDelivery,
+          colorExt: form.color,
+          selectedOptions: form.options,
+          memo: form.memo,
+        }),
+      })
+        .then(async (r) => {
+          if (!r.ok) {
+            const text = await r.text().catch(() => "");
+            throw new Error(`HTTP ${r.status} ${text}`);
+          }
+          return r.json();
+        })
+        .then((res: { success: boolean; data?: { id: string } }) => {
+          if (res.success && res.data?.id) {
+            setItems((prev) => prev.map((i) => i.id === tempId ? { ...i, id: res.data!.id } : i));
+            setNotice({ kind: "ok", msg: "신규 재고가 등록되었습니다." });
+          } else {
+            throw new Error("서버 응답 실패");
+          }
+        })
+        .catch((e) => {
+          console.error("재고 등록 실패:", e);
+          setItems(createSnapshot);
+          setNotice({ kind: "err", msg: "재고 등록에 실패했습니다. 입력값을 확인해주세요." });
+        });
     }
-    
+
     // 저장 후 해당 카테고리로 자동 이동 (내비게이션)
     setSelectedFC(form.financeCompany);
     setSelectedBrand(form.brand);
     const v = vehicleOptions.find(opt => opt.label === form.vehicleName);
     if (v) setSelectedVehicle(v);
-    
+
     setDrawerOpen(false);
   };
 
@@ -509,8 +614,19 @@ export function InventoryClient({
     if (item) {
       logActivity(`[재고 삭제] ${item.vehicleShort} (${item.financeCompany}) 재고를 삭제했습니다.`, 'delete');
     }
+    const snapshot = items;
     setItems((prev) => prev.filter((i) => i.id !== id));
     setDeleteTarget(null);
+    fetch(`/api/admin/inventory/${id}`, { method: "DELETE" })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        setNotice({ kind: "ok", msg: "재고가 삭제되었습니다." });
+      })
+      .catch((e) => {
+        console.error("재고 삭제 실패:", e);
+        setItems(snapshot);
+        setNotice({ kind: "err", msg: "재고 삭제에 실패했습니다." });
+      });
   };
 
   // 드로어에서 선택된 차량의 상세 정보 (form.vehicleName 기반)
@@ -518,6 +634,28 @@ export function InventoryClient({
 
   return (
     <div className="flex flex-col h-full bg-[#F8F9FC] rounded-[16px] border border-[#E8EAF0] overflow-hidden shadow-sm">
+
+      {/* ── Notice Toast ── */}
+      <AnimatePresence>
+        {notice && (
+          <motion.div
+            key={notice.msg}
+            initial={{ y: -12, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -12, opacity: 0 }}
+            className={cn(
+              "fixed top-6 right-6 z-50 px-4 py-3 rounded-[10px] shadow-lg text-[13px] font-medium",
+              notice.kind === "ok"
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "bg-red-50 text-red-700 border border-red-200"
+            )}
+            role="status"
+            aria-live="polite"
+          >
+            {notice.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── 1. 표준 헤더 & KPI ── */}
       <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 flex items-center justify-between shrink-0 z-20">
