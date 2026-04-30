@@ -16,7 +16,7 @@ import type { AdminUserRecord, AdminUsersStats } from "@/lib/admin-queries";
 
 // ─── 상태 매핑 ─────────────────────────────────────────
 type UserStatusFilter = "전체" | "정상" | "휴면";
-type ActiveFilter = "전체" | "진행중" | "없음";
+type ActiveFilter = "전체" | "진행중" | "계약있음" | "없음";
 
 const USER_STATUS_STYLE: Record<"active" | "dormant", { color: string; bg: string; label: string }> = {
   active:  { color: "#059669", bg: "#ECFDF5", label: "정상" },
@@ -28,6 +28,12 @@ const QUOTE_STATUS_STYLE: Record<string, { color: string; bg: string }> = {
   상담중:   { color: "#000666", bg: "#E5E5FA" },
   계약완료: { color: "#059669", bg: "#ECFDF5" },
   계약취소: { color: "#DC2626", bg: "#FEF2F2" },
+};
+
+const CONTRACT_STATUS_STYLE: Record<string, { color: string; bg: string }> = {
+  active: { color: "#059669", bg: "#ECFDF5" },
+  expiring_soon: { color: "#D97706", bg: "#FFFBEB" },
+  expired: { color: "#DC2626", bg: "#FEF2F2" },
 };
 
 // ─── 유틸 ──────────────────────────────────────────────
@@ -46,6 +52,10 @@ function daysSince(iso: string) {
   if (days === 0) return "오늘";
   if (days === 1) return "어제";
   return `${days}일 전`;
+}
+
+function formatMonthly(amount: number) {
+  return `${Math.round(amount / 10000).toLocaleString()}만원`;
 }
 
 // ─── 견적 상태 배지 ─────────────────────────────────────
@@ -157,6 +167,8 @@ function UserDetailPanel({
               {[
                 { label: "총 견적 건수",  value: user.consultationCount,           unit: "건", icon: FileText,      color: "#000666", bg: "#E5E5FA" },
                 { label: "진행 중 항목",  value: user.activeItems.filter(i => i.statusRaw !== "CONVERTED").length, unit: "건", icon: TrendingUp, color: "#059669", bg: "#ECFDF5" },
+                { label: "계약 완료",      value: user.contractCount,               unit: "건", icon: CheckCircle2,  color: "#0EA5E9", bg: "#E0F2FE" },
+                { label: "만기 임박",      value: user.expiringSoonCount,           unit: "건", icon: Clock,         color: "#D97706", bg: "#FFFBEB" },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -169,6 +181,49 @@ function UserDetailPanel({
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* 계약 관리 미리보기 */}
+          <div className="px-5 py-4 border-b border-[#F8F9FC]">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9BA4C0] mb-3">
+              계약 관리 미리보기
+            </p>
+            {user.contractItems.length === 0 ? (
+              <div className="flex items-center gap-2 py-3 text-[12px] text-[#C0C5D8]">
+                <CheckCircle2 size={14} className="text-[#D4D8EC]" />
+                계약 완료 항목 없음
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {user.contractItems.map((item) => {
+                  const style = CONTRACT_STATUS_STYLE[item.lifecycleStatus];
+                  return (
+                    <Link
+                      key={item.quoteId}
+                      href={`/admin/quotations?id=${item.quoteId}`}
+                      className="block rounded-[8px] bg-[#FAFBFF] border border-[#F0F2F8] px-3 py-2.5 hover:border-[#000666] hover:bg-white transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold text-[#1A1A2E] truncate">
+                            {item.vehicleName}
+                          </p>
+                          <p className="mt-1 text-[10px] text-[#9BA4C0]">
+                            {formatMonthly(item.monthlyPayment)} · {item.contractMonths}개월 · 예상 만기 {formatDate(item.expectedEndDate)}
+                          </p>
+                        </div>
+                        <span
+                          className="shrink-0 rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold"
+                          style={{ color: style.color, background: style.bg }}
+                        >
+                          {item.lifecycleLabel}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* 견적 항목 */}
@@ -265,6 +320,7 @@ export default function UsersClient({
     { label: "전체 고객",     value: stats.total,        unit: "명", icon: Users,     color: "#000666", bg: "#E5E5FA" },
     { label: "활성 고객",     value: stats.active,       unit: "명", icon: UserCheck, color: "#059669", bg: "#ECFDF5" },
     { label: "휴면 고객",     value: stats.dormant,      unit: "명", icon: Clock,     color: "#D97706", bg: "#FFFBEB" },
+    { label: "계약 완료",     value: stats.contracts,    unit: "건", icon: CheckCircle2, color: "#0EA5E9", bg: "#E0F2FE" },
     { label: "이번 달 신규",  value: stats.newThisMonth, unit: "명", icon: Sparkles,  color: "#7C3AED", bg: "#F5F3FF" },
   ];
 
@@ -275,8 +331,10 @@ export default function UsersClient({
       if (statusFilter === "정상" && u.userStatus !== "active") return false;
       if (statusFilter === "휴면" && u.userStatus !== "dormant") return false;
       const hasActive = u.activeItems.some((i) => i.statusRaw !== "CONVERTED");
+      const hasContract = u.contractItems.length > 0;
       if (activeFilter === "진행중" && !hasActive) return false;
-      if (activeFilter === "없음" && hasActive) return false;
+      if (activeFilter === "계약있음" && !hasContract) return false;
+      if (activeFilter === "없음" && (hasActive || hasContract)) return false;
       return true;
     });
   }, [users, search, statusFilter, activeFilter]);
@@ -300,7 +358,7 @@ export default function UsersClient({
       <div className="flex-1 overflow-auto p-6 flex flex-col gap-5 scrollbar-hide">
 
         {/* KPI 카드 */}
-        <div className="grid grid-cols-4 gap-4 shrink-0">
+        <div className="grid grid-cols-5 gap-4 shrink-0">
           {KPI_LIST.map((kpi) => {
             const Icon = kpi.icon;
             return (
@@ -359,8 +417,8 @@ export default function UsersClient({
           <div className="w-px h-6 bg-[#E8EAF0]" />
 
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider mr-1">상담 진행</span>
-            {(["전체", "진행중", "없음"] as const).map((a) => (
+            <span className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider mr-1">진행/계약</span>
+            {(["전체", "진행중", "계약있음", "없음"] as const).map((a) => (
               <button
                 key={a}
                 onClick={() => setActiveFilter(a)}
@@ -386,7 +444,7 @@ export default function UsersClient({
             className="grid border-b border-[#F0F2F8] px-6 py-3.5 bg-[#FAFBFF] sticky top-0 z-10"
             style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 0.8fr 1fr 1.8fr 1.2fr" }}
           >
-            {["고객", "연락처", "상태", "견적 건수", "최초 접수", "진행 항목", "최근 접수"].map((col) => (
+            {["고객", "연락처", "상태", "견적 건수", "최초 접수", "진행/계약", "최근 접수"].map((col) => (
               <span key={col} className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">{col}</span>
             ))}
           </div>
@@ -408,7 +466,9 @@ export default function UsersClient({
             ) : (
               filtered.map((user, idx) => {
                 const statusStyle = USER_STATUS_STYLE[user.userStatus];
-                const hasActive = user.activeItems.some((i) => i.statusRaw !== "CONVERTED");
+                const activeItems = user.activeItems.filter((i) => i.statusRaw !== "CONVERTED");
+                const hasActive = activeItems.length > 0;
+                const hasContracts = user.contractItems.length > 0;
 
                 return (
                   <motion.div
@@ -460,10 +520,9 @@ export default function UsersClient({
 
                     {/* 진행 항목 */}
                     <div className="min-w-0 pr-4">
-                      {hasActive ? (
+                      {hasActive || hasContracts ? (
                         <div className="flex flex-col gap-1">
-                          {user.activeItems
-                            .filter((i) => i.statusRaw !== "CONVERTED")
+                          {activeItems
                             .slice(0, 2)
                             .map((item) => (
                               <div key={item.quoteId} className="flex items-center gap-1.5 min-w-0">
@@ -473,10 +532,18 @@ export default function UsersClient({
                                 </span>
                               </div>
                             ))}
-                          {user.activeItems.filter((i) => i.statusRaw !== "CONVERTED").length > 2 && (
+                          {activeItems.length > 2 && (
                             <p className="text-[9px] text-[#B0B5CC] pl-1">
-                              + {user.activeItems.filter((i) => i.statusRaw !== "CONVERTED").length - 2}건 더 있음
+                              + {activeItems.length - 2}건 더 있음
                             </p>
+                          )}
+                          {hasContracts && (
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <QuoteStatusBadge label="계약완료" />
+                              <span className="text-[10px] text-[#059669] truncate font-semibold">
+                                {user.contractCount}건 · 만기임박 {user.expiringSoonCount}건
+                              </span>
+                            </div>
                           )}
                         </div>
                       ) : (
@@ -516,6 +583,18 @@ export default function UsersClient({
           <div className="flex items-center gap-2">
             <span className="text-[12px] text-[#6B7399]">
               이번 달 신규: <strong className="text-[#7C3AED]">{stats.newThisMonth}명</strong>
+            </span>
+          </div>
+          <div className="w-px h-3 bg-[#E8EAF0]" />
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-[#6B7399]">
+              계약 완료: <strong className="text-[#0EA5E9]">{stats.contracts}건</strong>
+            </span>
+          </div>
+          <div className="w-px h-3 bg-[#E8EAF0]" />
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-[#6B7399]">
+              만기 임박: <strong className="text-[#D97706]">{stats.expiringSoon}건</strong>
             </span>
           </div>
         </div>

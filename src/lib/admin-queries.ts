@@ -669,15 +669,29 @@ export interface AdminUserActiveItem {
   statusLabel: string;
 }
 
+export interface AdminUserContractItem {
+  quoteId: string;
+  vehicleName: string;
+  monthlyPayment: number;
+  contractMonths: number;
+  startDate: string;
+  expectedEndDate: string;
+  lifecycleStatus: "active" | "expiring_soon" | "expired";
+  lifecycleLabel: string;
+}
+
 export interface AdminUserRecord {
   id: string;                 // 첫 번째 견적의 sessionId
   name: string;               // customerName
   phone: string;
   consultationCount: number;  // 총 견적 신청 건수
+  contractCount: number;      // 계약 완료 처리된 견적 건수
+  expiringSoonCount: number;  // 예상 만기 90일 이내 계약 건수
   firstContactAt: string;     // 첫 견적 생성일 (ISO)
   lastContactAt: string;      // 최근 견적 생성일 (ISO)
   userStatus: "active" | "dormant";
   activeItems: AdminUserActiveItem[];
+  contractItems: AdminUserContractItem[];
   internalMemo: string | null;
 }
 
@@ -686,6 +700,8 @@ export interface AdminUsersStats {
   active: number;
   dormant: number;
   newThisMonth: number;
+  contracts: number;
+  expiringSoon: number;
 }
 
 function mapQuoteStatusLabel(status: string): string {
@@ -697,6 +713,30 @@ function mapQuoteStatusLabel(status: string): string {
     LOST: "계약취소",
   };
   return map[status] ?? status;
+}
+
+function addMonths(date: Date, months: number) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function getContractLifecycle(expectedEndDate: Date): {
+  lifecycleStatus: AdminUserContractItem["lifecycleStatus"];
+  lifecycleLabel: string;
+} {
+  const today = new Date();
+  const daysUntilEnd = Math.ceil(
+    (expectedEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (daysUntilEnd < 0) {
+    return { lifecycleStatus: "expired", lifecycleLabel: "예상 만료" };
+  }
+  if (daysUntilEnd <= 90) {
+    return { lifecycleStatus: "expiring_soon", lifecycleLabel: "만기 임박" };
+  }
+  return { lifecycleStatus: "active", lifecycleLabel: "계약 진행" };
 }
 
 export async function getAdminUsers(): Promise<{
@@ -713,7 +753,11 @@ export async function getAdminUsers(): Promise<{
       customerName: true,
       phone: true,
       status: true,
+      contractMonths: true,
+      monthlyPayment: true,
+      convertedAt: true,
       createdAt: true,
+      updatedAt: true,
       internalMemo: true,
     },
   });
@@ -734,7 +778,11 @@ export async function getAdminUsers(): Promise<{
       customerName: mq.customerName,
       phone: mq.phone,
       status: (statusMap[mq.status] || "NEW") as QuoteStatus,
+      contractMonths: 48,
+      monthlyPayment: mq.monthlyPayment,
+      convertedAt: mq.status === "계약완료" ? new Date(mq.createdAt) : null,
       createdAt: new Date(mq.createdAt),
+      updatedAt: new Date(mq.createdAt),
       internalMemo: mq.memo,
     }));
   }
@@ -742,7 +790,7 @@ export async function getAdminUsers(): Promise<{
   if (quotes.length === 0) {
     return {
       users: [],
-      stats: { total: 0, active: 0, dormant: 0, newThisMonth: 0 },
+      stats: { total: 0, active: 0, dormant: 0, newThisMonth: 0, contracts: 0, expiringSoon: 0 },
     };
   }
 
@@ -767,10 +815,13 @@ export async function getAdminUsers(): Promise<{
         name,
         phone,
         consultationCount: 0,
+        contractCount: 0,
+        expiringSoonCount: 0,
         firstContactAt: q.createdAt.toISOString(),
         lastContactAt: q.createdAt.toISOString(),
         userStatus: "active",
         activeItems: [],
+        contractItems: [],
         internalMemo: q.internalMemo ?? null,
       });
     }
@@ -797,6 +848,25 @@ export async function getAdminUsers(): Promise<{
         statusRaw: q.status,
         statusLabel: mapQuoteStatusLabel(q.status),
       });
+
+      if (q.status === "CONVERTED") {
+        const startDate = q.convertedAt ?? q.updatedAt ?? q.createdAt;
+        const expectedEndDate = addMonths(startDate, q.contractMonths);
+        const lifecycle = getContractLifecycle(expectedEndDate);
+        user.contractCount++;
+        if (lifecycle.lifecycleStatus === "expiring_soon") {
+          user.expiringSoonCount++;
+        }
+        user.contractItems.push({
+          quoteId: q.id,
+          vehicleName,
+          monthlyPayment: q.monthlyPayment,
+          contractMonths: q.contractMonths,
+          startDate: startDate.toISOString(),
+          expectedEndDate: expectedEndDate.toISOString(),
+          ...lifecycle,
+        });
+      }
     }
   }
 
@@ -827,6 +897,8 @@ export async function getAdminUsers(): Promise<{
     newThisMonth: users.filter(
       (u) => new Date(u.firstContactAt) >= thisMonthStart
     ).length,
+    contracts: users.reduce((sum, u) => sum + u.contractCount, 0),
+    expiringSoon: users.reduce((sum, u) => sum + u.expiringSoonCount, 0),
   };
 
   return { users, stats };

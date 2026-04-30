@@ -473,55 +473,29 @@ function estimateApprovalRate(monthlyPayment: number, depositRate: number): "hig
 
 ---
 
-### [C4] Customer + Contract 모델 신설 (사후 관리 기반)
+### [C4] SavedQuote 기반 고객/계약 전환 뷰 정리
 
 **목표**: 계약 이후 관리 생태계의 데이터 기반 구축
 
-**현재 상태**: `QuoteStatus`가 `CONVERTED`에서 끝남. Contract 개념 없음.
+**현재 상태**: `SavedQuote`가 고객 정보, 견적 조건, 상담 상태, 계약 완료 상태를 함께 들고 있음. DB 구조가 계속 바뀌고 있으므로 별도 `Customer`, `Contract` 모델을 지금 확정하면 중복 저장과 마이그레이션 부담이 커짐.
 
-**구현 스펙**:
+**구현 스펙 (v1, DB 변경 없음)**:
 
-`prisma/schema.prisma`에 추가:
-```prisma
-model Customer {
-  id            String    @id @default(cuid())
-  userId        String?   @unique
-  name          String
-  phone         String
-  customerType  String    @default("individual")
-  createdAt     DateTime  @default(now())
-  contracts     Contract[]
-}
+기존 `/admin/users`를 고객/계약 전환 관리 화면으로 확장:
+- 고객은 `SavedQuote.phone` 기준으로 그룹화
+- 상담/견적 이력은 기존 `SavedQuote.status` 기준으로 유지
+- `SavedQuote.status === "CONVERTED"`인 견적을 계약 완료 건으로 집계
+- 계약 시작일은 `convertedAt ?? updatedAt ?? createdAt` 기준으로 계산
+- 예상 만기일은 `계약 시작일 + contractMonths`
+- 예상 만기 90일 이내는 "만기 임박"으로 표시
 
-model Contract {
-  id             String    @id @default(cuid())
-  customerId     String
-  customer       Customer  @relation(fields: [customerId], references: [id])
-  vehicleName    String
-  monthlyPayment Int
-  contractMonths Int
-  startDate      DateTime
-  endDate        DateTime
-  status         ContractStatus @default(ACTIVE)
-  createdAt      DateTime  @default(now())
+추가 표시:
+- KPI: 계약 완료 건수, 만기 임박 건수
+- 고객 목록: 진행 상담과 계약 완료 요약
+- 고객 상세 패널: 계약 관리 미리보기, 월납입금, 계약기간, 예상 만기일
 
-  @@index([customerId])
-  @@index([endDate])
-}
-
-enum ContractStatus {
-  ACTIVE
-  EXPIRING_SOON   // 만기 3개월 전
-  EXPIRED
-  RENEWED
-}
-```
-
-마이그레이션: `npx prisma migrate dev --name add_customer_contract_models`
-
-어드민 `/admin/customers` 페이지 신규 (목록만, CRUD는 Phase D):
-- Customer 목록 테이블
-- 만기 임박 계약 표시
+**v2 전환 조건**:
+실제 계약 시작일/종료일, 금융사 계약번호, 계약 상태 변경 이력, 재계약/만기 알림 정책이 확정되면 그때 `Customer`, `Contract` 모델을 신설하고 `SavedQuote`에서 backfill한다.
 
 ---
 
@@ -571,7 +545,7 @@ Phase C (이탈 방지 + 사후관리 모형 — 2~4주)
   [ ] C1  localStorage 전환 (소규모, 빠름)
   [ ] C2  즉시출고 뱃지 연결 (소규모, 빠름)
   [ ] C3  승인 확률 미리보기 Mock
-  [ ] C4  Customer + Contract 모델 신설
+  [x] C4  SavedQuote 기반 고객/계약 전환 뷰 정리
   [ ] C5  Codef 실 운영 플로우 (외부 API 계약 필요)
 
 Phase D (투자 후 — B2B SaaS)
