@@ -10,12 +10,7 @@ import {
   Trash2, Building2, Car, ToggleLeft, ToggleRight,
   Layers, Settings,
 } from "lucide-react";
-import {
-  MOCK_INVENTORY,
-  FINANCE_COMPANIES,
-  type InventoryItem,
-  type InventoryStatus,
-} from "@/constants/mock-data";
+import type { InventoryItem, InventoryStatus } from "@/types/inventory";
 import type { VehicleForInventory } from "./page";
 import { logActivity } from "@/lib/activity-store";
 
@@ -192,16 +187,26 @@ function StatusPreview({ status }: { status: InventoryStatus }) {
 
 // ─── 메인 클라이언트 컴포넌트 ────────────────────────────────────
 
-export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] }) {
+export function InventoryClient({
+  vehicles,
+  initialItems,
+  financeCompanies,
+}: {
+  vehicles: VehicleForInventory[];
+  initialItems: InventoryItem[];
+  financeCompanies: string[];
+}) {
   const searchParams = useSearchParams();
 
   // DB 데이터 기반으로 초기값 구성
   const { vehicleOptions: initialVehicleOptions, vehicleDetails: initialVehicleDetails, brands: initialBrands } =
     useMemo(() => buildVehicleData(vehicles), [vehicles]);
 
-  const [items, setItems] = useState<InventoryItem[]>(MOCK_INVENTORY);
+  const [items, setItems] = useState<InventoryItem[]>(initialItems);
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
-  const [finances, setFinances] = useState<string[]>(FINANCE_COMPANIES);
+  const [finances, setFinances] = useState<string[]>(
+    Array.from(new Set([...financeCompanies, ...initialItems.map((item) => item.financeCompany)]))
+  );
   const [selectedFC, setSelectedFC] = useState("전체");
 
   const [vehicleOptions, setVehicleOptions] = useState(initialVehicleOptions);
@@ -922,7 +927,7 @@ export function InventoryClient({ vehicles }: { vehicles: VehicleForInventory[] 
                       className="w-full appearance-none pl-10 pr-8 py-2.5 text-[13px] font-semibold bg-[#F8F9FC] border border-[#E8EAF0] rounded-[8px] text-[#1A1A2E] outline-none focus:border-[#C0C5DC] cursor-pointer"
                     >
                       <option value="">금융사를 선택하세요</option>
-                      {FINANCE_COMPANIES.map(fc => <option key={fc} value={fc}>{fc}</option>)}
+                      {finances.map(fc => <option key={fc} value={fc}>{fc}</option>)}
                     </select>
                     <Building2 size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9BA4C0] pointer-events-none" />
                     <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9BA4C0] pointer-events-none" />

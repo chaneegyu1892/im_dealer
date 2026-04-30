@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
-import { type QuoteStatus } from "@prisma/client";
-import { DASHBOARD_STATS, MOCK_QUOTES } from "@/constants/mock-data";
+import { supabaseAdmin } from "@/lib/supabase";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type {
   DashboardData,
   DashboardStats,
@@ -200,24 +200,13 @@ export async function getDashboardData(): Promise<DashboardData> {
       }),
     ]);
 
-  let stats: DashboardStats = {
+  const stats: DashboardStats = {
     totalVehicles,
     visibleVehicles,
     todayQuoteViews,
     todayAiSessions,
     monthlyQuotes,
   };
-
-  // 개발 환경에서만 빈 DB에 목 데이터 통계 반환 (데모용)
-  if (totalVehicles === 0 && process.env.NODE_ENV === "development") {
-    stats = {
-      totalVehicles: DASHBOARD_STATS.totalVehicles,
-      visibleVehicles: DASHBOARD_STATS.visibleVehicles,
-      todayQuoteViews: DASHBOARD_STATS.todayQuoteViews,
-      todayAiSessions: DASHBOARD_STATS.todayAISessions,
-      monthlyQuotes: DASHBOARD_STATS.monthlyConsultations,
-    };
-  }
 
   // 주간 견적 조회 추이
   const weeklyQuoteLogs = await prisma.explorationLog.groupBy({
@@ -427,44 +416,6 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       updatedAt: q.updatedAt.toISOString(),
     };
   });
-
-  // 개발 환경에서만 빈 DB에 목 데이터를 반환 (데모용)
-  if (data.length === 0 && page === 1 && process.env.NODE_ENV === "development") {
-    const statusMap: Record<string, string> = {
-      "상담대기": "NEW",
-      "상담중": "IN_PROGRESS",
-      "계약완료": "CONVERTED",
-      "계약취소": "LOST"
-    };
-
-    const mockData: AdminSavedQuote[] = MOCK_QUOTES.map((mq: any) => ({
-      id: mq.id,
-      sessionId: `SESS-${mq.id}`,
-      userId: `USR-${mq.id}`,
-      customerName: mq.customerName,
-      phone: mq.phone,
-      vehicleId: `V-${mq.id}`,
-      vehicleName: mq.vehicleName,
-      vehicleBrand: mq.vehicleName.split(' ')[0], // 간단 추출
-      trimId: `T-${mq.id}`,
-      trimName: mq.trim,
-      contractMonths: 60,
-      annualMileage: 20000,
-      depositRate: 0,
-      prepayRate: 0,
-      contractType: "RENT",
-      monthlyPayment: mq.monthlyPayment,
-      totalCost: mq.monthlyPayment * 60,
-      status: (statusMap[mq.status] || "NEW") as AdminSavedQuote["status"],
-      userType: (mq.userType || "Guest") as AdminSavedQuote["userType"],
-      quoteType: (mq.quoteType || "DETAIL") as AdminSavedQuote["quoteType"],
-      internalMemo: mq.memo,
-      createdAt: mq.createdAt + "T00:00:00.000Z",
-      updatedAt: mq.createdAt + "T00:00:00.000Z",
-    }));
-
-    return { data: mockData.slice(0, limit), total: mockData.length };
-  }
 
   return { data, total };
 }
@@ -681,9 +632,14 @@ export interface AdminUserContractItem {
 }
 
 export interface AdminUserRecord {
-  id: string;                 // 첫 번째 견적의 sessionId
-  name: string;               // customerName
+  id: string;                 // Supabase userId 또는 첫 번째 견적의 sessionId
+  authUserId?: string | null;
+  name: string;               // Supabase name 또는 customerName
   phone: string;
+  email?: string | null;
+  avatarUrl?: string | null;
+  provider?: string | null;
+  source: "member" | "lead";
   consultationCount: number;  // 총 견적 신청 건수
   contractCount: number;      // 계약 완료 처리된 견적 건수
   expiringSoonCount: number;  // 예상 만기 90일 이내 계약 건수
@@ -739,60 +695,127 @@ function getContractLifecycle(expectedEndDate: Date): {
   return { lifecycleStatus: "active", lifecycleLabel: "계약 진행" };
 }
 
+interface SupabaseAuthUserSummary {
+  id: string;
+  name: string;
+  email: string | null;
+  avatarUrl: string | null;
+  provider: string | null;
+  createdAt: string;
+  lastSignInAt: string | null;
+  phone: string | null;
+}
+
+function getMetadataString(metadata: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = metadata[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+const UNKNOWN_PHONE = "연락처 없음";
+const MISSING_PHONE_VALUES = new Set(["", UNKNOWN_PHONE, "연락처 미입력", "010-0000-0000"]);
+const MISSING_NORMALIZED_PHONES = new Set(["01000000000"]);
+
+function normalizePhone(phone: string | null | undefined) {
+  return phone?.replace(/\D/g, "") ?? "";
+}
+
+function getUsablePhone(phone: string | null | undefined) {
+  const raw = phone?.trim() ?? "";
+  const normalized = normalizePhone(raw);
+
+  if (MISSING_PHONE_VALUES.has(raw) || MISSING_NORMALIZED_PHONES.has(normalized) || normalized.length < 8) {
+    return null;
+  }
+
+  return raw;
+}
+
+function mapSupabaseUser(user: SupabaseUser): SupabaseAuthUserSummary {
+  const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const appMetadata = (user.app_metadata ?? {}) as Record<string, unknown>;
+  const name =
+    getMetadataString(metadata, ["name", "full_name", "user_name", "nickname"]) ??
+    user.email?.split("@")[0] ??
+    "회원";
+
+  return {
+    id: user.id,
+    name,
+    email: user.email ?? null,
+    avatarUrl: getMetadataString(metadata, ["avatar_url", "picture"]),
+    provider: getMetadataString(appMetadata, ["provider"]),
+    createdAt: user.created_at,
+    lastSignInAt: user.last_sign_in_at ?? null,
+    phone:
+      user.phone ??
+      getMetadataString(metadata, ["phone", "phone_number", "mobile", "mobile_phone"]),
+  };
+}
+
+async function getSupabaseAuthUsers(): Promise<SupabaseAuthUserSummary[]> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn("[getAdminUsers] Supabase service role env is missing; auth users are skipped.");
+    return [];
+  }
+
+  try {
+    const admin = supabaseAdmin();
+    const users: SupabaseAuthUserSummary[] = [];
+    const perPage = 1000;
+
+    for (let page = 1; page <= 10; page++) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+      if (error) {
+        console.warn("[getAdminUsers] Failed to list Supabase auth users:", error.message);
+        return [];
+      }
+
+      const pageUsers = data.users.map(mapSupabaseUser);
+      users.push(...pageUsers);
+
+      if (pageUsers.length < perPage) break;
+    }
+
+    return users;
+  } catch (error) {
+    console.warn(
+      "[getAdminUsers] Supabase auth user lookup failed:",
+      error instanceof Error ? error.message : error
+    );
+    return [];
+  }
+}
+
 export async function getAdminUsers(): Promise<{
   users: AdminUserRecord[];
   stats: AdminUsersStats;
 }> {
-  let quotes = await prisma.savedQuote.findMany({
-    where: { phone: { not: null } },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      sessionId: true,
-      vehicleId: true,
-      customerName: true,
-      phone: true,
-      status: true,
-      contractMonths: true,
-      monthlyPayment: true,
-      convertedAt: true,
-      createdAt: true,
-      updatedAt: true,
-      internalMemo: true,
-    },
-  });
-
-  // 개발 환경에서만 빈 DB에 목 데이터 사용
-  if (quotes.length === 0 && process.env.NODE_ENV === "development") {
-    const statusMap: Record<string, string> = {
-      "상담대기": "NEW",
-      "상담중": "IN_PROGRESS",
-      "계약완료": "CONVERTED",
-      "계약취소": "LOST"
-    };
-
-    quotes = MOCK_QUOTES.map((mq: any) => ({
-      id: mq.id,
-      sessionId: `SESS-${mq.id}`,
-      vehicleId: `V-${mq.id}`,
-      customerName: mq.customerName,
-      phone: mq.phone,
-      status: (statusMap[mq.status] || "NEW") as QuoteStatus,
-      contractMonths: 48,
-      monthlyPayment: mq.monthlyPayment,
-      convertedAt: mq.status === "계약완료" ? new Date(mq.createdAt) : null,
-      createdAt: new Date(mq.createdAt),
-      updatedAt: new Date(mq.createdAt),
-      internalMemo: mq.memo,
-    }));
-  }
-
-  if (quotes.length === 0) {
-    return {
-      users: [],
-      stats: { total: 0, active: 0, dormant: 0, newThisMonth: 0, contracts: 0, expiringSoon: 0 },
-    };
-  }
+  const [quotes, authUsers] = await Promise.all([
+    prisma.savedQuote.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        sessionId: true,
+        userId: true,
+        vehicleId: true,
+        customerName: true,
+        phone: true,
+        status: true,
+        contractMonths: true,
+        monthlyPayment: true,
+        convertedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        internalMemo: true,
+      },
+    }),
+    getSupabaseAuthUsers(),
+  ]);
 
   // 차량 이름 조회
   const vehicleIds = [...new Set(quotes.map((q) => q.vehicleId))];
@@ -802,18 +825,73 @@ export async function getAdminUsers(): Promise<{
   });
   const vehicleMap = new Map(vehicles.map((v) => [v.id, v.name]));
 
-  // 전화번호 기준으로 사용자 그룹화
+  // Supabase Auth 회원을 먼저 등록하고, SavedQuote는 userId 우선으로 병합한다.
   const userMap = new Map<string, AdminUserRecord>();
+  const phoneToAuthKey = new Map<string, string>();
+  const duplicateAuthPhones = new Set<string>();
+
+  for (const authUser of authUsers) {
+    const contactDate = authUser.lastSignInAt ?? authUser.createdAt;
+    const authKey = `auth:${authUser.id}`;
+    const authPhone = getUsablePhone(authUser.phone);
+
+    userMap.set(authKey, {
+      id: authUser.id,
+      authUserId: authUser.id,
+      name: authUser.name,
+      phone: authPhone ?? UNKNOWN_PHONE,
+      email: authUser.email,
+      avatarUrl: authUser.avatarUrl,
+      provider: authUser.provider,
+      source: "member",
+      consultationCount: 0,
+      contractCount: 0,
+      expiringSoonCount: 0,
+      firstContactAt: authUser.createdAt,
+      lastContactAt: contactDate,
+      userStatus: "active",
+      activeItems: [],
+      contractItems: [],
+      internalMemo: null,
+    });
+
+    if (authPhone) {
+      const normalizedAuthPhone = normalizePhone(authPhone);
+      const existingAuthKey = phoneToAuthKey.get(normalizedAuthPhone);
+
+      if (existingAuthKey && existingAuthKey !== authKey) {
+        duplicateAuthPhones.add(normalizedAuthPhone);
+      } else {
+        phoneToAuthKey.set(normalizedAuthPhone, authKey);
+      }
+    }
+  }
 
   for (const q of quotes) {
-    const phone = q.phone!;
+    const quotePhone = getUsablePhone(q.phone);
+    const normalizedQuotePhone = quotePhone ? normalizePhone(quotePhone) : null;
+    const authKeyFromPhone =
+      !q.userId && normalizedQuotePhone && !duplicateAuthPhones.has(normalizedQuotePhone)
+        ? phoneToAuthKey.get(normalizedQuotePhone)
+        : undefined;
+    const mergeKey =
+      q.userId
+        ? `auth:${q.userId}`
+        : authKeyFromPhone ??
+          (normalizedQuotePhone ? `phone:${normalizedQuotePhone}` : `quote:${q.sessionId}`);
+    const phone = quotePhone ?? UNKNOWN_PHONE;
     const name = q.customerName ?? phone;
 
-    if (!userMap.has(phone)) {
-      userMap.set(phone, {
-        id: q.sessionId,
+    if (!userMap.has(mergeKey)) {
+      userMap.set(mergeKey, {
+        id: q.userId ?? q.sessionId,
+        authUserId: q.userId,
         name,
         phone,
+        email: null,
+        avatarUrl: null,
+        provider: null,
+        source: q.userId ? "member" : "lead",
         consultationCount: 0,
         contractCount: 0,
         expiringSoonCount: 0,
@@ -826,13 +904,27 @@ export async function getAdminUsers(): Promise<{
       });
     }
 
-    const user = userMap.get(phone)!;
+    const user = userMap.get(mergeKey)!;
+    if (q.customerName && (user.name === "회원" || user.name === user.email?.split("@")[0] || user.name === "연락처 없음")) {
+      user.name = q.customerName;
+    }
+    if (quotePhone && user.phone === UNKNOWN_PHONE) {
+      user.phone = quotePhone;
+    }
+    if (q.userId) {
+      user.authUserId = q.userId;
+    }
+    if (q.userId || authKeyFromPhone) {
+      user.source = "member";
+    }
     user.consultationCount++;
 
     // 최초/최근 접수일 갱신
     if (new Date(q.createdAt) < new Date(user.firstContactAt)) {
       user.firstContactAt = q.createdAt.toISOString();
-      user.id = q.sessionId;
+      if (user.source === "lead") {
+        user.id = q.sessionId;
+      }
     }
     if (new Date(q.createdAt) > new Date(user.lastContactAt)) {
       user.lastContactAt = q.createdAt.toISOString();

@@ -8,7 +8,7 @@ import {
   Users, UserCheck, Clock, Search, X,
   ChevronRight, Phone, CalendarDays,
   FileText, MessageSquare, AlertCircle, CheckCircle2,
-  Sparkles, TrendingUp,
+  Sparkles, TrendingUp, Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -34,6 +34,11 @@ const CONTRACT_STATUS_STYLE: Record<string, { color: string; bg: string }> = {
   active: { color: "#059669", bg: "#ECFDF5" },
   expiring_soon: { color: "#D97706", bg: "#FFFBEB" },
   expired: { color: "#DC2626", bg: "#FEF2F2" },
+};
+
+const SOURCE_STYLE: Record<AdminUserRecord["source"], { label: string; color: string; bg: string }> = {
+  member: { label: "회원", color: "#000666", bg: "#E5E5FA" },
+  lead: { label: "상담 고객", color: "#6B7399", bg: "#F4F5F8" },
 };
 
 // ─── 유틸 ──────────────────────────────────────────────
@@ -80,6 +85,8 @@ function UserDetailPanel({
   onClose: () => void;
 }) {
   const statusStyle = USER_STATUS_STYLE[user.userStatus];
+  const sourceStyle = SOURCE_STYLE[user.source];
+  const providerLabel = user.provider === "kakao" ? "Kakao" : user.provider ?? "회원";
 
   return (
     <>
@@ -114,12 +121,20 @@ function UserDetailPanel({
                 <p className="text-[15px] font-semibold text-[#1A1A2E]">{user.name}</p>
                 <span
                   className="text-[10px] font-semibold px-1.5 py-0.5 rounded-[4px]"
+                  style={{ color: sourceStyle.color, background: sourceStyle.bg }}
+                >
+                  {user.source === "member" ? providerLabel : sourceStyle.label}
+                </span>
+                <span
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-[4px]"
                   style={{ color: statusStyle.color, background: statusStyle.bg }}
                 >
                   {statusStyle.label}
                 </span>
               </div>
-              <p className="text-[11px] text-[#9BA4C0] mt-0.5">{user.phone}</p>
+              <p className="text-[11px] text-[#9BA4C0] mt-0.5">
+                {user.email ?? user.phone}
+              </p>
             </div>
           </div>
           <button
@@ -144,6 +159,17 @@ function UserDetailPanel({
                   <p className="text-[13px] font-medium text-[#1A1A2E]">{user.phone}</p>
                 </div>
               </div>
+              {user.email && (
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-[6px] bg-[#F4F5F8] flex items-center justify-center shrink-0">
+                    <Mail size={12} className="text-[#6B7399]" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[#9BA4C0]">이메일</p>
+                    <p className="text-[13px] font-medium text-[#1A1A2E]">{user.email}</p>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-[6px] bg-[#F4F5F8] flex items-center justify-center shrink-0">
                   <CalendarDays size={12} className="text-[#6B7399]" />
@@ -234,7 +260,7 @@ function UserDetailPanel({
             {user.activeItems.length === 0 ? (
               <div className="flex items-center gap-2 py-3 text-[12px] text-[#C0C5D8]">
                 <CheckCircle2 size={14} className="text-[#D4D8EC]" />
-                진행 항목 없음
+                견적 이력 없음
               </div>
             ) : (
               <div className="space-y-2">
@@ -277,10 +303,15 @@ function UserDetailPanel({
         <div className="px-5 py-3.5 border-t border-[#F0F2F8] flex gap-2">
           <Link
             href={`/admin/quotations?search=${encodeURIComponent(user.name)}`}
-            className="flex-1 py-2 rounded-[8px] text-[12px] font-medium bg-[#000666] text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5"
+            className={cn(
+              "flex-1 py-2 rounded-[8px] text-[12px] font-medium transition-opacity flex items-center justify-center gap-1.5",
+              user.consultationCount > 0
+                ? "bg-[#000666] text-white hover:opacity-90"
+                : "bg-[#F4F5F8] text-[#9BA4C0] pointer-events-none"
+            )}
           >
             <MessageSquare size={12} />
-            상담 이력 이동
+            {user.consultationCount > 0 ? "상담 이력 이동" : "상담 이력 없음"}
           </Link>
         </div>
       </motion.div>
@@ -327,7 +358,14 @@ export default function UsersClient({
   const filtered = useMemo(() => {
     return users.filter((u) => {
       const q = search.trim().toLowerCase();
-      if (q && !u.name.includes(q) && !u.phone.replace(/-/g, "").includes(q)) return false;
+      const normalizedPhone = u.phone.replace(/-/g, "").toLowerCase();
+      const email = u.email?.toLowerCase() ?? "";
+      if (
+        q &&
+        !u.name.toLowerCase().includes(q) &&
+        !normalizedPhone.includes(q) &&
+        !email.includes(q)
+      ) return false;
       if (statusFilter === "정상" && u.userStatus !== "active") return false;
       if (statusFilter === "휴면" && u.userStatus !== "dormant") return false;
       const hasActive = u.activeItems.some((i) => i.statusRaw !== "CONVERTED");
@@ -389,7 +427,7 @@ export default function UsersClient({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="이름, 연락처로 검색"
+              placeholder="이름, 연락처, 이메일로 검색"
               className="w-full pl-10 pr-4 py-2 text-[12px] bg-[#F4F5F8] border border-transparent rounded-[8px] focus:bg-white focus:border-[#000666] outline-none transition-all"
             />
           </div>
@@ -454,8 +492,8 @@ export default function UsersClient({
             {users.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-[#C0C5D8]">
                 <Users size={32} strokeWidth={1} className="mb-3 opacity-40" />
-                <p className="text-[13px] font-bold">아직 접수된 고객이 없습니다</p>
-                <p className="text-[11px] mt-1">견적 신청 시 자동으로 등록됩니다.</p>
+                <p className="text-[13px] font-bold">아직 회원 또는 접수 고객이 없습니다</p>
+                <p className="text-[11px] mt-1">카카오 로그인 또는 견적 신청 시 자동으로 등록됩니다.</p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-[#C0C5D8]">
@@ -472,7 +510,7 @@ export default function UsersClient({
 
                 return (
                   <motion.div
-                    key={user.phone}
+                    key={user.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.03 }}
@@ -489,12 +527,28 @@ export default function UsersClient({
                       </div>
                       <div className="min-w-0">
                         <p className="text-[13px] font-bold text-[#1A1A2E] truncate">{user.name}</p>
-                        <p className="text-[10px] text-[#9BA4C0]">{user.id.slice(0, 12)}…</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span
+                            className="rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold"
+                            style={{
+                              color: SOURCE_STYLE[user.source].color,
+                              background: SOURCE_STYLE[user.source].bg,
+                            }}
+                          >
+                            {user.source === "member" ? "회원" : "상담 고객"}
+                          </span>
+                          <p className="text-[10px] text-[#9BA4C0] truncate">{user.id.slice(0, 12)}…</p>
+                        </div>
                       </div>
                     </div>
 
                     {/* 연락처 */}
-                    <div className="text-[12px] font-medium text-[#4A5270] tabular-nums">{user.phone}</div>
+                    <div className="min-w-0 pr-2">
+                      <p className="text-[12px] font-medium text-[#4A5270] tabular-nums truncate">{user.phone}</p>
+                      {user.email && (
+                        <p className="text-[10px] text-[#9BA4C0] truncate mt-0.5">{user.email}</p>
+                      )}
+                    </div>
 
                     {/* 상태 */}
                     <div>
