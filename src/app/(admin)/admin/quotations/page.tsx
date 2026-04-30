@@ -11,9 +11,6 @@ import {
   MessageSquare, ChevronDown, SlidersHorizontal, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  FINANCE_COMPANIES,
-} from "@/constants/mock-data";
 import { logActivity } from "@/lib/activity-store";
 import { AdminSavedQuote } from "@/types/admin";
 
@@ -109,6 +106,10 @@ function QuotationsContent() {
     (filterPaymentMin ? 1 : 0) +
     (filterPaymentMax ? 1 : 0);
 
+  const vehicleBrands = useMemo(() => {
+    return Array.from(new Set(quotes.map((q) => q.vehicleBrand).filter(Boolean))).sort();
+  }, [quotes]);
+
   const filteredQuotes = useMemo(() => {
     return quotes.filter(q => {
       const name = q.customerName || "고객";
@@ -162,7 +163,7 @@ function QuotationsContent() {
       "연락처": q.phone ?? "",
       "차량명": q.vehicleName,
       "월 납입금 (원)": q.monthlyPayment,
-      "금융사": q.vehicleBrand,
+      "브랜드": q.vehicleBrand,
       "진행 상태": q.status,
       "접수일": q.createdAt,
       "계정 유형": q.userType === "Member" ? "회원" : "비회원",
@@ -373,17 +374,17 @@ function QuotationsContent() {
             className="overflow-hidden shrink-0"
           >
             <div className="bg-[#F0F2F8] border-b border-[#E8EAF0] px-6 py-4 flex items-end gap-6 flex-wrap">
-              {/* 금융사 */}
+              {/* 브랜드 */}
               <div className="flex flex-col gap-1.5 min-w-[160px]">
-                <label className="text-[11px] font-semibold text-[#6B7399] uppercase tracking-wider">금융사</label>
+                <label className="text-[11px] font-semibold text-[#6B7399] uppercase tracking-wider">브랜드</label>
                 <div className="relative">
                   <select
                     value={filterFC}
                     onChange={e => setFilterFC(e.target.value)}
                     className="appearance-none w-full pl-3 pr-8 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] text-[#1A1A2E] outline-none focus:border-[#C0C5DC] shadow-sm cursor-pointer"
                   >
-                    <option value="전체">전체 금융사</option>
-                    {FINANCE_COMPANIES.map(fc => <option key={fc} value={fc}>{fc}</option>)}
+                    <option value="전체">전체 브랜드</option>
+                    {vehicleBrands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
                   </select>
                   <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9BA4C0] pointer-events-none" />
                 </div>

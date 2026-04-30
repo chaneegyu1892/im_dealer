@@ -7,7 +7,19 @@ import {
   Clock, User, X, Trash2, Edit2, CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MOCK_MEMOS, type AdminMemo, type MemoCategory } from "@/constants/mock-data";
+
+type MemoCategory = "이슈/긴급" | "공지사항" | "일반" | "업무/인수인계";
+
+interface AdminMemo {
+  id: string;
+  title: string;
+  content: string;
+  category: MemoCategory;
+  isPinned: boolean;
+  author: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 // ─── 카테고리별 스타일 ──────────────────────────────────────────────
 const CATEGORY_STYLE: Record<MemoCategory, { bg: string; text: string; border: string }> = {
@@ -38,7 +50,7 @@ function formatDateTime(dateStr: string) {
 }
 
 export default function MemoPage() {
-  const [memos, setMemos] = useState<AdminMemo[]>(MOCK_MEMOS);
+  const [memos, setMemos] = useState<AdminMemo[]>([]);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<MemoCategory | "전체">("전체");
 
