@@ -4,11 +4,30 @@
  */
 
 import { PrismaClient } from "@prisma/client";
-import specsData from "../vehicle_specs_final.json";
+import { existsSync, readFileSync } from "fs";
+import path from "path";
 
 const prisma = new PrismaClient();
+const specsPath = path.join(process.cwd(), "vehicle_specs_final.json");
+
+function loadSpecsData(): Record<string, unknown> {
+  if (!existsSync(specsPath)) {
+    throw new Error(
+      `vehicle_specs_final.json 파일을 찾을 수 없습니다: ${specsPath}`
+    );
+  }
+
+  const parsed: unknown = JSON.parse(readFileSync(specsPath, "utf8"));
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("vehicle_specs_final.json 형식이 올바르지 않습니다.");
+  }
+
+  return parsed as Record<string, unknown>;
+}
 
 async function main() {
+  const specsData = loadSpecsData();
   console.log(`총 ${Object.keys(specsData).length}개 차량 업데이트 시작...\n`);
 
   let successCount = 0;
