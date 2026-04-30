@@ -7,7 +7,7 @@ import { inventoryUpdateSchema } from "@/lib/validations/admin";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getAdminSession();
@@ -24,7 +24,7 @@ export async function PATCH(
       );
     }
     const body = parsed.data;
-    const { id } = params;
+    const { id } = await params;
 
     const updateData: Prisma.InventoryUpdateInput = {};
 
@@ -104,7 +104,7 @@ export async function PATCH(
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getAdminSession();
@@ -112,7 +112,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await prisma.inventory.delete({ where: { id: params.id } });
+    const { id } = await params;
+    await prisma.inventory.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
