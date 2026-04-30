@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { InventoryClient } from "./InventoryClient";
 import { Suspense } from "react";
-import type { InventoryItem } from "@/types/inventory";
+import type { InventoryItem, InventoryStatus } from "@/types/inventory";
 
 export type VehicleTrimOption = {
   id: string;
@@ -26,6 +26,12 @@ export type VehicleForInventory = {
   imageUrls: string[];
   trims: VehicleTrim[];
 };
+
+function calcStatus(stockCount: number): InventoryStatus {
+  if (stockCount === 0) return "소진";
+  if (stockCount <= 2) return "부족";
+  return "정상";
+}
 
 async function getVehiclesForInventory(): Promise<VehicleForInventory[]> {
   const vehicles = await prisma.vehicle.findMany({
@@ -71,31 +77,27 @@ async function getInventoryItems(): Promise<InventoryItem[]> {
     include: {
       trim: {
         include: {
-          vehicle: {
-            select: {
-              name: true,
-              brand: true,
-            },
-          },
+          vehicle: { select: { name: true, brand: true } },
         },
       },
+      financeCompany: { select: { name: true } },
     },
   });
 
-  return rows.map((item) => ({
-    id: item.id,
-    vehicleName: item.trim.vehicle.name,
-    vehicleShort: item.trim.vehicle.name,
-    brand: item.trim.vehicle.brand,
-    financeCompany: "미지정",
-    quantity: item.stockCount,
-    immediateDelivery: item.status === "AVAILABLE" && item.stockCount > 0,
-    status: item.stockCount === 0 ? "소진" : item.stockCount <= 2 ? "부족" : "정상",
-    registeredAt: item.updatedAt.toISOString().slice(0, 10),
-    memo: item.memo ?? "",
-    trim: item.trim.name,
-    color: [item.colorExt, item.colorInt].filter(Boolean).join(" / "),
-    options: [],
+  return rows.map((inv) => ({
+    id: inv.id,
+    vehicleName: inv.trim.vehicle.name,
+    vehicleShort: inv.trim.vehicle.name,
+    brand: inv.trim.vehicle.brand,
+    financeCompany: inv.financeCompany?.name ?? "",
+    quantity: inv.stockCount,
+    immediateDelivery: inv.immediateDelivery,
+    status: calcStatus(inv.stockCount),
+    registeredAt: inv.updatedAt.toISOString().slice(0, 10),
+    memo: inv.memo ?? "",
+    trim: inv.trim.name,
+    color: inv.colorExt ?? undefined,
+    options: inv.selectedOptions,
   }));
 }
 
@@ -105,7 +107,6 @@ async function getFinanceCompanyNames(): Promise<string[]> {
     orderBy: { displayOrder: "asc" },
     select: { name: true },
   });
-
   return rows.map((row) => row.name);
 }
 

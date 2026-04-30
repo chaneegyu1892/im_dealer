@@ -1,20 +1,45 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import {
   verifyPassword,
   createAdminToken,
   ADMIN_COOKIE_OPTIONS,
 } from "@/lib/admin-auth";
+import { loginRateLimit } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
 
+function getRequestIp(request: Request): string {
+  if (process.env.TRUST_PROXY === "true") {
+    const xff = request.headers.get("x-forwarded-for");
+    if (xff) {
+      const first = xff.split(",")[0]?.trim();
+      if (first) return first;
+    }
+  }
+  return "unknown";
+}
+
 // ─── POST /api/admin/auth/login ───────────────────────────
 export async function POST(request: Request) {
   try {
+    // ── 무차별 대입 방어: IP 기반 레이트 리밋 ─────────────
+    if (loginRateLimit) {
+      const ip = getRequestIp(request);
+      const { success, reset } = await loginRateLimit.limit(`login:${ip}`);
+      if (!success) {
+        return NextResponse.json(
+          { error: "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요." },
+          { status: 429, headers: { "X-RateLimit-Reset": reset.toString() } }
+        );
+      }
+    }
+
     const body = await request.json();
     const parsed = loginSchema.safeParse(body);
 
@@ -56,6 +81,7 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     console.error("[POST /api/admin/auth/login]", error);
+    Sentry.captureException(error, { tags: { route: "admin/auth/login" } });
     return NextResponse.json(
       { error: "로그인 처리 중 오류가 발생했습니다." },
       { status: 500 }

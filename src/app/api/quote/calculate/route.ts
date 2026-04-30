@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
@@ -222,7 +223,10 @@ export async function POST(request: NextRequest) {
           },
         })
       )
-    ).catch((err) => console.error("[QuoteCalcLog] 저장 실패:", err));
+    ).catch((err) => {
+      console.error("[QuoteCalcLog] 저장 실패:", err);
+      Sentry.captureException(err, { tags: { route: "quote/calculate", op: "log" } });
+    });
 
     return NextResponse.json({
       success: true,
@@ -250,6 +254,7 @@ export async function POST(request: NextRequest) {
       );
     }
     console.error("[POST /api/quote/calculate]", error);
+    Sentry.captureException(error, { tags: { route: "quote/calculate" } });
     return NextResponse.json(
       { error: "견적 계산 중 오류가 발생했습니다." },
       { status: 500 }
