@@ -39,6 +39,38 @@ next-env.d.ts
 /prisma/migrations/dev.db-journal
 
 .vscode/
-node_modules/
-.next/
-.env
+.idea/
+
+# AI / agent working files (작업자 확인용)
+AGENTS.md
+CLAUDE.md
+CODEX_TASKS.md
+.claude/
+.claudeignore
+
+# Internal review / spec / planning docs (작업자 확인용, 외부 배포 대상 아님)
+DESIGN.md
+PROJECT_SPEC.md
+PRODUCTION_CHECKLIST.md
+ONBOARDING.md
+imdealers-RFP.md
+
+# Internal Korean PDFs (투자자용 / 온보딩 자료)
+아임딜러_투자자용_*.pdf
+아임딜러_온보딩가이드.pdf
+
+# Backups & dumps
+*-backup.tar.gz
+*.bak
+*.dump
+
+# Sample / preview artifacts
+im_dealer_quote.html
+ADMIN_MANUAL.*
+PARTNER_ADMIN_MANUAL.md
+trim_list.xlsx
+vehicle_specs_final.json
+scratch/
+
+# Build info
+tsconfig.tsbuildinfo
