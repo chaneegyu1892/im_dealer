@@ -3,18 +3,62 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatMonthly } from "@/lib/utils";
-import { Building2, ChevronDown, ChevronUp, Trophy } from "lucide-react";
+import { Building2, ChevronDown, ChevronUp, ShieldCheck, Trophy } from "lucide-react";
 import { isCustomerType, type CustomerType } from "@/constants/customer-types";
 import type { QuoteScenarioDetails, QuoteScenarioDetail, FinanceCompanyQuote } from "@/types/quote";
 import { QuoteMonthlyDonut } from "./QuoteMonthlyDonut";
 
 type ScenarioKey = keyof QuoteScenarioDetails;
+type ApprovalPreviewLevel = "high" | "medium" | "low";
 
 const TABS: { key: ScenarioKey; label: string; desc: string }[] = [
   { key: "conservative", label: "보수형", desc: "보증금 있음 · 월납입 ↓" },
   { key: "standard",     label: "표준형", desc: "균형 조건 · 추천" },
   { key: "aggressive",   label: "공격형", desc: "선납금 있음 · 월납입 최소" },
 ];
+
+const APPROVAL_PREVIEW_COPY: Record<ApprovalPreviewLevel, {
+  label: string;
+  message: string;
+  badgeClassName: string;
+  containerClassName: string;
+  iconClassName: string;
+}> = {
+  high: {
+    label: "유리",
+    message: "이 조건은 심사에 유리한 편입니다",
+    badgeClassName: "bg-[#ECFDF5] text-[#047857]",
+    containerClassName: "bg-[#F0FDF4] border-[#BBF7D0]",
+    iconClassName: "text-[#059669]",
+  },
+  medium: {
+    label: "보완 권장",
+    message: "보증금을 추가하면 심사 가능성이 높아질 수 있습니다",
+    badgeClassName: "bg-[#FFFBEB] text-[#B45309]",
+    containerClassName: "bg-[#FFFBEB] border-[#FDE68A]",
+    iconClassName: "text-[#D97706]",
+  },
+  low: {
+    label: "증빙 필요",
+    message: "소득 증빙 또는 보증금 확대를 권장합니다",
+    badgeClassName: "bg-[#FFF7ED] text-[#C2410C]",
+    containerClassName: "bg-[#FFF7ED] border-[#FED7AA]",
+    iconClassName: "text-[#EA580C]",
+  },
+};
+
+function getDepositRate(data: QuoteScenarioDetail) {
+  const vehiclePrice = data.breakdown?.vehiclePrice ?? 0;
+  if (vehiclePrice <= 0 || data.depositAmount <= 0) return 0;
+  return Math.round((data.depositAmount / vehiclePrice) * 100);
+}
+
+function estimateApprovalPreview(monthlyPayment: number, depositRate: number): ApprovalPreviewLevel {
+  if (depositRate >= 20) return "high";
+  if (monthlyPayment < 400_000) return "high";
+  if (monthlyPayment < 700_000) return "medium";
+  return "low";
+}
 
 interface Props {
   scenarios: QuoteScenarioDetails;
@@ -131,7 +175,10 @@ export function QuoteBreakdownTabs({
           <ConditionRow label="계약 종류" value={data.contractType} />
         </div>
 
-        {/* ③ 견적 산출 내역 (펼침/접힘) */}
+        {/* ③ 심사 가능성 미리보기 */}
+        <ApprovalPreview data={data} />
+
+        {/* ④ 견적 산출 내역 (펼침/접힘) */}
         {data.breakdown && data.surcharges && (
           <div className={cn("rounded-[10px] border border-[#E8EAF2] overflow-hidden transition-opacity duration-200", isRecalculating && active === "standard" && "opacity-60")}>
             <button
@@ -155,7 +202,7 @@ export function QuoteBreakdownTabs({
           </div>
         )}
 
-        {/* ④ 금융사별 비교 (펼침/접힘) */}
+        {/* ⑤ 금융사별 비교 (펼침/접힘) */}
         {data.allFinanceResults.length > 1 && (
           <div className="rounded-[10px] border border-[#E8EAF2] overflow-hidden">
             <button
@@ -180,7 +227,7 @@ export function QuoteBreakdownTabs({
           </div>
         )}
 
-        {/* ⑤ 체크포인트 */}
+        {/* ⑥ 체크포인트 */}
         <CostCheckpoint contractType={data.contractType} customerType={customerType} />
       </div>
     </div>
@@ -271,6 +318,36 @@ function ConditionRow({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-[11px] text-ink-caption">{label}</p>
       <p className="text-[13px] font-medium text-ink mt-0.5">{value}</p>
+    </div>
+  );
+}
+
+function ApprovalPreview({ data }: { data: QuoteScenarioDetail }) {
+  const depositRate = getDepositRate(data);
+  const level = estimateApprovalPreview(data.monthlyPayment, depositRate);
+  const copy = APPROVAL_PREVIEW_COPY[level];
+
+  return (
+    <div className={cn("rounded-[10px] border px-4 py-3", copy.containerClassName)}>
+      <div className="flex items-start gap-3">
+        <ShieldCheck size={16} className={cn("mt-0.5 shrink-0", copy.iconClassName)} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[12px] font-semibold text-ink-label">
+              심사 가능성 미리보기
+            </p>
+            <span className={cn("rounded-[4px] px-2 py-0.5 text-[10px] font-bold", copy.badgeClassName)}>
+              {copy.label}
+            </span>
+          </div>
+          <p className="mt-1 text-[13px] font-medium text-ink">
+            {copy.message}
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-caption">
+            실제 심사 결과는 금융사 기준, 신용도, 소득 증빙에 따라 달라질 수 있습니다.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
