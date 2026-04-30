@@ -33,7 +33,7 @@ const createSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(50),
   password: z.string().min(8).max(100),
-  role: z.enum(["admin", "operator"]).default("operator"),
+  role: z.enum(["admin", "staff", "dealer"]).default("staff"),
 });
 
 // ─── POST /api/admin/accounts ─────────────────────────────

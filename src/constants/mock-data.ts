@@ -24,6 +24,8 @@ export interface SharedQuote {
   color: string;
   promotion: string;
   memo: string;
+  userType: "Member" | "Guest";
+  quoteType: "AI" | "DETAIL";
 }
 
 // 견적 데이터 페이지에서 사용하는 타입 alias
@@ -48,6 +50,8 @@ export const MOCK_QUOTES: SharedQuote[] = [
     color: "어비스 블랙 펄",
     promotion: "EV 봄 특별 프로모션",
     memo: "선납 20% 조건으로 협의 진행 중.",
+    userType: "Member",
+    quoteType: "DETAIL",
   },
   {
     id: "Q-2604-002",
@@ -65,13 +69,15 @@ export const MOCK_QUOTES: SharedQuote[] = [
     color: "스노우 화이트 펄",
     promotion: "봄맞이 페스타",
     memo: "최종 계약 완료. 4/18(토) 출고 예정.",
+    userType: "Member",
+    quoteType: "DETAIL",
   },
   {
     id: "Q-2604-003",
     vehicleName: "더 뉴 EV6",
     vehicleShort: "더 뉴 EV6",
-    customerName: "박도현",
-    phone: "010-9183-6745",
+    customerName: "비회원",
+    phone: "-",
     monthlyPayment: 682000,
     financeCompany: "신한카드",
     status: "상담대기",
@@ -82,6 +88,8 @@ export const MOCK_QUOTES: SharedQuote[] = [
     color: "문스케이프 매트",
     promotion: "기본할인",
     memo: "",
+    userType: "Guest",
+    quoteType: "AI",
   },
   {
     id: "Q-2604-004",
@@ -99,13 +107,15 @@ export const MOCK_QUOTES: SharedQuote[] = [
     color: "우유니 화이트",
     promotion: "법인 VIP 특별할인",
     memo: "",
+    userType: "Member",
+    quoteType: "DETAIL",
   },
   {
     id: "Q-2604-005",
     vehicleName: "더 뉴 투싼",
     vehicleShort: "더 뉴 투싼",
-    customerName: "정수빈",
-    phone: "010-3345-8820",
+    customerName: "비회원",
+    phone: "-",
     monthlyPayment: 534000,
     financeCompany: "우리카드",
     status: "계약취소",
@@ -116,6 +126,8 @@ export const MOCK_QUOTES: SharedQuote[] = [
     color: "아마존 그레이",
     promotion: "기본할인",
     memo: "타사에서 더 좋은 조건 확인 후 취소.",
+    userType: "Guest",
+    quoteType: "DETAIL",
   },
   {
     id: "Q-2604-006",
@@ -133,6 +145,8 @@ export const MOCK_QUOTES: SharedQuote[] = [
     color: "스틸 그레이 메탈릭",
     promotion: "재고할인 특별전",
     memo: "금리 추가 인하 가능 여부 확인 중.",
+    userType: "Member",
+    quoteType: "AI",
   },
 ];
 

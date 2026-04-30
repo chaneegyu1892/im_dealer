@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
-import { DASHBOARD_STATS, MOCK_QUOTES, type SharedQuote } from "@/constants/mock-data";
+import { type QuoteStatus } from "@prisma/client";
+import { DASHBOARD_STATS, MOCK_QUOTES } from "@/constants/mock-data";
 import type {
   DashboardData,
   DashboardStats,
@@ -10,7 +11,6 @@ import type {
   AdminVehicleDetail,
   AdminBrand,
   AdminSavedQuote,
-  QuoteCrmStatus,
   AdminOptionRule,
   AdminInventory,
   CapitalRateSheet,
@@ -417,26 +417,27 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       depositRate: q.depositRate,
       prepayRate: q.prepayRate,
       contractType: q.contractType,
-      customerType: q.customerType,
       monthlyPayment: q.monthlyPayment,
       totalCost: q.totalCost,
       status: q.status as AdminSavedQuote["status"],
-      assigneeId: q.assigneeId,
       internalMemo: q.internalMemo,
+      userType: q.userId ? "Member" : "Guest",
+      quoteType: q.quoteType as AdminSavedQuote["quoteType"],
       createdAt: q.createdAt.toISOString(),
+      updatedAt: q.updatedAt.toISOString(),
     };
   });
 
   // 개발 환경에서만 빈 DB에 목 데이터를 반환 (데모용)
   if (data.length === 0 && page === 1 && process.env.NODE_ENV === "development") {
-    const statusMap: Record<string, QuoteCrmStatus> = {
+    const statusMap: Record<string, string> = {
       "상담대기": "NEW",
       "상담중": "IN_PROGRESS",
       "계약완료": "CONVERTED",
       "계약취소": "LOST"
     };
 
-    const mockData: AdminSavedQuote[] = MOCK_QUOTES.map((mq: SharedQuote) => ({
+    const mockData: AdminSavedQuote[] = MOCK_QUOTES.map((mq: any) => ({
       id: mq.id,
       sessionId: `SESS-${mq.id}`,
       userId: `USR-${mq.id}`,
@@ -452,11 +453,11 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       depositRate: 0,
       prepayRate: 0,
       contractType: "RENT",
-      customerType: "individual",
       monthlyPayment: mq.monthlyPayment,
       totalCost: mq.monthlyPayment * 60,
-      status: statusMap[mq.status] || "NEW",
-      assigneeId: null,
+      status: (statusMap[mq.status] || "NEW") as AdminSavedQuote["status"],
+      userType: (mq.userType || "Guest") as AdminSavedQuote["userType"],
+      quoteType: (mq.quoteType || "DETAIL") as AdminSavedQuote["quoteType"],
       internalMemo: mq.memo,
       createdAt: mq.createdAt + "T00:00:00.000Z",
       updatedAt: mq.createdAt + "T00:00:00.000Z",
@@ -523,7 +524,8 @@ export async function getAdminFinanceCompanies(): Promise<AdminFinanceCompany[]>
 export async function getActiveRateSheets(
   financeCompanyId: string
 ): Promise<CapitalRateSheet[]> {
-  const rows = await prisma.capitalRateSheet.findMany({
+  const db = prisma as any;
+  const rows = await db.capitalRateSheet.findMany({
     where: { financeCompanyId, isActive: true },
     orderBy: { createdAt: "desc" },
     include: {
@@ -544,7 +546,8 @@ export async function getRateSheetHistory(
   financeCompanyId: string,
   trimId: string
 ): Promise<CapitalRateSheet[]> {
-  const rows = await prisma.capitalRateSheet.findMany({
+  const db = prisma as any;
+  const rows = await db.capitalRateSheet.findMany({
     where: { financeCompanyId, trimId },
     orderBy: { weekOf: "desc" },
     include: {
@@ -717,20 +720,20 @@ export async function getAdminUsers(): Promise<{
 
   // 개발 환경에서만 빈 DB에 목 데이터 사용
   if (quotes.length === 0 && process.env.NODE_ENV === "development") {
-    const statusMap: Record<string, QuoteCrmStatus> = {
+    const statusMap: Record<string, string> = {
       "상담대기": "NEW",
       "상담중": "IN_PROGRESS",
       "계약완료": "CONVERTED",
       "계약취소": "LOST"
     };
 
-    quotes = MOCK_QUOTES.map((mq: SharedQuote) => ({
+    quotes = MOCK_QUOTES.map((mq: any) => ({
       id: mq.id,
       sessionId: `SESS-${mq.id}`,
       vehicleId: `V-${mq.id}`,
       customerName: mq.customerName,
       phone: mq.phone,
-      status: statusMap[mq.status] || "NEW",
+      status: (statusMap[mq.status] || "NEW") as QuoteStatus,
       createdAt: new Date(mq.createdAt),
       internalMemo: mq.memo,
     }));

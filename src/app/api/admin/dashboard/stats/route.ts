@@ -66,16 +66,17 @@ export async function GET(request: NextRequest) {
     const conversionRate = totalQuotes > 0 ? (convertedQuotes / totalQuotes) * 100 : 0;
 
     // 5. 최근 상담 (SavedQuote 기준 5건)
-    const recentQuoteRows = await prisma.savedQuote.findMany({
+    const recentQuotes = await prisma.savedQuote.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,
     });
-    const recentVehicleIds = [...new Set(recentQuoteRows.map(q => q.vehicleId))];
-    const recentVehicles = await prisma.vehicle.findMany({
-      where: { id: { in: recentVehicleIds } },
+
+    const vehicleIds = [...new Set(recentQuotes.map(q => q.vehicleId))];
+    const vehicles = await prisma.vehicle.findMany({
+      where: { id: { in: vehicleIds } },
       select: { id: true, name: true },
     });
-    const recentVehicleMap = new Map(recentVehicles.map(v => [v.id, v.name]));
+    const vehicleMap = new Map(vehicles.map(v => [v.id, v.name]));
 
     // 6. 주간 데이터 (최근 7일)
     const weeklyData = [];
@@ -84,11 +85,11 @@ export async function GET(request: NextRequest) {
       date.setDate(now.getDate() - i);
       const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
       const end = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-
+      
       const count = await prisma.quoteCalcLog.count({
         where: { createdAt: { gte: start, lte: end } }
       });
-
+      
       weeklyData.push({
         day: `${date.getMonth() + 1}/${date.getDate()}`,
         value: count
@@ -107,10 +108,10 @@ export async function GET(request: NextRequest) {
           lastMonthConsultations,
           conversionRate: conversionRate.toFixed(1),
         },
-        recentQuotes: recentQuoteRows.map(q => ({
+        recentQuotes: recentQuotes.map(q => ({
           id: q.id,
           name: q.customerName,
-          vehicle: recentVehicleMap.get(q.vehicleId) ?? "삭제된 차량",
+          vehicle: vehicleMap.get(q.vehicleId) || "알 수 없음",
           time: q.createdAt,
           status: q.status,
         })),

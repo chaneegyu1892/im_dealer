@@ -5,6 +5,7 @@ import { UserPlus, ShieldCheck, Mail, Calendar, Power, MoreVertical } from "luci
 
 export default function AdminManager() {
   const [admins, setAdmins] = useState<any[]>([]);
+  const [me, setMe] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -24,7 +25,30 @@ export default function AdminManager() {
 
   useEffect(() => {
     fetchAdmins();
+    fetch("/api/admin/auth/me")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) setMe(d.data);
+      });
   }, []);
+
+  const changeRole = async (id: string, newRole: string) => {
+    try {
+      const res = await fetch("/api/admin/settings/admins", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, role: newRole }),
+      });
+      if (res.ok) {
+        fetchAdmins();
+      } else {
+        const d = await res.json();
+        alert(d.error || "권한 변경 실패");
+      }
+    } catch (error) {
+      alert("오류 발생");
+    }
+  };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,6 +136,18 @@ export default function AdminManager() {
                   className="w-full px-3 py-2 border border-[#E8EAF0] rounded-xl text-sm focus:outline-none focus:border-[#6066EE]"
                 />
               </div>
+              <div>
+                <label className="text-[11px] font-bold text-[#9BA4C0] block mb-1">권한 역할</label>
+                <select
+                  value={newAdmin.role}
+                  onChange={(e) => setNewAdmin({ ...newAdmin, role: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#E8EAF0] rounded-xl text-sm focus:outline-none focus:border-[#6066EE] appearance-none bg-white"
+                >
+                  <option value="admin">마스터 관리자 (Admin)</option>
+                  <option value="staff">일반 운영자 (Staff)</option>
+                  <option value="dealer">제휴 딜러 (Dealer)</option>
+                </select>
+              </div>
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -154,9 +190,20 @@ export default function AdminManager() {
             </div>
 
             <div className="flex items-center gap-2">
-               <button
+              <select
+                value={admin.role}
+                onChange={(e) => changeRole(admin.id, e.target.value)}
+                disabled={admin.id === me?.id}
+                className="text-xs px-2.5 py-1.5 border border-[#E8EAF0] rounded-xl focus:outline-none focus:border-[#6066EE] bg-white text-[#5A6080] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="admin">관리자 (Admin)</option>
+                <option value="staff">운영자 (Staff)</option>
+                <option value="dealer">제휴 딜러 (Dealer)</option>
+              </select>
+              <button
                 onClick={() => toggleStatus(admin.id, admin.isActive)}
-                className={`p-2 rounded-lg transition-colors ${admin.isActive ? 'hover:bg-red-50 text-emerald-500 hover:text-red-500' : 'hover:bg-[#F0F1FA] text-gray-300 hover:text-[#6066EE]'}`}
+                disabled={admin.id === me?.id}
+                className={`p-2 rounded-lg transition-colors ${admin.isActive ? 'hover:bg-red-50 text-emerald-500 hover:text-red-500' : 'hover:bg-[#F0F1FA] text-gray-300 hover:text-[#6066EE]'} disabled:opacity-50 disabled:cursor-not-allowed`}
                 title={admin.isActive ? "비활성화" : "활성화"}
               >
                 <Power size={18} />

@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         email,
         passwordHash,
         name,
-        role: role || "operator",
+        role: role || "staff",
       },
     });
 

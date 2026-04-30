@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Shield, User, Check, X, KeyRound } from "lucide-react";
+import { ArrowLeft, Plus, User, Check, X, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Account {
@@ -26,7 +26,7 @@ export default function AccountsPage() {
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [newRole, setNewRole] = useState<"admin" | "operator">("operator");
+  const [newRole, setNewRole] = useState<"admin" | "staff" | "dealer">("staff");
   const [formError, setFormError] = useState("");
   const [formLoading, setFormLoading] = useState(false);
 
@@ -65,7 +65,7 @@ export default function AccountsPage() {
     } else {
       setAccounts((prev) => [...prev, data.data]);
       setShowForm(false);
-      setNewEmail(""); setNewName(""); setNewPassword(""); setNewRole("operator");
+      setNewEmail(""); setNewName(""); setNewPassword(""); setNewRole("staff");
     }
   }
 
@@ -153,11 +153,12 @@ export default function AccountsPage() {
                 <label className="block text-[11px] font-medium text-[#9BA4C0] mb-1">역할</label>
                 <select
                   value={newRole}
-                  onChange={(e) => setNewRole(e.target.value as "admin" | "operator")}
+                  onChange={(e) => setNewRole(e.target.value as "admin" | "staff" | "dealer")}
                   className="w-full px-3 py-2 rounded-lg border border-[#E8EAF0] text-[13px] focus:outline-none focus:border-[#6066EE] bg-white"
                 >
-                  <option value="operator">운영자</option>
-                  <option value="admin">관리자</option>
+                  <option value="staff">운영자 (Staff)</option>
+                  <option value="admin">마스터 관리자 (Admin)</option>
+                  <option value="dealer">제휴 딜러 (Dealer)</option>
                 </select>
               </div>
             </div>
@@ -234,8 +235,8 @@ export default function AccountsPage() {
                             ? "bg-[#EEF0FF] text-[#6066EE]"
                             : "bg-[#F4F5F8] text-[#9BA4C0]"
                         )}>
-                          {account.role === "admin" ? <Shield size={9} /> : <User size={9} />}
-                          {account.role === "admin" ? "관리자" : "운영자"}
+                          <User size={9} />
+                          {account.role === "admin" ? "관리자" : account.role === "dealer" ? "딜러" : "운영자"}
                         </span>
                         {isMe && (
                           <span className="text-[10px] font-medium text-[#9BA4C0] bg-[#F4F5F8] px-1.5 py-0.5 rounded-[4px]">나</span>
