@@ -5,11 +5,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart2, History, Settings2, Activity,
   AlertCircle, CheckCircle2, TrendingUp, Edit,
-  Building2, ChevronDown, ChevronRight, Layers
+  Building2, ChevronDown, ChevronRight, Layers, Search, X
 } from "lucide-react";
-import {
-  MOCK_RECOVERY_RATES,
-  MOCK_RECOVERY_HISTORY,
+import { 
+  MOCK_RECOVERY_RATES, 
+  MOCK_RECOVERY_HISTORY, 
   RECOVERY_RATE_STATS,
   RecoveryRateItem,
   VEHICLE_BRANDS
@@ -25,12 +25,12 @@ function RecoveryRatesContent() {
   const searchParams = useSearchParams();
   const [rates, setRates] = useState<RecoveryRateItem[]>(MOCK_RECOVERY_RATES);
   const [history, setHistory] = useState(MOCK_RECOVERY_HISTORY);
-
+  
   const [selectedBrand, setSelectedBrand] = useState("전체");
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set(["전체"]));
-
+  
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
 
@@ -55,10 +55,10 @@ function RecoveryRatesContent() {
   // 현재 선택된 브랜드 및 검색어에 맞는 데이터 필터링
   const filteredRates = useMemo(() => {
     let result = rates;
-
+    
     // 검색어가 있으면 브랜드/모델 필터보다 검색 우선 (사용자 요청: 검색 기능 유지)
     if (search) {
-      return result.filter(item =>
+      return result.filter(item => 
         item.vehicleName.toLowerCase().includes(search.toLowerCase()) ||
         item.brand.toLowerCase().includes(search.toLowerCase())
       );
@@ -67,11 +67,11 @@ function RecoveryRatesContent() {
     if (selectedBrand !== "전체") {
       result = result.filter(item => item.brand === selectedBrand);
     }
-
+    
     if (selectedModel) {
       result = result.filter(item => item.vehicleName === selectedModel);
     }
-
+    
     return result;
   }, [rates, selectedBrand, selectedModel, search]);
 
@@ -114,11 +114,11 @@ function RecoveryRatesContent() {
     alert(`[일괄 적용 대상: ${params.brand} > ${params.category}]\n수치: ${params.adjustmentType === 'increase' ? '+' : '-'}${params.value}%\n사유: ${params.reason}`);
     const factor = params.adjustmentType === 'increase' ? 1 : -1;
     const diff = params.value * factor;
-
+    
     setRates(prev => prev.map(item => {
       const matchBrand = params.brand === "전체" || item.brand === params.brand;
       const matchCategory = params.category === "전체" || item.category === params.category;
-
+      
       if (matchBrand && matchCategory) {
         return { ...item, baseRate: item.baseRate + diff };
       }
@@ -157,13 +157,13 @@ function RecoveryRatesContent() {
           </div>
 
           <div className="flex gap-2 isolate">
-            <button
+            <button 
               onClick={() => setIsTimelineOpen(true)}
               className="flex items-center gap-1.5 px-4 h-10 bg-white border border-[#E8EAF0] rounded-[6px] text-[12px] font-bold text-[#4A5270] hover:bg-[#F4F5F8] transition-colors shadow-sm"
             >
               <History size={14} /> 이력 조회
             </button>
-            <button
+            <button 
               onClick={() => setIsBatchModalOpen(true)}
               className="flex items-center gap-1.5 px-4 h-10 bg-[#000666] text-white rounded-[6px] text-[12px] font-bold hover:opacity-90 transition-opacity shadow-sm"
             >
@@ -233,7 +233,7 @@ function RecoveryRatesContent() {
                const models = Array.from(vehicleTree[brand] || []);
                const isExpanded = expandedBrands.has(brand);
                const isSelected = selectedBrand === brand;
-
+               
                return (
                  <div key={brand} className="flex flex-col">
                    <button
@@ -241,7 +241,7 @@ function RecoveryRatesContent() {
                      className={cn(
                        "w-full flex items-center justify-between px-4 py-2.5 text-[13px] font-semibold transition-colors",
                        isSelected && !selectedModel
-                         ? "text-[#000666]"
+                         ? "text-[#000666]" 
                          : "text-[#1A1A2E] hover:bg-[#FAFBFF]"
                      )}
                    >
@@ -251,7 +251,7 @@ function RecoveryRatesContent() {
                      </div>
                      <span className="text-[10px] text-[#9BA4C0]">{models.length}</span>
                    </button>
-
+                   
                    <AnimatePresence>
                      {isExpanded && (
                        <motion.div
@@ -291,9 +291,32 @@ function RecoveryRatesContent() {
         <div className="flex-1 flex flex-col min-w-0 bg-[#FAFBFF]">
           {/* 테이블 컴포넌트 렌더링 영역 - 스크롤은 테이블 내부에서 관리 */}
           <div className="flex-1 p-5 overflow-hidden flex flex-col">
-            <RecoveryRateTable
-              data={filteredRates}
-              onUpdateRate={handleUpdateRate}
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <div className="relative w-[300px]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0]" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="차량명 또는 브랜드 검색"
+                  className="w-full pl-9 pr-4 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[8px] outline-none focus:border-[#6066EE] text-[#1A1A2E] shadow-sm"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9BA4C0] hover:text-[#4A5270]"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <span className="text-[11px] text-[#9BA4C0]">
+                검색 결과: <strong>{filteredRates.length}</strong>건
+              </span>
+            </div>
+            <RecoveryRateTable 
+              data={filteredRates} 
+              onUpdateRate={handleUpdateRate} 
               currentBrand={selectedModel || selectedBrand}
             />
           </div>
@@ -301,16 +324,16 @@ function RecoveryRatesContent() {
       </div>
 
       {/* ── 모달 및 타임라인 ── */}
-      <BatchUpdateModal
-        isOpen={isBatchModalOpen}
-        onClose={() => setIsBatchModalOpen(false)}
+      <BatchUpdateModal 
+        isOpen={isBatchModalOpen} 
+        onClose={() => setIsBatchModalOpen(false)} 
         onApply={handleBatchApply}
       />
-
-      <RateHistoryTimeline
-        isOpen={isTimelineOpen}
-        onClose={() => setIsTimelineOpen(false)}
-        historyData={history}
+      
+      <RateHistoryTimeline 
+        isOpen={isTimelineOpen} 
+        onClose={() => setIsTimelineOpen(false)} 
+        historyData={history} 
       />
     </div>
   );
@@ -327,3 +350,4 @@ export default function RecoveryRatesPage() {
     </Suspense>
   );
 }
+

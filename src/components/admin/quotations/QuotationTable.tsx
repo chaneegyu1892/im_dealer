@@ -4,21 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 import { Search, X, ExternalLink, Copy, Check as CheckIcon, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatKRWMan, formatDateKR, formatDateTimeKR } from "@/lib/format";
-import type { AdminSavedQuote, QuoteCrmStatus } from "@/types/admin";
+import type { AdminSavedQuote } from "@/types/admin";
 import { VerificationResult } from "@/components/admin/VerificationResult";
-import { CUSTOMER_TYPE_LABELS, isCustomerType } from "@/constants/customer-types";
 
-const CRM_STATUS_CONFIG: Record<QuoteCrmStatus, { label: string; color: string; bg: string }> = {
+type CrmStatus = AdminSavedQuote["status"];
+
+const CRM_STATUS_CONFIG: Record<CrmStatus, { label: string; color: string; bg: string }> = {
   NEW:         { label: "신규",     color: "#6B7399", bg: "#F4F5F8" },
   CONTACTED:   { label: "연락함",   color: "#000666", bg: "#E5E5FA" },
   IN_PROGRESS: { label: "진행중",   color: "#D97706", bg: "#FFFBEB" },
   CONVERTED:   { label: "계약완료", color: "#059669", bg: "#ECFDF5" },
   LOST:        { label: "이탈",     color: "#DC2626", bg: "#FEF2F2" },
 };
-
-function formatCustomerType(type: string) {
-  return isCustomerType(type) ? CUSTOMER_TYPE_LABELS[type] : type;
-}
 
 interface QuotationTableProps {
   initialQuotes: AdminSavedQuote[];
@@ -28,7 +25,7 @@ interface QuotationTableProps {
 export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<QuoteCrmStatus | "ALL">("ALL");
+  const [statusFilter, setStatusFilter] = useState<CrmStatus | "ALL">("ALL");
   const [quoteOverrides, setQuoteOverrides] = useState<Record<string, Partial<AdminSavedQuote>>>({});
   const [memoInput, setMemoInput] = useState("");
   const [savingMemo, setSavingMemo] = useState(false);
@@ -129,7 +126,7 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
           >
             전체
           </button>
-          {(Object.keys(CRM_STATUS_CONFIG) as QuoteCrmStatus[]).map(s => {
+          {(Object.keys(CRM_STATUS_CONFIG) as CrmStatus[]).map(s => {
             const cfg = CRM_STATUS_CONFIG[s];
             const isActive = statusFilter === s;
             return (
@@ -206,7 +203,7 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-[10px] font-medium px-2 py-1 rounded-[4px] bg-[#F4F5F8] text-[#4A5270]">
-                      {formatCustomerType(q.customerType)}
+                      {q.userType === "Member" ? "회원" : "비회원"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-[12px] text-[#9BA4C0]">
@@ -255,7 +252,7 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
               <DetailRow label="보증금" value={`${selectedQuote.depositRate}%`} />
               <DetailRow label="선납금" value={`${selectedQuote.prepayRate}%`} />
               <DetailRow label="계약 유형" value={selectedQuote.contractType} />
-              <DetailRow label="고객 유형" value={formatCustomerType(selectedQuote.customerType)} />
+              <DetailRow label="고객 유형" value={selectedQuote.userType === "Member" ? "회원" : "비회원"} />
             </div>
             <div className="bg-[#000666] rounded-[10px] p-4 text-center">
               <p className="text-[11px] text-white/60 mb-1">월 납입금</p>
@@ -275,7 +272,7 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
               <div>
                 <p className="text-[11px] text-[#6B7399] mb-1.5">진행 상태</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {(Object.keys(CRM_STATUS_CONFIG) as QuoteCrmStatus[]).map(s => {
+                  {(Object.keys(CRM_STATUS_CONFIG) as CrmStatus[]).map(s => {
                     const cfg = CRM_STATUS_CONFIG[s];
                     const isActive = selectedQuote.status === s;
                     return (

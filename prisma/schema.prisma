@@ -241,10 +241,13 @@ model SavedQuote {
   totalCost             Int
   breakdown             Json
   createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
   expiresAt             DateTime
   verificationSessionId String?
   customerName          String?
   phone                 String?
+
+  quoteType             String      @default("DETAIL")  // "AI" | "DETAIL"
 
   // CRM 필드
   status                QuoteStatus @default(NEW)
@@ -408,7 +411,7 @@ model AdminUser {
   email        String    @unique
   passwordHash String
   name         String
-  role         String    @default("operator")
+  role         String    @default("staff")  // "admin" | "staff" | "dealer"
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
