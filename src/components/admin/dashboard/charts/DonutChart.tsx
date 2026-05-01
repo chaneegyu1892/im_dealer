@@ -13,12 +13,13 @@ export function DonutChart({ data }: DonutChartProps) {
     return <div className="flex items-center justify-center text-[12px] text-[#9BA4C0] h-[124px]">데이터 없음</div>;
   }
 
-  const total = data.reduce((s, d) => s + d.count, 0);
   const R = 50;
   const CX = 62;
   const CY = 62;
   const SW = 18;
   const circ = 2 * Math.PI * R;
+
+  const total = data.reduce((s, d) => s + d.count, 0);
 
   const segs = data.reduce<Array<CategoryCount & { offset: number; dash: number; color: string }>>((acc, d, i) => {
     const cum = acc.reduce((sum, seg) => sum + seg.count / total, 0);
@@ -29,10 +30,10 @@ export function DonutChart({ data }: DonutChartProps) {
   }, []);
 
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-4 w-full h-full">
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-4 w-full">
       <svg
         viewBox="0 0 124 124"
-        className="shrink-0 w-[112px] h-[112px] sm:w-[124px] sm:h-[124px]"
+        className="shrink-0 w-[124px] h-[124px]"
         preserveAspectRatio="xMidYMid meet"
       >
         <circle cx={CX} cy={CY} r={R} fill="none" stroke="#F0F2F8" strokeWidth={SW} />
