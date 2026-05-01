@@ -362,11 +362,12 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
 
   const [quotes, total] = await Promise.all([
     prisma.savedQuote.findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,
     }),
-    prisma.savedQuote.count(),
+    prisma.savedQuote.count({ where: { deletedAt: null } }),
   ]);
 
   // vehicleId, trimId에서 이름 조회

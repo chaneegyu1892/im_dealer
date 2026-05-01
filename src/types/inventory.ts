@@ -15,4 +15,6 @@ export interface InventoryItem {
   trim?: string;
   color?: string;
   options?: string[];
+  /** 옵티미스틱 락용 ISO 타임스탬프 (서버 updatedAt) */
+  updatedAt?: string;
 }

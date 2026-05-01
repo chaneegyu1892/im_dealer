@@ -244,6 +244,7 @@ model SavedQuote {
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
   expiresAt             DateTime
+  deletedAt             DateTime?
   verificationSessionId String?
   customerName          String?
   phone                 String?
@@ -265,6 +266,7 @@ model SavedQuote {
   @@index([userId])
   @@index([expiresAt])
   @@index([createdAt])
+  @@index([deletedAt])
 }
 
 model QuoteActivityLog {

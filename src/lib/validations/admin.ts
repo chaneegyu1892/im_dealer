@@ -104,6 +104,9 @@ export const inventoryUpdateSchema = z.object({
   financeCompanyName: z.string().optional(),
   trimName: z.string().min(1).optional(),
   vehicleName: z.string().optional(),
+  // 옵티미스틱 락: 클라이언트가 마지막으로 본 updatedAt (ISO 문자열).
+  // 누락 시 락 비활성화(하위 호환).
+  expectedUpdatedAt: z.string().datetime({ offset: true }).optional(),
 });
 
 // ─── AI Recommendation Config ───────────────────────────

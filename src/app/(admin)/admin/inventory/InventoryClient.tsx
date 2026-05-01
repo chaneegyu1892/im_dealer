@@ -405,12 +405,38 @@ export function InventoryClient({
   const totalQty       = items.reduce((s, i) => s + i.quantity, 0);
   const immediateCount = items.filter((i) => i.immediateDelivery && i.quantity > 0).length;
 
+  // 옵티미스틱 락 PATCH 헬퍼: expectedUpdatedAt 동봉, 409 시 락 갱신 메시지.
+  const patchInventory = async (
+    id: string,
+    payload: Record<string, unknown>,
+    expectedUpdatedAt: string | undefined
+  ): Promise<{ ok: true; updatedAt?: string } | { ok: false; conflict: boolean }> => {
+    try {
+      const res = await fetch(`/api/admin/inventory/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          ...(expectedUpdatedAt ? { expectedUpdatedAt } : {}),
+        }),
+      });
+      if (res.status === 409) return { ok: false, conflict: true };
+      if (!res.ok) return { ok: false, conflict: false };
+      const json: { success?: boolean; data?: { updatedAt?: string } } = await res.json();
+      if (!json.success) return { ok: false, conflict: false };
+      return { ok: true, updatedAt: json.data?.updatedAt };
+    } catch {
+      return { ok: false, conflict: false };
+    }
+  };
+
   const handleQuantityChange = (id: string, qty: number) => {
-    const item = items.find(i => i.id === id);
-    if (item) {
-      logActivity(`[수량 변경] ${item.vehicleShort}의 재고가 ${qty}대로 조정되었습니다.`, 'update');
+    const target = items.find(i => i.id === id);
+    if (target) {
+      logActivity(`[수량 변경] ${target.vehicleShort}의 재고가 ${qty}대로 조정되었습니다.`, 'update');
     }
     const snapshot = items;
+    const expected = target?.updatedAt;
     setItems((prev) =>
       prev.map((item) =>
         item.id === id
@@ -418,47 +444,45 @@ export function InventoryClient({
           : item
       )
     );
-    fetch(`/api/admin/inventory/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stockCount: qty }),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((res: { success?: boolean }) => {
-        if (!res.success) throw new Error("서버 응답 실패");
-      })
-      .catch((e) => {
-        console.error("재고 수량 업데이트 실패:", e);
+    void patchInventory(id, { stockCount: qty }, expected).then((result) => {
+      if (result.ok) {
+        if (result.updatedAt) {
+          setItems((prev) => prev.map((i) => i.id === id ? { ...i, updatedAt: result.updatedAt } : i));
+        }
+      } else {
         setItems(snapshot);
-        setNotice({ kind: "err", msg: "재고 수량 변경에 실패했습니다. 다시 시도해주세요." });
-      });
+        setNotice({
+          kind: "err",
+          msg: result.conflict
+            ? "다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해주세요."
+            : "재고 수량 변경에 실패했습니다. 다시 시도해주세요.",
+        });
+      }
+    });
   };
 
   const handleDeliveryToggle = (id: string, val: boolean) => {
+    const target = items.find(i => i.id === id);
     const snapshot = items;
+    const expected = target?.updatedAt;
     setItems((prev) =>
       prev.map((item) => item.id === id ? { ...item, immediateDelivery: val } : item)
     );
-    fetch(`/api/admin/inventory/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ immediateDelivery: val }),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((res: { success?: boolean }) => {
-        if (!res.success) throw new Error("서버 응답 실패");
-      })
-      .catch((e) => {
-        console.error("즉시출고 업데이트 실패:", e);
+    void patchInventory(id, { immediateDelivery: val }, expected).then((result) => {
+      if (result.ok) {
+        if (result.updatedAt) {
+          setItems((prev) => prev.map((i) => i.id === id ? { ...i, updatedAt: result.updatedAt } : i));
+        }
+      } else {
         setItems(snapshot);
-        setNotice({ kind: "err", msg: "즉시출고 변경에 실패했습니다." });
-      });
+        setNotice({
+          kind: "err",
+          msg: result.conflict
+            ? "다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해주세요."
+            : "즉시출고 변경에 실패했습니다.",
+        });
+      }
+    });
   };
 
   const currentDetails = selectedVehicle ? vehicleDetails[selectedVehicle.label] : null;
@@ -515,10 +539,10 @@ export function InventoryClient({
         )
       );
       const editSnapshot = items;
-      fetch(`/api/admin/inventory/${editTarget.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const editId = editTarget.id;
+      void patchInventory(
+        editId,
+        {
           stockCount: qty,
           immediateDelivery: form.immediateDelivery,
           colorExt: form.color,
@@ -527,21 +551,24 @@ export function InventoryClient({
           financeCompanyName: form.financeCompany,
           trimName: form.trim,
           vehicleName: form.vehicleName,
-        }),
-      })
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.json();
-        })
-        .then((res: { success?: boolean }) => {
-          if (!res.success) throw new Error("서버 응답 실패");
+        },
+        editTarget.updatedAt
+      ).then((result) => {
+        if (result.ok) {
+          if (result.updatedAt) {
+            setItems((prev) => prev.map((i) => i.id === editId ? { ...i, updatedAt: result.updatedAt } : i));
+          }
           setNotice({ kind: "ok", msg: "재고가 수정되었습니다." });
-        })
-        .catch((e) => {
-          console.error("재고 수정 실패:", e);
+        } else {
           setItems(editSnapshot);
-          setNotice({ kind: "err", msg: "재고 수정에 실패했습니다. 다시 시도해주세요." });
-        });
+          setNotice({
+            kind: "err",
+            msg: result.conflict
+              ? "다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해주세요."
+              : "재고 수정에 실패했습니다. 다시 시도해주세요.",
+          });
+        }
+      });
     } else {
       const tempId = `TEMP-${Date.now()}`;
       logActivity(`[신규 재고] ${form.vehicleShort} (${form.financeCompany}) 재고가 신규 등록되었습니다.`, 'create');
@@ -585,9 +612,13 @@ export function InventoryClient({
           }
           return r.json();
         })
-        .then((res: { success: boolean; data?: { id: string } }) => {
+        .then((res: { success: boolean; data?: { id: string; updatedAt?: string } }) => {
           if (res.success && res.data?.id) {
-            setItems((prev) => prev.map((i) => i.id === tempId ? { ...i, id: res.data!.id } : i));
+            const newId = res.data.id;
+            const newUpdatedAt = res.data.updatedAt;
+            setItems((prev) =>
+              prev.map((i) => i.id === tempId ? { ...i, id: newId, updatedAt: newUpdatedAt } : i)
+            );
             setNotice({ kind: "ok", msg: "신규 재고가 등록되었습니다." });
           } else {
             throw new Error("서버 응답 실패");

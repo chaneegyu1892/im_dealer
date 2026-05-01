@@ -10,8 +10,8 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const quote = await prisma.savedQuote.findUnique({
-      where: { id },
+    const quote = await prisma.savedQuote.findFirst({
+      where: { id, deletedAt: null },
     });
 
     if (!quote) {
