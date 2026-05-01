@@ -81,17 +81,49 @@ export async function PATCH(
       }
     }
 
+    const includeShape = {
+      trim: {
+        include: {
+          vehicle: { select: { name: true, brand: true } },
+        },
+      },
+      financeCompany: { select: { name: true } },
+    } as const;
+
+    // 옵티미스틱 락: expectedUpdatedAt 이 있으면 updateMany 로 충돌 검사 후 재조회.
+    if (body.expectedUpdatedAt) {
+      const expected = new Date(body.expectedUpdatedAt);
+      const result = await prisma.inventory.updateMany({
+        where: { id, updatedAt: expected },
+        data: updateData,
+      });
+      if (result.count === 0) {
+        const exists = await prisma.inventory.findUnique({
+          where: { id },
+          select: { id: true, updatedAt: true },
+        });
+        if (!exists) {
+          return NextResponse.json({ error: "Not Found" }, { status: 404 });
+        }
+        return NextResponse.json(
+          {
+            error: "다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해주세요.",
+            currentUpdatedAt: exists.updatedAt.toISOString(),
+          },
+          { status: 409 }
+        );
+      }
+      const updatedLocked = await prisma.inventory.findUnique({
+        where: { id },
+        include: includeShape,
+      });
+      return NextResponse.json({ success: true, data: updatedLocked });
+    }
+
     const updated = await prisma.inventory.update({
       where: { id },
       data: updateData,
-      include: {
-        trim: {
-          include: {
-            vehicle: { select: { name: true, brand: true } },
-          },
-        },
-        financeCompany: { select: { name: true } },
-      },
+      include: includeShape,
     });
 
     return NextResponse.json({ success: true, data: updated });

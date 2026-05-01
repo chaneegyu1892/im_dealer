@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
     })) as Prisma.InputJsonObject;
 
     const existing = await prisma.savedQuote.findFirst({
-      where: { sessionId: input.sessionId },
+      where: { sessionId: input.sessionId, deletedAt: null },
       orderBy: { createdAt: "desc" },
     });
 

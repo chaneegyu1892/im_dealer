@@ -40,33 +40,31 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // 3. 이달 신규 상담 (SavedQuote 기준)
+    // 3. 이달 신규 상담 (SavedQuote 기준, 소프트 삭제 제외)
     const monthlyConsultations = await prisma.savedQuote.count({
       where: {
-        createdAt: {
-          gte: thisMonthStart,
-        },
+        createdAt: { gte: thisMonthStart },
+        deletedAt: null,
       },
     });
 
     const lastMonthConsultations = await prisma.savedQuote.count({
       where: {
-        createdAt: {
-          gte: lastMonthStart,
-          lte: lastMonthEnd,
-        },
+        createdAt: { gte: lastMonthStart, lte: lastMonthEnd },
+        deletedAt: null,
       },
     });
 
     // 4. 계약 전환율
-    const totalQuotes = await prisma.savedQuote.count();
+    const totalQuotes = await prisma.savedQuote.count({ where: { deletedAt: null } });
     const convertedQuotes = await prisma.savedQuote.count({
-      where: { status: "CONVERTED" },
+      where: { status: "CONVERTED", deletedAt: null },
     });
     const conversionRate = totalQuotes > 0 ? (convertedQuotes / totalQuotes) * 100 : 0;
 
-    // 5. 최근 상담 (SavedQuote 기준 5건)
+    // 5. 최근 상담 (SavedQuote 기준 5건, 소프트 삭제 제외)
     const recentQuotes = await prisma.savedQuote.findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: 5,
     });

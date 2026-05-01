@@ -98,6 +98,7 @@ async function getInventoryItems(): Promise<InventoryItem[]> {
     trim: inv.trim.name,
     color: inv.colorExt ?? undefined,
     options: inv.selectedOptions,
+    updatedAt: inv.updatedAt.toISOString(),
   }));
 }
 

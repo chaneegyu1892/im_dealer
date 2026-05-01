@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 import { apiRateLimit, strictRateLimit } from "@/lib/rate-limit";
+import { timingSafeEqualString } from "@/lib/security";
 
 const ADMIN_JWT_COOKIE = "admin_token";
 const ADMIN_ACCESS_COOKIE = "admin_access";
@@ -26,18 +27,6 @@ async function isValidAdminJwt(token: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-// 타이밍 공격 방어를 위한 상수 시간 비교 (Edge runtime 호환)
-function timingSafeEqualString(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return diff === 0;
 }
 
 function isValidAccessToken(token: string): boolean {

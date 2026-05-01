@@ -26,7 +26,7 @@ export async function PATCH(
 
   const { status, assigneeId, internalMemo } = parsed.data;
 
-  const quote = await prisma.savedQuote.findUnique({ where: { id } });
+  const quote = await prisma.savedQuote.findFirst({ where: { id, deletedAt: null } });
   if (!quote) {
     return NextResponse.json({ error: "견적을 찾을 수 없습니다." }, { status: 404 });
   }
@@ -77,8 +77,8 @@ export async function GET(
   const { error } = await requireAdmin();
   if (error) return error;
 
-  const quote = await prisma.savedQuote.findUnique({
-    where: { id },
+  const quote = await prisma.savedQuote.findFirst({
+    where: { id, deletedAt: null },
     include: { activityLogs: { orderBy: { createdAt: "desc" }, take: 20 } },
   });
   if (!quote) {
@@ -93,11 +93,26 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { error } = await requireAdmin();
+  const { admin, error } = await requireAdmin();
   if (error) return error;
 
   try {
-    await prisma.savedQuote.delete({ where: { id } });
+    // 소프트 삭제: 행을 보존하여 감사 추적 유지.
+    const result = await prisma.savedQuote.updateMany({
+      where: { id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+    if (result.count === 0) {
+      return NextResponse.json({ error: "견적을 찾을 수 없습니다." }, { status: 404 });
+    }
+    await prisma.quoteActivityLog.create({
+      data: {
+        quoteId: id,
+        actorId: admin!.id,
+        action: "DELETED",
+        payload: { soft: "true" },
+      },
+    });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[DELETE /api/admin/quotes/[id]]", err);
