@@ -122,10 +122,12 @@ export function DashboardClient({ data }: DashboardClientProps) {
         </div>
         <div className="grid grid-cols-2 divide-x divide-[#F0F2F8]">
           {visibleCharts.map((chart) => (
-            <div key={chart.id} className="p-5">
+            <div key={chart.id} className="p-5 flex flex-col min-h-[300px]">
               <p className="text-[13px] font-semibold text-[#1A1A2E] mb-0.5">{chart.title}</p>
               <p className="text-[11px] text-[#9BA4C0] mb-4">{chart.subtitle}</p>
-              {chart.render()}
+              <div className="flex-1 flex items-center justify-center">
+                {chart.render()}
+              </div>
             </div>
           ))}
         </div>

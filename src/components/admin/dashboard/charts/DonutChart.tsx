@@ -30,10 +30,10 @@ export function DonutChart({ data }: DonutChartProps) {
   }, []);
 
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-4 w-full">
+    <div className="flex flex-col items-center gap-4 w-full">
       <svg
         viewBox="0 0 124 124"
-        className="shrink-0 w-[124px] h-[124px]"
+        className="w-[124px] h-[124px]"
         preserveAspectRatio="xMidYMid meet"
       >
         <circle cx={CX} cy={CY} r={R} fill="none" stroke="#F0F2F8" strokeWidth={SW} />
@@ -54,14 +54,14 @@ export function DonutChart({ data }: DonutChartProps) {
         <text x={CX} y={CY - 5} textAnchor="middle" fontSize="20" fontWeight="700" fill="#1A1A2E">{total}</text>
         <text x={CX} y={CY + 12} textAnchor="middle" fontSize="9" fill="#9BA4C0">총 차량</text>
       </svg>
-      <div className="flex-1 min-w-[140px] space-y-2">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 w-full max-w-[280px]">
         {segs.map((d) => (
-          <div key={d.category} className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
-              <span className="text-[12px] text-[#6B7399] truncate">{d.category}</span>
+          <div key={d.category} className="flex items-center justify-between gap-2 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
+              <span className="text-[11px] text-[#6B7399] truncate">{d.category}</span>
             </div>
-            <span className="text-[12px] font-semibold text-[#1A1A2E] shrink-0">{d.count}대</span>
+            <span className="text-[11px] font-semibold text-[#1A1A2E] shrink-0">{d.count}대</span>
           </div>
         ))}
       </div>
