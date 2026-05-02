@@ -8,6 +8,8 @@ import type { EngineType } from "@/types/vehicle";
 import type { RecommendScenarios } from "@/types/recommendation";
 import { notFound } from "next/navigation";
 import { CarDetailClient } from "./CarDetailClient";
+import { getPublicReviewsByVehicleId } from "@/lib/admin-queries";
+import { CustomerReviewsSection } from "@/components/home/CustomerReviewsSection";
 
 async function getVehicle(slug: string): Promise<VehicleDetail | null> {
   const vehicle = await prisma.vehicle.findUnique({
@@ -171,5 +173,18 @@ export default async function CarDetailPage({
   const vehicle = await getVehicle(slug);
   if (!vehicle) notFound();
 
-  return <CarDetailClient vehicle={vehicle} />;
+  const reviews = await getPublicReviewsByVehicleId(vehicle.id, 10);
+
+  return (
+    <>
+      <CarDetailClient vehicle={vehicle} />
+      {reviews.length > 0 && (
+        <CustomerReviewsSection
+          reviews={reviews}
+          sectionLabel="이 차량 후기"
+          title={`${vehicle.brand} ${vehicle.name} 이용자들의 이야기`}
+        />
+      )}
+    </>
+  );
 }
