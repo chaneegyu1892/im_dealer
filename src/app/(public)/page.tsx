@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
+import { getPublicReviews } from "@/lib/admin-queries";
 import { HeroSection } from "@/components/home/HeroSection";
+import { CustomerReviewsSection } from "@/components/home/CustomerReviewsSection";
 import { PopularCarsSection } from "@/components/home/PopularCarsSection";
 import { ServiceIntroSection } from "@/components/home/ServiceIntroSection";
 import type { VehicleListItem } from "@/types/api";
@@ -83,11 +85,15 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
 }
 
 export default async function HomePage() {
-  const popularVehicles = await getPopularVehicles();
+  const [popularVehicles, reviews] = await Promise.all([
+    getPopularVehicles(),
+    getPublicReviews(10),
+  ]);
 
   return (
     <div>
       <HeroSection />
+      {reviews.length > 0 && <CustomerReviewsSection reviews={reviews} />}
       {popularVehicles.length > 0 && (
         <PopularCarsSection vehicles={popularVehicles} />
       )}

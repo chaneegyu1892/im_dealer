@@ -14,6 +14,7 @@ import {
   Building2,
   Settings,
   ClipboardList,
+  MessageSquare,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -47,6 +48,7 @@ const NAV: NavGroup[] = [
       { href: "/admin/quotations", label: "견적 데이터", icon: FileText, roles: ["admin", "staff", "dealer"] },
       { href: "/admin/users", label: "사용자 관리", icon: Users, roles: ["admin", "staff", "dealer"] },
       { href: "/admin/inventory", label: "재고관리", icon: Package, roles: ["admin", "staff"] },
+      { href: "/admin/reviews", label: "후기 관리", icon: MessageSquare, roles: ["admin", "staff"] },
     ],
   },
   {

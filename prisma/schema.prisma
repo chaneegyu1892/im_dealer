@@ -89,6 +89,7 @@ model Vehicle {
   lineups       VehicleLineup[]
   popularConfigs PopularConfig[]
   quoteCalcLogs  QuoteCalcLog[]
+  reviews        Review[]
 
   @@index([isVisible, isPopular])
   @@index([category])
@@ -259,6 +260,7 @@ model SavedQuote {
   convertedAt           DateTime?
 
   activityLogs          QuoteActivityLog[]
+  reviews               Review[]
 
   @@index([sessionId])
   @@index([status])
@@ -439,6 +441,25 @@ model CustomerVerification {
   updatedAt         DateTime  @updatedAt
 
   @@index([sessionId])
+}
+
+model Review {
+  id             String      @id @default(cuid())
+  authorRealName String
+  rating         Int
+  content        String
+  vehicleId      String?
+  vehicle        Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  savedQuoteId   String?
+  savedQuote     SavedQuote? @relation(fields: [savedQuoteId], references: [id], onDelete: SetNull)
+  isPublic       Boolean     @default(true)
+  displayOrder   Int         @default(0)
+  reviewDate     DateTime    @default(now())
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([vehicleId, isPublic, displayOrder])
+  @@index([isPublic, displayOrder])
 }
 
 model Inventory {
