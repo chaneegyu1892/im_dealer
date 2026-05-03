@@ -8,6 +8,7 @@ import {
   ADMIN_COOKIE_OPTIONS,
 } from "@/lib/admin-auth";
 import { loginRateLimit } from "@/lib/rate-limit";
+import { logAdminAction } from "@/lib/audit";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -61,6 +62,15 @@ export async function POST(request: Request) {
         : false;
 
     if (!admin || !admin.isActive || !isValid) {
+      if (admin) {
+        await logAdminAction({
+          request,
+          actor: { id: admin.id, email: admin.email },
+          action: "LOGIN_FAILED",
+          resource: "AdminUser",
+          targetId: admin.id,
+        });
+      }
       return NextResponse.json(
         { error: "이메일 또는 비밀번호가 올바르지 않습니다." },
         { status: 401 }
@@ -74,6 +84,14 @@ export async function POST(request: Request) {
     });
 
     const token = await createAdminToken(admin.id);
+
+    await logAdminAction({
+      request,
+      actor: { id: admin.id, email: admin.email },
+      action: "LOGIN",
+      resource: "AdminUser",
+      targetId: admin.id,
+    });
 
     const response = NextResponse.json({ success: true });
     response.cookies.set({ ...ADMIN_COOKIE_OPTIONS, value: token });

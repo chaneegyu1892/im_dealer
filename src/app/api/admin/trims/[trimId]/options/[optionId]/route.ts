@@ -2,12 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { optionUpdateSchema } from "@/lib/validations/admin";
 import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
 
 type Params = { params: Promise<{ trimId: string; optionId: string }> };
 
 // ─── PATCH /api/admin/trims/[trimId]/options/[optionId] ──
 export async function PATCH(request: NextRequest, { params }: Params) {
-  if (!(await getAdminSession())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
   try {
@@ -34,6 +36,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       data: parsed.data,
     });
 
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "OPTION_UPDATE",
+      resource: "TrimOption",
+      targetId: optionId,
+      before: existing,
+      after: option,
+    });
+
     return NextResponse.json({ success: true, data: option });
   } catch (error) {
     console.error("[PATCH /api/admin/trims/[trimId]/options/[optionId]]", error);
@@ -45,8 +57,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 // ─── DELETE /api/admin/trims/[trimId]/options/[optionId] ─
-export async function DELETE(_request: NextRequest, { params }: Params) {
-  if (!(await getAdminSession())) {
+export async function DELETE(request: NextRequest, { params }: Params) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
   try {
@@ -59,6 +72,16 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     }
 
     await prisma.trimOption.delete({ where: { id: optionId } });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "OPTION_DELETE",
+      resource: "TrimOption",
+      targetId: optionId,
+      before: existing,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[DELETE /api/admin/trims/[trimId]/options/[optionId]]", error);

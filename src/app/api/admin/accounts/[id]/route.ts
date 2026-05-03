@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession, hashPassword } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -13,7 +14,7 @@ const updateSchema = z.object({
 });
 
 // ─── PATCH /api/admin/accounts/[id] ──────────────────────
-export async function PATCH(request: Request, { params }: Params) {
+export async function PATCH(request: NextRequest, { params }: Params) {
   const admin = await getAdminSession();
   if (!admin) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
@@ -44,6 +45,10 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
 
+    const before = await prisma.adminUser.findUnique({
+      where: { id },
+      select: { id: true, email: true, name: true, role: true, isActive: true },
+    });
     const updated = await prisma.adminUser.update({
       where: { id },
       data: {
@@ -53,6 +58,17 @@ export async function PATCH(request: Request, { params }: Params) {
         ...(newPassword && { passwordHash: await hashPassword(newPassword) }),
       },
       select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true, lastLoginAt: true },
+    });
+
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "ACCOUNT_UPDATE",
+      resource: "AdminUser",
+      targetId: id,
+      before,
+      after: { id: updated.id, email: updated.email, name: updated.name, role: updated.role, isActive: updated.isActive },
+      meta: newPassword ? { passwordChanged: true } : undefined,
     });
 
     return NextResponse.json({ success: true, data: updated });
@@ -66,7 +82,7 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 // ─── DELETE /api/admin/accounts/[id] ─────────────────────
-export async function DELETE(_request: Request, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   const admin = await getAdminSession();
   if (!admin) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
@@ -84,6 +100,20 @@ export async function DELETE(_request: Request, { params }: Params) {
     );
   }
 
+  const before = await prisma.adminUser.findUnique({
+    where: { id },
+    select: { id: true, email: true, name: true, role: true, isActive: true },
+  });
   await prisma.adminUser.delete({ where: { id } });
+
+  await logAdminAction({
+    request,
+    actor: admin,
+    action: "ACCOUNT_DELETE",
+    resource: "AdminUser",
+    targetId: id,
+    before,
+  });
+
   return NextResponse.json({ success: true });
 }

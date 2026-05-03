@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { getAllReviewsForAdmin } from "@/lib/admin-queries";
+import { logAdminAction } from "@/lib/audit";
 
 const reviewCreateSchema = z.object({
   authorRealName: z.string().min(1).max(50),
@@ -32,7 +33,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await getAdminSession())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
   try {
@@ -51,6 +53,15 @@ export async function POST(request: NextRequest) {
         ...rest,
         ...(reviewDate ? { reviewDate: new Date(reviewDate) } : {}),
       },
+    });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "REVIEW_CREATE",
+      resource: "Review",
+      targetId: review.id,
+      after: review,
     });
 
     return NextResponse.json({ success: true, data: review }, { status: 201 });

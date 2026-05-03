@@ -422,6 +422,27 @@ model AdminUser {
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
+
+  auditLogs AdminAuditLog[]
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorEmail String
+  action     String
+  resource   String
+  targetId   String?
+  diff       Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  actor AdminUser @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId, createdAt])
+  @@index([resource, targetId])
+  @@index([action, createdAt])
 }
 
 model CustomerVerification {

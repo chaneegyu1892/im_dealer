@@ -15,6 +15,7 @@ import {
   Settings,
   ClipboardList,
   MessageSquare,
+  ShieldCheck,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -62,6 +63,7 @@ const NAV: NavGroup[] = [
     group: "시스템",
     items: [
       { href: "/admin/memo", label: "운영 메모", icon: ClipboardList, roles: ["admin", "staff"] },
+      { href: "/admin/audit-logs", label: "감사 로그", icon: ShieldCheck, roles: ["admin"] },
       { href: "/admin/settings", label: "설정", icon: Settings, roles: ["admin"] },
     ],
   },

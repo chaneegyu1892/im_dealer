@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { inventoryUpdateSchema } from "@/lib/validations/admin";
+import { logAdminAction } from "@/lib/audit";
 
 export async function PATCH(
   request: NextRequest,
@@ -120,10 +121,21 @@ export async function PATCH(
       return NextResponse.json({ success: true, data: updatedLocked });
     }
 
+    const before = await prisma.inventory.findUnique({ where: { id } });
     const updated = await prisma.inventory.update({
       where: { id },
       data: updateData,
       include: includeShape,
+    });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "INVENTORY_UPDATE",
+      resource: "Inventory",
+      targetId: id,
+      before,
+      after: updated,
     });
 
     return NextResponse.json({ success: true, data: updated });
@@ -135,7 +147,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -145,7 +157,17 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    const before = await prisma.inventory.findUnique({ where: { id } });
     await prisma.inventory.delete({ where: { id } });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "INVENTORY_DELETE",
+      resource: "Inventory",
+      targetId: id,
+      before,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

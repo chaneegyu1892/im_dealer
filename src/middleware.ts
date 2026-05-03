@@ -65,8 +65,14 @@ export default async function middleware(request: NextRequest) {
   const isAdminApi = pathname.startsWith("/api/admin");
 
   // ── API 라우트 Rate Limit 보호 ────────────────────────────────────
-  if (pathname.startsWith("/api/") && !isAdminApi) {
-    const isStrictApi = pathname.includes("/quote") || pathname.includes("/recommend");
+  // 일반 어드민 API는 인증으로 보호되지만, 업로드는 디스크/대역폭 부하가 크므로
+  // 인증과 별개로 strict 레이트리밋을 적용한다.
+  const isUploadApi = pathname === "/api/admin/upload";
+  if (pathname.startsWith("/api/") && (!isAdminApi || isUploadApi)) {
+    const isStrictApi =
+      isUploadApi ||
+      pathname.includes("/quote") ||
+      pathname.includes("/recommend");
     const ratelimit = isStrictApi ? strictRateLimit : apiRateLimit;
 
     if (ratelimit) {

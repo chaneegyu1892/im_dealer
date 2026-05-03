@@ -3,12 +3,14 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { trimCreateSchema } from "@/lib/validations/admin";
 import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
 // ─── POST /api/admin/vehicles/[id]/trims ────────────────
 export async function POST(request: NextRequest, { params }: Params) {
-  if (!(await getAdminSession())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
   try {
@@ -45,6 +47,16 @@ export async function POST(request: NextRequest, { params }: Params) {
           specs: specs === null ? Prisma.JsonNull : specs,
         }),
       },
+    });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "TRIM_CREATE",
+      resource: "Trim",
+      targetId: trim.id,
+      after: trim,
+      meta: { vehicleId: id },
     });
 
     return NextResponse.json({ success: true, data: trim }, { status: 201 });

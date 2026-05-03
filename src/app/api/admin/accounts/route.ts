@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession, hashPassword } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
 
 // ─── GET /api/admin/accounts ──────────────────────────────
 export async function GET() {
@@ -37,7 +38,7 @@ const createSchema = z.object({
 });
 
 // ─── POST /api/admin/accounts ─────────────────────────────
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const admin = await getAdminSession();
   if (!admin) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
@@ -76,6 +77,15 @@ export async function POST(request: Request) {
         isActive: true,
       },
       select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true, lastLoginAt: true },
+    });
+
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "ACCOUNT_CREATE",
+      resource: "AdminUser",
+      targetId: created.id,
+      after: { email: created.email, name: created.name, role: created.role },
     });
 
     return NextResponse.json({ success: true, data: created }, { status: 201 });

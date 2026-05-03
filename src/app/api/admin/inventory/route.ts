@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { inventoryCreateSchema } from "@/lib/validations/admin";
 import type { InventoryItem, InventoryStatus } from "@/types/inventory";
+import { logAdminAction } from "@/lib/audit";
 
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 500;
@@ -160,6 +161,15 @@ export async function POST(request: NextRequest) {
         },
         financeCompany: { select: { name: true } },
       },
+    });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "INVENTORY_CREATE",
+      resource: "Inventory",
+      targetId: inventory.id,
+      after: { trimId: inventory.trimId, stockCount, immediateDelivery, colorExt, financeCompanyId },
     });
 
     return NextResponse.json({ success: true, data: mapToInventoryItem(inventory) }, { status: 201 });

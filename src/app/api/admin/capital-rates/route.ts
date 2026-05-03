@@ -7,6 +7,7 @@ import {
   calcPrepayAdjustRate,
 } from "@/lib/quote-calculator";
 import type { RateSheetRaw } from "@/types/admin";
+import { logAdminAction } from "@/lib/audit";
 
 // GET /api/admin/capital-rates?financeCompanyId=...&trimId=...&history=true
 export async function GET(request: NextRequest) {
@@ -80,7 +81,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/capital-rates — 신규 주별 시트 저장
 export async function POST(request: NextRequest) {
-  if (!(await getAdminSession())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
 
@@ -178,6 +180,21 @@ export async function POST(request: NextRequest) {
       }
 
       return saved;
+    });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "RATE_SHEET_CREATE",
+      resource: "CapitalRateSheet",
+      meta: {
+        financeCompanyId,
+        trimIds: targetTrimIds,
+        weekOf,
+        sheetIds: results,
+        minVehiclePrice,
+        maxVehiclePrice,
+      },
     });
 
     return NextResponse.json({
