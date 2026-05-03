@@ -128,7 +128,15 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[POST /api/verification/fetch]", error);
+    // Codef 응답·요청 본문(주민번호·면허번호 등 PII) 이 그대로 로그에 남지 않도록
+    // 에러 객체 전체가 아닌 안전한 메타데이터만 기록한다.
+    console.error("[POST /api/verification/fetch]", {
+      name: error instanceof Error ? error.name : "Unknown",
+      message:
+        error instanceof Error
+          ? error.message.slice(0, 200)
+          : String(error).slice(0, 200),
+    });
     return NextResponse.json(
       { error: "서류 조회 중 오류가 발생했습니다." },
       { status: 500 }
