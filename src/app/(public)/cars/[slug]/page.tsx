@@ -6,6 +6,7 @@
 // connection pool timeout 으로 빌드가 실패한다.
 export const revalidate = 600;
 
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 
 import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput } from "@/lib/quote-calculator";
@@ -17,6 +18,127 @@ import { notFound } from "next/navigation";
 import { CarDetailClient } from "./CarDetailClient";
 import { getPublicReviewsByVehicleId } from "@/lib/admin-queries";
 import { CustomerReviewsSection } from "@/components/home/CustomerReviewsSection";
+
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+// 메타데이터·JSON-LD 용 가벼운 차량 조회. 본문 렌더링용 getVehicle 과 분리해
+// SEO 헤더 생성 시 무거운 join(트림·옵션·요율표 전체) 을 피한다.
+async function getVehicleMeta(slug: string) {
+  return prisma.vehicle.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      brand: true,
+      category: true,
+      basePrice: true,
+      thumbnailUrl: true,
+      description: true,
+      isVisible: true,
+      trims: {
+        where: { isVisible: true },
+        select: { price: true },
+        orderBy: { price: "asc" },
+      },
+    },
+  });
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const v = await getVehicleMeta(slug);
+  if (!v || !v.isVisible) {
+    return { title: "차량을 찾을 수 없습니다" };
+  }
+
+  const lowestPrice = v.trims[0]?.price ?? v.basePrice;
+  const priceManwon = Math.round(lowestPrice / 10000).toLocaleString("ko-KR");
+  const titleText = `${v.brand} ${v.name} 장기렌트·리스 견적`;
+  const descText = v.description
+    ? `${v.description} · 시작가 ${priceManwon}만원. AI 기반 진짜견적.`
+    : `${v.brand} ${v.name} 장기렌트·리스 견적을 시작가 ${priceManwon}만원부터 비교하세요. AI 기반 진짜견적.`;
+  const url = `${SITE_URL}/cars/${v.slug}`;
+
+  return {
+    title: titleText,
+    description: descText,
+    alternates: { canonical: url },
+    openGraph: {
+      title: titleText,
+      description: descText,
+      url,
+      type: "website",
+      locale: "ko_KR",
+      siteName: "아임딜러",
+      images: v.thumbnailUrl
+        ? [{ url: v.thumbnailUrl, alt: `${v.brand} ${v.name}` }]
+        : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: titleText,
+      description: descText,
+      images: v.thumbnailUrl ? [v.thumbnailUrl] : undefined,
+    },
+  };
+}
+
+interface CarJsonLdInput {
+  slug: string;
+  name: string;
+  brand: string;
+  category: string;
+  description: string | null;
+  thumbnailUrl: string | null;
+  trims: { price: number }[];
+  basePrice: number;
+}
+
+function buildCarJsonLd(v: CarJsonLdInput): Record<string, unknown>[] {
+  const url = `${SITE_URL}/cars/${v.slug}`;
+  const prices = v.trims.length > 0 ? v.trims.map((t) => t.price) : [v.basePrice];
+  const lowPrice = Math.min(...prices);
+  const highPrice = Math.max(...prices);
+  const offerCount = prices.length;
+
+  const product: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: `${v.brand} ${v.name}`,
+    description: v.description ?? `${v.brand} ${v.name} 장기렌트·리스 견적`,
+    brand: { "@type": "Brand", name: v.brand },
+    category: v.category,
+    url,
+    ...(v.thumbnailUrl ? { image: v.thumbnailUrl } : {}),
+    offers: {
+      "@type": "AggregateOffer",
+      priceCurrency: "KRW",
+      lowPrice,
+      highPrice,
+      offerCount,
+      url,
+      availability: "https://schema.org/InStock",
+    },
+  };
+
+  const breadcrumb: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "홈", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "차량", item: `${SITE_URL}/cars` },
+      { "@type": "ListItem", position: 3, name: v.brand },
+      { "@type": "ListItem", position: 4, name: v.name, item: url },
+    ],
+  };
+
+  return [product, breadcrumb];
+}
 
 async function getVehicle(slug: string): Promise<VehicleDetail | null> {
   const vehicle = await prisma.vehicle.findUnique({
@@ -182,8 +304,27 @@ export default async function CarDetailPage({
 
   const reviews = await getPublicReviewsByVehicleId(vehicle.id, 10);
 
+  const jsonLd = buildCarJsonLd({
+    slug: vehicle.slug,
+    name: vehicle.name,
+    brand: vehicle.brand,
+    category: vehicle.category,
+    description: vehicle.description,
+    thumbnailUrl: vehicle.thumbnailUrl,
+    trims: vehicle.trims.map((t) => ({ price: t.price })),
+    basePrice: vehicle.basePrice,
+  });
+
   return (
     <>
+      {jsonLd.map((schema, i) => (
+        <script
+          key={i}
+          type="application/ld+json"
+          // 컨트롤된 객체를 JSON.stringify 로 직렬화하므로 XSS 위험 없음.
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        />
+      ))}
       <CarDetailClient vehicle={vehicle} />
       {reviews.length > 0 && (
         <CustomerReviewsSection
