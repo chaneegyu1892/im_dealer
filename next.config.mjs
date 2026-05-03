@@ -10,6 +10,20 @@ const nextConfig = {
     root: __dirname,
   },
   async headers() {
+    // CSP 정책. Next.js 16 + Sentry + Supabase + Upstash + 외부 차량 이미지 도메인을 모두 허용.
+    // 첫 단계는 Report-Only로 운영 위반을 모니터링한 뒤 enforce 전환은 후속 PR.
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.sentry.io",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' *.supabase.co *.sentry.io *.upstash.io",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ");
+
     return [
       {
         source: "/:path*",
@@ -18,6 +32,12 @@ const nextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-XSS-Protection", value: "1; mode=block" },
+          // 모든 https 요청을 1년간 강제 (preload 등록 시 브라우저 내장 목록에 포함).
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
+          // 위치/마이크/카메라/결제 API 차단 — 차량 견적 사이트에 불필요.
+          { key: "Permissions-Policy", value: "geolocation=(), microphone=(), camera=(), payment=()" },
+          // CSP는 우선 Report-Only로 도입. 대시보드 모니터링 후 enforce 전환.
+          { key: "Content-Security-Policy-Report-Only", value: csp },
         ],
       },
     ];
