@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { popularConfigCreateSchema } from "@/lib/validations/admin";
+import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -65,6 +67,17 @@ export async function POST(request: NextRequest, { params }: Params) {
       },
       include: { items: { orderBy: { displayOrder: "asc" } } },
     });
+
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "POPULAR_CONFIG_CREATE",
+      resource: "PopularConfig",
+      targetId: config.id,
+      after: config,
+      meta: { vehicleId: id },
+    });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: config }, { status: 201 });
   } catch (error) {

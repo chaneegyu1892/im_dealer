@@ -1,12 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await getAdminSession())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
 
@@ -15,9 +17,20 @@ export async function PATCH(
     const body = await request.json();
     const { isRead } = body;
 
+    const before = await prisma.adminNotification.findUnique({ where: { id } });
     const updated = await prisma.adminNotification.update({
       where: { id },
       data: { isRead },
+    });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "NOTIFICATION_UPDATE",
+      resource: "AdminNotification",
+      targetId: id,
+      before,
+      after: updated,
     });
 
     return NextResponse.json({ success: true, data: updated });

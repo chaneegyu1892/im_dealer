@@ -1,11 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ruleCreateSchema } from "@/lib/validations/admin";
+import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 type Params = { params: Promise<{ trimId: string }> };
 
 // ─── GET /api/admin/trims/[trimId]/rules ────────────────
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(_request: NextRequest, { params }: Params) {
+  if (!(await getAdminSession())) {
+    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+  }
   try {
     const { trimId } = await params;
     const rules = await prisma.optionRule.findMany({
@@ -21,6 +27,10 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 // ─── POST /api/admin/trims/[trimId]/rules ───────────────
 export async function POST(request: NextRequest, { params }: Params) {
+  const session = await getAdminSession();
+  if (!session) {
+    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+  }
   try {
     const { trimId } = await params;
     const body = await request.json();
@@ -85,6 +95,17 @@ export async function POST(request: NextRequest, { params }: Params) {
         });
       }
     }
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "RULE_CREATE",
+      resource: "OptionRule",
+      targetId: rule.id,
+      after: rule,
+      meta: { trimId },
+    });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: rule }, { status: 201 });
   } catch (error) {

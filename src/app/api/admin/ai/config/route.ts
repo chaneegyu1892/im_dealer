@@ -1,10 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { aiConfigUpdateSchema } from "@/lib/validations/admin";
+import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const session = await getAdminSession();
     if (!session) {
@@ -24,7 +26,6 @@ export async function POST(req: Request) {
 
     const existing = await prisma.recommendationConfig.findUnique({
       where: { id },
-      select: { id: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "구성을 찾을 수 없습니다." }, { status: 404 });
@@ -39,6 +40,17 @@ export async function POST(req: Request) {
         updatedBy: session.email,
       },
     });
+
+    await logAdminAction({
+      request: req,
+      actor: session,
+      action: "AI_CONFIG_UPDATE",
+      resource: "RecommendationConfig",
+      targetId: id,
+      before: existing,
+      after: updated,
+    });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
