@@ -17,6 +17,7 @@ import {
   parseLegacyQuoteDraft,
   parseQuoteDraft,
 } from "@/lib/quote-draft";
+import { validateBizNumber } from "@/lib/validators/korean";
 
 // ─── 타입 ────────────────────────────────────────────────
 type Step = 1 | 2 | 3 | "done";
@@ -488,6 +489,17 @@ export function VerifyClient() {
 
   const handleSubmit = async () => {
     if (!sessionId) return;
+
+    // 사업자등록번호 체크섬 검증 — 잘못된 번호로 Codef 호출 시 비용 낭비.
+    const needsBiz =
+      customerType === "self_employed" ||
+      customerType === "corporate" ||
+      customerType === "nonprofit";
+    if (needsBiz && !validateBizNumber(form.bizNo)) {
+      setError("사업자등록번호가 올바르지 않습니다. 10자리 숫자를 다시 확인해주세요.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
