@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { optionUpdateSchema } from "@/lib/validations/admin";
 import { getAdminSession } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 type Params = { params: Promise<{ trimId: string; optionId: string }> };
 
@@ -45,6 +46,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       before: existing,
       after: option,
     });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: option });
   } catch (error) {
@@ -81,6 +83,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       targetId: optionId,
       before: existing,
     });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true });
   } catch (error) {

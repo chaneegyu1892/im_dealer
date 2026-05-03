@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { optionCreateSchema } from "@/lib/validations/admin";
 import { getAdminSession } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 type Params = { params: Promise<{ trimId: string }> };
 
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       after: option,
       meta: { trimId },
     });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: option }, { status: 201 });
   } catch (error) {

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { vehicleCreateSchema, generateSlug } from "@/lib/validations/admin";
 import { getAdminSession } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 // ─── GET /api/admin/vehicles ────────────────────────────
 export async function GET(request: NextRequest) {
@@ -100,6 +101,7 @@ export async function POST(request: NextRequest) {
       targetId: vehicle.id,
       after: vehicle,
     });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: vehicle }, { status: 201 });
   } catch (error) {

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 // DELETE /api/admin/capital-rates/[id]
 export async function DELETE(
@@ -26,6 +27,7 @@ export async function DELETE(
       targetId: id,
       before,
     });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ ok: true });
   } catch (e) {
@@ -74,6 +76,7 @@ export async function PATCH(
       after,
       meta: setActive ? { setActive: true } : undefined,
     });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ ok: true });
   } catch (e) {

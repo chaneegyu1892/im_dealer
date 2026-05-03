@@ -1,6 +1,18 @@
-export const dynamic = "force-dynamic";
+// ISR: 10분마다 정적 재생성. 어드민 mutation 시 revalidatePath('/cars/[slug]', 'page') 로 즉시 무효화.
+export const revalidate = 600;
 
 import { prisma } from "@/lib/prisma";
+
+// 노출 가능한 차량을 빌드 시점에 prerender → 첫 진입도 즉시 응답.
+// 추후 추가되는 차량은 dynamicParams 기본값(true)으로 on-demand 생성된다.
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  const vehicles = await prisma.vehicle.findMany({
+    where: { isVisible: true },
+    select: { slug: true },
+  });
+  return vehicles.map((v) => ({ slug: v.slug }));
+}
+
 import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput } from "@/lib/quote-calculator";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";

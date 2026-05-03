@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicReviewSurfaces } from "@/lib/revalidate";
 
 const reviewUpdateSchema = z.object({
   authorRealName: z.string().min(1).max(50).optional(),
@@ -72,6 +73,7 @@ export async function PATCH(
       before,
       after: updated,
     });
+    revalidatePublicReviewSurfaces();
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
@@ -101,6 +103,7 @@ export async function DELETE(
       targetId: id,
       before,
     });
+    revalidatePublicReviewSurfaces();
 
     return NextResponse.json({ success: true });
   } catch (error) {
