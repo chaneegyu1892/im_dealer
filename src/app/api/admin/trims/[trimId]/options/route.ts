@@ -2,12 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { optionCreateSchema } from "@/lib/validations/admin";
 import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
 
 type Params = { params: Promise<{ trimId: string }> };
 
 // ─── POST /api/admin/trims/[trimId]/options ─────────────
 export async function POST(request: NextRequest, { params }: Params) {
-  if (!(await getAdminSession())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
   try {
@@ -29,6 +31,16 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const option = await prisma.trimOption.create({
       data: { ...parsed.data, trimId },
+    });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "OPTION_CREATE",
+      resource: "TrimOption",
+      targetId: option.id,
+      after: option,
+      meta: { trimId },
     });
 
     return NextResponse.json({ success: true, data: option }, { status: 201 });

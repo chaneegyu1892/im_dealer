@@ -3,12 +3,14 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { trimUpdateSchema } from "@/lib/validations/admin";
 import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string; trimId: string }> };
 
 // ─── PATCH /api/admin/vehicles/[id]/trims/[trimId] ──────
 export async function PATCH(request: NextRequest, { params }: Params) {
-  if (!(await getAdminSession())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
   try {
@@ -48,6 +50,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       },
     });
 
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "TRIM_UPDATE",
+      resource: "Trim",
+      targetId: trimId,
+      before: existing,
+      after: trim,
+    });
+
     return NextResponse.json({ success: true, data: trim });
   } catch (error) {
     console.error("[PATCH /api/admin/vehicles/[id]/trims/[trimId]]", error);
@@ -59,8 +71,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 // ─── DELETE /api/admin/vehicles/[id]/trims/[trimId] ─────
-export async function DELETE(_request: NextRequest, { params }: Params) {
-  if (!(await getAdminSession())) {
+export async function DELETE(request: NextRequest, { params }: Params) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
   try {
@@ -73,6 +86,16 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     }
 
     await prisma.trim.delete({ where: { id: trimId } });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "TRIM_DELETE",
+      resource: "Trim",
+      targetId: trimId,
+      before: existing,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[DELETE /api/admin/vehicles/[id]/trims/[trimId]]", error);

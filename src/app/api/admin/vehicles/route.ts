@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { vehicleCreateSchema, generateSlug } from "@/lib/validations/admin";
 import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
 
 // ─── GET /api/admin/vehicles ────────────────────────────
 export async function GET(request: NextRequest) {
@@ -60,7 +61,8 @@ export async function GET(request: NextRequest) {
 
 // ─── POST /api/admin/vehicles ───────────────────────────
 export async function POST(request: NextRequest) {
-  if (!(await getAdminSession())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
   try {
@@ -88,6 +90,15 @@ export async function POST(request: NextRequest) {
 
     const vehicle = await prisma.vehicle.create({
       data: { ...data, slug },
+    });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "VEHICLE_CREATE",
+      resource: "Vehicle",
+      targetId: vehicle.id,
+      after: vehicle,
     });
 
     return NextResponse.json({ success: true, data: vehicle }, { status: 201 });

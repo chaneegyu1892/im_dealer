@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
 
 const reviewUpdateSchema = z.object({
   authorRealName: z.string().min(1).max(50).optional(),
@@ -37,10 +38,12 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await getAdminSession())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
   try {
+    const { id } = await params;
     const body = await request.json();
     const parsed = reviewUpdateSchema.safeParse(body);
     if (!parsed.success) {
@@ -51,12 +54,23 @@ export async function PATCH(
     }
     const { reviewDate, ...rest } = parsed.data;
 
+    const before = await prisma.review.findUnique({ where: { id } });
     const updated = await prisma.review.update({
-      where: { id: (await params).id },
+      where: { id },
       data: {
         ...rest,
         ...(reviewDate ? { reviewDate: new Date(reviewDate) } : {}),
       },
+    });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "REVIEW_UPDATE",
+      resource: "Review",
+      targetId: id,
+      before,
+      after: updated,
     });
 
     return NextResponse.json({ success: true, data: updated });
@@ -67,14 +81,27 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await getAdminSession())) {
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
   try {
-    await prisma.review.delete({ where: { id: (await params).id } });
+    const { id } = await params;
+    const before = await prisma.review.findUnique({ where: { id } });
+    await prisma.review.delete({ where: { id } });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "REVIEW_DELETE",
+      resource: "Review",
+      targetId: id,
+      before,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[DELETE /api/admin/reviews/[id]]", error);
