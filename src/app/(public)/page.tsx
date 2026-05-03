@@ -1,4 +1,5 @@
-export const dynamic = "force-dynamic";
+// ISR: 10분마다 정적 재생성. 차량/요율표/후기 변경 시 revalidatePath('/', 'page') 로 즉시 무효화.
+export const revalidate = 600;
 
 import { prisma } from "@/lib/prisma";
 import { getPublicReviews } from "@/lib/admin-queries";

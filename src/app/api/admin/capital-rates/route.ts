@@ -8,6 +8,7 @@ import {
 } from "@/lib/quote-calculator";
 import type { RateSheetRaw } from "@/types/admin";
 import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 // GET /api/admin/capital-rates?financeCompanyId=...&trimId=...&history=true
 export async function GET(request: NextRequest) {
@@ -196,6 +197,7 @@ export async function POST(request: NextRequest) {
         maxVehiclePrice,
       },
     });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({
       success: true,

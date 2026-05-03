@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { getAllReviewsForAdmin } from "@/lib/admin-queries";
 import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicReviewSurfaces } from "@/lib/revalidate";
 
 const reviewCreateSchema = z.object({
   authorRealName: z.string().min(1).max(50),
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
       targetId: review.id,
       after: review,
     });
+    revalidatePublicReviewSurfaces();
 
     return NextResponse.json({ success: true, data: review }, { status: 201 });
   } catch (error) {

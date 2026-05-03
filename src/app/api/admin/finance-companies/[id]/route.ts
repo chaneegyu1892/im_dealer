@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 export async function PATCH(
   req: NextRequest,
@@ -31,6 +32,7 @@ export async function PATCH(
       before,
       after: updated,
     });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
