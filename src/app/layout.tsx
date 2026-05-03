@@ -17,7 +17,11 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
+// 절대 URL 생성용 베이스. 개별 페이지의 OG 이미지·canonical 등이 이 값을 기준으로 절대화된다.
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "아임딜러 — AI 기반 진짜견적",
     template: "%s | 아임딜러",
@@ -29,6 +33,12 @@ export const metadata: Metadata = {
     description: "허위견적 없는 AI 기반 장기렌트·리스 견적 서비스",
     locale: "ko_KR",
     type: "website",
+    siteName: "아임딜러",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "아임딜러 — AI 기반 진짜견적",
+    description: "허위견적 없는 AI 기반 장기렌트·리스 견적 서비스",
   },
 };
 
