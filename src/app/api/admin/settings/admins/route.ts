@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 
 export async function GET() {
@@ -24,12 +25,12 @@ export async function GET() {
     });
 
     return NextResponse.json({ success: true, data: admins });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const session = await getAdminSession();
     if (!session || session.role !== "admin") {
@@ -58,6 +59,15 @@ export async function POST(req: Request) {
       },
     });
 
+    await logAdminAction({
+      request: req,
+      actor: session,
+      action: "ACCOUNT_CREATE",
+      resource: "AdminUser",
+      targetId: newUser.id,
+      after: { email: newUser.email, name: newUser.name, role: newUser.role },
+    });
+
     return NextResponse.json({
       success: true,
       data: { id: newUser.id, email: newUser.email, name: newUser.name },
@@ -68,7 +78,7 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
     const session = await getAdminSession();
     if (!session || session.role !== "admin") {
@@ -77,6 +87,10 @@ export async function PATCH(req: Request) {
 
     const { id, isActive, role } = await req.json();
 
+    const before = await prisma.adminUser.findUnique({
+      where: { id },
+      select: { id: true, email: true, name: true, role: true, isActive: true },
+    });
     const updated = await prisma.adminUser.update({
       where: { id },
       data: {
@@ -85,8 +99,18 @@ export async function PATCH(req: Request) {
       },
     });
 
+    await logAdminAction({
+      request: req,
+      actor: session,
+      action: "ACCOUNT_UPDATE",
+      resource: "AdminUser",
+      targetId: id,
+      before,
+      after: { id: updated.id, email: updated.email, name: updated.name, role: updated.role, isActive: updated.isActive },
+    });
+
     return NextResponse.json({ success: true, data: updated });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

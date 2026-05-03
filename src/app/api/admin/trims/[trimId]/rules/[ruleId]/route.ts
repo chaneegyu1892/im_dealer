@@ -1,13 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 type Params = { params: Promise<{ trimId: string; ruleId: string }> };
 
 // ─── DELETE /api/admin/trims/[trimId]/rules/[ruleId] ────
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const session = await getAdminSession();
+  if (!session) {
+    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+  }
   try {
     const { ruleId } = await params;
-    
+
     // Get the rule to check if it's a conflict rule
     const rule = await prisma.optionRule.findUnique({ where: { id: ruleId } });
     if (!rule) return NextResponse.json({ success: true });
@@ -27,6 +34,16 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     } else {
       await prisma.optionRule.delete({ where: { id: ruleId } });
     }
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "RULE_DELETE",
+      resource: "OptionRule",
+      targetId: ruleId,
+      before: rule,
+    });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true });
   } catch (error) {

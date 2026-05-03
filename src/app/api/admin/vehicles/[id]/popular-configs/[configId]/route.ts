@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { popularConfigUpdateSchema } from "@/lib/validations/admin";
+import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 type Params = { params: Promise<{ id: string; configId: string }> };
 
@@ -25,11 +27,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     // 해당 config 가 요청 vehicleId 소속인지 검증 (소유권)
-    const owned = await prisma.popularConfig.findFirst({
+    const before = await prisma.popularConfig.findFirst({
       where: { id: configId, vehicleId },
-      select: { id: true },
+      include: { items: { orderBy: { displayOrder: "asc" } } },
     });
-    if (!owned) {
+    if (!before) {
       return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
 
@@ -64,6 +66,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       });
     });
 
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "POPULAR_CONFIG_UPDATE",
+      resource: "PopularConfig",
+      targetId: configId,
+      before,
+      after: config,
+    });
+    revalidatePublicVehicleSurfaces();
+
     return NextResponse.json({ success: true, data: config });
   } catch (error) {
     console.error("[PATCH /api/admin/vehicles/[id]/popular-configs/[configId]]", error);
@@ -84,12 +97,26 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const { id: vehicleId, configId } = await params;
     // 소유권 검증: 다른 차량 config 변조 방지
-    const result = await prisma.popularConfig.deleteMany({
+    const before = await prisma.popularConfig.findFirst({
       where: { id: configId, vehicleId },
+      include: { items: true },
     });
-    if (result.count === 0) {
+    if (!before) {
       return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
+
+    await prisma.popularConfig.delete({ where: { id: configId } });
+
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "POPULAR_CONFIG_DELETE",
+      resource: "PopularConfig",
+      targetId: configId,
+      before,
+    });
+    revalidatePublicVehicleSurfaces();
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[DELETE /api/admin/vehicles/[id]/popular-configs/[configId]]", error);

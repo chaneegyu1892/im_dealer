@@ -1,11 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { lineupUpdateSchema } from "@/lib/validations/admin";
+import { getAdminSession } from "@/lib/admin-auth";
+import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 type Params = { params: Promise<{ id: string; lineupId: string }> };
 
 // ─── PATCH /api/admin/vehicles/[id]/lineups/[lineupId] ──
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const session = await getAdminSession();
+  if (!session) {
+    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+  }
   try {
     const { lineupId } = await params;
     const body = await request.json();
@@ -18,10 +25,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       );
     }
 
+    const before = await prisma.vehicleLineup.findUnique({ where: { id: lineupId } });
     const lineup = await prisma.vehicleLineup.update({
       where: { id: lineupId },
       data: parsed.data,
     });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "LINEUP_UPDATE",
+      resource: "VehicleLineup",
+      targetId: lineupId,
+      before,
+      after: lineup,
+    });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: lineup });
   } catch (error) {
@@ -32,9 +51,25 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 // ─── DELETE /api/admin/vehicles/[id]/lineups/[lineupId] ─
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const session = await getAdminSession();
+  if (!session) {
+    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+  }
   try {
     const { lineupId } = await params;
+    const before = await prisma.vehicleLineup.findUnique({ where: { id: lineupId } });
     await prisma.vehicleLineup.delete({ where: { id: lineupId } });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "LINEUP_DELETE",
+      resource: "VehicleLineup",
+      targetId: lineupId,
+      before,
+    });
+    revalidatePublicVehicleSurfaces();
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[DELETE /api/admin/vehicles/[id]/lineups/[lineupId]]", error);
