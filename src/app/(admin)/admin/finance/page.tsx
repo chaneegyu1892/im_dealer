@@ -1,14 +1,9 @@
 import { getAdminFinanceCompanies, getAdminVehicles } from "@/lib/admin-queries";
-import { getAdminSession } from "@/lib/admin-auth";
-import { redirect } from "next/navigation";
 import FinanceTabContainer from "@/components/admin/finance/FinanceTabContainer";
 
 export const metadata = { title: "견적 산출 로직 관리 | 아임딜러 어드민" };
 
 export default async function FinancePage() {
-  const session = await getAdminSession();
-  if (!session) redirect("/admin/login");
-
   const [financeCompanies, vehicles] = await Promise.all([
     getAdminFinanceCompanies(),
     getAdminVehicles(),

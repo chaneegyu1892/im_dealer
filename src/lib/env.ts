@@ -20,9 +20,6 @@ const envSchema = z.object({
   // App
   NEXT_PUBLIC_APP_URL: z.string().url(),
 
-  // Admin auth (필수, 32자 이상)
-  ADMIN_JWT_SECRET: z.string().min(32, "ADMIN_JWT_SECRET 은 32자 이상이어야 합니다."),
-
   // IP 해싱
   IP_HASH_SALT: z.string().min(16, "IP_HASH_SALT 은 16자 이상이어야 합니다."),
 

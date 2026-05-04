@@ -35,6 +35,7 @@ export interface AdminUserRecord {
   firstContactAt: string;
   lastContactAt: string;
   userStatus: "active" | "dormant";
+  role: string | null;
   activeItems: AdminUserActiveItem[];
   contractItems: AdminUserContractItem[];
   internalMemo: string | null;
@@ -191,7 +192,7 @@ export async function getAdminUsers(): Promise<{
   stats: AdminUsersStats;
   authError?: string;
 }> {
-  const [quotes, authResult] = await Promise.all([
+  const [quotes, authResult, dbAdmins] = await Promise.all([
     prisma.savedQuote.findMany({
       orderBy: { createdAt: "desc" },
       select: {
@@ -211,10 +212,20 @@ export async function getAdminUsers(): Promise<{
       },
     }),
     getSupabaseAuthUsers(),
+    prisma.adminUser.findMany({
+      select: { supabaseId: true, email: true, role: true }
+    }),
   ]);
 
   const authUsers = authResult.users;
   const authError = authResult.error;
+
+  const adminMap = new Map<string, string>(); // supabaseId -> role
+  const emailMap = new Map<string, string>(); // email -> role
+  dbAdmins.forEach((a) => {
+    if (a.supabaseId) adminMap.set(a.supabaseId, a.role);
+    if (a.email) emailMap.set(a.email, a.role);
+  });
 
   const vehicleIds = [...new Set(quotes.map((q) => q.vehicleId))];
   const vehicles = await prisma.vehicle.findMany({
@@ -247,6 +258,7 @@ export async function getAdminUsers(): Promise<{
       firstContactAt: authUser.createdAt,
       lastContactAt: contactDate,
       userStatus: "active",
+      role: adminMap.get(authUser.id) || (authUser.email ? emailMap.get(authUser.email) : null) || null,
       activeItems: [],
       contractItems: [],
       internalMemo: null,
@@ -295,6 +307,7 @@ export async function getAdminUsers(): Promise<{
         firstContactAt: q.createdAt.toISOString(),
         lastContactAt: q.createdAt.toISOString(),
         userStatus: "active",
+        role: q.userId ? adminMap.get(q.userId) : (q.phone ? emailMap.get(q.phone) : null) || null,
         activeItems: [],
         contractItems: [],
         internalMemo: q.internalMemo ?? null,

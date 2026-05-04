@@ -1,15 +1,10 @@
 import { getAiInsights, getVehicleAiConfigs } from "@/lib/admin-ai-queries";
-import { getAdminSession } from "@/lib/admin-auth";
-import { redirect } from "next/navigation";
 import AiInsightDashboard from "@/components/admin/ai/AiInsightDashboard";
 import VehicleAiSettings from "@/components/admin/ai/VehicleAiSettings";
 
 export const metadata = { title: "AI 추천 관리 | 아임딜러 어드민" };
 
 export default async function AiManagementPage() {
-  const session = await getAdminSession();
-  if (!session) redirect("/admin/login");
-
   const [insights, configs] = await Promise.all([
     getAiInsights(),
     getVehicleAiConfigs(),

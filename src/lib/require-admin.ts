@@ -29,7 +29,7 @@ export async function requireSuperAdmin() {
     return { admin: null, error: NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 }) };
   }
   if (!isSuperAdmin(admin.role)) {
-    return { admin: null, error: NextResponse.json({ error: "권한이 없습니다." }, { status: 403 }) };
+    return { admin: null, error: NextResponse.json({ error: "최종관리자 권한이 필요합니다." }, { status: 403 }) };
   }
   return { admin, error: null };
 }
