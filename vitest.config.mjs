@@ -9,6 +9,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: "./setupTests.ts",
+    // Playwright spec 은 별도 러너로 실행. Vitest 가 e2e/**.spec.ts 를 잡지 않도록 제외.
+    exclude: ["**/node_modules/**", "**/.next/**", "**/e2e/**"],
   },
   resolve: {
     alias: {
