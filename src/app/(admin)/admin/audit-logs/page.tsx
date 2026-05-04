@@ -14,8 +14,7 @@ export default async function AdminAuditLogsPage({
   searchParams: Promise<{ action?: string; resource?: string; actor?: string }>;
 }) {
   const session = await getAdminSession();
-  if (!session) redirect("/admin/login");
-  if (!isAdminLike(session.role)) redirect("/admin");
+  if (!session || !isAdminLike(session.role)) redirect("/admin");
 
   const params = await searchParams;
   const action = params.action || undefined;

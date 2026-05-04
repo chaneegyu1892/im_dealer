@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   FileText,
@@ -26,7 +27,7 @@ interface NavItem {
   icon: LucideIcon;
   exact?: boolean;
   badge?: string;
-  roles?: string[]; // 해당 메뉴를 볼 수 있는 역할들 (없으면 전체 공개)
+  roles?: string[];
 }
 
 interface NavGroup {
@@ -71,17 +72,25 @@ const NAV: NavGroup[] = [
 
 export function AdminSidebar({ admin }: { admin: any }) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
 
-  // 역할에 따른 메뉴 필터링
   const filteredNav = NAV.map(section => ({
     ...section,
-    items: section.items.filter(item => 
-      !item.roles || item.roles.includes(admin?.role)
+    items: section.items.filter(item =>
+      !item.roles ||
+      admin?.role === "superadmin" ||
+      item.roles.includes(admin?.role)
     )
   })).filter(section => section.items.length > 0);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+  }
 
   return (
     <aside
@@ -160,7 +169,11 @@ export function AdminSidebar({ admin }: { admin: any }) {
             <p className="text-[10px] text-[#3D4470] truncate">{admin?.email}</p>
           </div>
         </div>
-        <button className="flex items-center gap-2 px-2.5 py-1.5 w-full rounded-[6px] text-[12px] text-[#3D4470] hover:text-[#8890AA] hover:bg-white/[0.04] transition-all duration-150">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex items-center gap-2 px-2.5 py-1.5 w-full rounded-[6px] text-[12px] text-[#3D4470] hover:text-[#8890AA] hover:bg-white/[0.04] transition-all duration-150"
+        >
           <LogOut size={12} strokeWidth={1.8} />
           로그아웃
         </button>

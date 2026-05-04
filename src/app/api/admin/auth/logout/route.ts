@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ADMIN_COOKIE_OPTIONS, getAdminSession } from "@/lib/admin-auth";
+import { getAdminSession } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
 
 // ─── POST /api/admin/auth/logout ──────────────────────────
@@ -15,7 +15,5 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const response = NextResponse.json({ success: true });
-  response.cookies.set({ ...ADMIN_COOKIE_OPTIONS, value: "", maxAge: 0 });
-  return response;
+  return NextResponse.json({ success: true });
 }

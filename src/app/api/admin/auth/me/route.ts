@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import {
-  getAdminSession,
-  verifyPassword,
-  hashPassword,
-} from "@/lib/admin-auth";
+import { getAdminSession } from "@/lib/admin-auth";
 
 // ─── GET /api/admin/auth/me ───────────────────────────────
 export async function GET() {
@@ -26,17 +22,9 @@ export async function GET() {
 }
 
 // ─── PATCH /api/admin/auth/me ─────────────────────────────
-const updateSchema = z
-  .object({
-    name: z.string().min(1).max(50).optional(),
-    email: z.string().email().optional(),
-    currentPassword: z.string().optional(),
-    newPassword: z.string().min(8).max(100).optional(),
-  })
-  .refine(
-    (d) => !(d.newPassword && !d.currentPassword),
-    { message: "새 비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.", path: ["currentPassword"] }
-  );
+const updateSchema = z.object({
+  name: z.string().min(1).max(50),
+});
 
 export async function PATCH(request: Request) {
   const admin = await getAdminSession();
@@ -55,37 +43,9 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const { name, email, currentPassword, newPassword } = parsed.data;
-
-    // 비밀번호 변경 시 현재 비밀번호 검증
-    if (newPassword) {
-      const isValid = await verifyPassword(currentPassword!, admin.passwordHash);
-      if (!isValid) {
-        return NextResponse.json(
-          { error: "현재 비밀번호가 올바르지 않습니다." },
-          { status: 400 }
-        );
-      }
-    }
-
-    // 이메일 중복 확인
-    if (email && email !== admin.email) {
-      const existing = await prisma.adminUser.findUnique({ where: { email } });
-      if (existing) {
-        return NextResponse.json(
-          { error: "이미 사용 중인 이메일입니다." },
-          { status: 400 }
-        );
-      }
-    }
-
     const updated = await prisma.adminUser.update({
       where: { id: admin.id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(email !== undefined && { email }),
-        ...(newPassword && { passwordHash: await hashPassword(newPassword) }),
-      },
+      data: { name: parsed.data.name },
       select: { id: true, email: true, name: true, role: true },
     });
 
