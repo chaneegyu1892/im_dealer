@@ -184,7 +184,7 @@
 ## DNS & Domain Configuration
 
 **Kakao OAuth Redirect:**
-- Registered domain: `NEXT_PUBLIC_APP_URL` (e.g., `https://your-service.up.railway.app` or custom domain)
+- Registered domain: `NEXT_PUBLIC_APP_URL` (e.g., `https://your-project.vercel.app` or custom domain)
 - Kakao App Settings: Redirect URL must match (protocol + domain + /auth/callback)
 - Supabase Auth: Same URL registered in Supabase project settings
 
