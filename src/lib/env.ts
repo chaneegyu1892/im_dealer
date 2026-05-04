@@ -22,7 +22,6 @@ const envSchema = z.object({
 
   // Admin auth (필수, 32자 이상)
   ADMIN_JWT_SECRET: z.string().min(32, "ADMIN_JWT_SECRET 은 32자 이상이어야 합니다."),
-  ADMIN_ACCESS_TOKEN: z.string().min(32, "ADMIN_ACCESS_TOKEN 은 32자 이상이어야 합니다."),
 
   // IP 해싱
   IP_HASH_SALT: z.string().min(16, "IP_HASH_SALT 은 16자 이상이어야 합니다."),

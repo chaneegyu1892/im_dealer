@@ -2,10 +2,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 import { apiRateLimit, strictRateLimit } from "@/lib/rate-limit";
-import { timingSafeEqualString } from "@/lib/security";
 
 const ADMIN_JWT_COOKIE = "admin_token";
-const ADMIN_ACCESS_COOKIE = "admin_access";
 
 function getAdminSecret() {
   const s = process.env.ADMIN_JWT_SECRET;
@@ -27,17 +25,6 @@ async function isValidAdminJwt(token: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function isValidAccessToken(token: string): boolean {
-  const expected = process.env.ADMIN_ACCESS_TOKEN;
-  if (!expected) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("ADMIN_ACCESS_TOKEN 환경변수가 설정되지 않았습니다.");
-    }
-    return false;
-  }
-  return timingSafeEqualString(token, expected);
 }
 
 // x-forwarded-for 첫 번째 IP만 사용 (스푸핑 시 체인 뒤를 노출시킬 수 있음).
@@ -107,10 +94,7 @@ export default async function middleware(request: NextRequest) {
 
   // ── 어드민 라우트 보호 ────────────────────────────────────
   if (isAdminPage || isAdminApi) {
-    const accessCookie = request.cookies.get(ADMIN_ACCESS_COOKIE)?.value;
     const jwtToken = request.cookies.get(ADMIN_JWT_COOKIE)?.value;
-
-    const hasValidAccessCookie = accessCookie ? isValidAccessToken(accessCookie) : false;
     const hasValidJwt = jwtToken ? await isValidAdminJwt(jwtToken) : false;
 
     if (isAdminApi) {
@@ -120,12 +104,7 @@ export default async function middleware(request: NextRequest) {
         }
       }
     } else {
-      // 액세스 쿠키 또는 JWT 없이 /admin/login 이외 경로 접근 → 존재 숨김
-      if (!hasValidAccessCookie && !hasValidJwt && pathname !== "/admin/login") {
-        return new NextResponse(null, { status: 404 });
-      }
-
-      // 액세스 쿠키는 있지만 JWT(로그인 세션) 없음 → 로그인 페이지로
+      // 로그인 세션 없으면 /admin/login 으로 리디렉트
       if (pathname !== "/admin/login" && !hasValidJwt) {
         const loginUrl = new URL("/admin/login", request.url);
         loginUrl.searchParams.set("from", pathname);
