@@ -323,9 +323,11 @@ function UserDetailPanel({
 export default function UsersClient({
   users,
   stats,
+  authError,
 }: {
   users: AdminUserRecord[];
   stats: AdminUsersStats;
+  authError?: string;
 }) {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
@@ -394,6 +396,20 @@ export default function UsersClient({
       </div>
 
       <div className="flex-1 overflow-auto p-6 flex flex-col gap-5 scrollbar-hide">
+
+        {/* 회원 데이터 로드 실패 경고 */}
+        {authError && (
+          <div className="rounded-[12px] border border-[#FECACA] bg-[#FEF2F2] px-5 py-4 flex items-start gap-3 shrink-0">
+            <AlertCircle size={18} className="text-[#DC2626] mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold text-[#991B1B]">회원 데이터를 불러오지 못했습니다</p>
+              <p className="text-[12px] text-[#7F1D1D] mt-1 leading-relaxed">{authError}</p>
+              <p className="text-[11px] text-[#9F1239] mt-2">
+                Vercel 환경변수 <code className="px-1 py-0.5 rounded bg-white/60 font-mono text-[10px]">SUPABASE_SERVICE_ROLE_KEY</code> 설정 후 재배포가 필요합니다. 현재는 견적 신청 고객(상담 고객)만 표시됩니다.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* KPI 카드 */}
         <div className="grid grid-cols-5 gap-4 shrink-0">

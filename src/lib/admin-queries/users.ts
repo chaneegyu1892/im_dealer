@@ -146,10 +146,16 @@ function mapSupabaseUser(user: SupabaseUser): SupabaseAuthUserSummary {
   };
 }
 
-async function getSupabaseAuthUsers(): Promise<SupabaseAuthUserSummary[]> {
+interface SupabaseAuthUsersResult {
+  users: SupabaseAuthUserSummary[];
+  error?: string;
+}
+
+async function getSupabaseAuthUsers(): Promise<SupabaseAuthUsersResult> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.warn("[getAdminUsers] Supabase service role env is missing; auth users are skipped.");
-    return [];
+    const message = "SUPABASE_SERVICE_ROLE_KEY 환경변수가 설정되지 않아 회원 목록을 불러올 수 없습니다.";
+    console.warn("[getAdminUsers]", message);
+    return { users: [], error: message };
   }
 
   try {
@@ -160,8 +166,9 @@ async function getSupabaseAuthUsers(): Promise<SupabaseAuthUserSummary[]> {
     for (let page = 1; page <= 10; page++) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
       if (error) {
-        console.warn("[getAdminUsers] Failed to list Supabase auth users:", error.message);
-        return [];
+        const message = `Supabase 회원 목록 조회 실패: ${error.message}`;
+        console.warn("[getAdminUsers]", message);
+        return { users: [], error: message };
       }
 
       const pageUsers = data.users.map(mapSupabaseUser);
@@ -170,21 +177,21 @@ async function getSupabaseAuthUsers(): Promise<SupabaseAuthUserSummary[]> {
       if (pageUsers.length < perPage) break;
     }
 
-    return users;
+    return { users };
   } catch (error) {
-    console.warn(
-      "[getAdminUsers] Supabase auth user lookup failed:",
-      error instanceof Error ? error.message : error
-    );
-    return [];
+    const detail = error instanceof Error ? error.message : String(error);
+    const message = `Supabase 회원 목록 조회 중 예외 발생: ${detail}`;
+    console.warn("[getAdminUsers]", message);
+    return { users: [], error: message };
   }
 }
 
 export async function getAdminUsers(): Promise<{
   users: AdminUserRecord[];
   stats: AdminUsersStats;
+  authError?: string;
 }> {
-  const [quotes, authUsers] = await Promise.all([
+  const [quotes, authResult] = await Promise.all([
     prisma.savedQuote.findMany({
       orderBy: { createdAt: "desc" },
       select: {
@@ -205,6 +212,9 @@ export async function getAdminUsers(): Promise<{
     }),
     getSupabaseAuthUsers(),
   ]);
+
+  const authUsers = authResult.users;
+  const authError = authResult.error;
 
   const vehicleIds = [...new Set(quotes.map((q) => q.vehicleId))];
   const vehicles = await prisma.vehicle.findMany({
@@ -376,5 +386,5 @@ export async function getAdminUsers(): Promise<{
     expiringSoon: users.reduce((sum, u) => sum + u.expiringSoonCount, 0),
   };
 
-  return { users, stats };
+  return { users, stats, authError };
 }

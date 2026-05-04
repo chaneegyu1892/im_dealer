@@ -3,7 +3,7 @@ import { getAdminUsers } from "@/lib/admin-queries";
 import UsersClient from "@/components/admin/users/UsersClient";
 
 export default async function UsersPage() {
-  const { users, stats } = await getAdminUsers();
+  const { users, stats, authError } = await getAdminUsers();
 
   return (
     <Suspense
@@ -13,7 +13,7 @@ export default async function UsersPage() {
         </div>
       }
     >
-      <UsersClient users={users} stats={stats} />
+      <UsersClient users={users} stats={stats} authError={authError} />
     </Suspense>
   );
 }
