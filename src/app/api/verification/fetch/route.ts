@@ -7,6 +7,7 @@ import {
   verifyHealthInsurance,
   verifyBusiness,
 } from "@/lib/codef";
+import { encryptPII, encryptString } from "@/lib/pii";
 
 const fetchSchema = z.object({
   verificationId: z.string().min(1),
@@ -94,22 +95,22 @@ export async function POST(request: NextRequest) {
     const bizVerified =
       bizResult?.success === true && bizRaw?.resBusinessStatus === "01";
 
-    // DB 업데이트
+    // DB 업데이트 — PII 4개 컬럼은 AES-256-GCM 으로 암호화 후 저장
     await prisma.customerVerification.update({
       where: { id: verificationId },
       data: {
-        connectedId,
+        connectedId: encryptString(connectedId),
         licenseVerified,
         licenseData: licenseRaw
-          ? (licenseRaw as Prisma.InputJsonValue)
+          ? (encryptPII(licenseRaw) as unknown as Prisma.InputJsonValue)
           : Prisma.JsonNull,
         insuranceVerified,
         insuranceData: insuranceRaw
-          ? (insuranceRaw as Prisma.InputJsonValue)
+          ? (encryptPII(insuranceRaw) as unknown as Prisma.InputJsonValue)
           : Prisma.JsonNull,
         bizVerified,
         bizData: bizRaw
-          ? (bizRaw as Prisma.InputJsonValue)
+          ? (encryptPII(bizRaw) as unknown as Prisma.InputJsonValue)
           : Prisma.JsonNull,
         verifiedAt: new Date(),
       },

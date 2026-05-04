@@ -458,6 +458,7 @@ model CustomerVerification {
   bizData           Json?
   consentedAt       DateTime
   verifiedAt        DateTime?
+  piiPurgedAt       DateTime? // 90일 만료 cron 이 PII 컬럼을 NULL 로 비운 시각
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
