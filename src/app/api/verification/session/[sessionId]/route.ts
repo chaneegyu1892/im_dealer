@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
+import { decryptVerificationRow } from "@/lib/pii";
 
 // ─── GET /api/verification/session/[sessionId] ───────────
 // 관리자용: sessionId로 가장 최근 인증 결과 조회
@@ -27,7 +28,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, data: record });
+    return NextResponse.json({ success: true, data: decryptVerificationRow(record) });
   } catch (error) {
     console.error("[GET /api/verification/session/[sessionId]]", error);
     return NextResponse.json(

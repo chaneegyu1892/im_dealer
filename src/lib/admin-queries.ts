@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { decryptVerificationRow } from "@/lib/pii";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type {
@@ -40,20 +41,23 @@ export async function getRecentVerifications(take = 50): Promise<AdminVerificati
     take,
   });
 
-  return rows.map((r) => ({
-    id: r.id,
-    sessionId: r.sessionId,
-    customerType: r.customerType,
-    licenseVerified: r.licenseVerified,
-    insuranceVerified: r.insuranceVerified,
-    bizVerified: r.bizVerified,
-    licenseData: r.licenseData as Record<string, unknown> | null,
-    insuranceData: r.insuranceData as Record<string, unknown> | null,
-    bizData: r.bizData as Record<string, unknown> | null,
-    consentedAt: r.consentedAt,
-    verifiedAt: r.verifiedAt,
-    createdAt: r.createdAt,
-  }));
+  return rows.map((r) => {
+    const decrypted = decryptVerificationRow(r);
+    return {
+      id: r.id,
+      sessionId: r.sessionId,
+      customerType: r.customerType,
+      licenseVerified: r.licenseVerified,
+      insuranceVerified: r.insuranceVerified,
+      bizVerified: r.bizVerified,
+      licenseData: decrypted.licenseData as Record<string, unknown> | null,
+      insuranceData: decrypted.insuranceData as Record<string, unknown> | null,
+      bizData: decrypted.bizData as Record<string, unknown> | null,
+      consentedAt: r.consentedAt,
+      verifiedAt: r.verifiedAt,
+      createdAt: r.createdAt,
+    };
+  });
 }
 
 // ─── 차량 목록 (admin) ──────────────────────────────────

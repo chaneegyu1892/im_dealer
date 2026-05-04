@@ -27,6 +27,15 @@ const envSchema = z.object({
   // IP 해싱
   IP_HASH_SALT: z.string().min(16, "IP_HASH_SALT 은 16자 이상이어야 합니다."),
 
+  // PII 컬럼 암호화 (CustomerVerification.licenseData/insuranceData/bizData/connectedId).
+  // base64 32바이트(원본 길이 → base64 후 44자) 키. 분실 시 복구 불가.
+  PII_ENCRYPTION_KEY: z
+    .string()
+    .min(44, "PII_ENCRYPTION_KEY 는 base64 32바이트(44자 이상) 이어야 합니다."),
+
+  // 90일 PII 자동 만료 cron 호출 시 Bearer 토큰 검증용
+  CRON_SECRET: z.string().min(32, "CRON_SECRET 은 32자 이상이어야 합니다."),
+
   // Optional integrations
   CODEF_CLIENT_ID: z.string().optional(),
   CODEF_CLIENT_SECRET: z.string().optional(),
