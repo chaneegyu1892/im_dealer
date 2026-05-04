@@ -28,9 +28,9 @@ async function isValidAdminJwt(token: string): Promise<boolean> {
 }
 
 // x-forwarded-for 첫 번째 IP만 사용 (스푸핑 시 체인 뒤를 노출시킬 수 있음).
-// TRUST_PROXY 가 true 일 때만 헤더를 신뢰. 그 외에는 NextRequest.ip 또는 null.
+// Vercel 등 신뢰 가능한 프록시 뒤에선 헤더만 신뢰. NextRequest.ip 는 Next 15+ 에서 제거됨.
 function getClientIp(request: NextRequest): string | null {
-  const trustProxy = process.env.TRUST_PROXY === "true";
+  const trustProxy = process.env.TRUST_PROXY === "true" || process.env.VERCEL === "1";
   if (trustProxy) {
     const xff = request.headers.get("x-forwarded-for");
     if (xff) {
@@ -40,9 +40,7 @@ function getClientIp(request: NextRequest): string | null {
     const xreal = request.headers.get("x-real-ip");
     if (xreal) return xreal.trim();
   }
-  // Vercel/Edge 의 ip 속성
-  const directIp = (request as unknown as { ip?: string }).ip;
-  return directIp ?? null;
+  return null;
 }
 
 export default async function middleware(request: NextRequest) {
