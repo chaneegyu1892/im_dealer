@@ -26,7 +26,7 @@ export default function AccountsPage() {
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [newRole, setNewRole] = useState<"admin" | "staff" | "dealer">("staff");
+  const [newRole, setNewRole] = useState<"superadmin" | "admin" | "staff" | "dealer">("staff");
   const [formError, setFormError] = useState("");
   const [formLoading, setFormLoading] = useState(false);
 
@@ -153,11 +153,12 @@ export default function AccountsPage() {
                 <label className="block text-[11px] font-medium text-[#9BA4C0] mb-1">역할</label>
                 <select
                   value={newRole}
-                  onChange={(e) => setNewRole(e.target.value as "admin" | "staff" | "dealer")}
+                  onChange={(e) => setNewRole(e.target.value as "superadmin" | "admin" | "staff" | "dealer")}
                   className="w-full px-3 py-2 rounded-lg border border-[#E8EAF0] text-[13px] focus:outline-none focus:border-[#6066EE] bg-white"
                 >
                   <option value="staff">운영자 (Staff)</option>
                   <option value="admin">마스터 관리자 (Admin)</option>
+                  <option value="superadmin">최고 관리자 (Super Admin)</option>
                   <option value="dealer">제휴 딜러 (Dealer)</option>
                 </select>
               </div>
@@ -219,7 +220,11 @@ export default function AccountsPage() {
                     <div
                       className={cn(
                         "w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-semibold text-white shrink-0",
-                        account.role === "admin" ? "bg-[#000666]" : "bg-[#6066EE]"
+                        account.role === "superadmin"
+                          ? "bg-[#1A1A2E]"
+                          : account.role === "admin"
+                          ? "bg-[#000666]"
+                          : "bg-[#6066EE]"
                       )}
                     >
                       {account.name[0]}
@@ -231,12 +236,20 @@ export default function AccountsPage() {
                         <p className="text-[13px] font-medium text-[#1A1A2E] truncate">{account.name}</p>
                         <span className={cn(
                           "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-[4px]",
-                          account.role === "admin"
+                          account.role === "superadmin"
+                            ? "bg-[#1A1A2E] text-white"
+                            : account.role === "admin"
                             ? "bg-[#EEF0FF] text-[#6066EE]"
                             : "bg-[#F4F5F8] text-[#9BA4C0]"
                         )}>
                           <User size={9} />
-                          {account.role === "admin" ? "관리자" : account.role === "dealer" ? "딜러" : "운영자"}
+                          {account.role === "superadmin"
+                            ? "최고 관리자"
+                            : account.role === "admin"
+                            ? "관리자"
+                            : account.role === "dealer"
+                            ? "딜러"
+                            : "운영자"}
                         </span>
                         {isMe && (
                           <span className="text-[10px] font-medium text-[#9BA4C0] bg-[#F4F5F8] px-1.5 py-0.5 rounded-[4px]">나</span>

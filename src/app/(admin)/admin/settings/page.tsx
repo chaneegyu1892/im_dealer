@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, User, ShieldCheck, Settings2, Sparkles } from "lucide-react";
 import AdminManager from "@/components/admin/settings/AdminManager";
 import { Check } from "lucide-react";
+import { isAdminLike } from "@/lib/admin-roles";
 
 interface AdminInfo {
   id: string;
@@ -80,7 +81,7 @@ export default function AdminSettingsPage() {
 
   const tabs = [
     { id: "profile", label: "내 정보 설정", icon: User },
-    { id: "admins", label: "운영자 권한 관리", icon: ShieldCheck, hide: info?.role !== "admin" },
+    { id: "admins", label: "운영자 권한 관리", icon: ShieldCheck, hide: !isAdminLike(info?.role) },
   ];
 
   return (
@@ -191,7 +192,7 @@ export default function AdminSettingsPage() {
           )}
 
 
-          {activeTab === "admins" && info?.role === "admin" && (
+          {activeTab === "admins" && isAdminLike(info?.role) && (
             <div className="animate-in slide-in-from-right-4 duration-300">
               <AdminManager />
             </div>

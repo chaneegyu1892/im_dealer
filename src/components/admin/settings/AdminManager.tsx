@@ -178,7 +178,13 @@ export default function AdminManager() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-[#1A1A2E]">{admin.name}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${admin.role === 'admin' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-500'}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${
+                    admin.role === 'superadmin'
+                      ? 'bg-[#1A1A2E] text-white'
+                      : admin.role === 'admin'
+                      ? 'bg-amber-50 text-amber-600'
+                      : 'bg-slate-50 text-slate-500'
+                  }`}>
                     {admin.role}
                   </span>
                 </div>
@@ -196,6 +202,7 @@ export default function AdminManager() {
                 disabled={admin.id === me?.id}
                 className="text-xs px-2.5 py-1.5 border border-[#E8EAF0] rounded-xl focus:outline-none focus:border-[#6066EE] bg-white text-[#5A6080] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
+                <option value="superadmin">최고 관리자 (Super Admin)</option>
                 <option value="admin">관리자 (Admin)</option>
                 <option value="staff">운영자 (Staff)</option>
                 <option value="dealer">제휴 딜러 (Dealer)</option>

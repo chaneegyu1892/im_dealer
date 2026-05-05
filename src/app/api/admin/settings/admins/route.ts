@@ -2,12 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
+import { isAdminLike } from "@/lib/admin-roles";
 import bcrypt from "bcryptjs";
 
 export async function GET() {
   try {
     const session = await getAdminSession();
-    if (!session || session.role !== "admin") {
+    if (!session || !isAdminLike(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -33,7 +34,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const session = await getAdminSession();
-    if (!session || session.role !== "admin") {
+    if (!session || !isAdminLike(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const session = await getAdminSession();
-    if (!session || session.role !== "admin") {
+    if (!session || !isAdminLike(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
