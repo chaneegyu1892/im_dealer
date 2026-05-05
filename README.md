@@ -67,8 +67,6 @@ im_dealer/
 
 - [`PROJECT_SPEC.md`](PROJECT_SPEC.md) — 프로젝트 사양
 - [`DESIGN.md`](DESIGN.md) — 설계 문서
-- [`ONBOARDING.md`](ONBOARDING.md) — 온보딩 가이드
-- [`docs/competitive-analysis-2026-04.md`](docs/competitive-analysis-2026-04.md) — 경쟁사 분석
 
 ---
 
