@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { getAdminSession } from "@/lib/admin-auth";
@@ -8,8 +10,18 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const admin = await getAdminSession();
-  
-  // admin 정보를 일반 객체로 변환 (Prisma 객체의 직렬화 문제 방지)
+
+  // 미들웨어는 JWT 서명만 보지만 레이아웃은 DB 조회/isActive까지 검증한다.
+  // 어드민 레코드가 삭제되거나 비활성화된 경우 사이드바만 사라진 어색한 화면 대신
+  // 미들웨어와 동일하게 로그인으로 보낸다. (/admin/login 자체는 예외)
+  if (!admin) {
+    const pathname = (await headers()).get("x-pathname") ?? "";
+    if (!pathname.endsWith("/admin/login")) {
+      const from = pathname || "/admin";
+      redirect(`/admin/login?from=${encodeURIComponent(from)}`);
+    }
+  }
+
   const adminData = admin ? {
     id: admin.id,
     name: admin.name,
