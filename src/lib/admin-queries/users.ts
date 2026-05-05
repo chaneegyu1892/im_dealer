@@ -307,7 +307,7 @@ export async function getAdminUsers(): Promise<{
         firstContactAt: q.createdAt.toISOString(),
         lastContactAt: q.createdAt.toISOString(),
         userStatus: "active",
-        role: q.userId ? adminMap.get(q.userId) : (q.phone ? emailMap.get(q.phone) : null) || null,
+        role: (q.userId ? adminMap.get(q.userId) : q.phone ? emailMap.get(q.phone) : null) ?? null,
         activeItems: [],
         contractItems: [],
         internalMemo: q.internalMemo ?? null,
