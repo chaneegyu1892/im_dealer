@@ -415,8 +415,9 @@ model OperationalNote {
 
 model AdminUser {
   id           String    @id @default(cuid())
+  supabaseId   String?   @unique  // Supabase auth user.id 와의 1:1 연결 (Supabase 세션 기반 로그인용)
   email        String    @unique
-  passwordHash String
+  passwordHash String?   // 레거시 JWT 인증 잔재. Supabase 전환 후 신규 어드민은 비어 있음. 추후 컬럼 자체 제거 예정.
   name         String
   role         String    @default("staff")  // "superadmin" | "admin" | "staff" | "dealer"
   isActive     Boolean   @default(true)
