@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ShieldCheck, Mail, Calendar, Power } from "lucide-react";
+import { Mail, Calendar, Power } from "lucide-react";
 
 export default function AdminManager() {
   const [admins, setAdmins] = useState<any[]>([]);
