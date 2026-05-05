@@ -45,26 +45,26 @@ const NAV: NavGroup[] = [
   {
     group: "핵심 관리",
     items: [
-      { href: "/admin/vehicles", label: "차량 관리", icon: Car, roles: ["admin", "staff"] },
-      { href: "/admin/quotations", label: "견적 데이터", icon: FileText, roles: ["admin", "staff", "dealer"] },
-      { href: "/admin/users", label: "사용자 관리", icon: Users, roles: ["admin", "staff", "dealer"] },
-      { href: "/admin/inventory", label: "재고관리", icon: Package, roles: ["admin", "staff"] },
-      { href: "/admin/reviews", label: "후기 관리", icon: MessageSquare, roles: ["admin", "staff"] },
+      { href: "/admin/vehicles", label: "차량 관리", icon: Car, roles: ["superadmin", "admin", "staff"] },
+      { href: "/admin/quotations", label: "견적 데이터", icon: FileText, roles: ["superadmin", "admin", "staff", "dealer"] },
+      { href: "/admin/users", label: "사용자 관리", icon: Users, roles: ["superadmin", "admin", "staff", "dealer"] },
+      { href: "/admin/inventory", label: "재고관리", icon: Package, roles: ["superadmin", "admin", "staff"] },
+      { href: "/admin/reviews", label: "후기 관리", icon: MessageSquare, roles: ["superadmin", "admin", "staff"] },
     ],
   },
   {
     group: "정책 및 AI",
     items: [
-      { href: "/admin/finance", label: "견적 산출 로직 관리", icon: Building2, roles: ["admin"] },
-      { href: "/admin/ai", label: "AI관리", icon: Sparkles, roles: ["admin"] },
+      { href: "/admin/finance", label: "견적 산출 로직 관리", icon: Building2, roles: ["superadmin", "admin"] },
+      { href: "/admin/ai", label: "AI관리", icon: Sparkles, roles: ["superadmin", "admin"] },
     ],
   },
   {
     group: "시스템",
     items: [
-      { href: "/admin/memo", label: "운영 메모", icon: ClipboardList, roles: ["admin", "staff"] },
-      { href: "/admin/audit-logs", label: "감사 로그", icon: ShieldCheck, roles: ["admin"] },
-      { href: "/admin/settings", label: "설정", icon: Settings, roles: ["admin"] },
+      { href: "/admin/memo", label: "운영 메모", icon: ClipboardList, roles: ["superadmin", "admin", "staff"] },
+      { href: "/admin/audit-logs", label: "감사 로그", icon: ShieldCheck, roles: ["superadmin", "admin"] },
+      { href: "/admin/settings", label: "설정", icon: Settings, roles: ["superadmin", "admin"] },
     ],
   },
 ];

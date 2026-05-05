@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession, hashPassword } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
+import { isAdminLike } from "@/lib/admin-roles";
 
 // ─── GET /api/admin/accounts ──────────────────────────────
 export async function GET() {
@@ -10,7 +11,7 @@ export async function GET() {
   if (!admin) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
-  if (admin.role !== "admin") {
+  if (!isAdminLike(admin.role)) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 
@@ -34,7 +35,7 @@ const createSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(50),
   password: z.string().min(8).max(100),
-  role: z.enum(["admin", "staff", "dealer"]).default("staff"),
+  role: z.enum(["superadmin", "admin", "staff", "dealer"]).default("staff"),
 });
 
 // ─── POST /api/admin/accounts ─────────────────────────────
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
   if (!admin) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
-  if (admin.role !== "admin") {
+  if (!isAdminLike(admin.role)) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 

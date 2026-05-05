@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
+import { isAdminLike } from "@/lib/admin-roles";
 
 export async function PATCH(
   req: NextRequest,
@@ -11,7 +12,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const session = await getAdminSession();
-    if (!session || session.role !== "admin") {
+    if (!session || !isAdminLike(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

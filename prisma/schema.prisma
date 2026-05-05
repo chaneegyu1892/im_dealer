@@ -418,7 +418,7 @@ model AdminUser {
   email        String    @unique
   passwordHash String
   name         String
-  role         String    @default("staff")  // "admin" | "staff" | "dealer"
+  role         String    @default("staff")  // "superadmin" | "admin" | "staff" | "dealer"
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())

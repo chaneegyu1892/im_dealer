@@ -3,12 +3,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession, hashPassword } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
+import { isAdminLike } from "@/lib/admin-roles";
 
 type Params = { params: Promise<{ id: string }> };
 
 const updateSchema = z.object({
   name: z.string().min(1).max(50).optional(),
-  role: z.enum(["admin", "operator"]).optional(),
+  role: z.enum(["superadmin", "admin", "staff", "dealer"]).optional(),
   isActive: z.boolean().optional(),
   newPassword: z.string().min(8).max(100).optional(),
 });
@@ -19,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!admin) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
-  if (admin.role !== "admin") {
+  if (!isAdminLike(admin.role)) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 
@@ -87,7 +88,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!admin) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
-  if (admin.role !== "admin") {
+  if (!isAdminLike(admin.role)) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
+import { isAdminLike } from "@/lib/admin-roles";
 import { AuditLogTable } from "@/components/admin/audit-logs/AuditLogTable";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export default async function AdminAuditLogsPage({
 }) {
   const session = await getAdminSession();
   if (!session) redirect("/admin/login");
-  if (session.role !== "admin") redirect("/admin");
+  if (!isAdminLike(session.role)) redirect("/admin");
 
   const params = await searchParams;
   const action = params.action || undefined;
