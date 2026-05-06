@@ -12,6 +12,7 @@ const reviewUpdateSchema = z.object({
   vehicleId: z.string().nullable().optional(),
   savedQuoteId: z.string().nullable().optional(),
   isPublic: z.boolean().optional(),
+  isBest: z.boolean().optional(),
   displayOrder: z.number().int().optional(),
   reviewDate: z.string().datetime().optional(),
 });

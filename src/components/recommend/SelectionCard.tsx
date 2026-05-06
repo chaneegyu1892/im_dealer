@@ -66,11 +66,11 @@ export function SelectionCard({
       {/* 선택 체크 */}
       <div
         className={cn(
-          "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all",
+          "flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all",
           selected ? "border-primary bg-primary" : "border-neutral-800 bg-white"
         )}
       >
-        {selected && <Check size={11} className="text-white" strokeWidth={3} />}
+        {selected && <Check size={13} className="text-white" strokeWidth={3} />}
       </div>
     </button>
   );

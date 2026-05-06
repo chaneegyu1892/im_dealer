@@ -48,3 +48,14 @@ export const loginRateLimit = redis
       prefix: "ratelimit:login",
     })
   : null;
+
+// 4. 후기 좋아요 토글 — 10초당 최대 10회. 익명 어뷰징 1차 방어.
+export const likeRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "10 s"),
+      ephemeralCache: cache,
+      analytics: true,
+      prefix: "ratelimit:like",
+    })
+  : null;

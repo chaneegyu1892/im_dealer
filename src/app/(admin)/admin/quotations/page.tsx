@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { logActivity } from "@/lib/activity-store";
 import { AdminSavedQuote } from "@/types/admin";
+import { ReviewLinkSection } from "@/components/admin/quotations/ReviewLinkSection";
 
 type UIQuoteStatus = "상담대기" | "상담중" | "계약완료" | "계약취소" | "연락완료";
 
@@ -681,6 +682,11 @@ function QuotationsContent() {
                     </div>
                   </div>
                 </section>
+
+                <ReviewLinkSection
+                  quoteId={drawerQuote.id}
+                  status={drawerQuote.status}
+                />
 
                 <section className="flex flex-col flex-1 min-h-[150px]">
                   <h4 className="text-[13px] font-bold text-[#1A1A2E] mb-2">상담 일지 (Dealer Note)</h4>

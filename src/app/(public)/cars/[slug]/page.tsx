@@ -16,8 +16,12 @@ import type { EngineType } from "@/types/vehicle";
 import type { RecommendScenarios } from "@/types/recommendation";
 import { notFound } from "next/navigation";
 import { CarDetailClient } from "./CarDetailClient";
-import { getPublicReviewsByVehicleId } from "@/lib/admin-queries";
+import {
+  getPublicReviewsByVehicleId,
+  getBestReviews,
+} from "@/lib/admin-queries";
 import { CustomerReviewsSection } from "@/components/home/CustomerReviewsSection";
+import { BestReviewSection } from "@/components/reviews/BestReviewSection";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -302,7 +306,10 @@ export default async function CarDetailPage({
   const vehicle = await getVehicle(slug);
   if (!vehicle) notFound();
 
-  const reviews = await getPublicReviewsByVehicleId(vehicle.id, 10);
+  const [reviews, bestReviews] = await Promise.all([
+    getPublicReviewsByVehicleId(vehicle.id, 10),
+    getBestReviews({ vehicleId: vehicle.id, limit: 4 }),
+  ]);
 
   const jsonLd = buildCarJsonLd({
     slug: vehicle.slug,
@@ -326,11 +333,21 @@ export default async function CarDetailPage({
         />
       ))}
       <CarDetailClient vehicle={vehicle} />
+      {bestReviews.length > 0 && (
+        <section className="page-container py-12">
+          <BestReviewSection
+            reviews={bestReviews}
+            title={`${vehicle.brand} ${vehicle.name} 베스트 후기`}
+            description="이 차량의 추천 후기"
+          />
+        </section>
+      )}
       {reviews.length > 0 && (
         <CustomerReviewsSection
           reviews={reviews}
           sectionLabel="이 차량 후기"
           title={`${vehicle.brand} ${vehicle.name} 이용자들의 이야기`}
+          showImages
         />
       )}
     </>

@@ -128,7 +128,7 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
         </div>
 
         {/* 카드 본문 */}
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] font-semibold text-ink-caption uppercase tracking-[0.12em]">
               {vehicle.brand}
@@ -171,7 +171,8 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
       <Link
         href={`/quote?vehicle=${vehicle.slug}`}
         className="absolute bottom-4 right-4 flex items-center gap-1 text-[12px] font-medium text-primary
-                   opacity-0 group-hover:opacity-100 transition-all duration-200 hover:gap-2"
+                   transition-all duration-200 hover:gap-2
+                   opacity-100 md:opacity-0 md:group-hover:opacity-100"
       >
         견적 보기
         <ArrowRight size={13} strokeWidth={2.5} />

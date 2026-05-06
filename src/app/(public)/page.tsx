@@ -94,7 +94,7 @@ export default async function HomePage() {
   return (
     <div>
       <HeroSection />
-      {reviews.length > 0 && <CustomerReviewsSection reviews={reviews} />}
+      {reviews.length > 0 && <CustomerReviewsSection reviews={reviews} showImages />}
       {popularVehicles.length > 0 && (
         <PopularCarsSection vehicles={popularVehicles} />
       )}

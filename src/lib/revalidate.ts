@@ -6,8 +6,10 @@ export function revalidatePublicVehicleSurfaces(): void {
   revalidatePath("/cars/[slug]", "page");
 }
 
-// 후기 변경 시: 홈은 전체 후기 노출, 차량 상세는 해당 차량 후기.
+// 후기 변경 시: 홈·차량 상세·공개 후기 갤러리·후기 상세 모두 무효화.
 export function revalidatePublicReviewSurfaces(): void {
   revalidatePath("/", "page");
   revalidatePath("/cars/[slug]", "page");
+  revalidatePath("/reviews", "page");
+  revalidatePath("/reviews/[id]", "page");
 }

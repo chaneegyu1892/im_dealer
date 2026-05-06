@@ -27,12 +27,14 @@ interface ComparisonSectionProps {
   primary: PrimaryVehicleInfo;
   conditions: ContractConditions;
   allVehicles: VehicleListItem[];
+  customRates: { depositRate: number; prepayRate: number };
 }
 
 export function ComparisonSection({
   primary,
   conditions,
   allVehicles,
+  customRates,
 }: ComparisonSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selection, setSelection] = useState<ComparisonSelection | null>(null);
@@ -49,7 +51,7 @@ export function ComparisonSection({
     return allVehicles.find((v) => v.slug === selection.slug) ?? null;
   }, [selection, allVehicles]);
 
-  // 선택/조건 변경 시 견적 계산
+  // 선택/조건/커스텀 보증금·선납금 변경 시 견적 계산 (메인 견적과 동일한 500ms 디바운스)
   useEffect(() => {
     if (!selection || !selection.slug || !selection.trimId) {
       abortRef.current?.abort();
@@ -76,6 +78,8 @@ export function ComparisonSection({
             annualMileage: conditions.annualMileage,
             contractType: conditions.contractType,
             productType: conditions.productType,
+            ...(customRates.depositRate > 0 && { customDepositRate: customRates.depositRate }),
+            ...(customRates.prepayRate > 0 && { customPrepayRate: customRates.prepayRate }),
           }),
           signal: ctrl.signal,
         });
@@ -96,10 +100,15 @@ export function ComparisonSection({
       }
     }
 
-    void fetchComparisonQuote();
+    const handle = setTimeout(() => {
+      void fetchComparisonQuote();
+    }, 500);
 
-    return () => ctrl.abort();
-  }, [selection, conditions]);
+    return () => {
+      clearTimeout(handle);
+      ctrl.abort();
+    };
+  }, [selection, conditions, customRates.depositRate, customRates.prepayRate]);
 
   function handleRemove() {
     abortRef.current?.abort();
