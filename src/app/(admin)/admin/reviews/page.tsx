@@ -1,16 +1,24 @@
 import {
   getAllReviewsForAdmin,
   getVehiclesForReviewSelect,
+  getReviewRequestTokensForAdmin,
 } from "@/lib/admin-queries";
-import { ReviewManager } from "@/components/admin/reviews/ReviewManager";
+import { ReviewsPageClient } from "@/components/admin/reviews/ReviewsPageClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminReviewsPage() {
-  const [reviews, vehicles] = await Promise.all([
+  const [reviews, vehicles, tokens] = await Promise.all([
     getAllReviewsForAdmin(),
     getVehiclesForReviewSelect(),
+    getReviewRequestTokensForAdmin(),
   ]);
 
-  return <ReviewManager initialReviews={reviews} vehicleOptions={vehicles} />;
+  return (
+    <ReviewsPageClient
+      initialReviews={reviews}
+      vehicleOptions={vehicles}
+      initialTokens={tokens}
+    />
+  );
 }

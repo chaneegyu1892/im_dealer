@@ -294,7 +294,7 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="차량 검색"
-                  className="w-full md:w-24 text-[12px] text-ink bg-transparent outline-none placeholder:text-ink-caption"
+                  className="w-full md:w-24 text-[16px] md:text-[12px] text-ink bg-transparent outline-none placeholder:text-ink-caption"
                 />
               </div>
 

@@ -8,6 +8,7 @@ import {
 } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { normalizeSelectedOptions } from "@/lib/option-rules";
 
 const quoteSchema = z.object({
   trimId: z.string().optional(),
@@ -47,7 +48,16 @@ export async function POST(
         trims: {
           where: { isVisible: true },
           orderBy: { isDefault: "desc" },
-          include: { options: { select: { id: true, price: true } } },
+          include: {
+            options: { select: { id: true, name: true, price: true } },
+            rules: {
+              select: {
+                ruleType: true,
+                sourceOptionId: true,
+                targetOptionId: true,
+              },
+            },
+          },
         },
       },
     });
@@ -70,8 +80,27 @@ export async function POST(
       );
     }
 
-    // 선택된 옵션 가격 합산 (TrimOption 기반) + 추천 구성 추가금
-    const selectedOptionIds = new Set(input.selectedOptionIds ?? []);
+    // 선택된 옵션을 규칙(REQUIRED/INCLUDED/CONFLICT) 기준으로 검증·정규화
+    const { normalized: selectedOptionIds, conflicts } = normalizeSelectedOptions(
+      input.selectedOptionIds ?? [],
+      trim.rules,
+    );
+
+    if (conflicts.length > 0) {
+      const optMap = new Map(trim.options.map((o) => [o.id, o.name]));
+      const pairs = conflicts
+        .map(
+          (c) =>
+            `${optMap.get(c.sourceOptionId) ?? c.sourceOptionId} ↔ ${optMap.get(c.targetOptionId) ?? c.targetOptionId}`,
+        )
+        .join(", ");
+      return NextResponse.json(
+        { error: `함께 선택할 수 없는 옵션 조합입니다: ${pairs}` },
+        { status: 400 },
+      );
+    }
+
+    // 정규화된 옵션 집합으로 가격 합산 (REQUIRED/INCLUDED 자동 포함분 반영)
     const trimOptionsTotalPrice = trim.options
       .filter((o) => selectedOptionIds.has(o.id))
       .reduce((sum, o) => sum + o.price, 0);

@@ -360,7 +360,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
       {/* ──────────────────────────────────────────────────
           HERO: 차량 이미지 배경 + 어두운 오버레이 + 텍스트
       ────────────────────────────────────────────────── */}
-      <section className="relative h-[56vh] md:h-[62vh] min-h-[380px] md:min-h-[500px] overflow-hidden">
+      <section className="relative h-[48vh] sm:h-[56vh] md:h-[62vh] min-h-[320px] sm:min-h-[380px] md:min-h-[500px] overflow-hidden">
         {/* 배경 이미지 */}
         {heroImage && (
           <div
@@ -427,7 +427,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               </div>
 
               {/* 차량명 */}
-              <h1 className="font-display text-[32px] md:text-[54px] font-light text-white leading-none tracking-tight mb-3 drop-shadow-md">
+              <h1 className="font-display text-[26px] sm:text-[32px] md:text-[54px] font-light text-white leading-tight tracking-tight mb-3 drop-shadow-md">
                 {vehicle.name}
               </h1>
 

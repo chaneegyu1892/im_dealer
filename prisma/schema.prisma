@@ -261,6 +261,7 @@ model SavedQuote {
 
   activityLogs          QuoteActivityLog[]
   reviews               Review[]
+  reviewTokens          ReviewRequestToken[]
 
   @@index([sessionId])
   @@index([status])
@@ -476,13 +477,50 @@ model Review {
   savedQuoteId   String?
   savedQuote     SavedQuote? @relation(fields: [savedQuoteId], references: [id], onDelete: SetNull)
   isPublic       Boolean     @default(true)
+  isBest         Boolean     @default(false)
   displayOrder   Int         @default(0)
+  likeCount      Int         @default(0)
   reviewDate     DateTime    @default(now())
+  imageUrls      String[]    @default([])
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
+  requestToken   ReviewRequestToken?
+  likes          ReviewLike[]
+
   @@index([vehicleId, isPublic, displayOrder])
   @@index([isPublic, displayOrder])
+  @@index([isPublic, isBest, displayOrder])
+  @@index([isPublic, likeCount])
+}
+
+model ReviewLike {
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  anonId    String
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, anonId])
+  @@index([reviewId])
+  @@index([anonId])
+}
+
+model ReviewRequestToken {
+  id           String     @id @default(cuid())
+  token        String     @unique
+  savedQuoteId String
+  savedQuote   SavedQuote @relation(fields: [savedQuoteId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  usedAt       DateTime?
+  revokedAt    DateTime?
+  reviewId     String?    @unique
+  review       Review?    @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+  createdById  String?
+
+  @@index([savedQuoteId])
+  @@index([expiresAt])
 }
 
 model Inventory {

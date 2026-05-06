@@ -33,6 +33,7 @@ import {
   isCustomerType,
 } from "@/constants/customer-types";
 import { QUOTE_DRAFT_STORAGE_PREFIX, type QuoteDraft } from "@/lib/quote-draft";
+import { applyRulesOnSelect, applyRulesOnDeselect } from "@/lib/option-rules";
 
 // ─── 상수 ────────────────────────────────────────────────
 const CONTRACT_CATEGORIES = ["장기렌트", "리스"] as const;
@@ -107,7 +108,7 @@ function SelectRow({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="w-full appearance-none bg-white border border-neutral-800 rounded-btn
-                     px-4 py-2.5 text-[14px] pr-9
+                     px-4 py-2.5 text-[16px] md:text-[14px] pr-9
                      focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10
                      transition-colors duration-150 cursor-pointer
                      text-ink disabled:text-ink-caption"
@@ -271,6 +272,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
   const [selectedTrimName, setSelectedTrimName] = useState<string | null>(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(new Set());
+  const [ruleNotice, setRuleNotice] = useState<{ added: string[]; removed: string[] } | null>(null);
 
   const [contractCategory, setContractCategory] = useState<ContractCategory>("장기렌트");
   const [conditions, setConditions] = useState<Conditions>({
@@ -287,6 +289,13 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       setConditions((prev) => ({ ...prev, contractType: "반납형" }));
     }
   }, [contractCategory]);
+
+  // 옵션 규칙 자동 변경 안내 — 4초 뒤 사라짐
+  useEffect(() => {
+    if (!ruleNotice) return;
+    const handle = setTimeout(() => setRuleNotice(null), 4000);
+    return () => clearTimeout(handle);
+  }, [ruleNotice]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
@@ -826,6 +835,40 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         />
                       )}
 
+                      {/* 옵션 규칙 자동 변경 안내 */}
+                      <AnimatePresence>
+                        {ruleNotice && (ruleNotice.added.length > 0 || ruleNotice.removed.length > 0) && (
+                          <motion.div
+                            key="rule-notice"
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.2 }}
+                            role="status"
+                            aria-live="polite"
+                            className="rounded-[8px] border border-primary-100 bg-primary-100/40 px-3 py-2 text-[12px] text-primary"
+                          >
+                            <div className="flex items-start gap-2">
+                              <Sparkles size={13} className="shrink-0 mt-0.5" />
+                              <div className="flex-1 space-y-0.5">
+                                {ruleNotice.added.length > 0 && (
+                                  <p>
+                                    옵션 규칙에 따라 <span className="font-semibold">{ruleNotice.added.join(", ")}</span>
+                                    {" "}이(가) 함께 선택되었습니다.
+                                  </p>
+                                )}
+                                {ruleNotice.removed.length > 0 && (
+                                  <p>
+                                    <span className="font-semibold">{ruleNotice.removed.join(", ")}</span>
+                                    {" "}은(는) 충돌 또는 종속 해제로 선택이 해제되었습니다.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
                       {/* 추가 옵션 (TrimOption 체크리스트, 추천결과 선택 항목 pre-select) */}
                       {selectedTrim && selectedTrim.options.length > 0 && (
                         <div>
@@ -841,34 +884,27 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                                   key={opt.id}
                                   type="button"
                                   onClick={() => {
-                                    const rules = selectedTrim?.rules ?? [];
-                                    setSelectedOptionIds((prev) => {
-                                      const next = new Set(prev);
-                                      if (next.has(opt.id)) {
-                                        next.delete(opt.id);
-                                      } else {
-                                        next.add(opt.id);
-                                        // Enforce REQUIRED and INCLUDED rules
-                                        for (const rule of rules) {
-                                          if (
-                                            rule.sourceOptionId === opt.id &&
-                                            (rule.ruleType === "REQUIRED" || rule.ruleType === "INCLUDED")
-                                          ) {
-                                            next.add(rule.targetOptionId);
-                                          }
-                                        }
-                                        // Enforce CONFLICT rules: remove conflicting options
-                                        for (const rule of rules) {
-                                          if (
-                                            rule.sourceOptionId === opt.id &&
-                                            rule.ruleType === "CONFLICT"
-                                          ) {
-                                            next.delete(rule.targetOptionId);
-                                          }
-                                        }
-                                      }
-                                      return next;
-                                    });
+                                    if (!selectedTrim) return;
+                                    const rules = selectedTrim.rules;
+                                    const isOn = selectedOptionIds.has(opt.id);
+                                    const optMap = new Map(selectedTrim.options.map((o) => [o.id, o.name]));
+                                    let nextSet: Set<string>;
+                                    let addedNames: string[] = [];
+                                    let removedNames: string[] = [];
+                                    if (isOn) {
+                                      const change = applyRulesOnDeselect(selectedOptionIds, opt.id, rules);
+                                      nextSet = change.next;
+                                      removedNames = change.removed.map((id) => optMap.get(id) ?? id);
+                                    } else {
+                                      const change = applyRulesOnSelect(selectedOptionIds, opt.id, rules);
+                                      nextSet = change.next;
+                                      addedNames = change.added.map((id) => optMap.get(id) ?? id);
+                                      removedNames = change.removed.map((id) => optMap.get(id) ?? id);
+                                    }
+                                    setSelectedOptionIds(nextSet);
+                                    if (addedNames.length > 0 || removedNames.length > 0) {
+                                      setRuleNotice({ added: addedNames, removed: removedNames });
+                                    }
                                   }}
                                   className={cn(
                                     "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100",
@@ -1167,6 +1203,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       productType: contractCategory,
                     }}
                     allVehicles={vehicles}
+                    customRates={customRates}
                   />
                 )}
 
