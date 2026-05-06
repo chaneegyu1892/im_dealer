@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { unstable_cache } from "next/cache";
 import { prisma } from "../prisma";
 import { maskAuthorName, formatReviewDate, maskPhone } from "../review-utils";
 import type {
@@ -64,6 +65,29 @@ export async function getPublicReviewsByVehicleId(
 
   return rows.map(toPublicReview);
 }
+
+// 메인 페이지 노출용: 좋아요 상위 N개. unstable_cache 로 24시간 캐시.
+// 어드민이 후기를 변경하거나 isPublic 토글 시 revalidatePublicReviewSurfaces() 가
+// 'home-top-liked-reviews' 태그를 무효화한다.
+export const HOME_TOP_LIKED_REVIEWS_TAG = "home-top-liked-reviews";
+
+export const getHomeTopLikedReviews = unstable_cache(
+  async (limit: number): Promise<PublicReview[]> => {
+    const rows = await prisma.review.findMany({
+      where: { isPublic: true },
+      orderBy: [
+        { likeCount: "desc" },
+        { reviewDate: "desc" },
+        { id: "desc" },
+      ],
+      take: limit,
+      include: { vehicle: { select: { name: true, brand: true } } },
+    });
+    return rows.map(toPublicReview);
+  },
+  ["home-top-liked-reviews"],
+  { revalidate: 86400, tags: [HOME_TOP_LIKED_REVIEWS_TAG] }
+);
 
 export async function getBestReviews(opts: {
   vehicleId?: string;

@@ -2,7 +2,7 @@
 export const revalidate = 600;
 
 import { prisma } from "@/lib/prisma";
-import { getPublicReviews } from "@/lib/admin-queries";
+import { getHomeTopLikedReviews } from "@/lib/admin-queries";
 import { HeroSection } from "@/components/home/HeroSection";
 import { CustomerReviewsSection } from "@/components/home/CustomerReviewsSection";
 import { PopularCarsSection } from "@/components/home/PopularCarsSection";
@@ -88,13 +88,21 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
 export default async function HomePage() {
   const [popularVehicles, reviews] = await Promise.all([
     getPopularVehicles(),
-    getPublicReviews(10),
+    getHomeTopLikedReviews(10),
   ]);
 
   return (
     <div>
       <HeroSection />
-      {reviews.length > 0 && <CustomerReviewsSection reviews={reviews} showImages />}
+      {reviews.length > 0 && (
+        <CustomerReviewsSection
+          reviews={reviews}
+          sectionLabel="BEST 리뷰"
+          title="가장 많은 공감을 받은 후기"
+          showImages
+          forceBestBadge
+        />
+      )}
       {popularVehicles.length > 0 && (
         <PopularCarsSection vehicles={popularVehicles} />
       )}

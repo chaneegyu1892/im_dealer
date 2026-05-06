@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Star, X, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, X, ArrowRight, Sparkles, Heart } from "lucide-react";
 import type { PublicReview } from "@/types/review";
 
 const CARD_WIDTH = 320;
@@ -13,10 +13,12 @@ const SPEED_PX_PER_SEC = 40;
 function ReviewCard({
   review,
   showImages,
+  showBestBadge,
   onOpen,
 }: {
   review: PublicReview;
   showImages: boolean;
+  showBestBadge: boolean;
   onOpen: (review: PublicReview) => void;
 }) {
   const images = showImages ? review.imageUrls.slice(0, 3) : [];
@@ -34,18 +36,26 @@ function ReviewCard({
       }}
       className="w-[320px] shrink-0 bg-white rounded-card border border-[#F0F0F0] p-5 shadow-card cursor-pointer hover:border-primary/30 hover:shadow-md transition-all"
     >
-      <div className="flex items-center gap-0.5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star
-            key={i}
-            size={14}
-            className={
-              i < review.rating
-                ? "fill-primary text-primary"
-                : "text-neutral-600"
-            }
-          />
-        ))}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-0.5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Star
+              key={i}
+              size={14}
+              className={
+                i < review.rating
+                  ? "fill-primary text-primary"
+                  : "text-neutral-600"
+              }
+            />
+          ))}
+        </div>
+        {showBestBadge && (
+          <span className="inline-flex items-center gap-1 bg-primary text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+            <Sparkles size={10} />
+            BEST 리뷰
+          </span>
+        )}
       </div>
       <p className="mt-3 text-[14px] text-ink-body leading-relaxed line-clamp-3 min-h-[66px]">
         {review.content}
@@ -83,7 +93,15 @@ function ReviewCard({
             <p className="text-[11px] text-ink-caption mt-0.5">{review.vehicleName}</p>
           )}
         </div>
-        <p className="text-[11px] text-ink-caption">{review.reviewDate}</p>
+        <div className="flex items-center gap-2 text-[11px] text-ink-caption">
+          {review.likeCount > 0 && (
+            <span className="inline-flex items-center gap-0.5 text-primary">
+              <Heart size={11} className="fill-current" />
+              {review.likeCount}
+            </span>
+          )}
+          <span>{review.reviewDate}</span>
+        </div>
       </div>
     </article>
   );
@@ -222,6 +240,7 @@ interface CustomerReviewsSectionProps {
   sectionLabel?: string;
   title?: string;
   showImages?: boolean;
+  forceBestBadge?: boolean;
 }
 
 export function CustomerReviewsSection({
@@ -229,6 +248,7 @@ export function CustomerReviewsSection({
   sectionLabel = "고객 후기",
   title = "실제 이용자들의 이야기",
   showImages = false,
+  forceBestBadge = false,
 }: CustomerReviewsSectionProps) {
   const items = reviews.slice(0, 10);
   const setWidth = items.length * STEP;
@@ -310,6 +330,7 @@ export function CustomerReviewsSection({
               key={`${review.id}-${i}`}
               review={review}
               showImages={showImages}
+              showBestBadge={forceBestBadge || review.isBest}
               onOpen={setOpenReview}
             />
           ))}
