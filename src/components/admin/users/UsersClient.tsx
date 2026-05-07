@@ -8,7 +8,8 @@ import {
   Users, UserCheck, Clock, Search, X,
   ChevronRight, Phone, CalendarDays,
   FileText, MessageSquare, AlertCircle, CheckCircle2,
-  Sparkles, TrendingUp, Mail, Shield, ShieldCheck, ShieldAlert
+  Sparkles, TrendingUp, Mail, Shield, ShieldCheck, ShieldAlert,
+  Download, ArrowDown, ArrowUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -17,6 +18,9 @@ import type { AdminUserRecord, AdminUsersStats } from "@/lib/admin-queries";
 // ─── 상태 매핑 ─────────────────────────────────────────
 type UserStatusFilter = "전체" | "정상" | "휴면";
 type ActiveFilter = "전체" | "진행중" | "계약있음" | "없음";
+type TabKind = "all" | "dormant";
+type DormantSortKey = "dormancy" | "lastContact" | "consultationCount";
+type SortDirection = "asc" | "desc";
 
 const USER_STATUS_STYLE: Record<"active" | "dormant", { color: string; bg: string; label: string }> = {
   active:  { color: "#059669", bg: "#ECFDF5", label: "정상" },
@@ -61,6 +65,68 @@ function daysSince(iso: string) {
 
 function formatMonthly(amount: number) {
   return `${Math.round(amount / 10000).toLocaleString()}만원`;
+}
+
+function dormancyDays(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+}
+
+function dormancyTone(days: number): { color: string; bg: string } {
+  if (days >= 91) return { color: "#DC2626", bg: "#FEF2F2" };
+  if (days >= 31) return { color: "#D97706", bg: "#FFFBEB" };
+  return { color: "#6B7399", bg: "#F4F5F8" };
+}
+
+function todayKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}${m}${day}`;
+}
+
+function csvCell(value: string | number | null | undefined) {
+  const s = value == null ? "" : String(value);
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function downloadDormantCsv(rows: AdminUserRecord[]) {
+  const header = [
+    "이름",
+    "연락처",
+    "이메일",
+    "휴면일수",
+    "최근접수일",
+    "최초접수일",
+    "총 견적건수",
+    "계약 건수",
+    "메모",
+  ];
+  const body = rows.map((u) => [
+    csvCell(u.name),
+    csvCell(u.phone),
+    csvCell(u.email ?? ""),
+    csvCell(dormancyDays(u.lastContactAt)),
+    csvCell(formatDate(u.lastContactAt)),
+    csvCell(formatDate(u.firstContactAt)),
+    csvCell(u.consultationCount),
+    csvCell(u.contractCount),
+    csvCell(u.internalMemo ?? ""),
+  ].join(","));
+  const csv = [header.map(csvCell).join(","), ...body].join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `dormant_users_${todayKey()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ─── 견적 상태 배지 ─────────────────────────────────────
@@ -413,14 +479,23 @@ export default function UsersClient({
   const [statusFilter, setStatusFilter] = useState<UserStatusFilter>("전체");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("전체");
   const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
+  const [tab, setTab] = useState<TabKind>(
+    searchParams.get("tab") === "dormant" ? "dormant" : "all"
+  );
+  const [dormantSortKey, setDormantSortKey] = useState<DormantSortKey>("dormancy");
+  const [dormantSortDir, setDormantSortDir] = useState<SortDirection>("desc");
 
-  // URL ?search= 파라미터 연동
+  // URL ?search=, ?tab= 파라미터 연동
   useEffect(() => {
     const s = searchParams.get("search");
     if (s) {
       setSearch(s);
       const match = users.find((u) => u.name === s);
       if (match) setSelectedUser(match);
+    }
+    const t = searchParams.get("tab");
+    if (t === "dormant" || t === "all") {
+      setTab(t);
     }
   }, [searchParams, users]);
 
@@ -437,6 +512,9 @@ export default function UsersClient({
   ];
 
   const filtered = useMemo(() => {
+    const isDormantTab = tab === "dormant";
+    const effectiveStatusFilter: UserStatusFilter = isDormantTab ? "휴면" : statusFilter;
+
     const list = users.filter((u) => {
       const q = search.trim().toLowerCase();
       const normalizedPhone = u.phone.replace(/-/g, "").toLowerCase();
@@ -447,8 +525,8 @@ export default function UsersClient({
         !normalizedPhone.includes(q) &&
         !email.includes(q)
       ) return false;
-      if (statusFilter === "정상" && u.userStatus !== "active") return false;
-      if (statusFilter === "휴면" && u.userStatus !== "dormant") return false;
+      if (effectiveStatusFilter === "정상" && u.userStatus !== "active") return false;
+      if (effectiveStatusFilter === "휴면" && u.userStatus !== "dormant") return false;
       const hasActive = u.activeItems.some((i) => i.statusRaw !== "CONVERTED");
       const hasContract = u.contractItems.length > 0;
       if (activeFilter === "진행중" && !hasActive) return false;
@@ -457,7 +535,23 @@ export default function UsersClient({
       return true;
     });
 
-    // 정렬: 최종관리자(superadmin) > 관리자(admin) > 딜러(dealer) > 일반사용자(null)
+    if (isDormantTab) {
+      const flip = dormantSortDir === "desc" ? -1 : 1;
+      return list.sort((a, b) => {
+        if (dormantSortKey === "dormancy") {
+          const cmp = dormancyDays(a.lastContactAt) - dormancyDays(b.lastContactAt);
+          return cmp * flip;
+        }
+        if (dormantSortKey === "lastContact") {
+          const cmp =
+            new Date(a.lastContactAt).getTime() - new Date(b.lastContactAt).getTime();
+          return cmp * flip;
+        }
+        return (a.consultationCount - b.consultationCount) * flip;
+      });
+    }
+
+    // 전체 탭 정렬: 최종관리자(superadmin) > 관리자(admin) > 딜러(dealer) > 일반사용자(null)
     const rolePriority: Record<string, number> = { superadmin: 4, admin: 3, dealer: 2, staff: 1 };
     return list.sort((a, b) => {
       const prioA = rolePriority[a.role || ""] || 0;
@@ -465,7 +559,18 @@ export default function UsersClient({
       if (prioA !== prioB) return prioB - prioA;
       return new Date(b.lastContactAt).getTime() - new Date(a.lastContactAt).getTime();
     });
-  }, [users, search, statusFilter, activeFilter]);
+  }, [users, search, statusFilter, activeFilter, tab, dormantSortKey, dormantSortDir]);
+
+  const isDormantTab = tab === "dormant";
+
+  const toggleDormantSort = (key: DormantSortKey) => {
+    if (dormantSortKey === key) {
+      setDormantSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setDormantSortKey(key);
+      setDormantSortDir("desc");
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm rounded-[16px]">
@@ -523,6 +628,54 @@ export default function UsersClient({
           })}
         </div>
 
+        {/* 탭 토글 */}
+        <div className="bg-white rounded-[12px] border border-[#E8EAF0] px-5 py-3 flex items-center gap-3 shadow-sm shrink-0">
+          <div className="flex items-center gap-1 bg-[#F4F5F8] p-1 rounded-[8px]">
+            {([
+              { key: "all" as const, label: "전체 사용자", count: stats.total },
+              { key: "dormant" as const, label: "휴면 사용자", count: stats.dormant },
+            ]).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-[6px] text-[12px] font-bold transition-all flex items-center gap-2",
+                  tab === t.key
+                    ? "bg-white text-[#000666] shadow-sm"
+                    : "text-[#6B7399] hover:text-[#1A1A2E]"
+                )}
+              >
+                {t.label}
+                <span
+                  className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full"
+                  style={{
+                    color: tab === t.key ? "#000666" : "#9BA4C0",
+                    background: tab === t.key ? "#E5E5FA" : "transparent",
+                  }}
+                >
+                  {t.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {isDormantTab && (
+            <button
+              onClick={() => downloadDormantCsv(filtered)}
+              disabled={filtered.length === 0}
+              className={cn(
+                "ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[11px] font-bold transition-all",
+                filtered.length === 0
+                  ? "bg-[#F4F5F8] text-[#C0C5D8] cursor-not-allowed"
+                  : "bg-[#000666] text-white hover:opacity-90 shadow-md shadow-blue-900/10"
+              )}
+            >
+              <Download size={12} />
+              CSV 내보내기 ({filtered.length}명)
+            </button>
+          )}
+        </div>
+
         {/* 필터 & 검색 바 */}
         <div className="bg-white rounded-[12px] border border-[#E8EAF0] px-5 py-3.5 flex items-center gap-4 shadow-sm shrink-0">
           <div className="relative flex-1 max-w-[300px]">
@@ -536,25 +689,28 @@ export default function UsersClient({
             />
           </div>
 
-          <div className="w-px h-6 bg-[#E8EAF0]" />
-
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider mr-1">계정 상태</span>
-            {(["전체", "정상", "휴면"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={cn(
-                  "px-3 py-1.5 rounded-[6px] text-[11px] font-bold transition-all",
-                  statusFilter === s
-                    ? "bg-[#000666] text-white shadow-md shadow-blue-900/10"
-                    : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#E8EAF0]"
-                )}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          {!isDormantTab && (
+            <>
+              <div className="w-px h-6 bg-[#E8EAF0]" />
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider mr-1">계정 상태</span>
+                {(["전체", "정상", "휴면"] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-[6px] text-[11px] font-bold transition-all",
+                      statusFilter === s
+                        ? "bg-[#000666] text-white shadow-md shadow-blue-900/10"
+                        : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#E8EAF0]"
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           <div className="w-px h-6 bg-[#E8EAF0]" />
 
@@ -582,14 +738,50 @@ export default function UsersClient({
         {/* 사용자 목록 테이블 */}
         <div className="bg-white rounded-[12px] border border-[#E8EAF0] shadow-sm flex flex-col flex-1 min-h-0 relative">
           {/* 헤더 */}
-          <div
-            className="grid border-b border-[#F0F2F8] px-6 py-3.5 bg-[#FAFBFF] sticky top-0 z-10"
-            style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 0.8fr 1fr 1.8fr 1.2fr" }}
-          >
-            {["고객", "연락처", "상태", "견적 건수", "최초 접수", "진행/계약", "최근 접수"].map((col) => (
-              <span key={col} className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">{col}</span>
-            ))}
-          </div>
+          {isDormantTab ? (
+            <div
+              className="grid border-b border-[#F0F2F8] px-6 py-3.5 bg-[#FAFBFF] sticky top-0 z-10"
+              style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 1fr 0.9fr 0.9fr 1.8fr" }}
+            >
+              {([
+                { key: null, label: "고객" },
+                { key: null, label: "연락처" },
+                { key: "dormancy" as const, label: "휴면일수" },
+                { key: "lastContact" as const, label: "최근 접수일" },
+                { key: "consultationCount" as const, label: "총 견적" },
+                { key: null, label: "계약" },
+                { key: null, label: "메모" },
+              ]).map((col, idx) => (
+                col.key ? (
+                  <button
+                    key={idx}
+                    onClick={() => toggleDormantSort(col.key as DormantSortKey)}
+                    className="flex items-center gap-1 text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest hover:text-[#000666] transition-colors text-left"
+                  >
+                    {col.label}
+                    {dormantSortKey === col.key && (
+                      dormantSortDir === "desc"
+                        ? <ArrowDown size={10} className="text-[#000666]" />
+                        : <ArrowUp size={10} className="text-[#000666]" />
+                    )}
+                  </button>
+                ) : (
+                  <span key={idx} className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">
+                    {col.label}
+                  </span>
+                )
+              ))}
+            </div>
+          ) : (
+            <div
+              className="grid border-b border-[#F0F2F8] px-6 py-3.5 bg-[#FAFBFF] sticky top-0 z-10"
+              style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 0.8fr 1fr 1.8fr 1.2fr" }}
+            >
+              {["고객", "연락처", "상태", "견적 건수", "최초 접수", "진행/계약", "최근 접수"].map((col) => (
+                <span key={col} className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">{col}</span>
+              ))}
+            </div>
+          )}
 
           {/* 바디 */}
           <div className="flex-1 overflow-y-auto divide-y divide-[#F8F9FC]">
@@ -601,10 +793,105 @@ export default function UsersClient({
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-[#C0C5D8]">
-                <Search size={32} strokeWidth={1} className="mb-3 opacity-40" />
-                <p className="text-[13px] font-bold">검색 결과가 없습니다</p>
-                <p className="text-[11px] mt-1">필터 조건을 변경하거나 검색어를 다시 확인해 주세요.</p>
+                {isDormantTab ? (
+                  <>
+                    <Clock size={32} strokeWidth={1} className="mb-3 opacity-40" />
+                    <p className="text-[13px] font-bold">휴면 사용자가 없습니다</p>
+                    <p className="text-[11px] mt-1">최근 30일 내 모든 고객이 활성 상태입니다.</p>
+                  </>
+                ) : (
+                  <>
+                    <Search size={32} strokeWidth={1} className="mb-3 opacity-40" />
+                    <p className="text-[13px] font-bold">검색 결과가 없습니다</p>
+                    <p className="text-[11px] mt-1">필터 조건을 변경하거나 검색어를 다시 확인해 주세요.</p>
+                  </>
+                )}
               </div>
+            ) : isDormantTab ? (
+              filtered.map((user, idx) => {
+                const days = dormancyDays(user.lastContactAt);
+                const tone = dormancyTone(days);
+                return (
+                  <motion.div
+                    key={user.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.02 }}
+                    onClick={() => setSelectedUser(user)}
+                    className="grid items-center px-6 py-4 hover:bg-[#FAFBFF] transition-all cursor-pointer group relative"
+                    style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 1fr 0.9fr 0.9fr 1.8fr" }}
+                  >
+                    {/* 고객 */}
+                    <div className="flex items-center gap-3 pr-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-[#F4F5F8] flex items-center justify-center shrink-0 border border-[#E8EAF0] group-hover:border-[#000666] transition-colors">
+                        <span className="text-[12px] font-black text-[#6B7399] group-hover:text-[#000666]">
+                          {user.name[0]}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-bold text-[#1A1A2E] truncate">{user.name}</p>
+                        <p className="text-[10px] text-[#9BA4C0] truncate mt-0.5">
+                          {user.source === "member" ? (user.provider === "kakao" ? "Kakao 회원" : "회원") : "상담 고객"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 연락처 */}
+                    <div className="min-w-0 pr-2">
+                      <p className="text-[12px] font-medium text-[#4A5270] tabular-nums truncate">{user.phone}</p>
+                      {user.email && (
+                        <p className="text-[10px] text-[#9BA4C0] truncate mt-0.5">{user.email}</p>
+                      )}
+                    </div>
+
+                    {/* 휴면일수 */}
+                    <div>
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums"
+                        style={{ color: tone.color, background: tone.bg }}
+                      >
+                        <Clock size={10} />
+                        {days}일
+                      </span>
+                    </div>
+
+                    {/* 최근 접수일 */}
+                    <div className="text-[11px] font-medium text-[#6B7399] tabular-nums">
+                      {formatDate(user.lastContactAt)}
+                    </div>
+
+                    {/* 총 견적 */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[12px] font-bold text-[#1A1A2E] tabular-nums">{user.consultationCount}</span>
+                      <span className="text-[10px] text-[#9BA4C0]">건</span>
+                    </div>
+
+                    {/* 계약 */}
+                    <div className="flex items-center gap-1">
+                      {user.contractCount > 0 ? (
+                        <>
+                          <span className="text-[12px] font-bold text-[#059669] tabular-nums">{user.contractCount}</span>
+                          <span className="text-[10px] text-[#9BA4C0]">건</span>
+                        </>
+                      ) : (
+                        <span className="text-[11px] text-[#D4D8EC]">-</span>
+                      )}
+                    </div>
+
+                    {/* 메모 */}
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                      {user.internalMemo ? (
+                        <p className="text-[11px] text-[#78350F] truncate" title={user.internalMemo}>
+                          {user.internalMemo}
+                        </p>
+                      ) : (
+                        <span className="text-[11px] text-[#D4D8EC]">메모 없음</span>
+                      )}
+                      <ChevronRight size={14} className="text-[#D4D8EC] group-hover:text-[#000666] transition-all group-hover:translate-x-1 ml-auto shrink-0" />
+                    </div>
+                  </motion.div>
+                );
+              })
             ) : (
               filtered.map((user, idx) => {
                 const statusStyle = USER_STATUS_STYLE[user.userStatus];
