@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateQuotePDFHtml, type PDFQuoteData } from "@/lib/quote-pdf-template";
+import { renderHtmlToPdfBuffer } from "@/lib/pdf/render";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -38,41 +39,20 @@ export async function POST(req: NextRequest) {
     userEmail: user.email ?? "이메일 미등록",
   };
 
-  const html = generateQuotePDFHtml(pdfData);
-
-  let puppeteer;
   try {
-    puppeteer = (await import("puppeteer")).default;
-  } catch {
-    return NextResponse.json({ error: "PDF 생성 모듈을 불러올 수 없습니다." }, { status: 500 });
-  }
-
-  let browser;
-  try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
-    });
-
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 10000 });
-    await new Promise((r) => setTimeout(r, 300));
-
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "0", right: "0", bottom: "0", left: "0" },
-    });
+    const html = generateQuotePDFHtml(pdfData);
+    const pdfBuffer = await renderHtmlToPdfBuffer(html);
 
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const vehicleNameSafe = pdfData.vehicleName.replace(/[^\wㄱ-힣]/g, "_");
     const filename = `아임딜러_견적서_${vehicleNameSafe}_${today}.pdf`;
 
-    return new NextResponse(Buffer.from(pdfBuffer), {
+    const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+    return new NextResponse(blob, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
-        "Content-Length": pdfBuffer.length.toString(),
+        "Content-Length": pdfBuffer.byteLength.toString(),
         "Cache-Control": "no-store",
       },
     });
@@ -82,7 +62,5 @@ export async function POST(req: NextRequest) {
       { error: `PDF 생성에 실패했습니다: ${message}` },
       { status: 500 }
     );
-  } finally {
-    await browser?.close();
   }
 }

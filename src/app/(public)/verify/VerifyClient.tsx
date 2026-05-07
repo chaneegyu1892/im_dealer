@@ -565,8 +565,8 @@ export function VerifyClient() {
             trimId: quoteDraft.trimId,
             contractMonths: quoteDraft.contractMonths,
             annualMileage: quoteDraft.annualMileage,
-            depositRate: scenario?.depositAmount ? 20 : 0, // 대략적인 값
-            prepayRate: scenario?.prepayAmount ? 30 : 0,
+            depositRate: quoteDraft.customRates.depositRate,
+            prepayRate: quoteDraft.customRates.prepayRate,
             contractType: quoteDraft.contractType,
             customerType: quoteDraft.customerType ?? customerType,
             monthlyPayment: scenario?.monthlyPayment || 0,

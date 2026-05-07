@@ -327,6 +327,10 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         productType: contractCategory,
         customerType,
         scenarios: quoteResult.scenarios,
+        customRates: {
+          depositRate: customRates.depositRate,
+          prepayRate: customRates.prepayRate,
+        },
         optionsTotalPrice: quoteResult.optionsTotalPrice,
         totalVehiclePrice: quoteResult.totalVehiclePrice,
       };
@@ -350,6 +354,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     customerType,
     selectedOptionIds,
     contractCategory,
+    customRates,
   ]);
 
   // 추천 프리필을 한 번만 적용하기 위한 플래그

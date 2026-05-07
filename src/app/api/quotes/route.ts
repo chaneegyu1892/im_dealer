@@ -43,6 +43,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 옵션 가격 변동 대비를 위해 저장 시점의 옵션 스냅샷을 breakdown에 함께 저장.
+    const breakdownInput =
+      breakdown && typeof breakdown === "object" ? (breakdown as Record<string, unknown>) : {};
+    const selectedOptionIdsRaw = breakdownInput.selectedOptionIds;
+    const selectedOptionIds = Array.isArray(selectedOptionIdsRaw)
+      ? selectedOptionIdsRaw.filter((id): id is string => typeof id === "string")
+      : [];
+
+    let selectedOptionsSnapshot: Array<{ id: string; name: string; price: number }> = [];
+    if (selectedOptionIds.length > 0) {
+      const options = await prisma.trimOption.findMany({
+        where: { id: { in: selectedOptionIds } },
+        select: { id: true, name: true, price: true },
+      });
+      selectedOptionsSnapshot = options.map((o) => ({ id: o.id, name: o.name, price: o.price }));
+    }
+
+    const enrichedBreakdown = {
+      ...breakdownInput,
+      selectedOptions: selectedOptionsSnapshot,
+    };
+
     // 1. 견적 저장
     const savedQuote = await prisma.savedQuote.create({
       data: {
@@ -58,7 +80,7 @@ export async function POST(request: NextRequest) {
         customerType: isCustomerType(customerType) ? customerType : "individual",
         monthlyPayment,
         totalCost,
-        breakdown,
+        breakdown: enrichedBreakdown,
         customerName: customerName || "고객",
         phone: phone || "010-0000-0000",
         status: "NEW", // QuoteStatus.NEW
