@@ -1,6 +1,10 @@
 import { prisma } from "../prisma";
 import type { AnalyticsData } from "@/types/admin";
 import { fillDailyGaps } from "./shared";
+import {
+  getCalcConditionDistribution,
+  getCalcPopularVehicles,
+} from "./quote-calc-stats";
 
 export async function getAnalyticsData(): Promise<AnalyticsData> {
   const now = new Date();
@@ -59,11 +63,18 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
     count: g._count.id,
   }));
 
+  const [calcPopularVehicles, calcConditionDistribution] = await Promise.all([
+    getCalcPopularVehicles(thirtyDaysAgo, 10),
+    getCalcConditionDistribution(thirtyDaysAgo),
+  ]);
+
   return {
     totalQuoteViews,
     totalVisitors,
     dailyTrend,
     vehicleLeaderboard,
     engineTypeDistribution,
+    calcPopularVehicles,
+    calcConditionDistribution,
   };
 }

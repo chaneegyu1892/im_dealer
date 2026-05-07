@@ -5,6 +5,7 @@ import type {
   CategoryCount,
 } from "@/types/admin";
 import { aggregateMonthly, fillDailyGaps, formatRelativeTime } from "./shared";
+import { getCalcMemberAndApplyRates } from "./quote-calc-stats";
 
 export async function getDashboardData(): Promise<DashboardData> {
   const now = new Date();
@@ -13,20 +14,27 @@ export async function getDashboardData(): Promise<DashboardData> {
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
 
-  const [totalVehicles, visibleVehicles, todayQuoteViews, todayAiSessions, monthlyQuotes] =
-    await Promise.all([
-      prisma.vehicle.count(),
-      prisma.vehicle.count({ where: { isVisible: true } }),
-      prisma.explorationLog.count({
-        where: { eventType: "quote_view", createdAt: { gte: todayStart } },
-      }),
-      prisma.recommendationLog.count({
-        where: { createdAt: { gte: todayStart } },
-      }),
-      prisma.savedQuote.count({
-        where: { createdAt: { gte: monthStart } },
-      }),
-    ]);
+  const [
+    totalVehicles,
+    visibleVehicles,
+    todayQuoteViews,
+    todayAiSessions,
+    monthlyQuotes,
+    calcRates,
+  ] = await Promise.all([
+    prisma.vehicle.count(),
+    prisma.vehicle.count({ where: { isVisible: true } }),
+    prisma.explorationLog.count({
+      where: { eventType: "quote_view", createdAt: { gte: todayStart } },
+    }),
+    prisma.recommendationLog.count({
+      where: { createdAt: { gte: todayStart } },
+    }),
+    prisma.savedQuote.count({
+      where: { createdAt: { gte: monthStart } },
+    }),
+    getCalcMemberAndApplyRates(monthStart),
+  ]);
 
   const stats: DashboardStats = {
     totalVehicles,
@@ -34,6 +42,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     todayQuoteViews,
     todayAiSessions,
     monthlyQuotes,
+    memberRatio: calcRates.memberRatio,
+    applyClickRate: calcRates.applyClickRate,
   };
 
   const weeklyQuoteRows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
