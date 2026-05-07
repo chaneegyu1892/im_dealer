@@ -1,9 +1,53 @@
 import type { CustomerType } from "@/constants/customer-types";
 import { isCustomerType } from "@/constants/customer-types";
 import type { QuoteScenarioDetails } from "@/types/quote";
+import type { QuoteResponse } from "@/types/api";
 
 export const QUOTE_DRAFT_STORAGE_PREFIX = "quote_draft_";
 export const LEGACY_QUOTE_STORAGE_PREFIX = "quote_";
+
+/**
+ * PDF 다운로드를 위해 카카오 로그인 후 견적 결과 화면으로 복귀할 때
+ * 사용하는 sessionStorage 키. 로그인 콜백 후 한 번 읽고 즉시 삭제(consume).
+ */
+export const QUOTE_PDF_RESTORE_KEY = "quote_pdf_restore";
+
+export interface QuotePdfRestoreState {
+  vehicleSlug: string;
+  customerType: CustomerType;
+  selectedLineup: string | null;
+  selectedTrimName: string | null;
+  selectedOptionIds: string[];
+  contractCategory: "장기렌트" | "리스";
+  conditions: {
+    contractMonths: number;
+    annualMileage: number;
+    contractType: "반납형" | "인수형";
+  };
+  customRates: { depositRate: number; prepayRate: number };
+  quoteResult: QuoteResponse;
+}
+
+export function saveQuotePdfRestore(state: QuotePdfRestoreState): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(QUOTE_PDF_RESTORE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error("[saveQuotePdfRestore] failed", error);
+  }
+}
+
+export function consumeQuotePdfRestore(): QuotePdfRestoreState | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(QUOTE_PDF_RESTORE_KEY);
+  if (!raw) return null;
+  window.sessionStorage.removeItem(QUOTE_PDF_RESTORE_KEY);
+  const parsed = parseJson(raw);
+  if (!isRecord(parsed)) return null;
+  if (typeof parsed.vehicleSlug !== "string") return null;
+  if (!isRecord(parsed.quoteResult)) return null;
+  return parsed as unknown as QuotePdfRestoreState;
+}
 
 export type QuoteDraftScenarioType = "conservative" | "standard" | "aggressive";
 export type QuoteDraftProductType = "장기렌트" | "리스";

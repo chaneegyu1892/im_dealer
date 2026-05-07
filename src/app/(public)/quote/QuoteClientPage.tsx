@@ -32,8 +32,14 @@ import {
   type CustomerType,
   isCustomerType,
 } from "@/constants/customer-types";
-import { QUOTE_DRAFT_STORAGE_PREFIX, type QuoteDraft } from "@/lib/quote-draft";
+import {
+  QUOTE_DRAFT_STORAGE_PREFIX,
+  type QuoteDraft,
+  saveQuotePdfRestore,
+  consumeQuotePdfRestore,
+} from "@/lib/quote-draft";
 import { applyRulesOnSelect, applyRulesOnDeselect } from "@/lib/option-rules";
+import { LoginRequiredModal } from "@/components/quote/LoginRequiredModal";
 
 // ─── 상수 ────────────────────────────────────────────────
 const CONTRACT_CATEGORIES = ["장기렌트", "리스"] as const;
@@ -281,7 +287,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     contractType: "반납형",
   });
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [loginRequiredOpen, setLoginRequiredOpen] = useState(false);
 
   // 장기렌트 선택 시 반납형 고정
   useEffect(() => {
@@ -474,7 +480,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     if (!selectedVehicle) return;
     setIsLoading(true);
     setError(null);
-    setPdfError(null);
 
     try {
       const res = await fetch(
@@ -571,8 +576,16 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   async function handlePdfDownload() {
     if (!quoteResult || !selectedVehicle) return;
 
+    // 비회원이면 PDF API가 401을 반환하므로, 그 전에 클라이언트에서 가드.
+    // 모달을 띄우고 카카오 로그인 흐름으로 유도한다.
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoginRequiredOpen(true);
+      return;
+    }
+
     setIsPdfDownloading(true);
-    setPdfError(null);
 
     const selectedOptions =
       selectedTrim?.options
@@ -603,8 +616,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       });
 
       if (!response.ok) {
+        // 회원이지만 PDF 생성 자체가 실패한 케이스 — 콘솔에만 남기고 silent fail
         const json = await response.json().catch(() => null);
-        setPdfError(json?.error ?? "PDF 다운로드에 실패했습니다.");
+        console.error("[PDF download] failed", json);
         return;
       }
 
@@ -621,15 +635,58 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-    } catch {
-      setPdfError("PDF 다운로드 중 네트워크 오류가 발생했습니다.");
+    } catch (error) {
+      console.error("[PDF download] network error", error);
     } finally {
       setIsPdfDownloading(false);
     }
   }
 
+  function handleLoginModalKakao() {
+    if (!quoteResult || !selectedVehicle) {
+      setLoginRequiredOpen(false);
+      return;
+    }
+    // 견적 결과 + 입력 상태를 sessionStorage에 보존 (로그인 후 복원용)
+    saveQuotePdfRestore({
+      vehicleSlug: selectedVehicle.slug,
+      customerType,
+      selectedLineup,
+      selectedTrimName,
+      selectedOptionIds: Array.from(selectedOptionIds),
+      contractCategory,
+      conditions,
+      customRates,
+      quoteResult,
+    });
+    const target = `/quote?vehicle=${encodeURIComponent(selectedVehicle.slug)}&customerType=${customerType}`;
+    router.push(`/login?next=${encodeURIComponent(target)}`);
+  }
+
+  // 카카오 로그인 후 복원: sessionStorage에서 이전 견적 상태를 한 번만 읽어서 step3까지 복원
+  useEffect(() => {
+    const restored = consumeQuotePdfRestore();
+    if (!restored) return;
+    if (!selectedVehicle || restored.vehicleSlug !== selectedVehicle.slug) return;
+    setCustomerType(restored.customerType);
+    setSelectedLineup(restored.selectedLineup);
+    setSelectedTrimName(restored.selectedTrimName);
+    setSelectedOptionIds(new Set(restored.selectedOptionIds));
+    setContractCategory(restored.contractCategory as ContractCategory);
+    setConditions(restored.conditions as Conditions);
+    setCustomRates(restored.customRates);
+    setQuoteResult(restored.quoteResult);
+    setStep(3);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="min-h-screen bg-neutral">
+      <LoginRequiredModal
+        open={loginRequiredOpen}
+        onClose={() => setLoginRequiredOpen(false)}
+        onKakaoLogin={handleLoginModalKakao}
+      />
       {/* 페이지 헤더 */}
       <div
         className="border-b border-[#F0F0F0] bg-white"
@@ -1238,13 +1295,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     </>
                   )}
                 </button>
-
-                {pdfError && (
-                  <div className="bg-[#FFEBEB] border border-red-100 rounded-[8px] p-3 text-[12px] text-destructive flex items-start gap-2 mb-2">
-                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                    <p>{pdfError}</p>
-                  </div>
-                )}
 
                 {/* 계약 신청하기 */}
                 <button
