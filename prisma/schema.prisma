@@ -90,6 +90,7 @@ model Vehicle {
   popularConfigs PopularConfig[]
   quoteCalcLogs  QuoteCalcLog[]
   reviews        Review[]
+  colors         VehicleColor[]
 
   @@index([isVisible, isPopular])
   @@index([category])
@@ -227,6 +228,31 @@ enum QuoteStatus {
   LOST
 }
 
+enum ColorKind {
+  EXTERIOR
+  INTERIOR
+}
+
+model VehicleColor {
+  id          String    @id @default(cuid())
+  vehicleId   String
+  kind        ColorKind
+  name        String
+  hexCode     String
+  imageUrl    String?
+  priceDelta  Int       @default(0)
+  isDefault   Boolean   @default(false)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  exteriorOf  SavedQuote[] @relation("SavedQuoteExteriorColor")
+  interiorOf  SavedQuote[] @relation("SavedQuoteInteriorColor")
+
+  @@index([vehicleId, kind, sortOrder])
+}
+
 model SavedQuote {
   id                    String      @id @default(cuid())
   sessionId             String
@@ -259,6 +285,12 @@ model SavedQuote {
   contactedAt           DateTime?
   convertedAt           DateTime?
 
+  // 색상 선택
+  exteriorColorId       String?
+  interiorColorId       String?
+  exteriorColor         VehicleColor? @relation("SavedQuoteExteriorColor", fields: [exteriorColorId], references: [id])
+  interiorColor         VehicleColor? @relation("SavedQuoteInteriorColor", fields: [interiorColorId], references: [id])
+
   activityLogs          QuoteActivityLog[]
   reviews               Review[]
   reviewTokens          ReviewRequestToken[]
@@ -270,6 +302,8 @@ model SavedQuote {
   @@index([expiresAt])
   @@index([createdAt])
   @@index([deletedAt])
+  @@index([exteriorColorId])
+  @@index([interiorColorId])
 }
 
 model QuoteActivityLog {

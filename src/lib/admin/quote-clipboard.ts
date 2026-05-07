@@ -17,12 +17,19 @@ export function formatQuoteForClipboard(quote: AdminSavedQuote): string {
     formatRateLine(quote),
   ].join(" / ");
 
-  return [
+  const colorLines: string[] = [];
+  if (quote.exteriorColorName) colorLines.push(`외장: ${quote.exteriorColorName}`);
+  if (quote.interiorColorName) colorLines.push(`내장: ${quote.interiorColorName}`);
+
+  const lines = [
     "[아임딜러 견적]",
     trimLine,
     conditionLine,
+    ...colorLines,
     "",
     `월 납입금  ${quote.monthlyPayment.toLocaleString("ko-KR")}원`,
     `총 비용     ${quote.totalCost.toLocaleString("ko-KR")}원`,
-  ].join("\n");
+  ];
+
+  return lines.join("\n");
 }

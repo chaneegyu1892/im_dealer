@@ -28,6 +28,17 @@ export interface BuildVehicleScenariosInput {
   contractMonths: number;
   annualMileage: number;
   contractType: ContractTypeKor;
+  /** 외장 색상 id (있으면 priceDelta 가 totalVehiclePrice 에 합산됨) */
+  exteriorColorId?: string | null;
+  /** 내장 색상 id */
+  interiorColorId?: string | null;
+}
+
+export interface VehicleColorSnapshot {
+  id: string;
+  name: string;
+  hexCode: string;
+  priceDelta: number;
 }
 
 export interface SelectedOptionSnapshot {
@@ -45,8 +56,11 @@ export interface BuildVehicleScenariosResult {
   trimName: string;
   trimPrice: number;
   optionsTotalPrice: number;
+  colorDelta: number;
   totalVehiclePrice: number;
   selectedOptions: SelectedOptionSnapshot[];
+  exteriorColor: VehicleColorSnapshot | null;
+  interiorColor: VehicleColorSnapshot | null;
   scenarios: QuoteScenarioDetails;
 }
 
@@ -75,6 +89,9 @@ export async function buildVehicleScenarios(
         orderBy: { isDefault: "desc" },
         include: { options: { select: { id: true, name: true, price: true } } },
       },
+      colors: {
+        select: { id: true, kind: true, name: true, hexCode: true, priceDelta: true },
+      },
     },
   });
 
@@ -86,6 +103,9 @@ export async function buildVehicleScenarios(
           where: { isVisible: true },
           orderBy: { isDefault: "desc" },
           include: { options: { select: { id: true, name: true, price: true } } },
+        },
+        colors: {
+          select: { id: true, kind: true, name: true, hexCode: true, priceDelta: true },
         },
       },
     });
@@ -109,6 +129,31 @@ export async function buildVehicleScenarios(
     .map((o) => ({ id: o.id, name: o.name, price: o.price }));
   const trimOptionsTotalPrice = selectedOptions.reduce((sum, o) => sum + o.price, 0);
   const optionsTotalPrice = trimOptionsTotalPrice + (input.extraOptionsPrice ?? 0);
+
+  // 색상 priceDelta — vehicle 소속 + kind 일치 검증
+  const exteriorColorRow = input.exteriorColorId
+    ? vehicle.colors.find((c) => c.id === input.exteriorColorId && c.kind === "EXTERIOR") ?? null
+    : null;
+  const interiorColorRow = input.interiorColorId
+    ? vehicle.colors.find((c) => c.id === input.interiorColorId && c.kind === "INTERIOR") ?? null
+    : null;
+  const exteriorColor: VehicleColorSnapshot | null = exteriorColorRow
+    ? {
+        id: exteriorColorRow.id,
+        name: exteriorColorRow.name,
+        hexCode: exteriorColorRow.hexCode,
+        priceDelta: exteriorColorRow.priceDelta,
+      }
+    : null;
+  const interiorColor: VehicleColorSnapshot | null = interiorColorRow
+    ? {
+        id: interiorColorRow.id,
+        name: interiorColorRow.name,
+        hexCode: interiorColorRow.hexCode,
+        priceDelta: interiorColorRow.priceDelta,
+      }
+    : null;
+  const colorDelta = (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
 
   // 2) 회수율 데이터 + 순위 가산 동시 조회
   const [rateSheets, rankSurcharges] = await Promise.all([
@@ -149,7 +194,7 @@ export async function buildVehicleScenarios(
     const { depositRate, prepayRate } = SCENARIO_CONDITIONS[key];
 
     const calcInput: CalcInput = {
-      vehiclePrice: trim.price + optionsTotalPrice,
+      vehiclePrice: trim.price + optionsTotalPrice + colorDelta,
       contractMonths: input.contractMonths,
       annualMileage: input.annualMileage,
       depositRate,
@@ -218,8 +263,11 @@ export async function buildVehicleScenarios(
       trimName: trim.name,
       trimPrice: trim.price,
       optionsTotalPrice,
-      totalVehiclePrice: trim.price + optionsTotalPrice,
+      colorDelta,
+      totalVehiclePrice: trim.price + optionsTotalPrice + colorDelta,
       selectedOptions,
+      exteriorColor,
+      interiorColor,
       scenarios: scenarios as QuoteScenarioDetails,
     },
   };

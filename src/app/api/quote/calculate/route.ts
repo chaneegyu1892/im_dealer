@@ -30,6 +30,8 @@ const calculateSchema = z.object({
   contractType: z.enum(["인수형", "반납형"]),
   customerType: z.enum(["individual", "self_employed", "corporate", "nonprofit"]).default("individual"),
   productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
+  exteriorColorId: z.string().nullable().optional(),
+  interiorColorId: z.string().nullable().optional(),
 });
 
 // ── POST /api/quote/calculate ────────────────────────────
@@ -47,6 +49,9 @@ export async function POST(request: NextRequest) {
           where: { isVisible: true },
           orderBy: { isDefault: "desc" },
           include: { options: { select: { id: true, price: true } } },
+        },
+        colors: {
+          select: { id: true, kind: true, priceDelta: true },
         },
       },
     });
@@ -75,6 +80,15 @@ export async function POST(request: NextRequest) {
       .filter((o) => selectedOptionIds.has(o.id))
       .reduce((sum, o) => sum + o.price, 0);
     const optionsTotalPrice = trimOptionsTotalPrice + (input.extraOptionsPrice ?? 0);
+
+    // 색상 priceDelta 합산 (벨리데이션 — kind 일치 확인)
+    const exteriorColor = input.exteriorColorId
+      ? vehicle.colors.find((c) => c.id === input.exteriorColorId && c.kind === "EXTERIOR")
+      : null;
+    const interiorColor = input.interiorColorId
+      ? vehicle.colors.find((c) => c.id === input.interiorColorId && c.kind === "INTERIOR")
+      : null;
+    const colorDelta = (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
 
     // 2) 회수율 데이터 + 순위 가산 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
@@ -135,7 +149,7 @@ export async function POST(request: NextRequest) {
       const { depositRate, prepayRate } = SCENARIO_CONDITIONS[key];
 
       const calcInput: CalcInput = {
-        vehiclePrice: trim.price + optionsTotalPrice,
+        vehiclePrice: trim.price + optionsTotalPrice + colorDelta,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         depositRate,
@@ -247,7 +261,8 @@ export async function POST(request: NextRequest) {
         trimName: trim.name,
         trimPrice: trim.price,
         optionsTotalPrice,
-        totalVehiclePrice: trim.price + optionsTotalPrice,
+        colorDelta,
+        totalVehiclePrice: trim.price + optionsTotalPrice + colorDelta,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         contractType: input.contractType,

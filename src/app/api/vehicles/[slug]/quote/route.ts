@@ -21,6 +21,8 @@ const quoteSchema = z.object({
   customerType: z.enum(["individual", "self_employed", "corporate", "nonprofit"]).default("individual"),
   customDepositRate: z.number().int().min(0).max(30).optional(),
   customPrepayRate: z.number().int().min(0).max(30).optional(),
+  exteriorColorId: z.string().nullable().optional(),
+  interiorColorId: z.string().nullable().optional(),
 });
 
 // ── 시나리오별 보증금·선납금 조건 ───────────────────────
@@ -58,6 +60,9 @@ export async function POST(
               },
             },
           },
+        },
+        colors: {
+          select: { id: true, kind: true, priceDelta: true },
         },
       },
     });
@@ -105,6 +110,15 @@ export async function POST(
       .filter((o) => selectedOptionIds.has(o.id))
       .reduce((sum, o) => sum + o.price, 0);
     const optionsTotalPrice = trimOptionsTotalPrice + (input.extraOptionsPrice ?? 0);
+
+    // 색상 priceDelta (kind 일치 검증)
+    const exteriorColor = input.exteriorColorId
+      ? vehicle.colors.find((c) => c.id === input.exteriorColorId && c.kind === "EXTERIOR")
+      : null;
+    const interiorColor = input.interiorColorId
+      ? vehicle.colors.find((c) => c.id === input.interiorColorId && c.kind === "INTERIOR")
+      : null;
+    const colorDelta = (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
 
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
@@ -171,7 +185,7 @@ export async function POST(
       }
 
       const calcInput: CalcInput = {
-        vehiclePrice: trim.price + optionsTotalPrice,
+        vehiclePrice: trim.price + optionsTotalPrice + colorDelta,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         depositRate,
@@ -241,7 +255,8 @@ export async function POST(
         trimName: trim.name,
         trimPrice: trim.price,
         optionsTotalPrice,
-        totalVehiclePrice: trim.price + optionsTotalPrice,
+        colorDelta,
+        totalVehiclePrice: trim.price + optionsTotalPrice + colorDelta,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         contractType: input.contractType,

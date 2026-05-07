@@ -79,6 +79,8 @@ export async function GET(
     contractMonths: quote.contractMonths,
     annualMileage: quote.annualMileage,
     contractType,
+    exteriorColorId: quote.exteriorColorId,
+    interiorColorId: quote.interiorColorId,
   });
 
   if (!outcome.ok) {
@@ -109,6 +111,20 @@ export async function GET(
     contractType,
     scenarios: outcome.data.scenarios,
     userEmail,
+    exteriorColor: outcome.data.exteriorColor
+      ? {
+          name: outcome.data.exteriorColor.name,
+          hexCode: outcome.data.exteriorColor.hexCode,
+          priceDelta: outcome.data.exteriorColor.priceDelta,
+        }
+      : null,
+    interiorColor: outcome.data.interiorColor
+      ? {
+          name: outcome.data.interiorColor.name,
+          hexCode: outcome.data.interiorColor.hexCode,
+          priceDelta: outcome.data.interiorColor.priceDelta,
+        }
+      : null,
   };
 
   try {

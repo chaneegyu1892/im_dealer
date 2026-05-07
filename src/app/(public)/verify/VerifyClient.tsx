@@ -579,6 +579,8 @@ export function VerifyClient() {
               scenarioBreakdown: scenario?.breakdown || {},
               surcharges: scenario?.surcharges || {},
             },
+            exteriorColorId: quoteDraft.exteriorColorId ?? null,
+            interiorColorId: quoteDraft.interiorColorId ?? null,
             customerName: form.name,
             phone: "연락처 미입력", // 폰 번호 입력 필드가 없으므로 일단 고정
           }),

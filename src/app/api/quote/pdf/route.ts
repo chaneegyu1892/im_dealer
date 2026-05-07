@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
     contractType: body.contractType ?? "반납형",
     scenarios: body.scenarios,
     userEmail: user.email ?? "이메일 미등록",
+    exteriorColor: body.exteriorColor ?? null,
+    interiorColor: body.interiorColor ?? null,
   };
 
   try {

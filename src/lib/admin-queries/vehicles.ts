@@ -52,6 +52,9 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
           rules: true,
         },
       },
+      colors: {
+        orderBy: [{ kind: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+      },
     },
   });
 
@@ -110,6 +113,19 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
         targetOptionId: r.targetOptionId,
         createdAt: r.createdAt.toISOString(),
       })),
+    })),
+    colors: v.colors.map((c) => ({
+      id: c.id,
+      vehicleId: c.vehicleId,
+      kind: c.kind,
+      name: c.name,
+      hexCode: c.hexCode,
+      imageUrl: c.imageUrl,
+      priceDelta: c.priceDelta,
+      isDefault: c.isDefault,
+      sortOrder: c.sortOrder,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
     })),
   };
 }
