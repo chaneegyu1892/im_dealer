@@ -25,6 +25,24 @@ export interface AdminVehicleDetail extends AdminVehicle {
   trims: AdminTrim[];
   lineups: AdminVehicleLineup[];
   popularConfigs?: AdminPopularConfig[];
+  colors?: AdminVehicleColor[];
+}
+
+// ─── VehicleColor ───────────────────────────────────────
+export type ColorKind = "EXTERIOR" | "INTERIOR";
+
+export interface AdminVehicleColor {
+  id: string;
+  vehicleId: string;
+  kind: ColorKind;
+  name: string;
+  hexCode: string;
+  imageUrl: string | null;
+  priceDelta: number;
+  isDefault: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── PopularConfig ──────────────────────────────────────
@@ -132,6 +150,13 @@ export interface DashboardData {
 }
 
 // ─── Analytics ──────────────────────────────────────────
+export interface ColorPopularityItem {
+  colorId: string;
+  name: string;
+  hexCode: string;
+  count: number;
+}
+
 export interface AnalyticsData {
   totalQuoteViews: number;
   totalVisitors: number;
@@ -146,6 +171,10 @@ export interface AnalyticsData {
     mileages: CategoryCount[];
     depositPrepayMix: CategoryCount[];
   };
+  /** 인기 외장 색상 TOP 5 (SavedQuote 기반, 30일) */
+  topExteriorColors: ColorPopularityItem[];
+  /** 인기 내장 색상 TOP 5 */
+  topInteriorColors: ColorPopularityItem[];
 }
 
 // ─── QuoteCalcLog 기반 차량별 통계 (P1 차량 상세 탭) ──────
@@ -191,6 +220,10 @@ export interface AdminSavedQuote {
   quoteType: "AI" | "DETAIL";
   createdAt: string;
   updatedAt: string;
+  exteriorColorName: string | null;
+  exteriorColorHex: string | null;
+  interiorColorName: string | null;
+  interiorColorHex: string | null;
 }
 
 export interface AdminNotification {

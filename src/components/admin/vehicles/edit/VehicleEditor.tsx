@@ -12,6 +12,7 @@ import {
   FileCheck,
   Star,
   BarChart2,
+  Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdminVehicleDetail } from "@/types/admin";
@@ -22,18 +23,28 @@ import { OptionTab } from "./tabs/OptionTab";
 import { RuleTab } from "./tabs/RuleTab";
 import { PopularConfigTab } from "./tabs/PopularConfigTab";
 import { StatsTab } from "./tabs/StatsTab";
+import { ColorTab } from "./tabs/ColorTab";
 
 interface VehicleEditorProps {
   vehicle: AdminVehicleDetail;
 }
 
-type TabKey = "basic" | "lineup" | "trim" | "option" | "rule" | "popular" | "stats";
+type TabKey =
+  | "basic"
+  | "lineup"
+  | "trim"
+  | "option"
+  | "color"
+  | "rule"
+  | "popular"
+  | "stats";
 
 const TABS = [
   { key: "basic", label: "기본정보", icon: Info },
   { key: "lineup", label: "라인업", icon: Layers },
   { key: "trim", label: "트림", icon: GitCommit },
   { key: "option", label: "옵션", icon: Settings2 },
+  { key: "color", label: "색상", icon: Palette },
   { key: "rule", label: "규칙", icon: FileCheck },
   { key: "popular", label: "추천 구성", icon: Star },
   { key: "stats", label: "조회 분석", icon: BarChart2 },
@@ -107,6 +118,7 @@ export function VehicleEditor({ vehicle }: VehicleEditorProps) {
           {activeTab === "lineup" && <LineupTab vehicle={vehicle} />}
           {activeTab === "trim" && <TrimTab vehicle={vehicle} />}
           {activeTab === "option" && <OptionTab vehicle={vehicle} />}
+          {activeTab === "color" && <ColorTab vehicle={vehicle} />}
           {activeTab === "rule" && <RuleTab vehicle={vehicle} />}
           {activeTab === "popular" && <PopularConfigTab vehicleId={vehicle.id} />}
           {activeTab === "stats" && <StatsTab vehicleId={vehicle.id} />}

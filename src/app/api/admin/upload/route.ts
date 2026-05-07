@@ -25,6 +25,7 @@ const ALLOWED_CATEGORIES = new Set([
   "brands",
   "reviews",
   "trims",
+  "colors",
   "misc",
 ]);
 

@@ -31,6 +31,8 @@ const saveQuoteSchema = z.object({
   customerType: z.enum(["individual", "self_employed", "corporate", "nonprofit"]).default("individual"),
   productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
   scenarioType: z.enum(["conservative", "standard", "aggressive"]),
+  exteriorColorId: z.string().nullable().optional(),
+  interiorColorId: z.string().nullable().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -49,6 +51,9 @@ export async function POST(request: NextRequest) {
         trims: {
           where: { isVisible: true },
           include: { options: { select: { id: true, price: true, name: true } } },
+        },
+        colors: {
+          select: { id: true, kind: true, name: true, hexCode: true, priceDelta: true },
         },
       },
     });
@@ -72,7 +77,29 @@ export async function POST(request: NextRequest) {
     const selectedOptions = trim.options.filter((o) => selectedOptionIds.has(o.id));
     const trimOptionsTotalPrice = selectedOptions.reduce((sum, o) => sum + o.price, 0);
     const optionsTotalPrice = trimOptionsTotalPrice + input.extraOptionsPrice;
-    const totalVehiclePrice = trim.price + optionsTotalPrice;
+
+    // 색상 검증 — 선택된 색상이 차량 소속인지, kind가 맞는지 확인
+    const exteriorColor = input.exteriorColorId
+      ? vehicle.colors.find((c) => c.id === input.exteriorColorId && c.kind === "EXTERIOR") ?? null
+      : null;
+    const interiorColor = input.interiorColorId
+      ? vehicle.colors.find((c) => c.id === input.interiorColorId && c.kind === "INTERIOR") ?? null
+      : null;
+    if (input.exteriorColorId && !exteriorColor) {
+      return NextResponse.json(
+        { error: "선택한 외장 색상이 차량과 일치하지 않습니다." },
+        { status: 400 }
+      );
+    }
+    if (input.interiorColorId && !interiorColor) {
+      return NextResponse.json(
+        { error: "선택한 내장 색상이 차량과 일치하지 않습니다." },
+        { status: 400 }
+      );
+    }
+    const colorDelta = (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
+
+    const totalVehiclePrice = trim.price + optionsTotalPrice + colorDelta;
 
     const [rateSheets, rankSurcharges] = await Promise.all([
       prisma.capitalRateSheet.findMany({
@@ -149,6 +176,13 @@ export async function POST(request: NextRequest) {
         name: o.name,
         price: o.price,
       })),
+      exteriorColor: exteriorColor
+        ? { id: exteriorColor.id, name: exteriorColor.name, hexCode: exteriorColor.hexCode, priceDelta: exteriorColor.priceDelta }
+        : null,
+      interiorColor: interiorColor
+        ? { id: interiorColor.id, name: interiorColor.name, hexCode: interiorColor.hexCode, priceDelta: interiorColor.priceDelta }
+        : null,
+      colorDelta,
       optionsTotalPrice,
       totalVehiclePrice,
       bestFinanceCompany: best.financeCompanyName,
@@ -188,6 +222,8 @@ export async function POST(request: NextRequest) {
       totalCost: monthlyPayment * input.contractMonths,
       breakdown,
       expiresAt,
+      exteriorColorId: exteriorColor?.id ?? null,
+      interiorColorId: interiorColor?.id ?? null,
     };
 
     const savedQuote = existing

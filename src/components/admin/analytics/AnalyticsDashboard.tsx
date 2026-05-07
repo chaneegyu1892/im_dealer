@@ -29,6 +29,8 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
     engineTypeDistribution,
     calcPopularVehicles,
     calcConditionDistribution,
+    topExteriorColors,
+    topInteriorColors,
   } = data;
   const totalCalcs = calcPopularVehicles.reduce((s, v) => s + v.count, 0);
 
@@ -275,9 +277,62 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
               )}
             </section>
           </div>
+
+          {/* 인기 색상 TOP 5 (외장/내장) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            <ColorPopularitySection title="인기 외장 색상 TOP 5" items={topExteriorColors} />
+            <ColorPopularitySection title="인기 내장 색상 TOP 5" items={topInteriorColors} />
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+interface ColorPopularitySectionProps {
+  title: string;
+  items: { colorId: string; name: string; hexCode: string; count: number }[];
+}
+
+function ColorPopularitySection({ title, items }: ColorPopularitySectionProps) {
+  return (
+    <section className="bg-white rounded-[10px] border border-[#E8EAF0] p-5 shadow-sm">
+      <h2 className="text-[14px] font-bold text-[#1A1A2E] mb-1">{title}</h2>
+      <p className="text-[11px] text-[#6B7399] mb-3">최근 30일 견적 신청 기준</p>
+      {items.length === 0 ? (
+        <p className="mt-2 text-[12px] text-[#9BA4C0]">데이터가 아직 부족합니다</p>
+      ) : (
+        <div className="space-y-2.5">
+          {items.map((item, idx) => {
+            const max = items[0]?.count || 1;
+            const pct = (item.count / max) * 100;
+            return (
+              <div key={item.colorId} className="flex items-center gap-2.5">
+                <div
+                  className="w-7 h-7 rounded-full border-2 border-white shadow-md shrink-0"
+                  style={{ background: item.hexCode }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between text-[11px] mb-1">
+                    <span className="text-[#1A1A2E] font-medium truncate">{item.name}</span>
+                    <span className="text-[#000666] font-bold shrink-0 ml-2 tabular-nums">{item.count}건</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-[#F0F2F8] overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut", delay: idx * 0.05 }}
+                      className="h-full rounded-full"
+                      style={{ background: item.hexCode }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
