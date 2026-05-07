@@ -1,10 +1,14 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import type {
   AdminVehicle,
   AdminVehicleDetail,
   AdminBrand,
   AdminOptionRule,
+  VehicleQuoteStats,
 } from "@/types/admin";
+import { fillDailyGaps } from "./shared";
+import { getCalcConditionDistribution } from "./quote-calc-stats";
 
 export async function getAdminVehicles(brand?: string): Promise<AdminVehicle[]> {
   const vehicles = await prisma.vehicle.findMany({
@@ -107,6 +111,122 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
         createdAt: r.createdAt.toISOString(),
       })),
     })),
+  };
+}
+
+export async function getVehicleQuoteStats(
+  vehicleId: string,
+  since: Date | null
+): Promise<VehicleQuoteStats> {
+  const where: { vehicleId: string; createdAt?: { gte: Date } } = { vehicleId };
+  if (since) where.createdAt = { gte: since };
+
+  const sinceClause = since
+    ? Prisma.sql`AND "createdAt" >= ${since}`
+    : Prisma.empty;
+
+  const [aggRows, dailyRows, trimGroups, optionRows, conditionDistribution] =
+    await Promise.all([
+      prisma.$queryRaw<
+        {
+          total: bigint;
+          members: bigint;
+          applies: bigint;
+          avgMonthly: number | null;
+        }[]
+      >`
+        SELECT
+          COUNT(*)::bigint AS total,
+          COUNT(*) FILTER (WHERE "userId" IS NOT NULL)::bigint AS members,
+          COUNT(*) FILTER (WHERE "clickedApply" = true)::bigint AS applies,
+          AVG("resultMonthly")::float AS "avgMonthly"
+        FROM "QuoteCalcLog"
+        WHERE "vehicleId" = ${vehicleId} ${sinceClause}
+      `,
+      since
+        ? prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+            SELECT DATE_TRUNC('day', "createdAt") AS day, COUNT(*)::bigint AS count
+            FROM "QuoteCalcLog"
+            WHERE "vehicleId" = ${vehicleId} AND "createdAt" >= ${since}
+            GROUP BY day
+            ORDER BY day
+          `
+        : Promise.resolve([] as { day: Date; count: bigint }[]),
+      prisma.quoteCalcLog.groupBy({
+        by: ["trimId"],
+        where: { ...where, trimId: { not: null } },
+        _count: { _all: true },
+        orderBy: { _count: { trimId: "desc" } },
+        take: 5,
+      }),
+      prisma.$queryRaw<{ optionId: string; count: bigint }[]>`
+        SELECT unnested AS "optionId", COUNT(*)::bigint AS count
+        FROM (
+          SELECT unnest("optionIds") AS unnested
+          FROM "QuoteCalcLog"
+          WHERE "vehicleId" = ${vehicleId} ${sinceClause}
+        ) t
+        GROUP BY unnested
+        ORDER BY count DESC
+        LIMIT 5
+      `,
+      getCalcConditionDistribution(since, vehicleId),
+    ]);
+
+  const agg = aggRows[0];
+  const total = agg ? Number(agg.total) : 0;
+  const memberRatio = total > 0 && agg ? (Number(agg.members) / total) * 100 : 0;
+  const applyClickRate = total > 0 && agg ? (Number(agg.applies) / total) * 100 : 0;
+  const avgMonthly = agg?.avgMonthly ? Math.round(agg.avgMonthly) : 0;
+
+  // 일별 추이 — since가 있을 때만 의미 있음
+  const dailyTrend = since
+    ? fillDailyGaps(
+        dailyRows,
+        since,
+        Math.ceil((Date.now() - since.getTime()) / (24 * 60 * 60 * 1000))
+      )
+    : [];
+
+  // 트림명 조인
+  const trimIds = trimGroups
+    .map((g) => g.trimId)
+    .filter((id): id is string => Boolean(id));
+  const trims = trimIds.length
+    ? await prisma.trim.findMany({
+        where: { id: { in: trimIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const trimNameMap = new Map(trims.map((t) => [t.id, t.name]));
+  const topTrims = trimGroups.map((g) => ({
+    label: trimNameMap.get(g.trimId!) ?? "기타",
+    value: g._count._all,
+  }));
+
+  // 옵션명 조인
+  const optionIds = optionRows.map((r) => r.optionId);
+  const options = optionIds.length
+    ? await prisma.trimOption.findMany({
+        where: { id: { in: optionIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const optionNameMap = new Map(options.map((o) => [o.id, o.name]));
+  const topOptions = optionRows.map((r) => ({
+    label: optionNameMap.get(r.optionId) ?? "(삭제됨)",
+    value: Number(r.count),
+  }));
+
+  return {
+    totalCount: total,
+    avgMonthly,
+    memberRatio,
+    applyClickRate,
+    dailyTrend,
+    topTrims,
+    topOptions,
+    conditionDistribution,
   };
 }
 

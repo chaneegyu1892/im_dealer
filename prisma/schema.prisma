@@ -338,6 +338,7 @@ model QuoteCalcLog {
   // ── 입력 조건 (독립 컬럼 → SQL 집계·ML 학습에 최적) ──
   vehicleId          String
   vehicleSlug        String
+  vehicleName        String?
   trimId             String?
   optionIds          String[]
   contractMonths     Int
@@ -366,6 +367,8 @@ model QuoteCalcLog {
 
   @@index([vehicleSlug, createdAt])
   @@index([sessionId])
+  @@index([userId])
+  @@index([vehicleId, createdAt(sort: Desc)])
   @@index([createdAt])
   @@index([scenarioType, createdAt])
 }

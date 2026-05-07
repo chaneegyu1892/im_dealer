@@ -105,6 +105,10 @@ export interface DashboardStats {
   todayQuoteViews: number;
   todayAiSessions: number;
   monthlyQuotes: number;
+  /** 이달 견적 계산 중 회원(userId 있음) 비율 (%) */
+  memberRatio: number;
+  /** 이달 견적 계산 → 신청 클릭 전환율 (%) */
+  applyClickRate: number;
 }
 
 export interface DailyCount {
@@ -134,6 +138,30 @@ export interface AnalyticsData {
   dailyTrend: DailyCount[];
   vehicleLeaderboard: { vehicleId: string; name: string; count: number }[];
   engineTypeDistribution: { engineType: string; count: number }[];
+  /** QuoteCalcLog 기반 인기 차량 TOP 10 (기간: 30일) */
+  calcPopularVehicles: { vehicleId: string; name: string; count: number }[];
+  /** 계약조건 분포 (30일) */
+  calcConditionDistribution: {
+    months: CategoryCount[];
+    mileages: CategoryCount[];
+    depositPrepayMix: CategoryCount[];
+  };
+}
+
+// ─── QuoteCalcLog 기반 차량별 통계 (P1 차량 상세 탭) ──────
+export interface VehicleQuoteStats {
+  totalCount: number;
+  avgMonthly: number;
+  memberRatio: number;
+  applyClickRate: number;
+  dailyTrend: DailyCount[];
+  topTrims: { label: string; value: number }[];
+  topOptions: { label: string; value: number }[];
+  conditionDistribution: {
+    months: CategoryCount[];
+    mileages: CategoryCount[];
+    depositPrepayMix: CategoryCount[];
+  };
 }
 
 // ─── SavedQuote (admin 조회용) ──────────────────────────
