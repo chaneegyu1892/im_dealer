@@ -53,6 +53,11 @@ export type QuoteDraftScenarioType = "conservative" | "standard" | "aggressive";
 export type QuoteDraftProductType = "장기렌트" | "리스";
 export type QuoteDraftContractType = "반납형" | "인수형";
 
+export interface QuoteDraftCustomRates {
+  depositRate: number;
+  prepayRate: number;
+}
+
 export interface QuoteDraft {
   schemaVersion: 1;
   sessionId: string;
@@ -65,6 +70,7 @@ export interface QuoteDraft {
   productType: QuoteDraftProductType;
   customerType: CustomerType;
   scenarios: QuoteScenarioDetails;
+  customRates: QuoteDraftCustomRates;
   optionsTotalPrice?: number;
   totalVehiclePrice?: number;
 }
@@ -94,6 +100,13 @@ function normalizeSelectedOptionIds(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+function normalizeCustomRates(value: unknown): QuoteDraftCustomRates {
+  if (!isRecord(value)) return { depositRate: 0, prepayRate: 0 };
+  const depositRate = typeof value.depositRate === "number" ? value.depositRate : 0;
+  const prepayRate = typeof value.prepayRate === "number" ? value.prepayRate : 0;
+  return { depositRate, prepayRate };
+}
+
 function normalizeDraft(value: unknown, expectedSessionId: string): QuoteDraft | null {
   if (!isRecord(value)) return null;
   if (value.sessionId !== expectedSessionId) return null;
@@ -120,6 +133,7 @@ function normalizeDraft(value: unknown, expectedSessionId: string): QuoteDraft |
     productType: normalizeProductType(value.productType),
     customerType,
     scenarios: value.scenarios as unknown as QuoteScenarioDetails,
+    customRates: normalizeCustomRates(value.customRates),
     optionsTotalPrice:
       typeof value.optionsTotalPrice === "number" ? value.optionsTotalPrice : undefined,
     totalVehiclePrice:
