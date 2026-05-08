@@ -254,111 +254,99 @@ function QuotationsContent() {
     <div className="relative flex flex-col h-full bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm rounded-[16px]">
 
       {/* 1. 상단 KPI & 헤더 */}
-      <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 shrink-0 flex items-center justify-between z-10">
+      <div className="bg-white border-b border-[#E8EAF0] px-4 md:px-6 py-4 shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#F4F5F8] rounded-[8px] text-[#000666]">
-            <MessageSquare size={20} strokeWidth={2.5} />
+          <div className="p-2 bg-[#F4F5F8] rounded-[8px] text-[#000666] shrink-0">
+            <MessageSquare size={18} strokeWidth={2.5} />
           </div>
-          <div>
-            <h1 className="text-[18px] font-bold text-[#1A1A2E]">견적 데이터 실시간 현황</h1>
-            <p className="text-[12px] text-[#6B7399] mt-1">이번 달 접수된 모든 견적 건의 진행 상태 및 히스토리 요약</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[16px] md:text-[18px] font-bold text-[#1A1A2E]">견적 데이터 실시간 현황</h1>
+            <p className="text-[11px] text-[#6B7399] mt-0.5 truncate hidden sm:block">이번 달 접수된 모든 견적 건의 진행 상태 및 히스토리 요약</p>
           </div>
-        </div>
-        <div className="flex gap-4">
-          <KPIMini label="전체 누적" value={quotes.length.toString()} highlight />
-          <div className="w-[1px] h-10 bg-[#E8EAF0]" />
-          <KPIMini label="상담 대기" value={quotes.filter(q => q.status === "NEW").length.toString()} color="text-slate-600" />
-          <KPIMini label="상담 진행" value={quotes.filter(q => q.status === "IN_PROGRESS").length.toString()} color="text-blue-600" />
-          <KPIMini label="계약 완료" value={quotes.filter(q => q.status === "CONVERTED").length.toString()} color="text-emerald-600" />
+          <div className="flex items-center gap-2 shrink-0 overflow-x-auto scrollbar-hide">
+            <KPIMini label="전체" value={quotes.length.toString()} highlight />
+            <div className="w-[1px] h-8 bg-[#E8EAF0]" />
+            <KPIMini label="대기" value={quotes.filter(q => q.status === "NEW").length.toString()} color="text-slate-600" />
+            <div className="hidden sm:block w-[1px] h-8 bg-[#E8EAF0]" />
+            <KPIMini label="진행" value={quotes.filter(q => q.status === "IN_PROGRESS").length.toString()} color="text-blue-600" />
+            <div className="hidden sm:block w-[1px] h-8 bg-[#E8EAF0]" />
+            <KPIMini label="완료" value={quotes.filter(q => q.status === "CONVERTED").length.toString()} color="text-emerald-600" />
+          </div>
         </div>
       </div>
 
       {/* 2. 툴바 */}
-      <div className="px-6 py-3 bg-[#FAFBFF] border-b border-[#E8EAF0] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          {/* 검색 */}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0]" />
+      <div className="px-4 md:px-6 py-3 bg-[#FAFBFF] border-b border-[#E8EAF0] flex flex-col md:flex-row md:items-center gap-2 shrink-0">
+        {/* 상단 행: 검색 + 내보내기 */}
+        <div className="flex items-center gap-2 flex-1">
+          <div className="relative flex-1 md:flex-none md:w-[220px]">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0]" />
             <input
               type="text" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="고객명, 차량명, 전화번호 검색"
-              className="w-[240px] pl-9 pr-4 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] outline-none focus:border-[#C0C5DC] text-[#1A1A2E] transition-colors shadow-sm"
+              placeholder="고객명, 차량명, 전화번호"
+              className="w-full pl-8 pr-3 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] outline-none focus:border-[#C0C5DC] text-[#1A1A2E] transition-colors shadow-sm"
             />
           </div>
-          {/* 상태 탭 필터 */}
-          <div className="flex bg-white rounded-[6px] border border-[#E8EAF0] p-1 shadow-sm">
+          <div className="flex items-center gap-1.5 ml-auto md:ml-0">
+            <span className="text-[11px] text-[#9BA4C0] hidden sm:block whitespace-nowrap">
+              {filteredQuotes.length}/{quotes.length}건{selectedIds.size > 0 && ` · ${selectedIds.size}건 선택`}
+            </span>
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#000666] text-white border border-transparent shadow-sm rounded-[6px] text-[11px] font-medium hover:opacity-90 transition-opacity whitespace-nowrap shrink-0"
+            >
+              <Download size={12} />
+              {selectedIds.size > 0 ? `${selectedIds.size}건` : "엑셀"} 다운로드
+            </button>
+          </div>
+        </div>
+
+        {/* 하단 행: 필터 탭들 (가로 스크롤) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
+          <div className="flex bg-white rounded-[6px] border border-[#E8EAF0] p-0.5 shadow-sm shrink-0">
             {(["전체", ...STATUS_LIST] as const).map(st => (
-              <button
-                key={st} onClick={() => setStatusFilter(st)}
-                className={cn(
-                  "px-3 py-1 text-[11px] font-medium rounded-[4px] transition-colors",
+              <button key={st} onClick={() => setStatusFilter(st)}
+                className={cn("px-2.5 py-1 text-[11px] font-medium rounded-[4px] transition-colors whitespace-nowrap",
                   statusFilter === st ? "bg-[#F4F5F8] text-[#1A1A2E]" : "text-[#9BA4C0] hover:text-[#6B7399]"
-                )}
-              >{st}</button>
+                )}>{st}</button>
             ))}
           </div>
-          
-          {/* 계정 유형 필터 */}
-          <div className="flex bg-white rounded-[6px] border border-[#E8EAF0] p-1 shadow-sm">
+          <div className="flex bg-white rounded-[6px] border border-[#E8EAF0] p-0.5 shadow-sm shrink-0">
             {(["전체", "Member", "Guest"] as const).map(ut => (
-              <button
-                key={ut} onClick={() => setUserTypeFilter(ut)}
-                className={cn(
-                  "px-3 py-1 text-[11px] font-medium rounded-[4px] transition-colors",
+              <button key={ut} onClick={() => setUserTypeFilter(ut)}
+                className={cn("px-2.5 py-1 text-[11px] font-medium rounded-[4px] transition-colors whitespace-nowrap",
                   userTypeFilter === ut ? "bg-[#000666] text-white" : "text-[#9BA4C0] hover:text-[#6B7399]"
-                )}
-              >
-                {ut === "전체" ? "계정전체" : ut === "Member" ? "회원" : "비회원"}
+                )}>
+                {ut === "전체" ? "전체" : ut === "Member" ? "회원" : "비회원"}
               </button>
             ))}
           </div>
-
-          {/* 견적 방식 필터 */}
-          <div className="flex bg-white rounded-[6px] border border-[#E8EAF0] p-1 shadow-sm">
+          <div className="flex bg-white rounded-[6px] border border-[#E8EAF0] p-0.5 shadow-sm shrink-0">
             {(["전체", "AI", "DETAIL"] as const).map(qt => (
-              <button
-                key={qt} onClick={() => setQuoteTypeFilter(qt)}
-                className={cn(
-                  "px-3 py-1 text-[11px] font-medium rounded-[4px] transition-colors",
+              <button key={qt} onClick={() => setQuoteTypeFilter(qt)}
+                className={cn("px-2.5 py-1 text-[11px] font-medium rounded-[4px] transition-colors whitespace-nowrap",
                   quoteTypeFilter === qt ? "bg-[#6066EE] text-white" : "text-[#9BA4C0] hover:text-[#6B7399]"
-                )}
-              >
-                {qt === "전체" ? "방식전체" : qt === "AI" ? "AI추천" : "세부견적"}
+                )}>
+                {qt === "전체" ? "방식전체" : qt === "AI" ? "AI" : "세부"}
               </button>
             ))}
           </div>
-
-          {/* 상세 필터 버튼 */}
           <button
             onClick={() => setFilterPanelOpen(o => !o)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 border shadow-sm rounded-[6px] text-[12px] font-medium transition-colors",
+              "flex items-center gap-1 px-2.5 py-2 border shadow-sm rounded-[6px] text-[11px] font-medium transition-colors shrink-0 whitespace-nowrap",
               filterPanelOpen || activeFilterCount > 0
                 ? "bg-[#000666] text-white border-[#000666]"
                 : "bg-white border-[#E8EAF0] text-[#4A5270] hover:bg-[#F8F9FC]"
             )}
           >
-            <SlidersHorizontal size={13} />
-            상세 필터
+            <SlidersHorizontal size={12} />
+            필터
             {activeFilterCount > 0 && (
-              <span className="ml-1 w-4 h-4 rounded-full bg-white text-[#000666] text-[10px] font-bold flex items-center justify-center">
+              <span className="ml-0.5 w-4 h-4 rounded-full bg-white text-[#000666] text-[10px] font-bold flex items-center justify-center">
                 {activeFilterCount}
               </span>
             )}
-          </button>
-        </div>
-
-        <div className="flex gap-2 items-center">
-          <span className="text-[11px] text-[#9BA4C0]">
-            {filteredQuotes.length}/{quotes.length}건
-            {selectedIds.size > 0 && ` · ${selectedIds.size}건 선택`}
-          </span>
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[#000666] text-white border border-transparent shadow-sm rounded-[6px] text-[12px] font-medium hover:opacity-90 transition-opacity"
-          >
-            <Download size={13} />
-            {selectedIds.size > 0 ? `선택 ${selectedIds.size}건 엑셀` : "전체 엑셀"} 다운로드
           </button>
         </div>
       </div>
@@ -373,7 +361,7 @@ function QuotationsContent() {
             transition={{ duration: 0.2 }}
             className="overflow-hidden shrink-0"
           >
-            <div className="bg-[#F0F2F8] border-b border-[#E8EAF0] px-6 py-4 flex items-end gap-6 flex-wrap">
+            <div className="bg-[#F0F2F8] border-b border-[#E8EAF0] px-4 md:px-6 py-4 flex items-end gap-4 flex-wrap">
               {/* 브랜드 */}
               <div className="flex flex-col gap-1.5 min-w-[160px]">
                 <label className="text-[11px] font-semibold text-[#6B7399] uppercase tracking-wider">브랜드</label>
@@ -438,109 +426,142 @@ function QuotationsContent() {
         )}
       </AnimatePresence>
 
-      {/* 4. 테이블 */}
+      {/* 4. 콘텐츠 영역 */}
       <div className="flex-1 overflow-auto bg-white min-h-0 relative scrollbar-hide">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-[#FAFBFF] sticky top-0 z-10 border-b border-[#E8EAF0] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <tr>
-              <th className="py-3 px-4 w-[40px] font-medium text-center">
-                <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === filteredQuotes.length && filteredQuotes.length > 0} className="w-4 h-4 rounded cursor-pointer" />
-              </th>
-              <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">견적 ID</th>
-              <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">차량 정보</th>
-              <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">고객 (연락처)</th>
-              <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">월 납입금</th>
-              <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">금융사</th>
-              <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-center">유형</th>
-              <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">상태</th>
-              <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">접수일자</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#F0F2F8]">
-              {filteredQuotes.length === 0 ? (
-                <tr><td colSpan={9} className="py-20 text-center text-[13px] text-[#9BA4C0]">해당하는 견적 데이터가 없습니다.</td></tr>
-              ) : filteredQuotes.map(q => {
-              const isSelected = selectedIds.has(q.id);
-              const uiStatus = STATUS_MAP[q.status] || "상담대기";
-              const SStyle = STATUS_STYLE[uiStatus];
-              const SIcon = SStyle?.icon || Clock;
-              return (
-                <tr
-                  key={q.id}
-                  onClick={() => setDrawerQuote(q)}
-                  className={cn("group cursor-pointer transition-colors hover:bg-[#F8F9FC]", isSelected && "bg-[#F4F5F8]")}
-                >
-                  <td className="py-4 px-4 text-center">
-                    <input type="checkbox" checked={isSelected} onClick={e => toggleSelect(q.id, e)} onChange={() => {}} className="w-4 h-4 rounded cursor-pointer" />
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className="text-[12px] font-bold text-[#1A1A2E] bg-slate-50 px-2 py-1 rounded-[4px] font-mono group-hover:bg-white">{q.id.slice(-8)}</span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <p className="text-[13px] font-bold text-[#1A1A2E]">{q.vehicleName}</p>
-                    <div className="flex flex-col gap-0.5 mt-0.5">
-                      <p className="text-[11px] text-[#6B7399] font-medium">{q.trimName}</p>
-                    </div>
-                  </td>
-                   <td className="py-4 px-4 group/user">
-                    <div className="inline-flex items-center gap-1">
-                      {q.userType === "Member" ? (
-                        <Link 
-                          href={`/admin/users?search=${encodeURIComponent(q.customerName || "")}`}
-                          className="inline-flex items-center gap-1 group/link"
-                        >
-                          <div>
-                            <p className="text-[13px] font-bold text-[#1A1A2E] group-hover/link:text-[#000666] transition-colors">{q.customerName || "고객"}</p>
-                            <p className="text-[11px] text-[#6B7399] mt-0.5">{q.phone || "-"}</p>
+        {filteredQuotes.length === 0 ? (
+          <div className="py-20 text-center text-[13px] text-[#9BA4C0]">해당하는 견적 데이터가 없습니다.</div>
+        ) : (
+          <>
+            {/* ── 모바일 카드 뷰 ── */}
+            <div className="md:hidden divide-y divide-[#F0F2F8]">
+              {filteredQuotes.map(q => {
+                const isSelected = selectedIds.has(q.id);
+                const uiStatus = STATUS_MAP[q.status] || "상담대기";
+                const SStyle = STATUS_STYLE[uiStatus];
+                const SIcon = SStyle?.icon || Clock;
+                return (
+                  <motion.div
+                    key={q.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    onClick={() => setDrawerQuote(q)}
+                    className={cn("p-4 cursor-pointer active:bg-[#F8F9FC] transition-colors", isSelected && "bg-[#F4F5F8]")}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <input type="checkbox" checked={isSelected} onClick={e => toggleSelect(q.id, e)} onChange={() => {}} className="mt-1 w-4 h-4 rounded cursor-pointer shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-bold text-[#1A1A2E] truncate">{q.vehicleName}</p>
+                            <p className="text-[11px] text-[#6B7399] truncate">{q.trimName}</p>
                           </div>
-                          <ChevronRight size={12} className="text-[#9BA4C0] opacity-0 group-hover/link:opacity-100 -translate-x-1 group-hover/link:translate-x-0 transition-all" />
-                        </Link>
-                      ) : (
-                        <div>
-                          <p className="text-[13px] font-bold text-[#9BA4C0]">비회원</p>
-                          <p className="text-[11px] text-[#D0D5E8] mt-0.5">-</p>
+                          <p className="text-[14px] font-bold text-[#000666] shrink-0 whitespace-nowrap">{(q.monthlyPayment / 10000).toFixed(0)}만원</p>
                         </div>
-                      )}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold", SStyle?.bg, SStyle?.text)}>
+                            <SIcon size={10} strokeWidth={2.5} /> {uiStatus}
+                          </div>
+                          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", q.quoteType === "AI" ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600")}>
+                            {q.quoteType === "AI" ? "AI" : "세부"}
+                          </span>
+                          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", q.userType === "Member" ? "bg-indigo-50 text-indigo-600" : "bg-slate-50 text-slate-500")}>
+                            {q.userType === "Member" ? "회원" : "비회원"}
+                          </span>
+                          {q.customerName && <span className="text-[11px] text-[#6B7399] truncate max-w-[100px]">{q.customerName}</span>}
+                          <span className="text-[11px] text-[#B0B8D0] ml-auto whitespace-nowrap">{new Date(q.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
                     </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className="text-[13px] font-bold text-[#000666] bg-blue-50/50 px-2.5 py-1 rounded-[4px]">{q.monthlyPayment.toLocaleString()} 원</span>
-                  </td>
-                  <td className="py-4 px-4 text-[12px] font-medium text-[#4A5270]">{q.vehicleBrand}</td>
-                  <td className="py-4 px-4">
-                    <div className="flex flex-col gap-1.5 items-center">
-                      <span className={cn(
-                        "px-2 py-0.5 rounded text-[10px] font-bold w-14 text-center",
-                        q.userType === "Member" ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : "bg-slate-50 text-slate-500 border border-slate-100"
-                      )}>
-                        {q.userType === "Member" ? "회원" : "비회원"}
-                      </span>
-                      <span className={cn(
-                        "px-2 py-0.5 rounded text-[10px] font-bold w-14 text-center",
-                        q.quoteType === "AI" ? "bg-purple-50 text-purple-600 border border-purple-100" : "bg-blue-50 text-blue-600 border border-blue-100"
-                      )}>
-                        {q.quoteType === "AI" ? "AI추천" : "세부견적"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", SStyle?.bg || "bg-gray-100", SStyle?.text || "text-gray-600")}>
-                      <SIcon size={11} strokeWidth={2.5} /> {uiStatus}
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 text-[12px] text-[#6B7399]">{new Date(q.createdAt).toLocaleDateString()}</td>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* ── 데스크탑 테이블 뷰 ── */}
+            <table className="hidden md:table w-full min-w-[800px] text-left border-collapse">
+              <thead className="bg-[#FAFBFF] sticky top-0 z-10 border-b border-[#E8EAF0] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <tr>
+                  <th className="py-3 px-4 w-[40px] font-medium text-center">
+                    <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === filteredQuotes.length && filteredQuotes.length > 0} className="w-4 h-4 rounded cursor-pointer" />
+                  </th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">견적 ID</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">차량 정보</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">고객 (연락처)</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">월 납입금</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">금융사</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-center">유형</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">상태</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">접수일자</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <div className="h-20 shrink-0" /> {/* 리스트 끝 여백 */}
+              </thead>
+              <tbody className="divide-y divide-[#F0F2F8]">
+                {filteredQuotes.map(q => {
+                  const isSelected = selectedIds.has(q.id);
+                  const uiStatus = STATUS_MAP[q.status] || "상담대기";
+                  const SStyle = STATUS_STYLE[uiStatus];
+                  const SIcon = SStyle?.icon || Clock;
+                  return (
+                    <tr key={q.id} onClick={() => setDrawerQuote(q)} className={cn("group cursor-pointer transition-colors hover:bg-[#F8F9FC]", isSelected && "bg-[#F4F5F8]")}>
+                      <td className="py-4 px-4 text-center">
+                        <input type="checkbox" checked={isSelected} onClick={e => toggleSelect(q.id, e)} onChange={() => {}} className="w-4 h-4 rounded cursor-pointer" />
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="text-[12px] font-bold text-[#1A1A2E] bg-slate-50 px-2 py-1 rounded-[4px] font-mono group-hover:bg-white">{q.id.slice(-8)}</span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <p className="text-[13px] font-bold text-[#1A1A2E]">{q.vehicleName}</p>
+                        <p className="text-[11px] text-[#6B7399] font-medium mt-0.5">{q.trimName}</p>
+                      </td>
+                      <td className="py-4 px-4">
+                        {q.userType === "Member" ? (
+                          <Link href={`/admin/users?search=${encodeURIComponent(q.customerName || "")}`} className="inline-flex items-center gap-1 group/link">
+                            <div>
+                              <p className="text-[13px] font-bold text-[#1A1A2E] group-hover/link:text-[#000666] transition-colors">{q.customerName || "고객"}</p>
+                              <p className="text-[11px] text-[#6B7399] mt-0.5">{q.phone || "-"}</p>
+                            </div>
+                            <ChevronRight size={12} className="text-[#9BA4C0] opacity-0 group-hover/link:opacity-100 transition-all" />
+                          </Link>
+                        ) : (
+                          <div>
+                            <p className="text-[13px] font-bold text-[#9BA4C0]">비회원</p>
+                            <p className="text-[11px] text-[#D0D5E8] mt-0.5">-</p>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="text-[13px] font-bold text-[#000666] bg-blue-50/50 px-2.5 py-1 rounded-[4px]">{q.monthlyPayment.toLocaleString()} 원</span>
+                      </td>
+                      <td className="py-4 px-4 text-[12px] font-medium text-[#4A5270]">{q.vehicleBrand}</td>
+                      <td className="py-4 px-4">
+                        <div className="flex flex-col gap-1.5 items-center">
+                          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold w-14 text-center", q.userType === "Member" ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : "bg-slate-50 text-slate-500 border border-slate-100")}>
+                            {q.userType === "Member" ? "회원" : "비회원"}
+                          </span>
+                          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold w-14 text-center", q.quoteType === "AI" ? "bg-purple-50 text-purple-600 border border-purple-100" : "bg-blue-50 text-blue-600 border border-blue-100")}>
+                            {q.quoteType === "AI" ? "AI추천" : "세부견적"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", SStyle?.bg || "bg-gray-100", SStyle?.text || "text-gray-600")}>
+                          <SIcon size={11} strokeWidth={2.5} /> {uiStatus}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-[12px] text-[#6B7399]">{new Date(q.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
+        )}
+        <div className="h-20 shrink-0" />
       </div>
       {/* 하단 페이드 오버레이 */}
       <div className="absolute bottom-[48px] left-0 right-0 h-16 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none z-10 opacity-90" />
 
-      {/* 하단 상태 바 (페이지네이션 버튼 제거) */}
-      <div className="px-6 py-4 bg-[#FAFBFF] border-t border-[#E8EAF0] flex items-center justify-between shrink-0 z-20">
+      {/* 하단 상태 바 */}
+      <div className="px-4 md:px-6 py-3 bg-[#FAFBFF] border-t border-[#E8EAF0] flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-4">
           <span className="text-[12px] text-[#6B7399]">전체 <strong className="text-[#1A1A2E]">{filteredQuotes.length}</strong>개의 견적이 접수되었습니다.</span>
         </div>
@@ -581,7 +602,7 @@ function QuotationsContent() {
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 bottom-0 w-[420px] bg-white z-50 flex flex-col border-l border-[#E8EAF0] shadow-[-10px_0_30px_rgba(0,0,0,0.08)]"
+              className="absolute top-0 right-0 bottom-0 w-full sm:w-[420px] bg-white z-50 flex flex-col border-l border-[#E8EAF0] shadow-[-10px_0_30px_rgba(0,0,0,0.08)]"
             >
               <div className="flex items-center justify-between px-6 py-5 border-b border-[#E8EAF0] bg-[#FAFBFF]">
                 <div>

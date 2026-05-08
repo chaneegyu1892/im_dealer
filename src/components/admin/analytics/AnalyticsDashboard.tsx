@@ -68,7 +68,7 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
 
   return (
     <div
-      className="flex flex-col h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm"
+      className="flex flex-col h-full rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm"
       style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}
     >
       {/* 헤더 */}
@@ -87,9 +87,9 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
       </div>
 
       {/* 내용 */}
-      <div className="flex-1 p-5 min-h-0 flex flex-col gap-5">
+      <div className="flex-1 p-4 md:p-5 min-h-0 overflow-y-auto flex flex-col gap-4 md:gap-5">
         {/* KPI 행 */}
-        <div className="flex gap-4 shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 shrink-0">
           <KPICard
             title="총 견적 조회"
             value={formatKRWCount(totalQuoteViews)}
@@ -111,9 +111,9 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
         </div>
 
         {/* 메인 차트 + 사이드 패널 */}
-        <div className="flex-1 min-h-0 flex gap-5">
+        <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
           {/* 일간 트렌드 */}
-          <section className="bg-white rounded-[10px] border border-[#E8EAF0] p-6 flex flex-col flex-1 shadow-sm min-w-0">
+          <section className="bg-white rounded-[10px] border border-[#E8EAF0] p-5 flex flex-col flex-1 shadow-sm min-w-0 min-h-[300px]">
             <div className="flex items-center justify-between shrink-0 mb-6">
               <div>
                 <h2 className="text-[14px] font-bold text-[#1A1A2E]">일간 견적 조회 트렌드</h2>
@@ -185,9 +185,9 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
           </section>
 
           {/* 사이드: 리더보드 + 파워트레인 */}
-          <div className="flex flex-col gap-5 w-[400px] shrink-0">
+          <div className="flex flex-col gap-4 md:gap-5 w-full lg:w-[400px] lg:shrink-0">
             {/* 차량별 순위 */}
-            <section className="bg-white rounded-[10px] border border-[#E8EAF0] p-5 flex flex-col flex-[1.4] shadow-sm min-h-0 overflow-hidden">
+            <section className="bg-white rounded-[10px] border border-[#E8EAF0] p-5 flex flex-col min-h-[240px] lg:flex-[1.4] shadow-sm overflow-hidden">
               <div className="shrink-0 mb-4">
                 <h2 className="text-[14px] font-bold text-[#1A1A2E]">차량별 견적 조회 순위</h2>
                 <p className="text-[11px] text-[#6B7399] mt-0.5">상위 5개 모델 랭킹</p>
@@ -228,7 +228,7 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
             </section>
 
             {/* 파워트레인 분포 */}
-            <section className="bg-white rounded-[10px] border border-[#E8EAF0] p-5 flex items-center flex-[1] shadow-sm min-h-0">
+            <section className="bg-white rounded-[10px] border border-[#E8EAF0] p-5 flex items-center shadow-sm">
               <div className="flex-1">
                 <h2 className="text-[14px] font-bold text-[#1A1A2E] mb-1">파워트레인 분포</h2>
                 <p className="text-[11px] text-[#6B7399]">등록 트림 기준</p>

@@ -76,15 +76,15 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
   }, [selectedId, closeDrawer]);
 
   return (
-    <div className="p-5 space-y-5">
+    <div className="space-y-4">
       {/* 헤더 */}
       <div>
-        <h1 className="text-[22px] font-bold text-[#1A1A2E]">견적 데이터</h1>
+        <h1 className="text-[20px] md:text-[22px] font-bold text-[#1A1A2E]">견적 데이터</h1>
         <p className="text-[13px] text-[#9BA4C0] mt-0.5">총 {total}건</p>
       </div>
 
       {/* KPI */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
         <div className="bg-white rounded-[12px] border border-[#E8EAF0] p-4 shadow-sm">
           <p className="text-[11px] text-[#6B7399] mb-1">전체 누적</p>
           <p className="text-[24px] font-bold text-[#1A1A2E]">
@@ -108,8 +108,8 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
       </div>
 
       {/* 검색 + 상태 필터 */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative w-[260px]">
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:flex-wrap">
+        <div className="relative w-full sm:w-[260px]">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B0B8D0]" />
           <input
             type="text"
@@ -119,7 +119,7 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
             className="w-full pl-8 pr-3 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] outline-none focus:border-[#000666] transition-colors placeholder:text-[#B0B8D0]"
           />
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={() => setStatusFilter("ALL")}
             className={cn("px-2.5 py-1 rounded-[6px] text-[11px] font-semibold transition-all border", statusFilter === "ALL" ? "bg-[#000666] text-white border-[#000666]" : "bg-[#F4F5F8] text-[#9BA4C0] border-transparent")}
@@ -143,78 +143,96 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
         </div>
       </div>
 
-      {/* 테이블 */}
-      <div className="bg-white rounded-[14px] border border-[#E8EAF0] overflow-hidden shadow-sm">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[#F0F2F8] bg-[#FAFBFF]">
-              {["차량", "트림", "계약조건", "월 납입금", "계약유형", "고객유형", "접수일"].map((h) => (
-                <th
-                  key={h}
-                  className="px-4 py-3 text-left text-[11px] font-semibold text-[#6B7399] uppercase tracking-wide"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#F0F2F8]">
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-[13px] text-[#9BA4C0]">
-                  견적 데이터가 없습니다
-                </td>
-              </tr>
-            ) : (
-              filtered.map((q) => (
-                <tr
-                  key={q.id}
-                  onClick={() => setSelectedId(q.id)}
-                  className={cn(
-                    "cursor-pointer hover:bg-[#FAFBFF] transition-colors",
-                    selectedId === q.id && "bg-[#F0F2FF]"
-                  )}
-                >
-                  <td className="px-4 py-3">
-                    <p className="text-[13px] font-medium text-[#1A1A2E]">
+      {/* 모바일 카드 뷰 */}
+      {filtered.length === 0 ? (
+        <p className="text-center text-[13px] text-[#9BA4C0] py-10">견적 데이터가 없습니다</p>
+      ) : (
+        <>
+          <div className="md:hidden space-y-2">
+            {filtered.map((q) => (
+              <div
+                key={q.id}
+                onClick={() => setSelectedId(q.id)}
+                className={cn(
+                  "bg-white rounded-[12px] border border-[#E8EAF0] p-4 cursor-pointer transition-colors active:bg-[#F8F9FF]",
+                  selectedId === q.id && "border-[#000666] bg-[#F8F9FF]"
+                )}
+              >
+                <div className="flex items-start justify-between gap-2 mb-2.5">
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold text-[#1A1A2E] truncate">
                       {q.vehicleBrand} {q.vehicleName}
                     </p>
-                  </td>
-                  <td className="px-4 py-3 text-[12px] text-[#4A5270]">{q.trimName}</td>
-                  <td className="px-4 py-3 text-[12px] text-[#6B7399]">
+                    <p className="text-[12px] text-[#6B7399] truncate mt-0.5">{q.trimName}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[15px] font-bold text-[#000666]">{formatKRWMan(q.monthlyPayment)}</p>
+                    <p className="text-[10px] text-[#9BA4C0]">월 납입금</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-[4px]", q.contractType === "인수형" ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600")}>
+                    {q.contractType}
+                  </span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-[4px] bg-[#F4F5F8] text-[#4A5270]">
+                    {q.userType === "Member" ? "회원" : "비회원"}
+                  </span>
+                  <span className="text-[11px] text-[#9BA4C0]">
                     {q.contractMonths}개월 / {(q.annualMileage / 10000).toFixed(0)}만km
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-[14px] font-bold text-[#000666]">
-                      {formatKRWMan(q.monthlyPayment)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        "text-[10px] font-medium px-2 py-1 rounded-[4px]",
-                        q.contractType === "인수형"
-                          ? "bg-purple-50 text-purple-600"
-                          : "bg-blue-50 text-blue-600"
-                      )}
-                    >
-                      {q.contractType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-[10px] font-medium px-2 py-1 rounded-[4px] bg-[#F4F5F8] text-[#4A5270]">
-                      {q.userType === "Member" ? "회원" : "비회원"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-[12px] text-[#9BA4C0]">
-                    {formatDateKR(q.createdAt)}
-                  </td>
+                  </span>
+                  <span className="text-[11px] text-[#B0B8D0] ml-auto">{formatDateKR(q.createdAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 데스크탑 테이블 뷰 */}
+          <div className="hidden md:block bg-white rounded-[14px] border border-[#E8EAF0] overflow-x-auto shadow-sm">
+            <table className="w-full min-w-[640px]">
+              <thead>
+                <tr className="border-b border-[#F0F2F8] bg-[#FAFBFF]">
+                  {["차량", "트림", "계약조건", "월 납입금", "계약유형", "고객유형", "접수일"].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-[#6B7399] uppercase tracking-wide">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-[#F0F2F8]">
+                {filtered.map((q) => (
+                  <tr
+                    key={q.id}
+                    onClick={() => setSelectedId(q.id)}
+                    className={cn("cursor-pointer hover:bg-[#FAFBFF] transition-colors", selectedId === q.id && "bg-[#F0F2FF]")}
+                  >
+                    <td className="px-4 py-3">
+                      <p className="text-[13px] font-medium text-[#1A1A2E]">{q.vehicleBrand} {q.vehicleName}</p>
+                    </td>
+                    <td className="px-4 py-3 text-[12px] text-[#4A5270]">{q.trimName}</td>
+                    <td className="px-4 py-3 text-[12px] text-[#6B7399]">
+                      {q.contractMonths}개월 / {(q.annualMileage / 10000).toFixed(0)}만km
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-[14px] font-bold text-[#000666]">{formatKRWMan(q.monthlyPayment)}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={cn("text-[10px] font-medium px-2 py-1 rounded-[4px]", q.contractType === "인수형" ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600")}>
+                        {q.contractType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-[10px] font-medium px-2 py-1 rounded-[4px] bg-[#F4F5F8] text-[#4A5270]">
+                        {q.userType === "Member" ? "회원" : "비회원"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-[12px] text-[#9BA4C0]">{formatDateKR(q.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       {/* Backdrop */}
       {selectedQuote && (
@@ -231,7 +249,7 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
           role="dialog"
           aria-modal="true"
           aria-label="견적 상세"
-          className="fixed top-0 right-0 w-[400px] h-full bg-white border-l border-[#E8EAF0] shadow-xl z-50 overflow-y-auto"
+          className="fixed top-0 right-0 w-full sm:w-[400px] h-full bg-white border-l border-[#E8EAF0] shadow-xl z-50 overflow-y-auto"
         >
           <div className="p-5 border-b border-[#E8EAF0] flex items-center justify-between">
             <h3 className="text-[15px] font-bold text-[#1A1A2E]">견적 상세</h3>

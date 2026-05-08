@@ -30,7 +30,7 @@ export function VehicleList({
   onDelete,
 }: VehicleListProps) {
   return (
-    <div className="w-[360px] border-r border-[#E8EAF0] flex flex-col shrink-0 bg-white">
+    <div className="w-full md:w-[360px] border-r border-[#E8EAF0] flex flex-col shrink-0 bg-white">
       <div className="p-4 border-b border-[#E8EAF0] flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-[14px] font-semibold text-[#1A1A2E] flex items-center gap-1.5">
@@ -84,7 +84,14 @@ export function VehicleList({
               >
                 <div className="w-16 h-12 bg-[#F8F9FC] rounded-[6px] border border-[#F0F2F8] overflow-hidden shrink-0 flex items-center justify-center">
                   {v.thumbnailUrl ? (
-	                    <Image src={v.thumbnailUrl} alt={v.name} width={64} height={48} className="w-full h-full object-cover" />
+                    <Image
+                      src={v.thumbnailUrl}
+                      alt={v.name}
+                      width={64}
+                      height={48}
+                      unoptimized={v.thumbnailUrl.startsWith("http")}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <Car size={16} className="text-[#D0D5E8]" strokeWidth={1.5} />
                   )}
@@ -107,18 +114,18 @@ export function VehicleList({
                       <span className="text-[#000666]">{formatKRWMan(v.basePrice)}</span>
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 max-md:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => { e.stopPropagation(); onEdit(v); }}
-                      className="p-1.5 rounded hover:bg-[#F0F2F8] text-[#9BA4C0] hover:text-[#000666]"
+                      className="p-1.5 rounded hover:bg-[#F0F2F8] text-[#9BA4C0] hover:text-[#000666] active:bg-[#F0F2F8]"
                     >
-                      <Pencil size={12} />
+                      <Pencil size={14} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(v); }}
-                      className="p-1.5 rounded hover:bg-red-50 text-[#9BA4C0] hover:text-red-500"
+                      className="p-1.5 rounded hover:bg-red-50 text-[#9BA4C0] hover:text-red-500 active:bg-red-50"
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>

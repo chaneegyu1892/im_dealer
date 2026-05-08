@@ -237,14 +237,14 @@ export default function RateInputForm({
   return (
     <div className="flex flex-col gap-4">
       {/* 헤더 */}
-      <div className="bg-white rounded-xl border border-[#E8EAF2] p-4 flex flex-wrap gap-4 items-end">
+      <div className="bg-white rounded-xl border border-[#E8EAF2] p-4 grid grid-cols-2 sm:grid-cols-2 md:flex md:flex-wrap gap-3 items-end">
         <div>
           <label className="text-xs text-[#9BA4C0] font-medium block mb-1">기준 주</label>
           <input
             type="date"
             value={weekOf}
             onChange={(e) => setWeekOf(e.target.value)}
-            className="border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
+            className="w-full border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
           />
         </div>
         <div>
@@ -257,7 +257,7 @@ export default function RateInputForm({
               const num = parseInt(e.target.value.replace(/,/g, ""), 10);
               if (!isNaN(num)) setMinVehiclePrice(num);
             }}
-            className="border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE] w-40"
+            className="w-full md:w-40 border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
           />
         </div>
         <div>
@@ -270,10 +270,10 @@ export default function RateInputForm({
               const num = parseInt(e.target.value.replace(/,/g, ""), 10);
               if (!isNaN(num)) setMaxVehiclePrice(num);
             }}
-            className="border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE] w-40"
+            className="w-full md:w-40 border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
           />
         </div>
-        <div className="flex-1">
+        <div className="col-span-2 sm:col-span-2 md:flex-1">
           <label className="text-xs text-[#9BA4C0] font-medium block mb-1">메모</label>
           <input
             type="text"

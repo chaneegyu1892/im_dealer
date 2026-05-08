@@ -70,7 +70,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
   });
 
   return (
-    <div className="p-5 space-y-5">
+    <div className="space-y-3 md:space-y-5">
       {/* 헤더 */}
       <div className="flex items-end justify-between">
         <div>
@@ -80,7 +80,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
       </div>
 
       {/* KPI 카드 */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         {STAT_CONFIG.map((cfg) => {
           const Icon = cfg.icon;
           const value = data.stats[cfg.key as keyof typeof data.stats];
@@ -120,7 +120,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-[#F0F2F8]">
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#F0F2F8]">
           {visibleCharts.map((chart) => (
             <div key={chart.id} className="p-5 flex flex-col min-h-[300px]">
               <p className="text-[13px] font-semibold text-[#1A1A2E] mb-0.5">{chart.title}</p>
@@ -134,7 +134,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
       </div>
 
       {/* 하단 4열 */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {/* 인기 차량 */}
         <div className="bg-white rounded-[12px] border border-[#E8EAF0] p-4 shadow-sm">
           <h3 className="text-[13px] font-semibold text-[#1A1A2E] mb-3 flex items-center gap-1.5">
@@ -189,7 +189,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
         </div>
 
         {/* 최근 활동 */}
-        <div className="col-span-2 bg-white rounded-[12px] border border-[#E8EAF0] p-4 shadow-sm">
+        <div className="sm:col-span-2 bg-white rounded-[12px] border border-[#E8EAF0] p-4 shadow-sm">
           <h3 className="text-[13px] font-semibold text-[#1A1A2E] mb-3 flex items-center gap-1.5">
             <Clock size={14} className="text-[#059669]" /> 최근 활동
           </h3>

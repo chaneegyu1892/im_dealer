@@ -296,7 +296,7 @@ export default function MemoPage() {
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 250 }}
-              className="fixed top-0 right-0 bottom-0 w-[500px] bg-white z-50 flex flex-col shadow-2xl"
+              className="fixed top-0 right-0 bottom-0 w-full sm:w-[500px] bg-white z-50 flex flex-col shadow-2xl"
             >
               <div className="flex items-center justify-between px-6 py-5 border-b border-[#F0F2F8]">
                 <h2 className="text-[16px] font-bold text-[#1A1A2E]">

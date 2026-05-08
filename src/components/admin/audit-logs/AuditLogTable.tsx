@@ -126,8 +126,8 @@ export function AuditLogTable({ logs, filter }: AuditLogTableProps) {
         </span>
       </div>
 
-      <div className="bg-white rounded-[8px] border border-[#E8EAF0] overflow-hidden">
-        <table className="w-full text-[13px]">
+      <div className="bg-white rounded-[8px] border border-[#E8EAF0] overflow-x-auto">
+        <table className="w-full min-w-[640px] text-[13px]">
           <thead>
             <tr className="bg-[#F8F9FC] border-b border-[#E8EAF0]">
               <th className="w-8 px-3 py-2.5"></th>

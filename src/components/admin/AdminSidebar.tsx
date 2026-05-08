@@ -70,7 +70,13 @@ const NAV: NavGroup[] = [
   },
 ];
 
-export function AdminSidebar({ admin }: { admin: any }) {
+interface AdminSidebarProps {
+  admin: any;
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function AdminSidebar({ admin, mobileOpen = false, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -93,8 +99,21 @@ export function AdminSidebar({ admin }: { admin: any }) {
   }
 
   return (
+    <>
+      {/* 모바일 백드롭 */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          onClick={onClose}
+        />
+      )}
     <aside
-      className="fixed left-0 top-0 bottom-0 w-[220px] flex flex-col z-50 select-none"
+      className={cn(
+        "fixed left-0 top-0 bottom-0 w-[220px] flex flex-col z-50 select-none",
+        "transition-transform duration-300 ease-in-out",
+        "md:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      )}
       style={{
         background: "#0D0D1F",
         borderRight: "1px solid rgba(255,255,255,0.06)",
@@ -129,6 +148,7 @@ export function AdminSidebar({ admin }: { admin: any }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onClose}
                   className={cn(
                     "flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] text-[13px] font-medium",
                     "transition-all duration-150 relative group",
@@ -179,5 +199,6 @@ export function AdminSidebar({ admin }: { admin: any }) {
         </button>
       </div>
     </aside>
+    </>
   );
 }

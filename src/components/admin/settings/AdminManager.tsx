@@ -69,7 +69,7 @@ export default function AdminManager() {
 
       <div className="grid grid-cols-1 gap-3">
         {admins.map((admin) => (
-          <div key={admin.id} className="bg-[#F8F9FC] border border-[#E8EAF0] rounded-2xl p-4 flex items-center justify-between">
+          <div key={admin.id} className="bg-[#F8F9FC] border border-[#E8EAF0] rounded-2xl p-4 flex flex-wrap items-center gap-3 justify-between">
             <div className="flex items-center gap-4">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${admin.isActive ? 'bg-[#6066EE] text-white' : 'bg-gray-100 text-gray-400'}`}>
                 {admin.name[0]}
@@ -102,7 +102,7 @@ export default function AdminManager() {
                 value={admin.role}
                 onChange={(e) => changeRole(admin.id, e.target.value)}
                 disabled={admin.id === me?.id}
-                className="text-xs px-2.5 py-1.5 border border-[#E8EAF0] rounded-xl focus:outline-none focus:border-[#6066EE] bg-white text-[#5A6080] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-xs px-2.5 py-1.5 border border-[#E8EAF0] rounded-xl focus:outline-none focus:border-[#6066EE] bg-white text-[#5A6080] font-medium disabled:opacity-50 disabled:cursor-not-allowed max-w-[180px] sm:max-w-none"
               >
                 <option value="superadmin">최고 관리자 (Super Admin)</option>
                 <option value="admin">관리자 (Admin)</option>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Trash2, Star, Save, MessageSquare } from "lucide-react";
+import { Search, Plus, Trash2, Star, Save, MessageSquare, ChevronLeft } from "lucide-react";
 import type {
   AdminReview,
   AdminReviewVehicleOption,
@@ -72,14 +72,10 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
   const [search, setSearch] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<string>("");
   const [visibilityFilter, setVisibilityFilter] = useState<"all" | "public" | "private">("all");
-  const [selectedId, setSelectedId] = useState<string | null>(initialReviews[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState<FormState>(
-    initialReviews[0] ? reviewToForm(initialReviews[0]) : EMPTY_FORM
-  );
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(
-    initialReviews[0] ? reviewToSelectedCustomer(initialReviews[0]) : null
-  );
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
   const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
@@ -189,10 +185,12 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
     ? maskAuthorName(form.authorRealName)
     : "—";
 
+  const showingForm = isCreating || !!selectedId;
+
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-[#F8F9FC]">
-      {/* 좌측: 목록 */}
-      <div className="w-[360px] shrink-0 border-r border-[#E8EAF2] bg-white flex flex-col">
+    <div className="flex h-full bg-[#F8F9FC]">
+      {/* 좌측: 목록 - 모바일에서 폼 열리면 숨김 */}
+      <div className={`${showingForm ? "max-md:hidden" : ""} w-full md:w-[360px] shrink-0 border-r border-[#E8EAF2] bg-white flex flex-col`}>
         <div className="p-5 border-b border-[#E8EAF2]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-[15px] font-semibold text-[#1A1A2E] flex items-center gap-2">
@@ -297,8 +295,18 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
         </div>
       </div>
 
-      {/* 우측: 편집 폼 */}
-      <div className="flex-1 overflow-y-auto p-8">
+      {/* 우측: 편집 폼 - 모바일에서 목록 상태면 숨김 */}
+      <div className={`${!showingForm ? "max-md:hidden" : ""} flex-1 overflow-y-auto p-4 md:p-8`}>
+        {/* 모바일 뒤로가기 */}
+        {showingForm && (
+          <button
+            type="button"
+            onClick={() => { setSelectedId(null); setIsCreating(false); }}
+            className="md:hidden flex items-center gap-1.5 text-[13px] font-medium text-[#6B7399] hover:text-[#1A1A2E] mb-4 transition-colors"
+          >
+            <ChevronLeft size={16} /> 목록으로
+          </button>
+        )}
         {!isCreating && !selectedId ? (
           <div className="h-full flex items-center justify-center text-[#9BA4C0] text-[13px]">
             후기를 선택하거나 새로 만드세요.
