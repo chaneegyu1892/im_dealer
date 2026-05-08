@@ -13,15 +13,15 @@ interface BrandListProps {
 export function BrandList({ brands, selected, onSelect }: BrandListProps) {
   const getLogoPath = (brandName: string) => {
     const mapping: Record<string, string> = {
-      "현대": "/images/logos/hyundai.svg",
-      "기아": "/images/logos/kia.svg",
-      "제네시스": "/images/logos/genesis.svg",
-      "KGM": "/images/logos/kgm.svg",
-      "쉐보레": "/images/logos/chevrolet.svg",
-      "르노": "/images/logos/renault.svg",
-      "BMW": "/images/logos/bmw.svg",
-      "벤츠": "/images/logos/mercedes.svg",
-      "테슬라": "/images/logos/tesla.svg",
+      "현대": "/images/vehicles/logos/hyundai.svg",
+      "기아": "/images/vehicles/logos/kia.svg",
+      "제네시스": "/images/vehicles/logos/genesis.svg",
+      "KGM": "/images/vehicles/logos/kgm.svg",
+      "쉐보레": "/images/vehicles/logos/chevrolet.svg",
+      "르노": "/images/vehicles/logos/renault.svg",
+      "BMW": "/images/vehicles/logos/bmw.svg",
+      "벤츠": "/images/vehicles/logos/mercedes.svg",
+      "테슬라": "/images/vehicles/logos/tesla.svg",
     };
     return mapping[brandName] || null;
   };
