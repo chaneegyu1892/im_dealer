@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { inventoryUpdateSchema } from "@/lib/validations/admin";
 import { logAdminAction } from "@/lib/audit";
 
@@ -11,10 +11,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getAdminSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { admin: session, error } = await requireRoleAtLeast("staff");
+    if (error) return error;
 
     const raw = await request.json();
     const parsed = inventoryUpdateSchema.safeParse(raw);
@@ -151,10 +149,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getAdminSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { admin: session, error } = await requireRoleAtLeast("staff");
+    if (error) return error;
 
     const { id } = await params;
     const before = await prisma.inventory.findUnique({ where: { id } });

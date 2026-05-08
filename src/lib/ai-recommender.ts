@@ -177,6 +177,28 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       if (input.purpose === "의전·임원용" && input.purposeDetail === "기사 운행") {
         if (v.category?.includes("대형") || v.category?.includes("세단")) score += 10;
       }
+      if (input.purpose === "첫차") {
+        const cat = v.category ?? "";
+        const price = defaultTrim.price;
+        if (input.purposeDetail === "면허 신규") {
+          // 운전 미숙 → 작고 다루기 쉬운 차 가산, 대형/픽업 감점
+          if (cat.includes("경차") || cat.includes("소형")) score += 8;
+          else if (cat === "SUV" && price < 35_000_000) score += 4;
+          else if (cat.includes("대형") || cat === "트럭" || cat === "밴") score -= 8;
+        }
+        // 가격 진입장벽 가산: 첫차는 보통 합리적 가격대 선호
+        if (price < 35_000_000) score += 3;
+      }
+      if (input.purpose === "레저·캠핑") {
+        const cat = v.category ?? "";
+        if (input.purposeDetail === "차박·캠핑") {
+          if (cat === "SUV" || cat.includes("대형") || cat === "밴") score += 10;
+          else if (cat.includes("세단") || cat.includes("경차")) score -= 5;
+        }
+        if (input.purposeDetail === "스포츠·레저장비") {
+          if (cat === "SUV" || cat.includes("해치백")) score += 6;
+        }
+      }
     }
 
     // (f) 예산 추가 답변 스코어링
@@ -235,6 +257,12 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     if (input.purpose === "화물·배달" && (v.category === "밴" || v.category === "트럭")) {
       reasons.push("화물 적재에 적합한 차량이에요");
       score += 5;
+    }
+    if (input.purpose === "첫차" && defaultTrim.price < 35_000_000) {
+      reasons.push("합리적인 가격대로 첫차에 부담 없어요");
+    }
+    if (input.purpose === "레저·캠핑" && (v.category === "SUV" || v.category?.includes("대형") || v.category === "밴")) {
+      reasons.push("넓은 적재공간으로 레저·캠핑에 적합해요");
     }
     if (input.industry === "법인" || input.industry === "개인사업자") {
       reasons.push("비용처리에 유리한 조건이에요");

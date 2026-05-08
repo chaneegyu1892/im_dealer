@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { getVehicleQuoteStats } from "@/lib/admin-queries";
 import { periodToSince, type CalcPeriod } from "@/lib/admin-queries/quote-calc-stats";
 
@@ -8,9 +8,8 @@ type Params = { params: Promise<{ id: string }> };
 const ALLOWED_PERIODS: CalcPeriod[] = ["7d", "30d", "all"];
 
 export async function GET(request: NextRequest, { params }: Params) {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const { id } = await params;
     const periodRaw = request.nextUrl.searchParams.get("period") ?? "30d";

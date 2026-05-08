@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { getAllReviewsForAdmin } from "@/lib/admin-queries";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicReviewSurfaces } from "@/lib/revalidate";
@@ -19,9 +19,8 @@ const reviewCreateSchema = z.object({
 });
 
 export async function GET() {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const data = await getAllReviewsForAdmin();
     return NextResponse.json({ success: true, data });
@@ -35,10 +34,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin: session, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const body = await request.json();
     const parsed = reviewCreateSchema.safeParse(body);

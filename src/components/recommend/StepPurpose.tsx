@@ -1,14 +1,20 @@
-import { PURPOSE_OPTIONS, PURPOSE_DETAIL_OPTIONS, PURPOSE_DETAIL_QUESTION } from "@/constants/recommend-options";
+import {
+  PURPOSE_DETAIL_OPTIONS,
+  PURPOSE_DETAIL_QUESTION,
+  getPurposeOptionsForIndustry,
+} from "@/constants/recommend-options";
 import { SelectionCard } from "./SelectionCard";
 
 interface StepPurposeProps {
+  industry: string;
   value: string;
   onChange: (value: string) => void;
   detail: string;
   onDetailChange: (value: string) => void;
 }
 
-export function StepPurpose({ value, onChange, detail, onDetailChange }: StepPurposeProps) {
+export function StepPurpose({ industry, value, onChange, detail, onDetailChange }: StepPurposeProps) {
+  const purposeOptions = getPurposeOptionsForIndustry(industry);
   const detailOptions = value ? PURPOSE_DETAIL_OPTIONS[value] ?? [] : [];
   const detailQuestion = value ? PURPOSE_DETAIL_QUESTION[value] : null;
 
@@ -24,7 +30,7 @@ export function StepPurpose({ value, onChange, detail, onDetailChange }: StepPur
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {PURPOSE_OPTIONS.map((opt) => (
+        {purposeOptions.map((opt) => (
           <SelectionCard
             key={opt.value}
             label={opt.label}

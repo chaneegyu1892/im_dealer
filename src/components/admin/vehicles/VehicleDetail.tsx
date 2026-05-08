@@ -31,6 +31,7 @@ export function VehicleDetail({ vehicle, onToggleVisibility }: VehicleDetailProp
               alt={vehicle.name}
               fill
               sizes="100vw"
+              unoptimized
               className="absolute inset-0 w-full h-full object-cover"
             />
           )}

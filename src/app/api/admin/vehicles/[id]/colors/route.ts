@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { vehicleColorCreateSchema } from "@/lib/validations/admin";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
@@ -9,10 +9,8 @@ type Params = { params: Promise<{ id: string }> };
 
 // ─── GET /api/admin/vehicles/[id]/colors ────────────────
 export async function GET(_request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const { id } = await params;
     const vehicle = await prisma.vehicle.findUnique({ where: { id }, select: { id: true } });
@@ -35,10 +33,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 // ─── POST /api/admin/vehicles/[id]/colors ───────────────
 export async function POST(request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin: session, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const { id } = await params;
     const body = await request.json();
