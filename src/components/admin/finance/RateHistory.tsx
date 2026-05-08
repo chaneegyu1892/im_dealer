@@ -39,21 +39,21 @@ export default function RateHistory({ sheets, onActivate, onDelete }: Props) {
             sheet.isActive ? "border-[#6066EE]" : "border-[#E8EAF2]"
           }`}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-[#1A1A2E]">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+              <span className="text-sm font-bold text-[#1A1A2E] whitespace-nowrap">
                 {formatKrDate(sheet.weekOf)} 주
               </span>
               {sheet.isActive ? (
-                <span className="text-xs px-2 py-0.5 bg-[#6066EE] text-white rounded-full">활성</span>
+                <span className="text-xs px-2 py-0.5 bg-[#6066EE] text-white rounded-full shrink-0">활성</span>
               ) : (
-                <span className="text-xs px-2 py-0.5 bg-[#F0F1FA] text-[#9BA4C0] rounded-full">비활성</span>
+                <span className="text-xs px-2 py-0.5 bg-[#F0F1FA] text-[#9BA4C0] rounded-full shrink-0">비활성</span>
               )}
               {sheet.memo && (
-                <span className="text-xs text-[#9BA4C0]">{sheet.memo}</span>
+                <span className="text-xs text-[#9BA4C0] truncate">{sheet.memo}</span>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               {!sheet.isActive && (
                 <button
                   onClick={() => onActivate(sheet.id)}
@@ -98,9 +98,9 @@ export default function RateHistory({ sheets, onActivate, onDelete }: Props) {
           {/* 회수율 매트릭스 비교 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* 최소가 기준 회수율 */}
-            <div className="bg-[#F8F9FC] rounded-lg p-3 border border-[#F0F1FA]">
+            <div className="bg-[#F8F9FC] rounded-lg p-3 border border-[#F0F1FA] overflow-x-auto">
               <p className="text-[10px] uppercase font-bold text-[#9BA4C0] mb-2 tracking-tight">Recovery Rates (Min Price)</p>
-              <table className="w-full text-[11px] border-collapse">
+              <table className="w-full min-w-[320px] text-[11px] border-collapse">
                 <thead>
                   <tr className="text-[#9BA4C0]">
                     <th className="py-1 text-left font-medium">거리</th>
@@ -129,9 +129,9 @@ export default function RateHistory({ sheets, onActivate, onDelete }: Props) {
             </div>
 
             {/* 최대가 기준 회수율 */}
-            <div className="bg-[#FFF9F5] rounded-lg p-3 border border-[#FFE4D1]">
+            <div className="bg-[#FFF9F5] rounded-lg p-3 border border-[#FFE4D1] overflow-x-auto">
               <p className="text-[10px] uppercase font-bold text-orange-400 mb-2 tracking-tight">Recovery Rates (Max Price)</p>
-              <table className="w-full text-[11px] border-collapse">
+              <table className="w-full min-w-[320px] text-[11px] border-collapse">
                 <thead>
                   <tr className="text-orange-300">
                     <th className="py-1 text-left font-medium">거리</th>

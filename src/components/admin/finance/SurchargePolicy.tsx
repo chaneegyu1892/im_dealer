@@ -95,39 +95,38 @@ export default function SurchargePolicy() {
   };
 
   return (
-    <div className="flex flex-col gap-12 max-w-5xl">
+    <div className="flex flex-col gap-6 md:gap-12 max-w-5xl">
       {/* 1. 기본 견적가 순위 가산 */}
-      <section className="space-y-6">
+      <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#F0F1FA] rounded-xl text-[#6066EE]">
-            <Percent size={20} />
+          <div className="p-2 bg-[#F0F1FA] rounded-xl text-[#6066EE] shrink-0">
+            <Percent size={18} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-[#1A1A2E]">01. 기본 견적가 순위 가산</h2>
+            <h2 className="text-lg md:text-xl font-bold text-[#1A1A2E]">01. 기본 견적가 순위 가산</h2>
             <p className="text-sm text-[#9BA4C0]">검색 결과 순위에 따른 기본 가산 정책을 설정합니다.</p>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-[#E8EAF0] shadow-sm">
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-[#E8EAF0] shadow-sm">
           <PolicyManager />
         </div>
       </section>
 
       {/* 2. 차량별 가산율 관리 */}
-      <section className="space-y-6">
-        <div className="flex flex-col gap-5">
-           <div className="flex items-center justify-between">
+      <section className="space-y-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-50 rounded-xl text-amber-500">
-                <CarFront size={20} />
+              <div className="p-2 bg-amber-50 rounded-xl text-amber-500 shrink-0">
+                <CarFront size={18} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-[#1A1A2E]">02. 차량별 가산 관리</h2>
+                <h2 className="text-lg md:text-xl font-bold text-[#1A1A2E]">02. 차량별 가산 관리</h2>
                 <p className="text-sm text-[#9BA4C0]">특정 브랜드 및 모델에 대한 고정 가산율을 설정합니다.</p>
               </div>
             </div>
-
             <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0] group-focus-within:text-[#6066EE] transition-colors" size={16} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0] group-focus-within:text-[#6066EE] transition-colors" size={14} />
               <input
                 type="text"
                 placeholder="차량명 검색..."
@@ -136,13 +135,13 @@ export default function SurchargePolicy() {
                   setVSearch(e.target.value);
                   setSelectedModel(null);
                 }}
-                className="pl-10 pr-4 py-2 bg-white border border-[#E8EAF0] rounded-2xl text-sm focus:outline-none focus:border-[#6066EE] focus:ring-4 focus:ring-[#6066EE]/5 transition-all w-64 shadow-sm"
+                className="pl-9 pr-4 py-2 bg-white border border-[#E8EAF0] rounded-xl text-sm focus:outline-none focus:border-[#6066EE] transition-all w-full sm:w-56 shadow-sm"
               />
             </div>
           </div>
 
           {/* 브랜드 & 모델 선택 탭 */}
-          <div className="bg-white p-5 rounded-3xl border border-[#E8EAF0] shadow-sm flex flex-col gap-4">
+          <div className="bg-white p-4 rounded-2xl border border-[#E8EAF0] shadow-sm flex flex-col gap-3">
             <div className="flex flex-col gap-2">
               <span className="text-[11px] font-black text-[#B0B5CC] uppercase tracking-widest pl-1">브랜드 선택</span>
               <div className="flex flex-wrap gap-2">
@@ -202,8 +201,8 @@ export default function SurchargePolicy() {
         </div>
 
         <div className="bg-white rounded-3xl border border-[#E8EAF0] overflow-hidden shadow-sm">
-          <div className="max-h-[400px] overflow-y-auto overflow-x-hidden thin-scrollbar">
-            <table className="w-full text-sm">
+          <div className="max-h-[400px] overflow-y-auto overflow-x-auto thin-scrollbar">
+            <table className="w-full min-w-[400px] text-sm">
               <thead className="sticky top-0 bg-[#F8F9FC] border-b border-[#E8EAF0] text-[#9BA4C0] text-[11px] uppercase z-10">
                 <tr>
                   <th className="px-6 py-4 text-left font-bold">브랜드 / 차량명</th>
@@ -259,24 +258,24 @@ export default function SurchargePolicy() {
       </section>
 
       {/* 3. 금융사 프로모션 가산 */}
-      <section className="space-y-6">
+      <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-50 rounded-xl text-emerald-500">
-            <Landmark size={20} />
+          <div className="p-2 bg-emerald-50 rounded-xl text-emerald-500 shrink-0">
+            <Landmark size={18} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-[#1A1A2E]">03. 금융사 프로모션 가산</h2>
+            <h2 className="text-lg md:text-xl font-bold text-[#1A1A2E]">03. 금융사 프로모션 가산</h2>
             <p className="text-sm text-[#9BA4C0]">특정 금융사 이용 시 일률적으로 적용할 가산 정책을 설정합니다.</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl border border-[#E8EAF0] overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-2xl border border-[#E8EAF0] overflow-x-auto shadow-sm">
+          <table className="w-full min-w-[400px] text-sm">
             <thead className="bg-[#F8F9FC] border-b border-[#E8EAF0] text-[#9BA4C0] text-[11px] uppercase">
               <tr>
-                <th className="px-6 py-4 text-left font-bold">금융사명</th>
-                <th className="px-6 py-4 text-center w-36 font-bold">가산율 (%)</th>
-                <th className="px-6 py-4 text-right">상태</th>
+                <th className="px-4 md:px-6 py-3 text-left font-bold">금융사명</th>
+                <th className="px-4 md:px-6 py-3 text-center w-36 font-bold">가산율 (%)</th>
+                <th className="px-4 md:px-6 py-3 text-right">상태</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0F1FA]">

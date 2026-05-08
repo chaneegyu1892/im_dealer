@@ -98,7 +98,7 @@ export default function QuoteLogicSimulator() {
   return (
     <div className="space-y-6">
       {/* 설정 바 */}
-      <div className="bg-white rounded-2xl border border-[#E8EAF0] p-6 shadow-sm flex flex-wrap gap-6 items-end">
+      <div className="bg-white rounded-2xl border border-[#E8EAF0] p-4 md:p-6 shadow-sm flex flex-wrap gap-3 md:gap-5 items-end">
         <div className="flex-1 min-w-[200px] space-y-1.5">
           <label className="text-[11px] font-bold text-[#9BA4C0] ml-1">차량 선택</label>
           <select 
@@ -205,16 +205,16 @@ export default function QuoteLogicSimulator() {
               <p className="text-[11px] text-[#9BA4C0]">최종 고객 표출 가격 기준으로 정렬되었습니다.</p>
            </div>
 
-           <div className="bg-white rounded-2xl border border-[#E8EAF0] overflow-hidden shadow-md shadow-indigo-50/30">
-             <table className="w-full text-xs">
+           <div className="bg-white rounded-2xl border border-[#E8EAF0] overflow-x-auto shadow-md shadow-indigo-50/30">
+             <table className="w-full min-w-[580px] text-xs">
                 <thead>
                   <tr className="bg-[#F8F9FC] border-b border-[#E8EAF0] text-[#9BA4C0] text-[11px] uppercase">
-                    <th className="px-6 py-4 text-left font-bold">금융사</th>
-                    <th className="px-6 py-4 text-center font-bold bg-blue-50/30">기본 로직 (0%)</th>
-                    <th className="px-6 py-4 text-center font-bold">순위 가산</th>
-                    <th className="px-6 py-4 text-center font-bold">차량 가산</th>
-                    <th className="px-6 py-4 text-center font-bold">금융사 가산</th>
-                    <th className="px-6 py-4 text-right font-bold bg-[#6066EE]/5 text-[#6066EE]">고객 표출 최종</th>
+                    <th className="px-3 md:px-6 py-3 text-left font-bold">금융사</th>
+                    <th className="px-3 md:px-6 py-3 text-center font-bold bg-blue-50/30">기본 로직 (0%)</th>
+                    <th className="px-3 md:px-6 py-3 text-center font-bold">순위 가산</th>
+                    <th className="px-3 md:px-6 py-3 text-center font-bold">차량 가산</th>
+                    <th className="px-3 md:px-6 py-3 text-center font-bold">금융사 가산</th>
+                    <th className="px-3 md:px-6 py-3 text-right font-bold bg-[#6066EE]/5 text-[#6066EE]">고객 표출 최종</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F0F1FA]">
@@ -222,42 +222,40 @@ export default function QuoteLogicSimulator() {
                     const basePrice = r.breakdown.monthlyBeforeSurcharge;
                     const afterRank = basePrice + r.surcharges.rankSurcharge;
                     const afterVehicle = afterRank + r.surcharges.vehicleSurcharge;
-                    
+
                     return (
                     <tr key={r.financeCompanyId} className="group hover:bg-[#F8F9FC] transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                             <span className="w-5 h-5 rounded-full bg-[#1A1A2E] text-white text-[10px] flex items-center justify-center font-black">{i + 1}</span>
-                             <span className="font-bold text-[#1A1A2E]">{r.financeCompanyName}</span>
-                          </div>
+                      <td className="px-3 md:px-6 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full bg-[#1A1A2E] text-white text-[10px] flex items-center justify-center font-black shrink-0">{i + 1}</span>
+                          <span className="font-bold text-[#1A1A2E] whitespace-nowrap">{r.financeCompanyName}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 bg-blue-50/10">
-                        <p className="text-center font-mono font-medium text-[#5A6080]">{Math.round(basePrice).toLocaleString()}원</p>
+                      <td className="px-3 md:px-6 py-3 bg-blue-50/10">
+                        <p className="text-center font-mono font-medium text-[#5A6080] whitespace-nowrap">{Math.round(basePrice).toLocaleString()}원</p>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 md:px-6 py-3">
                         <div className="flex flex-col items-center">
-                          <p className="text-[10px] text-red-400 font-bold">+{r.surcharges.rankSurcharge.toLocaleString()}</p>
-                          <p className="font-mono text-xs">{afterRank.toLocaleString()}원</p>
+                          <p className="text-[10px] text-red-400 font-bold whitespace-nowrap">+{r.surcharges.rankSurcharge.toLocaleString()}</p>
+                          <p className="font-mono text-xs whitespace-nowrap">{afterRank.toLocaleString()}원</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 md:px-6 py-3">
                         <div className="flex flex-col items-center">
-                          <p className="text-[10px] text-orange-400 font-bold">+{r.surcharges.vehicleSurcharge.toLocaleString()}</p>
-                          <p className="font-mono text-xs">{afterVehicle.toLocaleString()}원</p>
+                          <p className="text-[10px] text-orange-400 font-bold whitespace-nowrap">+{r.surcharges.vehicleSurcharge.toLocaleString()}</p>
+                          <p className="font-mono text-xs whitespace-nowrap">{afterVehicle.toLocaleString()}원</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 md:px-6 py-3">
                         <div className="flex flex-col items-center">
-                          <p className={`text-[10px] font-bold ${r.surcharges.financeSurcharge >= 0 ? 'text-red-400' : 'text-emerald-500'}`}>
+                          <p className={`text-[10px] font-bold whitespace-nowrap ${r.surcharges.financeSurcharge >= 0 ? 'text-red-400' : 'text-emerald-500'}`}>
                             {r.surcharges.financeSurcharge > 0 ? '+' : ''}{r.surcharges.financeSurcharge.toLocaleString()}
                           </p>
-                          <p className="font-mono text-xs">{r.monthlyPayment.toLocaleString()}원</p>
+                          <p className="font-mono text-xs whitespace-nowrap">{r.monthlyPayment.toLocaleString()}원</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4 bg-[#6066EE]/5 text-right">
-                        <p className="text-lg font-black text-[#6066EE] tracking-tighter">{r.monthlyPayment.toLocaleString()}원</p>
+                      <td className="px-3 md:px-6 py-3 bg-[#6066EE]/5 text-right">
+                        <p className="text-base md:text-lg font-black text-[#6066EE] tracking-tighter whitespace-nowrap">{r.monthlyPayment.toLocaleString()}원</p>
                       </td>
                     </tr>
                   )})}

@@ -23,21 +23,23 @@ export default function FinanceTabContainer({ financeCompanies, vehicles }: Prop
   return (
     <div className="flex flex-col gap-6 h-full overflow-hidden">
       {/* 상단 탭 네비게이션 */}
-      <div className="flex items-center gap-2 bg-white p-1 rounded-2xl border border-[#E8EAF0] self-start shadow-sm">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-              activeTab === tab.id
-                ? "bg-[#6066EE] text-white shadow-md shadow-indigo-100"
-                : "text-[#9BA4C0] hover:bg-[#F8F9FC] hover:text-[#5A6080]"
-            }`}
-          >
-            <tab.icon size={16} />
-            {tab.label}
-          </button>
-        ))}
+      <div className="overflow-x-auto scrollbar-hide -mx-0.5">
+        <div className="flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-[#E8EAF0] shadow-sm w-max min-w-full">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
+                activeTab === tab.id
+                  ? "bg-[#6066EE] text-white shadow-md shadow-indigo-100"
+                  : "text-[#9BA4C0] hover:bg-[#F8F9FC] hover:text-[#5A6080]"
+              }`}
+            >
+              <tab.icon size={14} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 컨텐츠 렌더링 */}
