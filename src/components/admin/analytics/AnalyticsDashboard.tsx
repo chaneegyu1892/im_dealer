@@ -73,7 +73,7 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
 
   return (
     <div
-      className="flex flex-col min-h-[calc(100vh-32px)] m-4 rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] shadow-sm"
+      className="flex flex-col h-full rounded-[12px] bg-[#F8F9FC] border border-[#E8EAF0] shadow-sm"
       style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}
     >
       {/* 헤더 */}
@@ -92,9 +92,9 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
       </div>
 
       {/* 내용 */}
-      <div className="flex-1 p-5 flex flex-col gap-5">
+      <div className="flex-1 p-4 md:p-5 min-h-0 overflow-y-auto flex flex-col gap-4 md:gap-5">
         {/* KPI 행 */}
-        <div className="flex gap-4 shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 shrink-0">
           <KPICard
             title="총 견적 조회"
             value={formatKRWCount(totalQuoteViews)}
@@ -131,7 +131,7 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
         </div>
 
         {/* 메인 차트 + 사이드 패널 */}
-        <div className="flex gap-5 min-h-[520px]">
+        <div className="flex flex-col lg:flex-row gap-4 md:gap-5 min-h-[520px]">
           {/* 일간 트렌드 */}
           <section className="bg-white rounded-[10px] border border-[#E8EAF0] p-6 flex flex-col flex-1 shadow-sm min-w-0">
             <div className="flex items-center justify-between shrink-0 mb-6">
@@ -205,7 +205,7 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
           </section>
 
           {/* 사이드: 리더보드 + 파워트레인 */}
-          <div className="flex flex-col gap-5 w-[400px] shrink-0">
+          <div className="flex flex-col gap-4 md:gap-5 w-full lg:w-[400px] lg:shrink-0">
             {/* 차량별 순위 */}
             <section className="bg-white rounded-[10px] border border-[#E8EAF0] p-5 flex flex-col flex-[1.4] shadow-sm min-h-0 overflow-hidden">
               <div className="shrink-0 mb-4">

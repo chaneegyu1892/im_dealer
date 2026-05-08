@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { ChannelTalk } from "@/components/layout/ChannelTalk";
+import { ChannelTalkFAB } from "@/components/layout/ChannelTalkFAB";
 
 export default function PublicLayout({
   children,
@@ -10,6 +12,7 @@ export default function PublicLayout({
 }) {
   return (
     <div className="min-h-screen bg-neutral flex flex-col">
+      <ChannelTalk />
       <Suspense fallback={<div className="h-[72px] bg-white border-b border-[#F0F0F0]" />}>
         <Header />
       </Suspense>
@@ -18,6 +21,7 @@ export default function PublicLayout({
       </main>
       <Footer />
       <BottomNav />
+      <ChannelTalkFAB />
     </div>
   );
 }
