@@ -11,29 +11,32 @@ export default async function AiManagementPage() {
   ]);
 
   return (
-    <div className="flex flex-col h-full min-h-0 space-y-6">
+    <div className="flex flex-col h-full min-h-0 space-y-4 md:space-y-6">
       <div className="flex flex-col">
-        <h1 className="text-2xl font-bold text-[#1A1A2E]">AI 추천 관리</h1>
-        <p className="text-sm text-[#9BA4C0] mt-1">
+        <h1 className="text-xl md:text-2xl font-bold text-[#1A1A2E]">AI 추천 관리</h1>
+        <p className="text-[12px] md:text-sm text-[#9BA4C0] mt-1 hidden sm:block">
           사용자 추천 로그를 분석하고 차량별 AI 가중치를 조정하여 추천 품질을 고도화합니다.
         </p>
       </div>
 
-      <div className="flex-1 flex flex-col gap-8 overflow-y-auto scrollbar-hide pr-2">
+      <div className="flex-1 flex flex-col gap-6 md:gap-8 overflow-y-auto scrollbar-hide">
         {/* 섹션 1: 추천 인사이트 */}
         <section>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1.5 h-4 bg-[#6066EE] rounded-full"></div>
-            <h2 className="text-lg font-bold text-[#1A1A2E]">추천 성과 인사이트</h2>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1.5 h-4 bg-[#6066EE] rounded-full shrink-0"></div>
+            <h2 className="text-base md:text-lg font-bold text-[#1A1A2E]">추천 성과 인사이트</h2>
           </div>
           <AiInsightDashboard data={insights} />
         </section>
 
         {/* 섹션 2: 차량별 설정 */}
         <section className="flex-1 min-h-0">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1.5 h-4 bg-[#6066EE] rounded-full"></div>
-            <h2 className="text-lg font-bold text-[#1A1A2E]">차량별 AI 가산점 및 하이라이트 설정</h2>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1.5 h-4 bg-[#6066EE] rounded-full shrink-0"></div>
+            <h2 className="text-base md:text-lg font-bold text-[#1A1A2E]">
+              <span className="hidden sm:inline">차량별 AI 가산점 및 하이라이트 설정</span>
+              <span className="sm:hidden">차량별 AI 설정</span>
+            </h2>
           </div>
           <VehicleAiSettings initialConfigs={configs} />
         </section>

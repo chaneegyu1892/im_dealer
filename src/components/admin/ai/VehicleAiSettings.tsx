@@ -77,8 +77,8 @@ export default function VehicleAiSettings({ initialConfigs }: Props) {
 
   return (
     <div className="bg-white rounded-2xl border border-[#E8EAF2] overflow-hidden shadow-sm">
-      <div className="p-4 border-b border-[#E8EAF2] flex items-center justify-between bg-[#F8F9FC]">
-        <div className="relative w-72">
+      <div className="p-4 border-b border-[#E8EAF2] flex flex-wrap items-center gap-3 justify-between bg-[#F8F9FC]">
+        <div className="relative flex-1 min-w-0 max-w-xs sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0]" size={14} />
           <input
             type="text"
@@ -91,45 +91,84 @@ export default function VehicleAiSettings({ initialConfigs }: Props) {
         <span className="text-[11px] text-[#9BA4C0]">총 {filtered.length}대 설정 가능</span>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-[#F8F9FC] text-[#9BA4C0] text-[11px] uppercase tracking-wider">
-              <th className="px-6 py-3 text-left font-semibold">차량 정보</th>
-              <th className="px-6 py-3 text-left font-semibold">AI 하이라이트 (Keywords)</th>
-              <th className="px-6 py-3 text-left font-semibold">AI 한줄 평 (Caption)</th>
-              <th className="px-6 py-3 text-right font-semibold">관리</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#F0F1FA]">
+      {/* ── 모바일 카드 뷰 ── */}
+      {paginatedItems.length === 0 ? (
+        <div className="py-16 text-center text-[13px] text-[#9BA4C0]">설정 가능한 차량이 없습니다.</div>
+      ) : (
+        <>
+          <div className="md:hidden divide-y divide-[#F0F1FA]">
             {paginatedItems.map((config) => (
-              <tr key={config.id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="px-6 py-4">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-[#1A1A2E]">{config.vehicle.name}</span>
-                    <span className="text-[10px] text-[#9BA4C0]">{config.vehicle.brand} · {config.vehicle.category}</span>
+              <div key={config.id} className="p-4 hover:bg-gray-50/50 transition-colors">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold text-[#1A1A2E] truncate">{config.vehicle.name}</p>
+                    <p className="text-[11px] text-[#9BA4C0] mt-0.5">{config.vehicle.brand} · {config.vehicle.category}</p>
                   </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex flex-wrap gap-1">
+                  <div className="shrink-0">
+                    <SettingsMenu config={config} onUpdate={handleUpdate} saving={saving} />
+                  </div>
+                </div>
+                {config.highlights.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
                     {config.highlights.map((h: string, idx: number) => (
                       <span key={idx} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">
                         #{h}
                       </span>
                     ))}
                   </div>
-                </td>
-                <td className="px-6 py-4 max-w-xs">
-                  <p className="text-xs text-[#5A6080] truncate">{config.aiCaption || "-"}</p>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <SettingsMenu config={config} onUpdate={handleUpdate} saving={saving} />
-                </td>
-              </tr>
+                )}
+                {config.aiCaption && (
+                  <p className="text-[11px] text-[#5A6080] line-clamp-2">{config.aiCaption}</p>
+                )}
+                {!config.aiCaption && config.highlights.length === 0 && (
+                  <p className="text-[11px] text-[#C0C5D8] italic">설정 없음 — 상세 설정을 통해 추가하세요</p>
+                )}
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+
+          {/* ── 데스크탑 테이블 뷰 ── */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="bg-[#F8F9FC] text-[#9BA4C0] text-[11px] uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left font-semibold">차량 정보</th>
+                  <th className="px-6 py-3 text-left font-semibold">AI 하이라이트 (Keywords)</th>
+                  <th className="px-6 py-3 text-left font-semibold">AI 한줄 평 (Caption)</th>
+                  <th className="px-6 py-3 text-right font-semibold">관리</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F0F1FA]">
+                {paginatedItems.map((config) => (
+                  <tr key={config.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-[#1A1A2E]">{config.vehicle.name}</span>
+                        <span className="text-[10px] text-[#9BA4C0]">{config.vehicle.brand} · {config.vehicle.category}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {config.highlights.map((h: string, idx: number) => (
+                          <span key={idx} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">
+                            #{h}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 max-w-xs">
+                      <p className="text-xs text-[#5A6080] truncate">{config.aiCaption || "-"}</p>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <SettingsMenu config={config} onUpdate={handleUpdate} saving={saving} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       {/* 페이지네이션 컨트롤 */}
       {totalPages > 1 && (
@@ -199,19 +238,19 @@ function SettingsMenu({ config, onUpdate, saving }: SettingsMenuProps) {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="p-6 border-b border-[#F0F1FA] flex items-center justify-between bg-[#F8F9FC]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4">
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 sm:zoom-in duration-200">
+        <div className="p-4 md:p-6 border-b border-[#F0F1FA] flex items-center justify-between bg-[#F8F9FC]">
           <div className="flex items-center gap-2 text-[#1A1A2E]">
-            <Sparkles size={20} className="text-[#6066EE]" />
-            <h3 className="text-lg font-bold">AI 추천 상세 설정</h3>
+            <Sparkles size={18} className="text-[#6066EE]" />
+            <h3 className="text-base md:text-lg font-bold">AI 추천 상세 설정</h3>
           </div>
-          <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-            <X size={20} />
+          <button onClick={() => setIsOpen(false)} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors">
+            <X size={18} />
           </button>
         </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6 overflow-y-auto max-h-[70vh] sm:max-h-[60vh]">
           <div>
             <p className="text-sm font-bold text-[#1A1A2E] mb-1">{config.vehicle.name}</p>
             <p className="text-xs text-[#9BA4C0]">{config.vehicle.brand} · {config.vehicle.category}</p>
@@ -292,7 +331,7 @@ function SettingsMenu({ config, onUpdate, saving }: SettingsMenuProps) {
           </div>
         </div>
 
-        <div className="p-6 bg-[#F8F9FC] border-t border-[#F0F1FA] flex gap-3">
+        <div className="p-4 md:p-6 bg-[#F8F9FC] border-t border-[#F0F1FA] flex gap-3">
           <button
             onClick={() => setIsOpen(false)}
             className="flex-1 py-3 text-sm font-bold text-[#9BA4C0] hover:text-[#5A6080] transition-colors"

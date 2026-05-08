@@ -7,25 +7,25 @@ import { cn } from "@/lib/utils";
 import { Home, Sparkles, Car, MessageCircle, type LucideIcon } from "lucide-react";
 
 interface NavItem {
-  href: string;
+  href?: string;
   label: string;
   icon: LucideIcon;
   exact: boolean;
-  external?: boolean;
+  channelTalk?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/",               label: "홈",      icon: Home,          exact: true  },
-  { href: "/recommend",      label: "AI 추천",  icon: Sparkles,      exact: false },
-  { href: "/cars",           label: "차량탐색", icon: Car,           exact: false },
-  { href: "https://channeltalk.io", label: "상담", icon: MessageCircle, exact: false, external: true },
+  { href: "/",          label: "홈",      icon: Home,          exact: true  },
+  { href: "/recommend", label: "AI 추천",  icon: Sparkles,      exact: false },
+  { href: "/cars",      label: "차량탐색", icon: Car,           exact: false },
+  {                     label: "상담",    icon: MessageCircle, exact: false, channelTalk: true },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
 
-  const isActive = (href: string, exact: boolean, external?: boolean) => {
-    if (external) return false;
+  const isActive = (href: string | undefined, exact: boolean, channelTalk?: boolean) => {
+    if (channelTalk || !href) return false;
     if (exact) return pathname === href;
     return pathname.startsWith(href);
   };
@@ -48,8 +48,8 @@ export function BottomNav() {
         }}
       >
         <div className="flex items-center justify-around h-[62px] px-1">
-          {NAV_ITEMS.map(({ href, label, icon: Icon, exact, external }) => {
-            const active = isActive(href, exact, external);
+          {NAV_ITEMS.map(({ href, label, icon: Icon, exact, channelTalk }) => {
+            const active = isActive(href, exact, channelTalk);
 
             const inner = (
               <motion.span
@@ -103,25 +103,24 @@ export function BottomNav() {
 
             const wrapperClass = "flex-1 flex justify-center px-1";
 
-            if (external) {
+            if (channelTalk) {
               return (
-                <a
-                  key={href}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  key="channeltalk"
+                  type="button"
                   className={wrapperClass}
                   aria-label={label}
+                  onClick={() => window.ChannelIO?.('openChat')}
                 >
                   {inner}
-                </a>
+                </button>
               );
             }
 
             return (
               <Link
                 key={href}
-                href={href}
+                href={href!}
                 className={wrapperClass}
                 aria-label={label}
               >

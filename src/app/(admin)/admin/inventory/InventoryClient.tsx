@@ -689,27 +689,29 @@ export function InventoryClient({
       </AnimatePresence>
 
       {/* ── 1. 표준 헤더 & KPI ── */}
-      <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 flex items-center justify-between shrink-0 z-20">
-        <div>
-          <h1 className="text-[18px] font-bold text-[#1A1A2E] flex items-center gap-2">
-            <Package size={20} className="text-[#000666]" strokeWidth={2.5} />
+      <div className="bg-white border-b border-[#E8EAF0] px-4 md:px-6 py-4 flex flex-wrap items-center gap-3 shrink-0 z-20">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-[16px] md:text-[18px] font-bold text-[#1A1A2E] flex items-center gap-2">
+            <Package size={18} className="text-[#000666]" strokeWidth={2.5} />
             금융사 재고 현황
           </h1>
-          <p className="text-[12px] text-[#6B7399] mt-1">{today} · 실시간 보유 재고 동기화 중</p>
+          <p className="text-[11px] md:text-[12px] text-[#6B7399] mt-0.5 truncate">{today} · 실시간 동기화 중</p>
         </div>
 
-        <div className="flex items-center gap-0">
+        <div className="flex items-center gap-0 shrink-0">
           <KPIMini label="총 재고" value={totalQty} unit="대" highlight />
-          <div className="w-[1px] h-10 bg-[#E8EAF0]" />
+          <div className="w-[1px] h-8 bg-[#E8EAF0]" />
           <KPIMini label="즉시 출고" value={immediateCount} unit="건" color="text-emerald-600" />
-          <div className="w-[1px] h-10 bg-[#E8EAF0]" />
-          <KPIMini label="금융사수" value={finances.length} unit="개사" color="text-[#0EA5E9]" />
+          <div className="hidden sm:block w-[1px] h-8 bg-[#E8EAF0]" />
+          <div className="hidden sm:block">
+            <KPIMini label="금융사수" value={finances.length} unit="개사" color="text-[#0EA5E9]" />
+          </div>
         </div>
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* ── 좌측 금융사 목록 (사이드바) ────────────────────────────────── */}
-        <div className="w-[180px] bg-white border-r border-[#E8EAF0] flex flex-col shrink-0">
+        {/* ── 좌측 금융사 목록 (사이드바) - 데스크탑 전용 ── */}
+        <div className="w-[180px] bg-white border-r border-[#E8EAF0] flex-col shrink-0 hidden md:flex">
           <div className="px-4 py-3 border-b border-[#F0F2F8]">
             <h2 className="text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">캐피탈사 목록</h2>
           </div>
@@ -770,11 +772,24 @@ export function InventoryClient({
         </div>
 
         {/* ── 우측 메인 콘텐츠 ─────────────────────────────── */}
-        <div className="flex-1 flex flex-col min-w-0 bg-white">
-          <div className="px-6 py-4 border-b border-[#E8EAF0] shrink-0 bg-white">
+        <div className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
+          {/* 모바일 금융사 선택 */}
+          <div className="md:hidden px-4 py-2.5 border-b border-[#E8EAF0] shrink-0">
+            <select
+              value={selectedFC}
+              onChange={(e) => setSelectedFC(e.target.value)}
+              className="w-full text-[13px] font-medium bg-[#F4F5F8] border border-[#E8EAF0] rounded-[8px] px-3 py-2 focus:outline-none focus:border-[#000666]"
+            >
+              <option value="전체">전체 캐피탈사</option>
+              {sortedFinances.map((fc) => (
+                <option key={fc} value={fc}>{fc}</option>
+              ))}
+            </select>
+          </div>
+          <div className="px-4 md:px-6 py-3 md:py-4 border-b border-[#E8EAF0] shrink-0 bg-white">
             {/* 브랜드 필터 */}
-            <div className="flex items-center gap-4 mb-4 pb-3 border-b border-[#F4F5F8]">
-              <h3 className="text-[12px] font-bold text-[#6B7399] uppercase tracking-wider shrink-0 w-16">브랜드</h3>
+            <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-[#F4F5F8]">
+              <h3 className="text-[12px] font-bold text-[#6B7399] uppercase tracking-wider shrink-0">브랜드</h3>
               <div className="flex gap-2 flex-wrap">
                 {/* 전체 브랜드 버튼 */}
                 <button
@@ -838,8 +853,8 @@ export function InventoryClient({
             </div>
 
             {/* 차량 모델 필터 */}
-            <div className="flex items-center gap-4">
-              <h3 className="text-[12px] font-bold text-[#6B7399] uppercase tracking-wider shrink-0 w-16">차량 모델</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-[12px] font-bold text-[#6B7399] uppercase tracking-wider shrink-0">차량 모델</h3>
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
                 {/* 전체 모델 버튼 */}
                 <button
@@ -918,138 +933,168 @@ export function InventoryClient({
           </div>
 
           {/* 차량 선택 정보 + 검색 + 등록 버튼 */}
-          <div className="px-6 py-4 bg-[#FAFBFF] border-b border-[#E8EAF0] flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-white border border-[#E8EAF0] flex items-center justify-center shadow-sm shrink-0">
-                <Car size={24} className="text-[#000666]" strokeWidth={1} />
+          <div className="px-4 md:px-6 py-3 bg-[#FAFBFF] border-b border-[#E8EAF0] flex flex-wrap items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <div className="w-9 h-9 rounded-full bg-white border border-[#E8EAF0] flex items-center justify-center shadow-sm shrink-0 hidden sm:flex">
+                <Car size={18} className="text-[#000666]" strokeWidth={1} />
               </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] bg-[#E5E5FA] text-[#000666] px-1.5 py-0.5 rounded-[4px] font-bold">{selectedVehicle?.brand}</span>
-                  <h2 className="text-[16px] font-bold text-[#1A1A2E]">{selectedVehicle?.label || "선택된 차량 없음"}</h2>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  {selectedVehicle?.brand && <span className="text-[10px] bg-[#E5E5FA] text-[#000666] px-1.5 py-0.5 rounded-[4px] font-bold shrink-0">{selectedVehicle.brand}</span>}
+                  <h2 className="text-[14px] md:text-[16px] font-bold text-[#1A1A2E] truncate">{selectedVehicle?.label || "전체 차량"}</h2>
                 </div>
-                <p className="text-[12px] text-[#6B7399]">
-                  {selectedFC} 보유 재고 <strong className="text-[#1A1A2E]">{filtered.reduce((s, i) => s + i.quantity, 0)}</strong>대 • 즉시 출고 가능 <strong className="text-emerald-600">{filtered.filter(i => i.immediateDelivery && i.quantity > 0).length}</strong>대
+                <p className="text-[11px] text-[#6B7399] truncate">
+                  재고 <strong className="text-[#1A1A2E]">{filtered.reduce((s, i) => s + i.quantity, 0)}</strong>대 • 즉시출고 <strong className="text-emerald-600">{filtered.filter(i => i.immediateDelivery && i.quantity > 0).length}</strong>대
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center gap-2">
-              <div className="relative mr-2">
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="relative">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0]" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="차량명/트림/옵션 검색"
-                  className="w-[180px] pl-9 pr-4 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] outline-none focus:border-[#C0C5DC] text-[#1A1A2E] shadow-sm transition-colors"
+                  placeholder="검색"
+                  className="w-[130px] sm:w-[160px] pl-8 pr-3 py-2 text-[12px] bg-white border border-[#E8EAF0] rounded-[6px] outline-none focus:border-[#C0C5DC] text-[#1A1A2E] shadow-sm transition-colors"
                 />
               </div>
               <button
                 onClick={openNew}
-                className="flex items-center gap-1.5 px-4 py-2 bg-[#000666] text-white rounded-[6px] text-[12px] font-semibold hover:opacity-90 transition-opacity shadow-sm"
+                className="flex items-center gap-1 px-3 py-2 bg-[#000666] text-white rounded-[6px] text-[12px] font-semibold hover:opacity-90 transition-opacity shadow-sm whitespace-nowrap"
               >
                 <Plus size={13} strokeWidth={2.5} />
-                차량 등록
+                등록
               </button>
             </div>
           </div>
 
-          {/* 재고 테이블 */}
+          {/* 재고 콘텐츠 영역 */}
           <div className="flex-1 overflow-auto min-h-0 relative">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-white sticky top-0 z-10 border-b border-[#F0F2F8] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                <tr>
-                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">ID</th>
-                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">차량</th>
-                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-center">
-                    재고 수량 <span className="ml-1 text-[9px] font-normal text-[#B0B5CC] normal-case">(클릭)</span>
-                  </th>
-                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-center">즉시 출고</th>
-                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-center">상태</th>
-                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">등록일</th>
-                  <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-right">액션</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F0F2F8]">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-24 text-center">
-                      <div className="flex flex-col items-center gap-2 text-[#9BA4C0]">
-                        <Package size={32} strokeWidth={1} />
-                        <p className="text-[13px]">{selectedFC} 재고 데이터가 없습니다.</p>
-                        <button onClick={openNew} className="mt-2 text-[12px] text-[#000666] underline underline-offset-2">
-                          재고 등록하기
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((item) => {
+            {filtered.length === 0 ? (
+              <div className="py-20 flex flex-col items-center gap-2 text-[#9BA4C0]">
+                <Package size={32} strokeWidth={1} />
+                <p className="text-[13px]">{selectedFC} 재고 데이터가 없습니다.</p>
+                <button onClick={openNew} className="mt-2 text-[12px] text-[#000666] underline underline-offset-2">재고 등록하기</button>
+              </div>
+            ) : (
+              <>
+                {/* ── 모바일 카드 뷰 ── */}
+                <div className="md:hidden divide-y divide-[#F0F2F8]">
+                  {filtered.map((item) => {
                     const SS = STATUS_STYLE[item.status];
                     const SIcon = SS.icon;
                     return (
-                      <tr key={item.id} className="group hover:bg-[#FAFBFF] transition-colors">
-                        <td className="py-3.5 px-4 w-[100px]">
-                          <span className="text-[11px] font-mono text-[#9BA4C0] bg-[#F4F5F8] px-1.5 py-0.5 rounded-[3px]">
-                            {item.id}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 min-w-[250px]">
-                          <div className="flex items-center gap-2">
-                            <span className={cn(
-                              "w-1.5 h-1.5 rounded-full shrink-0",
-                              item.brand === "현대"    ? "bg-[#000666]" :
-                              item.brand === "기아"    ? "bg-[#C00]"    :
-                                                         "bg-[#7C6E4A]"
-                            )} />
-                            <div>
-                              <p className="text-[13px] font-semibold text-[#1A1A2E]">{item.vehicleShort}</p>
-                              <p className="text-[11px] text-[#9BA4C0] truncate max-w-[240px]">{item.vehicleName}</p>
-                              {(item.trim || item.color || (item.options && item.options.length > 0)) && (
-                                <div className="mt-1.5 flex flex-wrap gap-1">
-                                  {item.trim && <span className="px-1.5 py-0.5 bg-[#F4F5F8] text-[#6B7399] text-[10px] rounded-[4px] border border-[#E8EAF0]">{item.trim}</span>}
-                                  {item.color && <span className="px-1.5 py-0.5 bg-[#F4F5F8] text-[#6B7399] text-[10px] rounded-[4px] border border-[#E8EAF0]">{item.color}</span>}
-                                  {(item.options && item.options.length > 0) && <span className="px-1.5 py-0.5 bg-[#E5E5FA] text-[#000666] text-[10px] rounded-[4px] border border-[#D0D4E8]">옵션 {item.options.length}개</span>}
-                                </div>
-                              )}
+                      <div key={item.id} className="p-4 flex items-start gap-3 hover:bg-[#FAFBFF] transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className={cn("w-1.5 h-1.5 rounded-full shrink-0",
+                                  item.brand === "현대" ? "bg-[#000666]" : item.brand === "기아" ? "bg-[#C00]" : "bg-[#7C6E4A]"
+                                )} />
+                                <p className="text-[13px] font-semibold text-[#1A1A2E] truncate">{item.vehicleShort}</p>
+                              </div>
+                              <p className="text-[11px] text-[#9BA4C0] truncate">{item.financeCompany} · {item.registeredAt}</p>
+                            </div>
+                            <div className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0", SS.bg, SS.text, SS.border)}>
+                              <SIcon size={9} strokeWidth={2.5} />
+                              {item.status}
                             </div>
                           </div>
-                        </td>
-                        <td className="py-3.5 px-4 text-center w-[120px]">
-                          <QuantityCell value={item.quantity} onSave={(n) => handleQuantityChange(item.id, n)} />
-                        </td>
-                        <td className="py-3.5 px-4 text-center w-[100px]">
-                          <DeliveryToggle value={item.immediateDelivery} onChange={(v) => handleDeliveryToggle(item.id, v)} />
-                        </td>
-                        <td className="py-3.5 px-4 text-center w-[100px]">
-                          <div className={cn("inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border", SS.bg, SS.text, SS.border)}>
-                            <SIcon size={10} strokeWidth={2.5} />
-                            {item.status}
+                          {(item.trim || item.color || (item.options && item.options.length > 0)) && (
+                            <div className="flex flex-wrap gap-1 mb-2.5">
+                              {item.trim && <span className="px-1.5 py-0.5 bg-[#F4F5F8] text-[#6B7399] text-[10px] rounded-[4px] border border-[#E8EAF0]">{item.trim}</span>}
+                              {item.color && <span className="px-1.5 py-0.5 bg-[#F4F5F8] text-[#6B7399] text-[10px] rounded-[4px] border border-[#E8EAF0]">{item.color}</span>}
+                              {item.options && item.options.length > 0 && <span className="px-1.5 py-0.5 bg-[#E5E5FA] text-[#000666] text-[10px] rounded-[4px]">옵션 {item.options.length}개</span>}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-3">
+                            <QuantityCell value={item.quantity} onSave={(n) => handleQuantityChange(item.id, n)} />
+                            <DeliveryToggle value={item.immediateDelivery} onChange={(v) => handleDeliveryToggle(item.id, v)} />
                           </div>
-                        </td>
-                        <td className="py-3.5 px-4 text-[12px] text-[#6B7399] w-[100px]">
-                          {item.registeredAt}
-                        </td>
-                        <td className="py-3.5 px-4 w-[130px]">
-                          <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => openEdit(item)} className="p-1.5 text-[#6B7399] hover:bg-[#E8EAF0] rounded-[4px] transition-colors">
-                              <Pencil size={13} />
-                            </button>
-                            <button onClick={() => setDeleteTarget(item)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-[4px] transition-colors">
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                        </div>
+                        <div className="flex flex-col gap-1 shrink-0">
+                          <button onClick={() => openEdit(item)} className="p-1.5 text-[#6B7399] hover:bg-[#E8EAF0] rounded-[4px] transition-colors">
+                            <Pencil size={14} />
+                          </button>
+                          <button onClick={() => setDeleteTarget(item)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-[4px] transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-            <div className="h-16 shrink-0" /> {/* 리스트 끝 여백 */}
+                  })}
+                </div>
+
+                {/* ── 데스크탑 테이블 뷰 ── */}
+                <table className="hidden md:table w-full min-w-[700px] text-left border-collapse">
+                  <thead className="bg-white sticky top-0 z-10 border-b border-[#F0F2F8] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                    <tr>
+                      <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">ID</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">차량</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-center">재고 수량 <span className="text-[9px] font-normal text-[#B0B5CC] normal-case">(클릭)</span></th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-center">즉시 출고</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-center">상태</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">등록일</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-right">액션</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F0F2F8]">
+                    {filtered.map((item) => {
+                      const SS = STATUS_STYLE[item.status];
+                      const SIcon = SS.icon;
+                      return (
+                        <tr key={item.id} className="group hover:bg-[#FAFBFF] transition-colors">
+                          <td className="py-3.5 px-4 w-[100px]">
+                            <span className="text-[11px] font-mono text-[#9BA4C0] bg-[#F4F5F8] px-1.5 py-0.5 rounded-[3px]">{item.id}</span>
+                          </td>
+                          <td className="py-3.5 px-4 min-w-[250px]">
+                            <div className="flex items-center gap-2">
+                              <span className={cn("w-1.5 h-1.5 rounded-full shrink-0",
+                                item.brand === "현대" ? "bg-[#000666]" : item.brand === "기아" ? "bg-[#C00]" : "bg-[#7C6E4A]"
+                              )} />
+                              <div>
+                                <p className="text-[13px] font-semibold text-[#1A1A2E]">{item.vehicleShort}</p>
+                                <p className="text-[11px] text-[#9BA4C0] truncate max-w-[240px]">{item.vehicleName}</p>
+                                {(item.trim || item.color || (item.options && item.options.length > 0)) && (
+                                  <div className="mt-1.5 flex flex-wrap gap-1">
+                                    {item.trim && <span className="px-1.5 py-0.5 bg-[#F4F5F8] text-[#6B7399] text-[10px] rounded-[4px] border border-[#E8EAF0]">{item.trim}</span>}
+                                    {item.color && <span className="px-1.5 py-0.5 bg-[#F4F5F8] text-[#6B7399] text-[10px] rounded-[4px] border border-[#E8EAF0]">{item.color}</span>}
+                                    {item.options && item.options.length > 0 && <span className="px-1.5 py-0.5 bg-[#E5E5FA] text-[#000666] text-[10px] rounded-[4px] border border-[#D0D4E8]">옵션 {item.options.length}개</span>}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-center w-[120px]">
+                            <QuantityCell value={item.quantity} onSave={(n) => handleQuantityChange(item.id, n)} />
+                          </td>
+                          <td className="py-3.5 px-4 text-center w-[100px]">
+                            <DeliveryToggle value={item.immediateDelivery} onChange={(v) => handleDeliveryToggle(item.id, v)} />
+                          </td>
+                          <td className="py-3.5 px-4 text-center w-[100px]">
+                            <div className={cn("inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border", SS.bg, SS.text, SS.border)}>
+                              <SIcon size={10} strokeWidth={2.5} />
+                              {item.status}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-[12px] text-[#6B7399] w-[100px]">{item.registeredAt}</td>
+                          <td className="py-3.5 px-4 w-[130px]">
+                            <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => openEdit(item)} className="p-1.5 text-[#6B7399] hover:bg-[#E8EAF0] rounded-[4px] transition-colors"><Pencil size={13} /></button>
+                              <button onClick={() => setDeleteTarget(item)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-[4px] transition-colors"><Trash2 size={13} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
+            )}
+            <div className="h-16 shrink-0" />
           </div>
-          {/* 하단 페이드 오버레이 */}
           <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-70" />
         </div>
 
@@ -1067,7 +1112,7 @@ export function InventoryClient({
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 bottom-0 w-[440px] bg-white z-50 flex flex-col border-l border-[#E8EAF0] shadow-[-10px_0_30px_rgba(0,0,0,0.08)]"
+              className="absolute top-0 right-0 bottom-0 w-full sm:w-[440px] bg-white z-50 flex flex-col border-l border-[#E8EAF0] shadow-[-10px_0_30px_rgba(0,0,0,0.08)]"
             >
               <div className="flex items-center justify-between px-6 py-5 border-b border-[#E8EAF0] bg-[#FAFBFF]">
                 <div>
