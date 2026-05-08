@@ -723,24 +723,44 @@ async function main() {
 
     const budgetRange = { low: [200, 400], mid: [350, 600], high: [500, 900] }[profile.budget] ?? [300, 600];
 
+    // 신규 PURPOSE 옵션을 위한 파생 점수 (profile의 4개 기본 축 + 차량 특성으로 도출)
+    const isCargo = ["porter2-ev", "bongo3-ev"].includes(v.slug);
+    const cargoScore = isCargo ? 10 : 1;
+    const officialScore = profile.business >= 8 ? profile.business : Math.max(1, profile.business - 3);
+    const firstcarScore = profile.budget === "low" ? 8 : profile.budget === "mid" ? 5 : 2;
+
+    // INDUSTRY_OPTIONS, PURPOSE_OPTIONS_BY_INDUSTRY와 키 일치.
+    // ai-recommender의 matrix[input.industry][input.purpose] 조회가 정상 동작하도록 함.
+    const scoreMatrix = {
+      industry: {
+        법인: profile.business,
+        개인사업자: Math.max(1, profile.business - 1),
+        직장인: profile.commute,
+        개인: Math.max(1, profile.commute - 1),
+      },
+      purpose: {
+        출퇴근: profile.commute,
+        "영업·외근": profile.business,
+        가족: profile.family,
+        "화물·배달": cargoScore,
+        "의전·임원용": officialScore,
+        첫차: firstcarScore,
+        "레저·캠핑": profile.leisure,
+        기타: profile.commute,
+      },
+      budget: { min: budgetRange[0], max: budgetRange[1] },
+    };
+
     await prisma.recommendationConfig.upsert({
       where: { vehicleId: vehicleIds[v.slug] },
       update: {
-        scoreMatrix: {
-          industry: { 법인사업자: profile.business, 개인사업자: Math.max(1, profile.business - 1), 프리랜서: Math.max(1, profile.business - 2) },
-          purpose: { 업무용: profile.commute, 출퇴근: profile.commute, 가족용: profile.family, 레저: profile.leisure },
-          budget: { min: budgetRange[0], max: budgetRange[1] },
-        },
+        scoreMatrix,
         highlights: profile.highlights,
         aiCaption: profile.caption,
       },
       create: {
         vehicleId: vehicleIds[v.slug],
-        scoreMatrix: {
-          industry: { 법인사업자: profile.business, 개인사업자: Math.max(1, profile.business - 1), 프리랜서: Math.max(1, profile.business - 2) },
-          purpose: { 업무용: profile.commute, 출퇴근: profile.commute, 가족용: profile.family, 레저: profile.leisure },
-          budget: { min: budgetRange[0], max: budgetRange[1] },
-        },
+        scoreMatrix,
         highlights: profile.highlights,
         aiCaption: profile.caption,
         updatedBy: "seed",

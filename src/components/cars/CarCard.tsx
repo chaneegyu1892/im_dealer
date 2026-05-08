@@ -73,6 +73,7 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
               alt={`${vehicle.brand} ${vehicle.name}`}
               fill
               sizes="(max-width: 768px) 100vw, 33vw"
+              unoptimized
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (

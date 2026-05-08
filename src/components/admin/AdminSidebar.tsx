@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { hasAccess, toRole } from "@/lib/access-control";
 import {
   LayoutDashboard,
   FileText,
@@ -27,7 +28,6 @@ interface NavItem {
   icon: LucideIcon;
   exact?: boolean;
   badge?: string;
-  roles?: string[];
 }
 
 interface NavGroup {
@@ -35,6 +35,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
+// 메뉴 정의는 라벨/아이콘만. 접근 권한은 access-control SSOT에서 자동 판정.
 const NAV: NavGroup[] = [
   {
     group: null,
@@ -46,26 +47,26 @@ const NAV: NavGroup[] = [
   {
     group: "핵심 관리",
     items: [
-      { href: "/admin/vehicles", label: "차량 관리", icon: Car, roles: ["superadmin", "admin", "staff"] },
-      { href: "/admin/quotations", label: "견적 데이터", icon: FileText, roles: ["superadmin", "admin", "staff", "dealer"] },
-      { href: "/admin/users", label: "사용자 관리", icon: Users, roles: ["superadmin", "admin", "staff", "dealer"] },
-      { href: "/admin/inventory", label: "재고관리", icon: Package, roles: ["superadmin", "admin", "staff"] },
-      { href: "/admin/reviews", label: "후기 관리", icon: MessageSquare, roles: ["superadmin", "admin", "staff"] },
+      { href: "/admin/vehicles", label: "차량 관리", icon: Car },
+      { href: "/admin/quotations", label: "견적 데이터", icon: FileText },
+      { href: "/admin/users", label: "사용자 관리", icon: Users },
+      { href: "/admin/inventory", label: "재고관리", icon: Package },
+      { href: "/admin/reviews", label: "후기 관리", icon: MessageSquare },
     ],
   },
   {
     group: "정책 및 AI",
     items: [
-      { href: "/admin/finance", label: "견적 산출 로직 관리", icon: Building2, roles: ["superadmin", "admin"] },
-      { href: "/admin/ai", label: "AI관리", icon: Sparkles, roles: ["superadmin", "admin"] },
+      { href: "/admin/finance", label: "견적 산출 로직 관리", icon: Building2 },
+      { href: "/admin/ai", label: "AI관리", icon: Sparkles },
     ],
   },
   {
     group: "시스템",
     items: [
-      { href: "/admin/memo", label: "운영 메모", icon: ClipboardList, roles: ["superadmin", "admin", "staff"] },
-      { href: "/admin/audit-logs", label: "감사 로그", icon: ShieldCheck, roles: ["superadmin", "admin"] },
-      { href: "/admin/settings", label: "설정", icon: Settings, roles: ["superadmin", "admin"] },
+      { href: "/admin/memo", label: "운영 메모", icon: ClipboardList },
+      { href: "/admin/audit-logs", label: "감사 로그", icon: ShieldCheck },
+      { href: "/admin/settings", label: "설정", icon: Settings },
     ],
   },
 ];
@@ -77,13 +78,10 @@ export function AdminSidebar({ admin }: { admin: any }) {
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
 
+  const role = toRole(admin?.role, true);
   const filteredNav = NAV.map(section => ({
     ...section,
-    items: section.items.filter(item =>
-      !item.roles ||
-      admin?.role === "superadmin" ||
-      item.roles.includes(admin?.role)
-    )
+    items: section.items.filter(item => hasAccess(role, item.href)),
   })).filter(section => section.items.length > 0);
 
   async function handleLogout() {

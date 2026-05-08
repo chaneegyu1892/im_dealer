@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { popularConfigCreateSchema } from "@/lib/validations/admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
@@ -9,10 +9,8 @@ type Params = { params: Promise<{ id: string }> };
 
 // ─── GET /api/admin/vehicles/[id]/popular-configs ───────
 export async function GET(request: NextRequest, { params }: Params) {
-  const admin = await getAdminSession();
-  if (!admin) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
 
   try {
     const { id } = await params;
@@ -33,10 +31,8 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 // ─── POST /api/admin/vehicles/[id]/popular-configs ──────
 export async function POST(request: NextRequest, { params }: Params) {
-  const admin = await getAdminSession();
-  if (!admin) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
 
   try {
     const { id } = await params;

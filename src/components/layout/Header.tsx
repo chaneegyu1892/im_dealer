@@ -118,6 +118,7 @@ export function Header() {
                         alt={displayName}
                         width={28}
                         height={28}
+                        unoptimized
                         className="w-full h-full object-cover"
                       />
                     </div>

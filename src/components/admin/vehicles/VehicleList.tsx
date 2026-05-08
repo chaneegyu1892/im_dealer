@@ -84,7 +84,7 @@ export function VehicleList({
               >
                 <div className="w-16 h-12 bg-[#F8F9FC] rounded-[6px] border border-[#F0F2F8] overflow-hidden shrink-0 flex items-center justify-center">
                   {v.thumbnailUrl ? (
-	                    <Image src={v.thumbnailUrl} alt={v.name} width={64} height={48} className="w-full h-full object-cover" />
+	                    <Image src={v.thumbnailUrl} alt={v.name} width={64} height={48} unoptimized className="w-full h-full object-cover" />
                   ) : (
                     <Car size={16} className="text-[#D0D5E8]" strokeWidth={1.5} />
                   )}

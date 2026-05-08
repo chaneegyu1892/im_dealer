@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { getReviewRequestTokensForAdmin } from "@/lib/admin-queries";
 
 export async function GET() {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const data = await getReviewRequestTokensForAdmin();
     return NextResponse.json({ success: true, data });

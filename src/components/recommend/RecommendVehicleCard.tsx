@@ -100,6 +100,7 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
                 alt={detail.name}
                 fill
                 sizes="96px"
+                unoptimized
                 className="object-cover"
               />
             ) : (

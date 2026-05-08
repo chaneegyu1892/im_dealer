@@ -582,6 +582,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                           alt={`썸네일 ${i + 1}`}
                           width={80}
                           height={45}
+                          unoptimized
                           className="w-full h-full object-cover"
                         />
                       </button>

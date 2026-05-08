@@ -128,6 +128,7 @@ export function RecommendFlow() {
         )}
         {step === 2 && (
           <StepPurpose
+            industry={state.industry}
             value={state.purpose}
             onChange={(v) => setState((s) => ({ ...s, purpose: v, purposeDetail: "" }))}
             detail={state.purposeDetail}

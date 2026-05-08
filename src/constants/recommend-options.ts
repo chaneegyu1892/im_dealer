@@ -7,6 +7,8 @@ export const INDUSTRY_OPTIONS = [
   { value: "개인", label: "개인 (비사업자)", desc: "순수 개인 명의", icon: "👤" },
 ] as const;
 
+// 호환용 전체 옵션 풀. 분기 매칭 실패 시 fallback으로 쓰이거나
+// 어드민 분석 등에서 라벨 lookup 용도로 import 가능.
 export const PURPOSE_OPTIONS = [
   { value: "출퇴근", label: "출퇴근", desc: "매일 출퇴근 주요 이동수단", icon: "🚗" },
   { value: "영업·외근", label: "영업·외근", desc: "고객 미팅·현장 이동 잦음", icon: "📍" },
@@ -14,7 +16,36 @@ export const PURPOSE_OPTIONS = [
   { value: "화물·배달", label: "화물·배달", desc: "물건 운반·배달 업무", icon: "📦" },
   { value: "의전·임원용", label: "의전·임원용", desc: "임원·VIP 의전 차량", icon: "🎖️" },
   { value: "기타", label: "기타 목적", desc: "위에 해당 없음", icon: "✳️" },
+  { value: "첫차", label: "첫차예요", desc: "처음으로 차를 마련해요", icon: "🌱" },
+  { value: "레저·캠핑", label: "레저·캠핑", desc: "주말 야외활동 위주예요", icon: "⛺" },
 ] as const;
+
+// 1단계 업종 선택값에 따라 2단계에서 노출할 목적 2개씩.
+// 매핑에 없는 업종이거나 industry가 빈 값일 때는 PURPOSE_OPTIONS 전체로 fallback.
+export const PURPOSE_OPTIONS_BY_INDUSTRY: Record<string, ReadonlyArray<typeof PURPOSE_OPTIONS[number]>> = {
+  법인: [
+    PURPOSE_OPTIONS[1], // 영업·외근
+    PURPOSE_OPTIONS[4], // 의전·임원용
+  ],
+  개인사업자: [
+    PURPOSE_OPTIONS[1], // 영업·외근
+    PURPOSE_OPTIONS[3], // 화물·배달
+  ],
+  직장인: [
+    PURPOSE_OPTIONS[0], // 출퇴근
+    PURPOSE_OPTIONS[2], // 가족
+  ],
+  개인: [
+    PURPOSE_OPTIONS[6], // 첫차
+    PURPOSE_OPTIONS[7], // 레저·캠핑
+  ],
+};
+
+export function getPurposeOptionsForIndustry(
+  industry: string,
+): ReadonlyArray<typeof PURPOSE_OPTIONS[number]> {
+  return PURPOSE_OPTIONS_BY_INDUSTRY[industry] ?? PURPOSE_OPTIONS;
+}
 
 export const BUDGET_RANGE_OPTIONS = [
   { value: "~30", label: "30만원 이하", budgetMin: 0, budgetMax: 300_000 },
@@ -110,6 +141,14 @@ export const PURPOSE_DETAIL_OPTIONS: Record<string, Array<{ value: string; label
     { value: "직접 운전", label: "직접 운전해요", desc: "운전자와 탑승자가 같아요", icon: "🙋" },
     { value: "기사 운행", label: "기사가 운전해요", desc: "후석 편의·공간이 중요해요", icon: "🤵" },
   ],
+  첫차: [
+    { value: "면허 신규", label: "면허를 막 땄어요", desc: "운전이 익숙하지 않아요", icon: "🔰" },
+    { value: "운전 익숙", label: "운전은 익숙해요", desc: "차만 처음이에요", icon: "🚗" },
+  ],
+  "레저·캠핑": [
+    { value: "차박·캠핑", label: "차박·캠핑이 주목적이에요", desc: "큰 적재공간이 필요해요", icon: "🏕️" },
+    { value: "스포츠·레저장비", label: "장비 운반 위주예요", desc: "자전거·서핑·골프 등", icon: "🚵" },
+  ],
 };
 
 export const PURPOSE_DETAIL_QUESTION: Record<string, { title: string; subtitle: string }> = {
@@ -119,6 +158,8 @@ export const PURPOSE_DETAIL_QUESTION: Record<string, { title: string; subtitle: 
   "화물·배달": { title: "주로 어떤 물량을 운반하시나요?", subtitle: "적재 용량에 맞는 차종을 추천해 드려요." },
   기타: { title: "차량을 얼마나 자주 이용하실 예정인가요?", subtitle: "사용 빈도에 따라 유지비 부담이 달라져요." },
   "의전·임원용": { title: "운전은 어떻게 하시나요?", subtitle: "운전 방식에 따라 최적 사양을 달리 추천해 드려요." },
+  첫차: { title: "운전은 어느 정도 익숙하신가요?", subtitle: "운전 경험에 따라 안전·편의 사양을 우선해 추천해요." },
+  "레저·캠핑": { title: "주로 어떤 활동을 하시나요?", subtitle: "활동 유형에 맞는 적재공간·구동방식을 고려해요." },
 };
 
 export const BUDGET_DETAIL_OPTIONS: Record<string, Array<{ value: string; label: string; desc?: string; icon?: string }>> = {

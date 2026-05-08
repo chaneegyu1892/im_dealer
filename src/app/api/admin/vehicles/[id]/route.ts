@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { vehicleUpdateSchema } from "@/lib/validations/admin";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
@@ -9,9 +9,8 @@ type Params = { params: Promise<{ id: string }> };
 
 // ─── GET /api/admin/vehicles/[id] ───────────────────────
 export async function GET(_request: NextRequest, { params }: Params) {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const { id } = await params;
     const vehicle = await prisma.vehicle.findUnique({
@@ -41,10 +40,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 // ─── PATCH /api/admin/vehicles/[id] ─────────────────────
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin: session, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const { id } = await params;
     const body = await request.json();
@@ -90,10 +87,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 // ─── DELETE /api/admin/vehicles/[id] ────────────────────
 export async function DELETE(request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin: session, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const { id } = await params;
     const existing = await prisma.vehicle.findUnique({ where: { id } });

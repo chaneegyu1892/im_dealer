@@ -18,6 +18,9 @@ const LABEL_MAP: Record<string, string> = {
   "영업·외근": "영업·외근",
   가족: "가족용",
   "화물·배달": "화물·배달",
+  "의전·임원용": "의전·임원용",
+  첫차: "첫차",
+  "레저·캠핑": "레저·캠핑",
 };
 
 export function RecommendResultView() {
