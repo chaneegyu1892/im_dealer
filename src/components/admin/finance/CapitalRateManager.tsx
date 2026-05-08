@@ -184,9 +184,9 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   };
 
   return (
-    <div className="flex gap-6 h-full">
+    <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:h-full overflow-y-auto md:overflow-hidden">
       {/* ── 좌측: 캐피탈사 + 차량/라인업/트림 선택 ── */}
-      <div className="w-72 flex-shrink-0 flex flex-col gap-4">
+      <div className="w-full md:w-72 md:flex-shrink-0 flex flex-col gap-4 md:overflow-y-auto">
         {/* 캐피탈사 선택 */}
         <div className="bg-white rounded-xl border border-[#E8EAF2] p-4">
           <p className="text-xs font-semibold text-[#9BA4C0] uppercase tracking-wider mb-3">캐피탈사</p>
@@ -286,23 +286,21 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
             {/* 트림 선택 */}
             {selectedLineupId && (
               <div className="bg-white rounded-xl border border-[#E8EAF2] p-4">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
                   <p className="text-xs font-semibold text-[#9BA4C0] uppercase tracking-wider">트림 선택 ({selectedTrimIds.size}개 선택됨)</p>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-2 ml-auto">
                     <div className="relative">
-                      <input 
+                      <input
                         type="text"
                         value={trimSearch}
                         onChange={(e) => setTrimSearch(e.target.value)}
                         placeholder="트림명 검색..."
-                        className="pl-8 pr-3 py-1.5 border border-[#E8EAF2] rounded-lg text-xs focus:outline-none focus:border-[#6066EE] w-48"
+                        className="pl-8 pr-3 py-1.5 border border-[#E8EAF2] rounded-lg text-xs focus:outline-none focus:border-[#6066EE] w-36 sm:w-48"
                       />
                       <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9BA4C0]" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={selectAllTrims} className="text-[11px] text-[#6066EE] hover:underline font-medium">전체 선택</button>
-                      <button onClick={deselectAllTrims} className="text-[11px] text-[#9BA4C0] hover:underline font-medium">선택 해제</button>
-                    </div>
+                    <button onClick={selectAllTrims} className="text-[11px] text-[#6066EE] hover:underline font-medium">전체 선택</button>
+                    <button onClick={deselectAllTrims} className="text-[11px] text-[#9BA4C0] hover:underline font-medium">선택 해제</button>
                   </div>
                 </div>
                 
