@@ -213,7 +213,6 @@ const CUSTOMER_TYPE_OPTIONS: {
   { type: "individual", icon: "👔", label: "개인", desc: "운전면허와 건강보험 자격 확인" },
   { type: "self_employed", icon: "💼", label: "개인사업자", desc: "건강보험 지역 가입자 + 사업자등록" },
   { type: "corporate", icon: "🏢", label: "법인", desc: "법인 사업자등록 조회" },
-  { type: "nonprofit", icon: "🏛️", label: "비영리법인", desc: "비영리법인 사업자등록 조회" },
 ];
 
 function Step2CustomerType({ value, onChange, onNext, onBack }: Step2Props) {
@@ -319,7 +318,7 @@ function Step3Form({
   const needsBiz =
     customerType === "self_employed" ||
     customerType === "corporate" ||
-    customerType === "nonprofit";
+    false;
 
   const isValid =
     form.name.trim() !== "" &&
@@ -494,7 +493,7 @@ export function VerifyClient() {
     const needsBiz =
       customerType === "self_employed" ||
       customerType === "corporate" ||
-      customerType === "nonprofit";
+      false;
     if (needsBiz && !validateBizNumber(form.bizNo)) {
       setError("사업자등록번호가 올바르지 않습니다. 10자리 숫자를 다시 확인해주세요.");
       return;
