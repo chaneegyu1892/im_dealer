@@ -3,41 +3,35 @@
 export const INDUSTRY_OPTIONS = [
   { value: "법인", label: "법인", desc: "법인 명의 차량 등록", icon: "🏢" },
   { value: "개인사업자", label: "개인사업자", desc: "사업자등록증 보유", icon: "📋" },
-  { value: "직장인", label: "직장인", desc: "급여 소득자", icon: "💼" },
-  { value: "개인", label: "개인 (비사업자)", desc: "순수 개인 명의", icon: "👤" },
+  { value: "개인", label: "개인", desc: "직장인·프리랜서·비사업자 모두 포함", icon: "👤" },
 ] as const;
 
 // 호환용 전체 옵션 풀. 분기 매칭 실패 시 fallback으로 쓰이거나
 // 어드민 분석 등에서 라벨 lookup 용도로 import 가능.
 export const PURPOSE_OPTIONS = [
-  { value: "출퇴근", label: "출퇴근", desc: "매일 출퇴근 주요 이동수단", icon: "🚗" },
-  { value: "영업·외근", label: "영업·외근", desc: "고객 미팅·현장 이동 잦음", icon: "📍" },
-  { value: "가족", label: "가족용", desc: "가족 이동·장거리 여행", icon: "👨‍👩‍👧" },
+  { value: "출퇴근·업무용", label: "출퇴근·업무용", desc: "출퇴근·영업·외근 통합", icon: "🚗" },
   { value: "화물·배달", label: "화물·배달", desc: "물건 운반·배달 업무", icon: "📦" },
-  { value: "의전·임원용", label: "의전·임원용", desc: "임원·VIP 의전 차량", icon: "🎖️" },
-  { value: "기타", label: "기타 목적", desc: "위에 해당 없음", icon: "✳️" },
-  { value: "첫차", label: "첫차예요", desc: "처음으로 차를 마련해요", icon: "🌱" },
-  { value: "레저·캠핑", label: "레저·캠핑", desc: "주말 야외활동 위주예요", icon: "⛺" },
+  { value: "임원용·의전", label: "임원용·의전", desc: "임원·VIP 의전 차량", icon: "🎖️" },
+  { value: "가정용", label: "가정용", desc: "가족 이동·장거리 여행", icon: "👨‍👩‍👧" },
 ] as const;
 
-// 1단계 업종 선택값에 따라 2단계에서 노출할 목적 2개씩.
+// 1단계 업종 선택값에 따라 2단계에서 노출할 목적.
 // 매핑에 없는 업종이거나 industry가 빈 값일 때는 PURPOSE_OPTIONS 전체로 fallback.
 export const PURPOSE_OPTIONS_BY_INDUSTRY: Record<string, ReadonlyArray<typeof PURPOSE_OPTIONS[number]>> = {
   법인: [
-    PURPOSE_OPTIONS[1], // 영업·외근
-    PURPOSE_OPTIONS[4], // 의전·임원용
+    PURPOSE_OPTIONS[0], // 출퇴근·업무용
+    PURPOSE_OPTIONS[1], // 화물·배달
+    PURPOSE_OPTIONS[2], // 임원용·의전
   ],
   개인사업자: [
-    PURPOSE_OPTIONS[1], // 영업·외근
-    PURPOSE_OPTIONS[3], // 화물·배달
-  ],
-  직장인: [
-    PURPOSE_OPTIONS[0], // 출퇴근
-    PURPOSE_OPTIONS[2], // 가족
+    PURPOSE_OPTIONS[0], // 출퇴근·업무용
+    PURPOSE_OPTIONS[1], // 화물·배달
+    PURPOSE_OPTIONS[3], // 가정용
   ],
   개인: [
-    PURPOSE_OPTIONS[6], // 첫차
-    PURPOSE_OPTIONS[7], // 레저·캠핑
+    PURPOSE_OPTIONS[0], // 출퇴근·업무용
+    PURPOSE_OPTIONS[1], // 화물·배달
+    PURPOSE_OPTIONS[3], // 가정용
   ],
 };
 
@@ -85,17 +79,14 @@ export const MILEAGE_OPTIONS = [
 
 export const INDUSTRY_DETAIL_OPTIONS: Record<string, Array<{ value: string; label: string; desc?: string; icon?: string }>> = {
   법인: [
-    { value: "1대", label: "1대", desc: "대표 차량 또는 단독 운용", icon: "🚗" },
-    { value: "2~5대", label: "2~5대", desc: "소규모 fleet 관리", icon: "🚙" },
-    { value: "6대 이상", label: "6대 이상", desc: "대규모 차량 운용", icon: "🏭" },
+    { value: "없음", label: "없어요", desc: "처음 도입하는 법인 차량이에요", icon: "🆕" },
+    { value: "1대", label: "1대", desc: "이미 1대를 운용 중이에요", icon: "🚗" },
+    { value: "2대 이상", label: "2대 이상", desc: "다수 차량을 운용 중이에요", icon: "🏭" },
   ],
   개인사업자: [
-    { value: "비용처리 중요", label: "비용처리가 중요해요", desc: "세금 절감 효과를 최대화하고 싶어요", icon: "💰" },
-    { value: "상관없음", label: "크게 상관없어요", desc: "차량 조건이 더 우선이에요", icon: "👍" },
-  ],
-  직장인: [
-    { value: "자가용 주요", label: "자가용이 주요 수단이에요", desc: "출퇴근 대부분을 차로 이동해요", icon: "🚗" },
-    { value: "대중교통 병행", label: "대중교통을 병행해요", desc: "필요할 때만 차량을 이용해요", icon: "🚌" },
+    { value: "없음", label: "없어요", desc: "사업자 명의 렌트/리스 차량이 없어요", icon: "🆕" },
+    { value: "1대", label: "1대 운용 중", desc: "이미 1대를 운용 중이에요", icon: "🚗" },
+    { value: "2대 이상", label: "2대 이상 운용 중", desc: "2대 이상 운용 중이에요 (임직원 전용보험 필수)", icon: "⚠️" },
   ],
   개인: [
     { value: "혼자", label: "주로 혼자 타요", desc: "1인 사용이 대부분이에요", icon: "👤" },
@@ -105,58 +96,37 @@ export const INDUSTRY_DETAIL_OPTIONS: Record<string, Array<{ value: string; labe
 };
 
 export const INDUSTRY_DETAIL_QUESTION: Record<string, { title: string; subtitle: string }> = {
-  법인: { title: "법인 차량 운용 대수는요?", subtitle: "규모에 맞는 실용적인 차량을 추천해 드려요." },
-  개인사업자: { title: "세금 비용처리가 중요한가요?", subtitle: "비용처리 여부에 따라 최적 견적 조건이 달라져요." },
-  직장인: { title: "차량을 얼마나 자주 이용하실 건가요?", subtitle: "사용 패턴에 맞는 연비와 편의사양을 고려해요." },
+  법인: { title: "현재 법인 차량 운용 대수는요?", subtitle: "규모에 맞는 실용적인 차량을 추천해 드려요." },
+  개인사업자: { title: "현재 사업자 명의 렌트/리스 차량은요?", subtitle: "2대 이상 운용 시 임직원 전용보험이 필수예요." },
   개인: { title: "주로 몇 명이 함께 탑승하나요?", subtitle: "동승 인원에 따라 적합한 차급이 달라져요." },
 };
 
 export const PURPOSE_DETAIL_OPTIONS: Record<string, Array<{ value: string; label: string; desc?: string; icon?: string }>> = {
-  출퇴근: [
+  "출퇴근·업무용": [
     { value: "10km 이하", label: "10km 이하", desc: "가까운 거리, 시내 위주", icon: "📍" },
     { value: "10~30km", label: "10~30km", desc: "평균적인 출퇴근 거리", icon: "🛣️" },
-    { value: "30km 이상", label: "30km 이상", desc: "장거리 출퇴근, 연비가 중요해요", icon: "🛤️" },
-  ],
-  "영업·외근": [
-    { value: "주 2~3회", label: "주 2~3회", desc: "간헐적으로 외근해요", icon: "📅" },
-    { value: "매일", label: "매일 외근해요", desc: "일상적으로 이동이 많아요", icon: "🗓️" },
-  ],
-  가족: [
-    { value: "영유아", label: "영유아가 있어요", desc: "카시트, 안전 기능이 중요해요", icon: "👶" },
-    { value: "초등 이상", label: "초등 이상이에요", desc: "실내 공간·편의사양을 중시해요", icon: "🧒" },
-    { value: "자녀 없음", label: "자녀가 없어요", desc: "부부 또는 성인 위주로 이용해요", icon: "💑" },
+    { value: "30km 이상", label: "30km 이상", desc: "장거리, 연비가 중요해요", icon: "🛤️" },
   ],
   "화물·배달": [
     { value: "소형 박스", label: "소형 박스·소화물", desc: "택배, 소형 물품 위주예요", icon: "📦" },
     { value: "대형 화물", label: "대형 화물·자재", desc: "적재 용량이 정말 중요해요", icon: "🏗️" },
   ],
-  기타: [
-    { value: "주말만", label: "주말·레저용이에요", desc: "주로 주말에만 운행해요", icon: "⛺" },
-    { value: "평일 포함 자주", label: "평일 포함 자주 써요", desc: "일상적으로 자주 운행해요", icon: "🔄" },
-  ],
-  "의전·임원용": [
+  "임원용·의전": [
     { value: "직접 운전", label: "직접 운전해요", desc: "운전자와 탑승자가 같아요", icon: "🙋" },
     { value: "기사 운행", label: "기사가 운전해요", desc: "후석 편의·공간이 중요해요", icon: "🤵" },
   ],
-  첫차: [
-    { value: "면허 신규", label: "면허를 막 땄어요", desc: "운전이 익숙하지 않아요", icon: "🔰" },
-    { value: "운전 익숙", label: "운전은 익숙해요", desc: "차만 처음이에요", icon: "🚗" },
-  ],
-  "레저·캠핑": [
-    { value: "차박·캠핑", label: "차박·캠핑이 주목적이에요", desc: "큰 적재공간이 필요해요", icon: "🏕️" },
-    { value: "스포츠·레저장비", label: "장비 운반 위주예요", desc: "자전거·서핑·골프 등", icon: "🚵" },
+  가정용: [
+    { value: "영유아", label: "영유아가 있어요", desc: "카시트, 안전 기능이 중요해요", icon: "👶" },
+    { value: "초등 이상", label: "초등 이상이에요", desc: "실내 공간·편의사양을 중시해요", icon: "🧒" },
+    { value: "자녀 없음", label: "자녀가 없어요", desc: "부부 또는 성인 위주로 이용해요", icon: "💑" },
   ],
 };
 
 export const PURPOSE_DETAIL_QUESTION: Record<string, { title: string; subtitle: string }> = {
-  출퇴근: { title: "하루 편도 출퇴근 거리는요?", subtitle: "거리가 멀수록 연비 좋은 차량이 더 유리해요." },
-  "영업·외근": { title: "외근 빈도는 어느 정도인가요?", subtitle: "자주 이동하실수록 승차감·편의사양이 중요해요." },
-  가족: { title: "자녀 연령대는 어떻게 되나요?", subtitle: "연령에 맞는 안전·편의 기능을 우선으로 추천해요." },
+  "출퇴근·업무용": { title: "하루 편도 이동 거리는요?", subtitle: "거리가 멀수록 연비 좋은 차량이 더 유리해요." },
   "화물·배달": { title: "주로 어떤 물량을 운반하시나요?", subtitle: "적재 용량에 맞는 차종을 추천해 드려요." },
-  기타: { title: "차량을 얼마나 자주 이용하실 예정인가요?", subtitle: "사용 빈도에 따라 유지비 부담이 달라져요." },
-  "의전·임원용": { title: "운전은 어떻게 하시나요?", subtitle: "운전 방식에 따라 최적 사양을 달리 추천해 드려요." },
-  첫차: { title: "운전은 어느 정도 익숙하신가요?", subtitle: "운전 경험에 따라 안전·편의 사양을 우선해 추천해요." },
-  "레저·캠핑": { title: "주로 어떤 활동을 하시나요?", subtitle: "활동 유형에 맞는 적재공간·구동방식을 고려해요." },
+  "임원용·의전": { title: "운전은 어떻게 하시나요?", subtitle: "운전 방식에 따라 최적 사양을 달리 추천해 드려요." },
+  가정용: { title: "자녀 연령대는 어떻게 되나요?", subtitle: "연령에 맞는 안전·편의 기능을 우선으로 추천해요." },
 };
 
 export const BUDGET_DETAIL_OPTIONS: Record<string, Array<{ value: string; label: string; desc?: string; icon?: string }>> = {

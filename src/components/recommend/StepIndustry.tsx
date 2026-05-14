@@ -57,6 +57,15 @@ export function StepIndustry({ value, onChange, detail, onDetailChange }: StepIn
               />
             ))}
           </div>
+
+          {value === "개인사업자" && detail === "2대 이상" && (
+            <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 p-3">
+              <p className="text-[12px] text-amber-800">
+                💡 사업자 명의 차량을 2대 이상 운용하시는 경우 <span className="font-semibold">임직원 전용 보험</span>이 필수예요.
+                자세한 안내가 필요하시면 상담을 이용해 주세요.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
