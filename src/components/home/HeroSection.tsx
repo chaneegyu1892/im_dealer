@@ -83,8 +83,8 @@ export function HeroSection() {
                 className="bg-white text-primary border-none font-semibold shadow-lg hover:bg-white/90 hover:shadow-xl transition-shadow justify-center"
                 asChild
               >
-                <Link href="/recommend">
-                  AI 추천 시작하기
+                <Link href="/cars">
+                  내가 직접 견적 설계하기
                   <ArrowRight size={16} className="ml-2" />
                 </Link>
               </Button>
@@ -94,7 +94,7 @@ export function HeroSection() {
                 className="border-white/30 text-white hover:bg-white/10 hover:border-white/50 justify-center"
                 asChild
               >
-                <Link href="/cars">차량 직접 탐색</Link>
+                <Link href="/recommend">AI가 추천도 해드려요</Link>
               </Button>
             </motion.div>
           </div>
