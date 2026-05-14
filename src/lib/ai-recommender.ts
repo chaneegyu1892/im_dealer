@@ -333,6 +333,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
         brand: v.brand,
         category: v.category,
         thumbnailUrl: v.thumbnailUrl,
+        imageUrls: v.imageUrls,
         defaultTrimName: defaultTrim.name,
         defaultTrimPrice: defaultTrim.price,
         slug: v.slug,
