@@ -17,7 +17,6 @@ import {
   BUDGET_DETAIL_OPTIONS,
   BUDGET_DETAIL_QUESTION,
   MILEAGE_OPTIONS,
-  RETURN_TYPE_OPTIONS,
   FUEL_PREFERENCE_OPTIONS,
   INDUSTRY_DETAIL_OPTIONS,
   INDUSTRY_DETAIL_QUESTION,
@@ -453,15 +452,7 @@ function buildPreferenceSheet(wb: ExcelJS.Workbook): void {
   }
 
   sheet.addRow([]);
-  sheet.addRow(["[B] 반납 / 인수"]).font = { bold: true, size: 12 };
-  const r2 = sheet.addRow(["값", "라벨", "요약", "상세"]);
-  styleHeader(r2);
-  for (const r of RETURN_TYPE_OPTIONS) {
-    sheet.addRow([r.value, r.label, r.desc, r.detail]);
-  }
-
-  sheet.addRow([]);
-  sheet.addRow(["[C] 연료 선호"]).font = { bold: true, size: 12 };
+  sheet.addRow(["[B] 연료 선호"]).font = { bold: true, size: 12 };
   const r3 = sheet.addRow(["값", "라벨", "설명"]);
   styleHeader(r3);
   for (const f of FUEL_PREFERENCE_OPTIONS) {

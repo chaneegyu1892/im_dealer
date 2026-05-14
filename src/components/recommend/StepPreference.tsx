@@ -1,11 +1,9 @@
-import { MILEAGE_OPTIONS, RETURN_TYPE_OPTIONS, FUEL_PREFERENCE_OPTIONS } from "@/constants/recommend-options";
-import type { ReturnType } from "@/types/recommendation";
+import { MILEAGE_OPTIONS, FUEL_PREFERENCE_OPTIONS } from "@/constants/recommend-options";
 import { SelectionCard } from "./SelectionCard";
 import { cn } from "@/lib/utils";
 
 interface PreferenceState {
   annualMileage: number;
-  returnType: ReturnType;
 }
 
 interface StepPreferenceProps {
@@ -21,10 +19,6 @@ export function StepPreference({ value, onChange, fuelPreference, onFuelChange, 
     fuelPreference === "전기차" && typeof budgetMax === "number" && budgetMax <= 500_000;
   const handleMileage = (mileage: number) => {
     onChange({ ...value, annualMileage: mileage });
-  };
-
-  const handleReturnType = (type: ReturnType) => {
-    onChange({ ...value, returnType: type });
   };
 
   return (
@@ -76,31 +70,6 @@ export function StepPreference({ value, onChange, fuelPreference, onFuelChange, 
               </button>
             );
           })}
-        </div>
-      </div>
-
-      {/* 인수/반납 성향 */}
-      <div>
-        <div className="mb-4">
-          <h2 className="text-title-sm text-ink font-medium">
-            계약 종료 후 어떻게 하실 건가요?
-          </h2>
-          <p className="text-label text-ink-label mt-1">
-            모르셔도 괜찮아요. AI가 두 조건 모두 비교해 드려요.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3">
-          {RETURN_TYPE_OPTIONS.map((opt) => (
-            <SelectionCard
-              key={opt.value}
-              label={opt.label}
-              desc={opt.desc}
-              detail={opt.detail}
-              selected={value.returnType === opt.value}
-              onClick={() => handleReturnType(opt.value)}
-            />
-          ))}
         </div>
       </div>
 
