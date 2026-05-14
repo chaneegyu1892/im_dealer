@@ -30,7 +30,7 @@ CREATE INDEX "SavedQuote_status_idx" ON "SavedQuote"("status");
 CREATE INDEX "SavedQuote_assigneeId_idx" ON "SavedQuote"("assigneeId");
 
 -- CreateIndex
-CREATE INDEX "SavedQuote_userId_idx" ON "SavedQuote"("userId");
+CREATE INDEX IF NOT EXISTS "SavedQuote_userId_idx" ON "SavedQuote"("userId");
 
 -- AddForeignKey
 ALTER TABLE "QuoteActivityLog" ADD CONSTRAINT "QuoteActivityLog_quoteId_fkey" FOREIGN KEY ("quoteId") REFERENCES "SavedQuote"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -29,7 +29,7 @@ export function HeroSection() {
         {/* 배경 이미지 */}
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/images/hero-bg.png')" }}
+          style={{ backgroundImage: "url('/images/hero-bg-v2.png')" }}
         />
         {/* 이미지 위 어두운 오버레이 — 텍스트 가독성 확보 */}
         <div className="absolute inset-0 bg-black/55" />
