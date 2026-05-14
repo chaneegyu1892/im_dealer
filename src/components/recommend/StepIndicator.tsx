@@ -4,10 +4,8 @@ import { Check } from "lucide-react";
 const STEPS = [
   { id: 1, label: "업종" },
   { id: 2, label: "목적" },
-  { id: 3, label: "예산" },
-  { id: 4, label: "납입" },
-  { id: 5, label: "주행" },
-  { id: 6, label: "연료" },
+  { id: 3, label: "예산·납입" },
+  { id: 4, label: "주행·연료" },
 ] as const;
 
 type StepId = (typeof STEPS)[number]["id"];
@@ -31,7 +29,7 @@ export function StepIndicator({ currentStep, className }: StepIndicatorProps) {
             {idx > 0 && (
               <div
                 className={cn(
-                  "h-[2px] w-4 sm:w-6 md:w-10 flex-shrink-0 rounded-sm transition-colors duration-300",
+                  "h-[2px] w-8 sm:w-12 md:w-16 flex-shrink-0 rounded-sm transition-colors duration-300",
                   isDone ? "bg-primary" : "bg-neutral-800"
                 )}
               />
