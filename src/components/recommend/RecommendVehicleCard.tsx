@@ -136,13 +136,16 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
         {/* 추천 구성 */}
         {hasConfigs && (
           <div>
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <Users size={13} className="text-secondary" />
               <p className="text-[12px] font-medium text-ink-label">추천 구성</p>
               <span className="text-[10px] font-medium text-secondary bg-secondary-100 rounded-pill px-2 py-0.5">
                 인기
               </span>
             </div>
+            <p className="text-[11px] text-ink-caption mb-3">
+              👇 원하는 옵션을 눌러서 추가해보세요. 금액이 실시간으로 반영돼요.
+            </p>
 
             <div className="space-y-3">
               {detail.popularConfigs.map((config) => (
@@ -164,14 +167,25 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
                           key={item.id}
                           type="button"
                           onClick={() => toggleItem(item.id)}
+                          aria-pressed={isSelected}
                           className={cn(
                             "inline-flex items-center gap-1.5 rounded-btn px-3 py-2 text-[12px] font-medium transition-all duration-150",
+                            "active:scale-[0.97]",
                             isSelected
-                              ? "bg-primary-100 border border-primary text-primary"
-                              : "bg-white border border-neutral-800 text-ink-label hover:border-primary-400 hover:text-ink"
+                              ? "bg-primary-100 border border-primary text-primary shadow-sm"
+                              : "bg-white border border-dashed border-neutral-300 text-ink-label hover:border-solid hover:border-primary-400 hover:text-ink hover:bg-primary-50"
                           )}
                         >
-                          {isSelected && <Check size={11} className="flex-shrink-0" />}
+                          <span
+                            className={cn(
+                              "flex items-center justify-center w-3.5 h-3.5 rounded-full border flex-shrink-0",
+                              isSelected
+                                ? "bg-primary border-primary"
+                                : "border-neutral-400"
+                            )}
+                          >
+                            {isSelected && <Check size={9} className="text-white" />}
+                          </span>
                           <span>{item.name}</span>
                           <span
                             className={cn(
@@ -215,19 +229,23 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
           </p>
         </div>
 
-        {/* 하단 버튼 */}
+        {/* 하단 버튼 — 견적내기(메인) / 상담하기(보조) */}
         <div className="space-y-2">
-          {/* 견적내기 */}
+          {/* 견적내기 — 메인 강조 */}
           <button
             type="button"
             onClick={handleQuote}
-            className="w-full py-2.5 rounded-btn border border-primary/30 text-primary text-[13px] font-medium hover:bg-primary/[0.04] active:scale-[0.98] transition-all duration-150"
+            className="w-full py-3.5 rounded-btn bg-primary text-white text-[14px] font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 shadow-sm"
           >
             견적내기
           </button>
 
-          {/* 상담하기 */}
-          <ChannelTalkButton vehicleName={detail.name} />
+          {/* 상담하기 — 보조 (테두리) */}
+          <ChannelTalkButton
+            vehicleName={detail.name}
+            size="sm"
+            className="w-full !bg-transparent !text-ink-label border border-neutral-300 hover:!bg-neutral-50"
+          />
         </div>
       </div>
     </div>
