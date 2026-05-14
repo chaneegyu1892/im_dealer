@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { ChevronLeft } from "lucide-react";
 import type { RecommendInput } from "@/types/recommendation";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 4;
 
 interface FlowState {
   industry: string;
@@ -46,10 +46,8 @@ function isStepValid(step: StepId, state: FlowState): boolean {
   switch (step) {
     case 1: return state.industry !== "" && state.industryDetail !== "";
     case 2: return state.purpose !== "" && state.purposeDetail !== "";
-    case 3: return state.budget.rangeKey !== "";
-    case 4: return state.budgetDetail !== "";
-    case 5: return state.annualMileage !== 0;
-    case 6: return state.fuelPreference !== "";
+    case 3: return state.budget.rangeKey !== "" && state.budgetDetail !== "";
+    case 4: return state.annualMileage !== 0 && state.fuelPreference !== "";
   }
 }
 
@@ -139,37 +137,41 @@ export function RecommendFlow() {
           />
         )}
         {step === 3 && (
-          <StepBudget
-            value={state.budget}
-            onChange={(v) => setState((s) => ({ ...s, budget: v }))}
-          />
+          <div className="space-y-10">
+            <StepBudget
+              value={state.budget}
+              onChange={(v) => setState((s) => ({ ...s, budget: v }))}
+            />
+            <div className="pt-8 border-t border-[#F0F0F0]">
+              <StepPaymentStyle
+                value={state.budget.paymentStyle}
+                onChange={(v) =>
+                  setState((s) => ({
+                    ...s,
+                    budget: { ...s.budget, paymentStyle: v },
+                    budgetDetail: "",
+                  }))
+                }
+                detail={state.budgetDetail}
+                onDetailChange={(v) => setState((s) => ({ ...s, budgetDetail: v }))}
+              />
+            </div>
+          </div>
         )}
         {step === 4 && (
-          <StepPaymentStyle
-            value={state.budget.paymentStyle}
-            onChange={(v) =>
-              setState((s) => ({
-                ...s,
-                budget: { ...s.budget, paymentStyle: v },
-                budgetDetail: "",
-              }))
-            }
-            detail={state.budgetDetail}
-            onDetailChange={(v) => setState((s) => ({ ...s, budgetDetail: v }))}
-          />
-        )}
-        {step === 5 && (
-          <StepMileage
-            value={state.annualMileage}
-            onChange={(v) => setState((s) => ({ ...s, annualMileage: v }))}
-          />
-        )}
-        {step === 6 && (
-          <StepFuelPreference
-            value={state.fuelPreference}
-            onChange={(v) => setState((s) => ({ ...s, fuelPreference: v }))}
-            budgetMax={state.budget.budgetMax}
-          />
+          <div className="space-y-10">
+            <StepMileage
+              value={state.annualMileage}
+              onChange={(v) => setState((s) => ({ ...s, annualMileage: v }))}
+            />
+            <div className="pt-8 border-t border-[#F0F0F0]">
+              <StepFuelPreference
+                value={state.fuelPreference}
+                onChange={(v) => setState((s) => ({ ...s, fuelPreference: v }))}
+                budgetMax={state.budget.budgetMax}
+              />
+            </div>
+          </div>
         )}
       </div>
 
