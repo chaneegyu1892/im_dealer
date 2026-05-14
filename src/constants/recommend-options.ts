@@ -49,23 +49,17 @@ export const BUDGET_RANGE_OPTIONS = [
 
 export const PAYMENT_STYLE_OPTIONS = [
   {
-    value: "보수형" as const,
-    label: "보수형",
-    desc: "보증금 있음 · 월납입 낮게",
-    detail: "초기 목돈이 있고 월 부담을 낮추고 싶을 때",
-  },
-  {
     value: "표준형" as const,
-    label: "표준형",
-    desc: "보증금 없음 · 균형 잡힌 조건",
-    detail: "가장 일반적인 방식. 추천 기본값",
+    label: "초기 비용 없이 가볍게 시작하고 싶어요",
+    desc: "보증금·선납금 없이 시작",
+    detail: "월 납입금 그대로 부담. 가장 일반적인 방식",
     recommended: true,
   },
   {
-    value: "공격형" as const,
-    label: "공격형",
-    desc: "선납금 있음 · 월납입 최소화",
-    detail: "목돈으로 선납 후 월 부담을 최대한 줄일 때",
+    value: "보수형" as const,
+    label: "보증금·선납금을 넣고 월 비용을 낮추고 싶어요",
+    desc: "초기 목돈으로 월 납입금 절감",
+    detail: "초기 비용을 더 부담하더라도 매달 부담을 줄이고 싶을 때",
   },
 ] as const;
 
@@ -130,26 +124,20 @@ export const PURPOSE_DETAIL_QUESTION: Record<string, { title: string; subtitle: 
 };
 
 export const BUDGET_DETAIL_OPTIONS: Record<string, Array<{ value: string; label: string; desc?: string; icon?: string }>> = {
-  보수형: [
-    { value: "100만원 이하", label: "100만원 이하", desc: "소액 보증금으로 시작해요", icon: "💵" },
-    { value: "100~300만원", label: "100~300만원", desc: "적당한 초기 비용이에요", icon: "💰" },
-    { value: "300만원 이상", label: "300만원 이상", desc: "초기 목돈으로 월납을 대폭 낮춰요", icon: "💎" },
-  ],
   표준형: [
     { value: "예산 엄수", label: "예산은 꼭 지켜야 해요", desc: "정해진 예산을 초과하고 싶지 않아요", icon: "🎯" },
     { value: "조금 타협 가능", label: "조금 더 낼 수 있어요", desc: "좋은 차라면 약간 유연하게 생각해요", icon: "⚖️" },
   ],
-  공격형: [
-    { value: "100만원 이하", label: "100만원 이하", desc: "소액 선납으로 시작해요", icon: "💵" },
-    { value: "100~300만원", label: "100~300만원", desc: "적당한 선납금이에요", icon: "💰" },
-    { value: "300만원 이상", label: "300만원 이상", desc: "선납으로 월납을 최소화해요", icon: "💎" },
+  보수형: [
+    { value: "100만원 이하", label: "100만원 이하", desc: "소액 보증금/선납금으로 시작해요", icon: "💵" },
+    { value: "100~300만원", label: "100~300만원", desc: "적당한 초기 비용이에요", icon: "💰" },
+    { value: "300만원 이상", label: "300만원 이상", desc: "초기 목돈으로 월납을 대폭 낮춰요", icon: "💎" },
   ],
 };
 
 export const BUDGET_DETAIL_QUESTION: Record<string, { title: string; subtitle: string }> = {
-  보수형: { title: "초기 보증금으로 얼마 정도 준비하셨나요?", subtitle: "보증금이 클수록 월 납입금을 더 낮출 수 있어요." },
   표준형: { title: "차량 선택 기준이 어떻게 되나요?", subtitle: "약간의 유연성이 있으면 더 좋은 차를 제안드려요." },
-  공격형: { title: "선납금으로 얼마 정도 준비하셨나요?", subtitle: "선납금이 많을수록 월 납입금이 크게 줄어요." },
+  보수형: { title: "초기 비용으로 얼마 정도 준비하셨나요?", subtitle: "보증금·선납금이 클수록 월 납입금을 더 낮출 수 있어요." },
 };
 
 export const FUEL_PREFERENCE_OPTIONS = [
