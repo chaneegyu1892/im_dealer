@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import type { VehicleListItem } from "@/types/api";
+
+const INITIAL_VISIBLE = 3;
 
 function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: number }) {
   const monthly = vehicle.monthlyFrom > 0
@@ -88,6 +91,10 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
 }
 
 export function PopularCarsSection({ vehicles }: { vehicles: VehicleListItem[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = vehicles.length > INITIAL_VISIBLE;
+  const visibleVehicles = expanded ? vehicles : vehicles.slice(0, INITIAL_VISIBLE);
+
   return (
     <section className="page-container py-16">
       <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 mb-8">
@@ -106,10 +113,33 @@ export function PopularCarsSection({ vehicles }: { vehicles: VehicleListItem[] }
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
-        {vehicles.map((v, i) => (
+        {visibleVehicles.map((v, i) => (
           <PopularCard key={v.id} vehicle={v} index={i} />
         ))}
       </div>
+
+      {hasMore && (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-primary/30 text-primary text-[13px] font-medium hover:bg-primary/[0.04] hover:border-primary/60 transition-all duration-200"
+            aria-expanded={expanded}
+          >
+            {expanded ? (
+              <>
+                접기
+                <ChevronUp size={14} />
+              </>
+            ) : (
+              <>
+                더 많은 인기 차량 보기 ({vehicles.length - INITIAL_VISIBLE}개 더)
+                <ChevronDown size={14} />
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
