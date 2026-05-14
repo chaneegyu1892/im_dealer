@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 
 export function Footer() {
   return (
@@ -90,6 +91,41 @@ export function Footer() {
               </li>
             </ul>
           </div>
+        </div>
+      </div>
+
+      {/* 약관·고지 아코디언 */}
+      <div className="border-t border-white/10">
+        <div className="max-w-content mx-auto px-6 lg:px-8 py-2">
+          <Accordion>
+            <AccordionItem title="금융사별 주요 약관">
+              <p>
+                ※ 본 약관은 추후 업데이트 예정입니다.
+              </p>
+              <p className="mt-1">
+                금융사별 상세 약관은 계약 진행 시 별도 안내드립니다. 장기렌트·리스 상품은
+                금융사에 따라 보증금·선납금·중도해지 조건이 상이할 수 있습니다.
+              </p>
+            </AccordionItem>
+            <AccordionItem title="모집인 정보">
+              <p>영업 총괄: 오영택, 신준호</p>
+              <p className="mt-1 text-white/40">
+                (그 외 모집인 정보는 추후 업데이트 예정입니다.)
+              </p>
+              <p className="mt-2 text-white/40">
+                ※ 모집인 등록번호 및 자세한 정보는 차후 명시됩니다.
+              </p>
+            </AccordionItem>
+            <AccordionItem title="중도해지 수수료 등 법적 고지">
+              <p>
+                장기렌트 및 리스 상품은 계약 기간 중 중도해지 시 위약금이 발생할 수 있습니다.
+              </p>
+              <p className="mt-1 text-white/40">
+                ※ 자세한 법적 고지 및 위약금 산정 기준은 추후 업데이트 예정입니다. 계약 진행
+                시 금융사별 상세 고지사항을 안내드립니다.
+              </p>
+            </AccordionItem>
+          </Accordion>
         </div>
       </div>
 
