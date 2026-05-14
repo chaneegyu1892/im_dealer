@@ -101,6 +101,7 @@ model Trim {
   vehicleId      String
   name           String
   price          Int
+  discountPrice  Int?
   engineType     String
   fuelEfficiency Float?
   isDefault      Boolean         @default(false)

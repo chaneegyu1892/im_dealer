@@ -83,6 +83,7 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
       lineupId: t.lineupId,
       name: t.name,
       price: t.price,
+      discountPrice: t.discountPrice,
       engineType: t.engineType as AdminVehicleDetail["trims"][number]["engineType"],
       fuelEfficiency: t.fuelEfficiency,
       isDefault: t.isDefault,
