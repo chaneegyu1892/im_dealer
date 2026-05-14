@@ -48,6 +48,7 @@ export interface RecommendedVehicleDetail {
   brand: string;
   category: string;
   thumbnailUrl: string;
+  imageUrls?: string[];
   defaultTrimName: string;
   defaultTrimPrice: number;
   slug: string;

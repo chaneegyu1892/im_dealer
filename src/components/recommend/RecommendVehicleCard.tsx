@@ -94,18 +94,21 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
         <div className="flex items-center gap-4">
           {/* 썸네일 */}
           <div className="relative w-28 h-20 flex-shrink-0 rounded-[8px] overflow-hidden bg-neutral">
-            {detail.thumbnailUrl ? (
-              <Image
-                src={detail.thumbnailUrl}
-                alt={detail.name}
-                fill
-                sizes="96px"
-                unoptimized
-                className="object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-2xl">🚗</div>
-            )}
+            {(() => {
+              const imageSrc = detail.thumbnailUrl || detail.imageUrls?.[0];
+              return imageSrc ? (
+                <Image
+                  src={imageSrc}
+                  alt={detail.name}
+                  fill
+                  sizes="96px"
+                  unoptimized
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-2xl">🚗</div>
+              );
+            })()}
           </div>
 
           {/* 이름·트림 */}
