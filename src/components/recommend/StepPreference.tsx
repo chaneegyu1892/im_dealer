@@ -13,9 +13,12 @@ interface StepPreferenceProps {
   onChange: (value: PreferenceState) => void;
   fuelPreference: string;
   onFuelChange: (value: string) => void;
+  budgetMax?: number;
 }
 
-export function StepPreference({ value, onChange, fuelPreference, onFuelChange }: StepPreferenceProps) {
+export function StepPreference({ value, onChange, fuelPreference, onFuelChange, budgetMax }: StepPreferenceProps) {
+  const showEvBudgetWarning =
+    fuelPreference === "전기차" && typeof budgetMax === "number" && budgetMax <= 500_000;
   const handleMileage = (mileage: number) => {
     onChange({ ...value, annualMileage: mileage });
   };
@@ -122,6 +125,14 @@ export function StepPreference({ value, onChange, fuelPreference, onFuelChange }
             />
           ))}
         </div>
+
+        {showEvBudgetWarning && (
+          <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 p-3">
+            <p className="text-[12px] text-amber-800">
+              💡 전기차는 일반 차량 대비 예산이 더 필요할 수 있어요. 추천 결과가 조건과 다를 수 있습니다.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
