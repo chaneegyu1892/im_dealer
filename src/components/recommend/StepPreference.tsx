@@ -37,28 +37,42 @@ export function StepPreference({ value, onChange, fuelPreference, onFuelChange }
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {MILEAGE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => handleMileage(opt.value)}
-              className={cn(
-                "p-4 rounded-card border text-left transition-all duration-200",
-                value.annualMileage === opt.value
-                  ? "border-primary bg-primary-100"
-                  : "border-[#F0F0F0] bg-white hover:border-primary-200 hover:shadow-card-hover hover:-translate-y-0.5"
-              )}
-            >
-              <p className={cn(
-                "text-sm font-medium",
-                value.annualMileage === opt.value ? "text-primary" : "text-ink"
-              )}>
-                {opt.label}
-              </p>
-              <p className="text-[12px] text-ink-caption mt-0.5">{opt.desc}</p>
-            </button>
-          ))}
+        <div className="mb-3 rounded-card bg-primary-50 border border-primary-100 p-3">
+          <p className="text-[12px] text-primary">
+            📊 80%의 고객이 <span className="font-semibold">연 2만km</span>를 선택해요.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {MILEAGE_OPTIONS.map((opt) => {
+            const isRecommended = "recommended" in opt && opt.recommended;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => handleMileage(opt.value)}
+                className={cn(
+                  "relative p-4 rounded-card border text-left transition-all duration-200",
+                  value.annualMileage === opt.value
+                    ? "border-primary bg-primary-100"
+                    : "border-[#F0F0F0] bg-white hover:border-primary-200 hover:shadow-card-hover hover:-translate-y-0.5"
+                )}
+              >
+                {isRecommended && (
+                  <span className="absolute -top-2 left-3 px-2 py-0.5 rounded-full bg-primary text-white text-[10px] font-semibold">
+                    추천
+                  </span>
+                )}
+                <p className={cn(
+                  "text-sm font-medium",
+                  value.annualMileage === opt.value ? "text-primary" : "text-ink"
+                )}>
+                  {opt.label}
+                </p>
+                <p className="text-[12px] text-ink-caption mt-0.5">{opt.desc}</p>
+              </button>
+            );
+          })}
         </div>
       </div>
 

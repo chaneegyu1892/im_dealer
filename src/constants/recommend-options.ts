@@ -76,10 +76,9 @@ export const PAYMENT_STYLE_OPTIONS = [
 ] as const;
 
 export const MILEAGE_OPTIONS = [
-  { value: 20_000, label: "연 2만km 이하", desc: "단거리 위주, 출퇴근만" },
-  { value: 30_000, label: "연 2 – 3만km", desc: "평균적인 주행 패턴" },
-  { value: 40_000, label: "연 3 – 4만km", desc: "장거리·영업 많음" },
-  { value: 50_000, label: "연 4만km 이상", desc: "고주행, 화물·배달" },
+  { value: 10_000, label: "적게 타요 (연 1만km)", desc: "단거리 위주, 출퇴근만" },
+  { value: 20_000, label: "적당히 타요 (연 2만km)", desc: "80% 고객이 선택하는 평균 주행 패턴", recommended: true },
+  { value: 30_000, label: "정말 많이 타요 (연 3만km)", desc: "장거리·영업·고주행" },
 ] as const;
 
 // 조건부 추가 질문 선택지
