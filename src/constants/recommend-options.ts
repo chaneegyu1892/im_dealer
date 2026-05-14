@@ -189,23 +189,3 @@ export const FUEL_PREFERENCE_OPTIONS = [
   { value: "상관없음", label: "상관없음", desc: "연료 방식에 특별한 제한이 없어요", icon: "🔄" },
 ] as const;
 
-export const RETURN_TYPE_OPTIONS = [
-  {
-    value: "반납형" as const,
-    label: "반납형",
-    desc: "계약 종료 후 반납",
-    detail: "차량 소유 불필요, 유지비 최소화",
-  },
-  {
-    value: "인수형" as const,
-    label: "인수형",
-    desc: "계약 종료 후 내 차로",
-    detail: "잔존가치로 차량을 최종 구매",
-  },
-  {
-    value: "미정" as const,
-    label: "아직 모르겠어요",
-    desc: "AI가 조건별로 비교해 드려요",
-    detail: "",
-  },
-] as const;

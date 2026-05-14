@@ -36,7 +36,6 @@ const INITIAL_STATE: FlowState = {
   budgetDetail: "",
   preference: {
     annualMileage: 0,
-    returnType: "미정",
   },
   fuelPreference: "",
 };
@@ -81,7 +80,7 @@ export function RecommendFlow() {
         budgetMax: state.budget.budgetMax,
         paymentStyle: state.budget.paymentStyle,
         annualMileage: state.preference.annualMileage,
-        returnType: state.preference.returnType,
+        returnType: "미정",
         industryDetail: state.industryDetail,
         purposeDetail: state.purposeDetail,
         budgetDetail: state.budgetDetail,
