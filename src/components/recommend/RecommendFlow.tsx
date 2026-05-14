@@ -149,6 +149,7 @@ export function RecommendFlow() {
             onChange={(v) => setState((s) => ({ ...s, preference: v }))}
             fuelPreference={state.fuelPreference}
             onFuelChange={(v) => setState((s) => ({ ...s, fuelPreference: v }))}
+            budgetMax={state.budget.budgetMax}
           />
         )}
       </div>

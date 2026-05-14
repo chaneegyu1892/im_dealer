@@ -183,10 +183,10 @@ export const BUDGET_DETAIL_QUESTION: Record<string, { title: string; subtitle: s
 };
 
 export const FUEL_PREFERENCE_OPTIONS = [
-  { value: "상관없음", label: "상관없어요", desc: "연료 방식에 특별한 제한이 없어요", icon: "🔄" },
-  { value: "전기차", label: "전기차 선호", desc: "충전 인프라 있음, 유지비 절감", icon: "⚡" },
-  { value: "하이브리드", label: "하이브리드 선호", desc: "연비와 주행거리 모두 잡아요", icon: "🌿" },
-  { value: "가솔린/디젤", label: "가솔린·디젤 선호", desc: "익숙한 내연기관이 편해요", icon: "⛽" },
+  { value: "전기차", label: "전기차", desc: "충전 인프라 있음, 유지비 절감", icon: "⚡" },
+  { value: "하이브리드", label: "하이브리드", desc: "연비와 주행거리 모두 잡아요", icon: "🌿" },
+  { value: "가솔린/디젤", label: "내연기관", desc: "익숙한 가솔린·디젤이 편해요", icon: "⛽" },
+  { value: "상관없음", label: "상관없음", desc: "연료 방식에 특별한 제한이 없어요", icon: "🔄" },
 ] as const;
 
 export const RETURN_TYPE_OPTIONS = [
