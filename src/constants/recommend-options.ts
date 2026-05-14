@@ -48,10 +48,8 @@ export function getPurposeOptionsForIndustry(
 }
 
 export const BUDGET_RANGE_OPTIONS = [
-  { value: "~30", label: "30만원 이하", budgetMin: 0, budgetMax: 300_000 },
-  { value: "30~50", label: "30 – 50만원", budgetMin: 300_000, budgetMax: 500_000 },
-  { value: "50~70", label: "50 – 70만원", budgetMin: 500_000, budgetMax: 700_000 },
-  { value: "70~100", label: "70 – 100만원", budgetMin: 700_000, budgetMax: 1_000_000 },
+  { value: "~50", label: "50만원 이하", budgetMin: 0, budgetMax: 500_000 },
+  { value: "50~100", label: "50 – 100만원", budgetMin: 500_000, budgetMax: 1_000_000 },
   { value: "100~", label: "100만원 이상", budgetMin: 1_000_000, budgetMax: 99_999_999 },
 ] as const;
 
