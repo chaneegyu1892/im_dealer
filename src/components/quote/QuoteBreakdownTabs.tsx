@@ -8,14 +8,7 @@ import { isCustomerType, type CustomerType } from "@/constants/customer-types";
 import type { QuoteScenarioDetails, QuoteScenarioDetail, FinanceCompanyQuote } from "@/types/quote";
 import { QuoteMonthlyDonut } from "./QuoteMonthlyDonut";
 
-type ScenarioKey = keyof QuoteScenarioDetails;
 type ApprovalPreviewLevel = "high" | "medium" | "low";
-
-const TABS: { key: ScenarioKey; label: string; desc: string }[] = [
-  { key: "conservative", label: "보수형", desc: "보증금 있음 · 월납입 ↓" },
-  { key: "standard",     label: "표준형", desc: "균형 조건 · 추천" },
-  { key: "aggressive",   label: "공격형", desc: "선납금 있음 · 월납입 최소" },
-];
 
 const APPROVAL_PREVIEW_COPY: Record<ApprovalPreviewLevel, {
   label: string;
@@ -62,8 +55,6 @@ function estimateApprovalPreview(monthlyPayment: number, depositRate: number): A
 
 interface Props {
   scenarios: QuoteScenarioDetails;
-  defaultTab?: ScenarioKey;
-  onTabChange?: (tab: ScenarioKey) => void;
   customRates?: { depositRate: number; prepayRate: number };
   onCustomRatesChange?: (rates: { depositRate: number; prepayRate: number }) => void;
   isRecalculating?: boolean;
@@ -72,48 +63,19 @@ interface Props {
 
 export function QuoteBreakdownTabs({
   scenarios,
-  defaultTab = "standard",
-  onTabChange,
   customRates,
   onCustomRatesChange,
   isRecalculating = false,
   customerType,
 }: Props) {
-  const [active, setActive] = useState<ScenarioKey>(defaultTab);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
-  const data = scenarios[active];
+  const data = scenarios.standard;
 
   return (
     <div>
-      {/* 탭 바 */}
-      <div className="flex border-b border-neutral-800">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => {
-              setActive(tab.key);
-              onTabChange?.(tab.key);
-              setBreakdownOpen(false);
-            }}
-            className={cn(
-              "flex-1 py-3 text-[13px] font-medium transition-colors duration-150 relative",
-              active === tab.key
-                ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-primary"
-                : "text-ink-caption hover:text-ink"
-            )}
-          >
-            <span className="block">{tab.label}</span>
-            {tab.key === "standard" && (
-              <span className="text-[10px] font-normal text-secondary">기본 추천</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* 탭 콘텐츠 */}
-      <div className="pt-5 space-y-5">
+      {/* 콘텐츠 */}
+      <div className="space-y-5">
         {/* ① 월 납입금 + 금융사 배지 */}
         <div className="flex items-end justify-between">
           <div>
@@ -123,16 +85,6 @@ export function QuoteBreakdownTabs({
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <span
-              className={cn(
-                "text-[11px] font-semibold rounded-pill px-2.5 py-1",
-                active === "standard"
-                  ? "bg-primary text-white"
-                  : "bg-neutral-800 text-ink-label"
-              )}
-            >
-              {TABS.find((t) => t.key === active)?.label}
-            </span>
             {data.bestFinanceCompany && (
               <span className="inline-flex items-center gap-1 text-[11px] text-ink-label bg-secondary-100 border border-secondary-200 rounded-pill px-2.5 py-1">
                 <Building2 size={10} className="text-secondary" />
@@ -142,8 +94,8 @@ export function QuoteBreakdownTabs({
           </div>
         </div>
 
-        {/* 표준형 탭 전용 슬라이더 */}
-        {active === "standard" && onCustomRatesChange && customRates && (
+        {/* 보증금/선납금 직접 설정 슬라이더 */}
+        {onCustomRatesChange && customRates && (
           <CustomRateSliders
             depositRate={customRates.depositRate}
             prepayRate={customRates.prepayRate}
@@ -153,7 +105,7 @@ export function QuoteBreakdownTabs({
         )}
 
         {/* 도넛 — 월 납입금 구성 시각화 */}
-        <div className={cn("transition-opacity duration-200", isRecalculating && active === "standard" && "opacity-60")}>
+        <div className={cn("transition-opacity duration-200", isRecalculating && "opacity-60")}>
           <QuoteMonthlyDonut scenario={data} />
         </div>
 
@@ -180,7 +132,7 @@ export function QuoteBreakdownTabs({
 
         {/* ④ 견적 산출 내역 (펼침/접힘) */}
         {data.breakdown && data.surcharges && (
-          <div className={cn("rounded-[10px] border border-[#E8EAF2] overflow-hidden transition-opacity duration-200", isRecalculating && active === "standard" && "opacity-60")}>
+          <div className={cn("rounded-[10px] border border-[#E8EAF2] overflow-hidden transition-opacity duration-200", isRecalculating && "opacity-60")}>
             <button
               type="button"
               onClick={() => setBreakdownOpen((v) => !v)}
