@@ -536,7 +536,7 @@ function FinanceSection({
       {/* 상위 2개 항상 노출 */}
       <div className="divide-y divide-[#F0F2F8] bg-white">
         {top2.map((r, i) => (
-          <FinanceRow key={r.financeCompanyName} result={r} rank={i} best={best} />
+          <FinanceRow key={`${r.financeCompanyName}-${i}`} result={r} rank={i} best={best} />
         ))}
       </div>
 
@@ -557,7 +557,7 @@ function FinanceSection({
           {expanded && (
             <div className="divide-y divide-[#F0F2F8] bg-white border-t border-[#F0F2F8]">
               {rest.map((r, i) => (
-                <FinanceRow key={r.financeCompanyName} result={r} rank={i + 2} best={best} />
+                <FinanceRow key={`${r.financeCompanyName}-${i}`} result={r} rank={i + 2} best={best} />
               ))}
             </div>
           )}

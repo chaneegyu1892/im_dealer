@@ -105,7 +105,7 @@ function DashLine({ x1, y1, x2, y2, color }: { x1: number; y1: number; x2: numbe
 function DiagramLength() {
   const c = "#1D4ED8";
   return (
-    <svg viewBox="0 0 240 120" className="w-full max-h-48">
+    <svg viewBox="0 0 240 125" className="w-full max-h-48">
       <SideCarBase />
       <DashLine x1={28} y1={95} x2={28} y2={112} color={c} />
       <DashLine x1={207} y1={95} x2={207} y2={112} color={c} />
@@ -118,7 +118,7 @@ function DiagramLength() {
 function DiagramWidth() {
   const c = "#7C3AED";
   return (
-    <svg viewBox="0 0 240 120" className="w-full max-h-48">
+    <svg viewBox="0 0 240 125" className="w-full max-h-48">
       <FrontCarBase />
       <DashLine x1={52} y1={95} x2={52} y2={112} color={c} />
       <DashLine x1={188} y1={95} x2={188} y2={112} color={c} />
@@ -131,7 +131,7 @@ function DiagramWidth() {
 function DiagramHeight() {
   const c = "#16A34A";
   return (
-    <svg viewBox="0 0 240 120" className="w-full max-h-48">
+    <svg viewBox="0 0 240 125" className="w-full max-h-48">
       <SideCarBase />
       <DashLine x1={14} y1={30} x2={102} y2={30} color={c} />
       <DashLine x1={14} y1={95} x2={28} y2={95} color={c} />
@@ -145,7 +145,7 @@ function DiagramHeight() {
 function DiagramWheelbase() {
   const c = "#DC2626";
   return (
-    <svg viewBox="0 0 240 120" className="w-full max-h-48">
+    <svg viewBox="0 0 240 125" className="w-full max-h-48">
       <SideCarBase />
       {/* 바퀴 중심 강조 */}
       <circle cx="72" cy="82" r="4" fill={c} stroke="white" strokeWidth="1.5" />
@@ -162,7 +162,7 @@ function DiagramWheelbase() {
 function DiagramGroundClearance() {
   const c = "#D97706";
   return (
-    <svg viewBox="0 0 240 120" className="w-full max-h-48">
+    <svg viewBox="0 0 240 125" className="w-full max-h-48">
       <SideCarBase />
       {/* 차체 하단선 강조 */}
       <line x1={35} y1={78} x2={200} y2={78} stroke={c} strokeWidth="1.5" strokeDasharray="5,3" />
@@ -179,7 +179,7 @@ function DiagramGroundClearance() {
 function DiagramLegroom({ label }: { label: string }) {
   const c = "#0891B2";
   return (
-    <svg viewBox="0 0 240 120" className="w-full max-h-48">
+    <svg viewBox="0 0 240 125" className="w-full max-h-48">
       {/* 간략 실내 단면도 */}
       {/* 바닥 */}
       <rect x="20" y="75" width="200" height="8" rx="2" fill="#E2E8F0" />
@@ -214,7 +214,7 @@ function DiagramLegroom({ label }: { label: string }) {
 function DiagramTrunk() {
   const c = "#0F766E";
   return (
-    <svg viewBox="0 0 240 120" className="w-full max-h-48">
+    <svg viewBox="0 0 240 125" className="w-full max-h-48">
       <SideCarBase />
       {/* 트렁크 영역 강조 */}
       <rect x="170" y="36" width="35" height="42" rx="4"
@@ -313,20 +313,18 @@ export function SpecDiagramModal({ specKey, label, value, onClose }: SpecModalPr
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+        className="fixed inset-0 z-[60] flex items-center justify-center px-5"
         onClick={onClose}
       >
         <div className="absolute inset-0 bg-black/40" />
         <motion.div
           key="spec-modal-panel"
-          initial={{ y: 56, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 56, opacity: 0 }}
-          transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
-          className="relative z-10 w-full md:w-[400px] bg-white rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden
-                     mb-[62px] md:mb-0"
-          style={{ marginBottom: "calc(62px + env(safe-area-inset-bottom, 0px))" }}
+          className="relative z-10 w-full max-w-[400px] bg-white rounded-2xl shadow-2xl overflow-hidden"
         >
           {/* 헤더 */}
           <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-[#F0F0F0]">
@@ -359,8 +357,6 @@ export function SpecDiagramModal({ specKey, label, value, onClose }: SpecModalPr
             </div>
           )}
 
-          {/* 닫기 바 (모바일) */}
-          <div className="h-safe-bottom" />
         </motion.div>
       </motion.div>
     </AnimatePresence>

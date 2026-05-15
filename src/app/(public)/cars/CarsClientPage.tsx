@@ -42,10 +42,10 @@ const CATEGORY_ROWS: CategoryFilter[][] = [["전체", "세단", "SUV"], ["밴", 
 
 // ── 차종 아이콘 ────────────────────────────────────────────
 function CategoryIcon({ category }: { category: string }) {
-  if (category === "전체") return <LayoutGrid size={14} strokeWidth={1.8} />;
+  if (category === "전체") return <LayoutGrid size={16} strokeWidth={1.8} />;
   if (category === "세단") {
     return (
-      <svg viewBox="0 0 32 14" className="w-[18px] h-[9px]" fill="currentColor">
+      <svg viewBox="0 0 32 14" className="w-[22px] h-[11px]" fill="currentColor">
         <path d="M2 10h28v1.5a.8.8 0 0 1-.8.8H2.8a.8.8 0 0 1-.8-.8V10z" />
         <path d="M3.5 10 6.5 5c.4-.8 1.3-1.4 2.1-1.4H23.4c.8 0 1.7.6 2.1 1.4L28.5 10" />
         <circle cx="9.5" cy="12.5" r="1.8" />
@@ -55,7 +55,7 @@ function CategoryIcon({ category }: { category: string }) {
   }
   if (category === "SUV") {
     return (
-      <svg viewBox="0 0 32 14" className="w-[18px] h-[9px]" fill="currentColor">
+      <svg viewBox="0 0 32 14" className="w-[22px] h-[11px]" fill="currentColor">
         <path d="M2 9.5h28V11a.8.8 0 0 1-.8.8H2.8A.8.8 0 0 1 2 11V9.5z" />
         <path d="M3 9.5 4.5 3.5C5 2.6 6 2 7 2h18c1 0 2 .6 2.5 1.5L29 9.5" />
         <circle cx="9.5" cy="12" r="1.8" />
@@ -65,7 +65,7 @@ function CategoryIcon({ category }: { category: string }) {
   }
   if (category === "밴") {
     return (
-      <svg viewBox="0 0 32 14" className="w-[18px] h-[9px]" fill="currentColor">
+      <svg viewBox="0 0 32 14" className="w-[22px] h-[11px]" fill="currentColor">
         <rect x="1" y="3" width="19" height="9" rx="1.5" />
         <rect x="20" y="5.5" width="11" height="6.5" rx="1" />
         <circle cx="7" cy="13" r="1.8" />
@@ -73,7 +73,7 @@ function CategoryIcon({ category }: { category: string }) {
       </svg>
     );
   }
-  if (category === "트럭") return <Truck size={14} strokeWidth={1.8} />;
+  if (category === "트럭") return <Truck size={16} strokeWidth={1.8} />;
   return null;
 }
 
@@ -448,17 +448,17 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 onClick={() => setBrandFilter("전체")}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1",
-                  "w-full h-[58px] md:w-[76px] md:h-[64px] rounded-xl border-2 bg-white",
-                  "text-[10px] md:text-[12px] font-semibold transition-all duration-200",
+                  "w-full h-[64px] md:w-[86px] md:h-[72px] rounded-xl border-2 bg-white",
+                  "text-[12px] md:text-[14px] font-semibold transition-all duration-200",
                   brandFilter === "전체"
                     ? "border-primary text-primary shadow-[0_0_0_3px_rgba(0,6,102,0.08)]"
                     : "border-[#E8E8E8] text-[#AAAAAA] hover:border-[#BBBBBB]",
                 )}
               >
                 <LayoutGrid
-                  size={14}
+                  size={18}
                   strokeWidth={1.5}
-                  className={cn("md:w-[18px] md:h-[18px]", brandFilter === "전체" ? "text-primary" : "text-[#CCCCCC]")}
+                  className={cn("md:w-[22px] md:h-[22px]", brandFilter === "전체" ? "text-primary" : "text-[#CCCCCC]")}
                 />
                 전체
               </button>
@@ -472,8 +472,8 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     key={brand}
                     onClick={() => setBrandFilter(brand)}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-1",
-                      "w-full h-[58px] md:w-[76px] md:h-[64px] rounded-xl border-2 bg-white",
+                      "flex flex-col items-center justify-center gap-1.5",
+                      "w-full h-[64px] md:w-[86px] md:h-[72px] rounded-xl border-2 bg-white",
                       "transition-all duration-200",
                       isActive
                         ? "border-primary shadow-[0_0_0_3px_rgba(0,6,102,0.08)]"
@@ -484,21 +484,21 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       <Image
                         src={logoSrc}
                         alt={brand}
-                        width={36}
-                        height={22}
+                        width={48}
+                        height={30}
                         className={cn(
                           "object-contain transition-opacity duration-200",
-                          "w-[30px] h-[18px] md:w-[40px] md:h-[24px]",
+                          "w-[36px] h-[22px] md:w-[48px] md:h-[30px]",
                           isActive ? "opacity-100" : "opacity-35",
                         )}
                         unoptimized
                       />
                     ) : (
-                      <span className="text-[10px] font-semibold text-ink leading-none">{brand}</span>
+                      <span className="text-[12px] md:text-[13px] font-semibold text-ink leading-none">{brand}</span>
                     )}
                     <span
                       className={cn(
-                        "text-[9px] md:text-[10px] leading-none font-medium",
+                        "text-[11px] md:text-[13px] leading-none font-medium",
                         isActive ? "text-primary" : "text-[#BBBBBB]",
                       )}
                     >
@@ -514,37 +514,33 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           {/* 차종 선택 + 검색/정렬 — 모바일 세로, 데스크탑 가로 */}
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:gap-6">
 
-            {/* 차종 필터 2줄 */}
-            <div>
+            {/* 차종 필터 1줄 */}
+            <div className="flex-1 overflow-hidden">
               <p className="text-[10px] font-semibold text-[#BBBBBB] uppercase tracking-wider mb-2.5">
                 차종 선택
               </p>
-              <div className="flex flex-col gap-1.5">
-                {CATEGORY_ROWS.map((row, i) => (
-                  <div key={i} className="flex gap-1.5">
-                    {row.map((cat) => {
-                      const isActive = categoryFilter === cat;
-                      return (
-                        <button
-                          key={cat}
-                          onClick={() => setCategoryFilter(cat)}
-                          className={cn(
-                            "flex items-center gap-1.5 h-8 px-3 md:px-3.5 rounded-full border",
-                            "text-[12px] font-medium transition-all duration-150 whitespace-nowrap",
-                            isActive
-                              ? "bg-ink text-white border-ink"
-                              : "bg-white text-[#555] border-[#DEDEDE] hover:border-[#ABABAB]",
-                          )}
-                        >
-                          <span className={isActive ? "text-white/80" : "text-[#AAAAAA]"}>
-                            <CategoryIcon category={cat} />
-                          </span>
-                          {cat}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
+              <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+                {VEHICLE_CATEGORIES.map((cat) => {
+                  const isActive = categoryFilter === cat;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setCategoryFilter(cat)}
+                      className={cn(
+                        "flex items-center gap-2 h-10 px-4 md:px-5 rounded-full border shrink-0",
+                        "text-[13px] md:text-[14px] font-medium transition-all duration-150 whitespace-nowrap",
+                        isActive
+                          ? "bg-ink text-white border-ink shadow-sm"
+                          : "bg-white text-[#555] border-[#DEDEDE] hover:border-[#ABABAB]",
+                      )}
+                    >
+                      <span className={isActive ? "text-white/80" : "text-[#AAAAAA]"}>
+                        <CategoryIcon category={cat} />
+                      </span>
+                      {cat}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
