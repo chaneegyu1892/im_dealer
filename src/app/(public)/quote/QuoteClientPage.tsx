@@ -753,7 +753,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
             조건을 설정하면 실시간으로 계산됩니다
           </h1>
           <p className="text-[14px] text-ink-label mt-1">
-            개인정보 없이, 보수형·표준형·공격형 3가지 시나리오를 바로 확인하세요
+            개인정보 없이 실제 계약 가능한 견적을 바로 확인하세요
           </p>
         </div>
       </div>
@@ -1190,8 +1190,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 <div className="bg-white rounded-[8px] border border-[#F0F0F0] p-4 text-[13px] text-ink-label mb-4 flex items-start gap-2">
                   <Sparkles size={13} className="text-primary shrink-0 mt-0.5" />
                   <p>
-                    보수형(보증금 있음)·표준형(균형)·공격형(선납금 있음) 3가지
-                    시나리오를 한 번에 확인할 수 있습니다.
+                    보증금·선납금 비율을 자유롭게 조정하면서 월 납입금이 어떻게 달라지는지 바로 확인할 수 있어요.
                   </p>
                 </div>
 
@@ -1291,26 +1290,14 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   </div>
                 </div>
 
-                {/* 시나리오 탭 */}
+                {/* 견적 결과 카드 */}
                 <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card p-6 mb-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Sparkles size={14} className="text-primary" />
-                    <p className="text-[13px] text-ink-label">
-                      아래 탭을 클릭해 3가지 시나리오를 비교하세요
-                    </p>
-                  </div>
                   <QuoteBreakdownTabs
                     scenarios={quoteResult.scenarios}
                     customerType={customerType}
                     customRates={customRates}
                     onCustomRatesChange={setCustomRates}
                     isRecalculating={isRecalculating}
-                    onTabChange={(tab) => {
-                      if (tab !== "standard") {
-                        setCustomRates({ depositRate: 0, prepayRate: 0 });
-                        restoreBaseStandardScenario();
-                      }
-                    }}
                   />
                 </div>
 
