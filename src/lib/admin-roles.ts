@@ -19,3 +19,8 @@ export function isAdminLike(role: string | null | undefined): boolean {
 export function isSuperAdmin(role: string | null | undefined): boolean {
   return role === "superadmin";
 }
+
+// 일반 회원(member)인지 — 어드민 가드에서 차단 대상 식별용
+export function isMemberOnly(role: string | null | undefined): boolean {
+  return role === "member" || !role;
+}

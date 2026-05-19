@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 import type { NextRequest } from "next/server";
-import type { AdminUser } from "@prisma/client";
+import type { User } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -55,7 +55,7 @@ export type AuditAction =
   | "NOTIFICATION_UPDATE"
   | "NOTIFICATION_DELETE";
 
-export type AuditActor = Pick<AdminUser, "id" | "email"> | { id: string; email: string };
+export type AuditActor = Pick<User, "id"> & { email: string | null };
 
 interface LogAdminActionParams {
   request?: NextRequest | Request | null;
@@ -109,7 +109,7 @@ export async function logAdminAction(params: LogAdminActionParams): Promise<void
     await prisma.adminAuditLog.create({
       data: {
         actorId: actor.id,
-        actorEmail: actor.email,
+        actorEmail: actor.email ?? "",
         action,
         resource,
         targetId: targetId ?? null,

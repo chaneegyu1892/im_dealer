@@ -66,7 +66,7 @@ const NAV: NavGroup[] = [
     items: [
       { href: "/admin/memo", label: "운영 메모", icon: ClipboardList },
       { href: "/admin/audit-logs", label: "감사 로그", icon: ShieldCheck },
-      { href: "/admin/settings", label: "설정", icon: Settings },
+      { href: "/admin/settings", label: "계정 관리", icon: Settings },
     ],
   },
 ];

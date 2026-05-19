@@ -212,7 +212,8 @@ export async function getAdminUsers(): Promise<{
       },
     }),
     getSupabaseAuthUsers(),
-    prisma.adminUser.findMany({
+    prisma.user.findMany({
+      where: { role: { not: "member" } },
       select: { supabaseId: true, email: true, role: true }
     }),
   ]);

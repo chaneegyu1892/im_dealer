@@ -11,7 +11,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const admins = await prisma.adminUser.findMany({
+    const admins = await prisma.user.findMany({
+      where: { role: { not: "member" } },
       select: {
         id: true,
         email: true,
@@ -39,11 +40,11 @@ export async function PATCH(req: NextRequest) {
 
     const { id, isActive, role } = await req.json();
 
-    const before = await prisma.adminUser.findUnique({
+    const before = await prisma.user.findUnique({
       where: { id },
       select: { id: true, email: true, name: true, role: true, isActive: true },
     });
-    const updated = await prisma.adminUser.update({
+    const updated = await prisma.user.update({
       where: { id },
       data: {
         ...(isActive !== undefined && { isActive }),
@@ -53,9 +54,9 @@ export async function PATCH(req: NextRequest) {
 
     await logAdminAction({
       request: req,
-      actor: session,
+      actor: { id: session.id, email: session.email ?? "" },
       action: "ACCOUNT_UPDATE",
-      resource: "AdminUser",
+      resource: "User",
       targetId: id,
       before,
       after: { id: updated.id, email: updated.email, name: updated.name, role: updated.role, isActive: updated.isActive },

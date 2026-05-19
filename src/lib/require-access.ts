@@ -3,7 +3,7 @@
 // - API route handler: NextResponse를 반환하는 형태는 require-admin.ts에서 그대로 사용
 
 import { redirect } from "next/navigation";
-import type { AdminUser } from "@prisma/client";
+import type { User } from "@prisma/client";
 import { getAdminSession } from "@/lib/admin-auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -15,7 +15,7 @@ import {
 
 interface AccessContext {
   role: Role;
-  admin: AdminUser | null;
+  admin: User | null;
   userId: string | null;
 }
 
