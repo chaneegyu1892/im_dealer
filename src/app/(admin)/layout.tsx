@@ -22,7 +22,7 @@ export default async function AdminLayout({
   const adminData = {
     id: admin.id,
     name: admin.name,
-    email: admin.email,
+    email: admin.email ?? "",
     role: admin.role,
   };
 

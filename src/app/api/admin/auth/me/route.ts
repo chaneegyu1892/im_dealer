@@ -43,7 +43,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const updated = await prisma.adminUser.update({
+    const updated = await prisma.user.update({
       where: { id: admin.id },
       data: { name: parsed.data.name },
       select: { id: true, email: true, name: true, role: true },

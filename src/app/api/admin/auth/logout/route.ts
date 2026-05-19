@@ -8,9 +8,9 @@ export async function POST(request: NextRequest) {
   if (session) {
     await logAdminAction({
       request,
-      actor: { id: session.id, email: session.email },
+      actor: { id: session.id, email: session.email ?? "" },
       action: "LOGOUT",
-      resource: "AdminUser",
+      resource: "User",
       targetId: session.id,
     });
   }
