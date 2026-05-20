@@ -1,11 +1,11 @@
 /**
- * carpan.kr JSON 임포트를 위한 코드 변환 상수
+ * 외부 차량 데이터 소스 JSON 임포트를 위한 코드 변환 상수
  *
  * - JSON 의 cartype/engine 코드를 DB 의 한글 카테고리로 매핑
  * - 이미지 상대경로를 절대 URL 로 변환
  * - 한글 차종명을 영문 slug 로 변환
  *
- * 변환 정책은 docs/carpan-import.md 참조.
+ * 변환 정책은 docs/vehicle-import.md 참조.
  */
 
 /** JSON `cartype` 코드 → DB `Vehicle.category` 4분류 */
@@ -66,16 +66,16 @@ export function pickPrimaryEngine(code: string): string {
   return ENGINE_TO_TYPE[first ?? ""] ?? "가솔린";
 }
 
-/** carpan CDN base */
-export const CARPAN_IMG_BASE = "https://p.ca8.kr/img/";
+/** 외부 CDN base */
+export const EXTERNAL_IMG_BASE = "https://p.ca8.kr/img/";
 
 /** 상대 경로 (예: "model/202605/184241.png") → 절대 URL */
-export function carpanImageUrl(relativePath: string | null | undefined): string {
+export function externalImageUrl(relativePath: string | null | undefined): string {
   if (!relativePath) return "";
-  return CARPAN_IMG_BASE + relativePath;
+  return EXTERNAL_IMG_BASE + relativePath;
 }
 
-/** carpan PDF 뷰어 URL — files 객체의 url1/2/3 을 그대로 사용 (이미 절대 URL) */
+/** 외부 PDF 뷰어 URL — files 객체의 url1/2/3 을 그대로 사용 (이미 절대 URL) */
 export function pickFileUrl(file: {
   url1?: string;
   url2?: string;
@@ -86,10 +86,10 @@ export function pickFileUrl(file: {
 
 /** 한글 차종명 + brand + externalId → 영문 slug
  *
- * 예: ("현대", "더 뉴 그랜저", "11874") → "carpan-hyundai-11874"
+ * 예: ("현대", "더 뉴 그랜저", "11874") → "external-hyundai-11874"
  *
  * 이름 음역은 어려우므로 brand 영문 + externalId 조합으로 유니크 보장.
- * 기존 27 대 slug 와 충돌 방지 위해 `carpan-` prefix 추가.
+ * 기존 27 대 slug 와 충돌 방지 위해 `external-` prefix 추가.
  */
 export const BRAND_TO_SLUG: Record<string, string> = {
   // 국산
@@ -121,7 +121,7 @@ export const BRAND_TO_SLUG: Record<string, string> = {
   링컨: "lincoln",
 };
 
-export function makeCarpanSlug(brand: string, externalId: string): string {
+export function makeExternalSlug(brand: string, externalId: string): string {
   const fallback =
     brand
       .toLowerCase()
@@ -139,7 +139,7 @@ export function isCurrentlySold(state: string | undefined | null): boolean {
   return state === "2";
 }
 
-/** carpan TSV "id\tprice\tflag\n..." 파싱 */
+/** 외부 TSV "id\tprice\tflag\n..." 파싱 */
 export interface TsvColorRow {
   id: string;
   priceDelta: number;
@@ -162,7 +162,7 @@ export function parseColorTsv(tsv: string | undefined | null): TsvColorRow[] {
     });
 }
 
-/** carpan TSV "optionId\tprice\tcondition\tflag\n..." 파싱 (trim.option 용) */
+/** 외부 TSV "optionId\tprice\tcondition\tflag\n..." 파싱 (trim.option 용) */
 export interface TsvOptionRow {
   id: string;
   price: number;
@@ -194,7 +194,7 @@ export function normalizeHex(rgb: string | undefined | null): string {
   return v.startsWith("#") ? v : `#${v}`;
 }
 
-/** carpan efficiency 객체 (base64 key) → 평균 연비 (대표값)
+/** 외부 efficiency 객체 (base64 key) → 평균 연비 (대표값)
  *
  * 예: { "휘발유": { min:"8.9", max:"11.6" } } → 10.25
  * 여러 연료가 있으면 첫 번째 평균값 사용.
@@ -214,7 +214,7 @@ export function pickRepresentativeEfficiency(
   return min || max;
 }
 
-/** carpan option.kind → DB TrimOption.category + isAccessory
+/** 외부 option.kind → DB TrimOption.category + isAccessory
  *
  * - "A": 악세서리 → isAccessory=true, category="악세서리"
  * - "G": 일반 옵션 → category="옵션"
