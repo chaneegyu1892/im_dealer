@@ -65,6 +65,8 @@ raw_data_ko_car.json
 *-backup.tar.gz
 *.bak
 *.dump
+backup/
+*.sql.gz
 
 # Sample / preview artifacts
 im_dealer_quote.html
