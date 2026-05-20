@@ -128,7 +128,7 @@ export function makeCarpanSlug(brand: string, externalId: string): string {
       .replace(/[^a-z0-9]/g, "")
       .slice(0, 10) || "unknown";
   const brandSlug = BRAND_TO_SLUG[brand] ?? fallback;
-  return `carpan-${brandSlug}-${externalId}`;
+  return `${brandSlug}-${externalId}`;
 }
 
 /** JSON `state` 코드 → 노출 가능 여부
