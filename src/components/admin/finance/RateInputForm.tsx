@@ -8,6 +8,7 @@ import {
   calcPrepayAdjustRate,
   RATE_KEYS,
 } from "@/lib/quote-calculator";
+import { autoFillRateSheets } from "@/lib/rate-templates";
 
 interface Props {
   financeCompanyId: string;
@@ -15,6 +16,12 @@ interface Props {
   trimPrice: number;
   existingSheet?: CapitalRateSheet;
   onSaved: () => void;
+  /** "자동 채우기" 버튼을 노출할지. 차종 단위로 켜고 끔 */
+  enableAutoFill?: boolean;
+  /** 자동 채우기 시 사용할 브랜드 (예: "현대"). 미지정 시 자동 채우기 비활성 */
+  vehicleBrand?: string;
+  /** 자동 채우기 시 사용할 엔진타입 (선택 트림에서 추출). 혼합되면 "혼합" 등 표시 */
+  defaultEngineType?: string;
 }
 
 const MONTHS = [36, 48, 60];
@@ -58,6 +65,9 @@ export default function RateInputForm({
   trimPrice,
   existingSheet,
   onSaved,
+  enableAutoFill = false,
+  vehicleBrand,
+  defaultEngineType,
 }: Props) {
   const [weekOf, setWeekOf] = useState(getWeekOf());
   const [minVehiclePrice, setMinVehiclePrice] = useState(trimPrice);
@@ -118,6 +128,38 @@ export default function RateInputForm({
   };
 
   const handlePreview = () => setPreview(calcPreview());
+
+  /** 자동 채우기 — 차량가/brand/engine 기반으로 6개 시트 (min/max × base/deposit/prepay) 일괄 생성 */
+  const handleAutoFill = () => {
+    if (!vehicleBrand || !defaultEngineType) {
+      alert("브랜드/엔진타입 정보가 없어 자동 채우기 불가");
+      return;
+    }
+    if (!minVehiclePrice || !maxVehiclePrice) {
+      alert("최소/최대 차량가를 먼저 입력하세요");
+      return;
+    }
+    const ok = window.confirm(
+      `seed 공식으로 6개 시트 (54셀) 를 모두 채웁니다.\n\n` +
+        `브랜드: ${vehicleBrand}\n` +
+        `엔진타입: ${defaultEngineType}\n` +
+        `최소가: ${minVehiclePrice.toLocaleString("ko-KR")}원\n` +
+        `최대가: ${maxVehiclePrice.toLocaleString("ko-KR")}원\n\n` +
+        `기존 입력값이 모두 덮어써집니다. 계속할까요?`
+    );
+    if (!ok) return;
+
+    const minSheets = autoFillRateSheets(minVehiclePrice, vehicleBrand, defaultEngineType);
+    const maxSheets = autoFillRateSheets(maxVehiclePrice, vehicleBrand, defaultEngineType);
+
+    setMinBaseRates(minSheets.base);
+    setMinDepositRates(minSheets.deposit);
+    setMinPrepayRates(minSheets.prepay);
+    setMaxBaseRates(maxSheets.base);
+    setMaxDepositRates(maxSheets.deposit);
+    setMaxPrepayRates(maxSheets.prepay);
+    setPreview(null);
+  };
 
   const handleSave = async () => {
     const p = calcPreview();
@@ -356,20 +398,33 @@ export default function RateInputForm({
       )}
 
       {/* 액션 버튼 */}
-      <div className="flex gap-3 justify-end pb-4">
-        <button
-          onClick={handlePreview}
-          className="px-5 py-2 rounded-lg border border-[#6066EE] text-[#6066EE] text-sm font-medium hover:bg-[#F0F1FA] transition-colors"
-        >
-          계산 미리보기
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-6 py-2 rounded-lg bg-[#000666] text-white text-sm font-medium hover:bg-[#000888] disabled:opacity-50 transition-colors"
-        >
-          {saving ? "저장 중..." : "저장"}
-        </button>
+      <div className="flex flex-wrap gap-3 justify-between items-center pb-4">
+        {enableAutoFill && vehicleBrand && defaultEngineType ? (
+          <button
+            onClick={handleAutoFill}
+            className="px-4 py-2 rounded-lg border-2 border-dashed border-[#FFB020] bg-[#FFF8E6] text-[#9A5800] text-sm font-semibold hover:bg-[#FFE9B0] transition-colors"
+            title="seed 공식 (vehiclePrice × baseRate × monthsAdj × mileageAdj) 으로 6 시트 54셀 자동 채움"
+          >
+            🪄 자동 채우기 (테스트) — {vehicleBrand}/{defaultEngineType}
+          </button>
+        ) : (
+          <span />
+        )}
+        <div className="flex gap-3 ml-auto">
+          <button
+            onClick={handlePreview}
+            className="px-5 py-2 rounded-lg border border-[#6066EE] text-[#6066EE] text-sm font-medium hover:bg-[#F0F1FA] transition-colors"
+          >
+            계산 미리보기
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-2 rounded-lg bg-[#000666] text-white text-sm font-medium hover:bg-[#000888] disabled:opacity-50 transition-colors"
+          >
+            {saving ? "저장 중..." : "저장"}
+          </button>
+        </div>
       </div>
     </div>
   );
