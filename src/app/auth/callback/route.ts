@@ -26,11 +26,13 @@ export async function GET(request: Request) {
   const provider = typeof appMeta.provider === "string" ? appMeta.provider : null;
   const kakaoNickname =
     provider === "kakao" && typeof meta.nickname === "string" ? meta.nickname : null;
+  // 카카오 이메일 미동의 시 빈 문자열을 반환 → unique 충돌 방지를 위해 null 로 정규화.
+  const normalizedEmail = user.email && user.email.trim() ? user.email : null;
   const displayName =
     (typeof meta.name === "string" && meta.name) ||
     (typeof meta.full_name === "string" && meta.full_name) ||
     (typeof meta.nickname === "string" && meta.nickname) ||
-    user.email?.split("@")[0] ||
+    normalizedEmail?.split("@")[0] ||
     "회원";
 
   try {
@@ -39,12 +41,12 @@ export async function GET(request: Request) {
       update: {
         lastLoginAt: new Date(),
         // 이미 존재하는 사용자의 role/isActive 는 보존. email/nickname 은 최신값으로 동기화.
-        email: user.email ?? undefined,
+        ...(normalizedEmail ? { email: normalizedEmail } : {}),
         ...(kakaoNickname ? { kakaoNickname } : {}),
       },
       create: {
         supabaseId: user.id,
-        email: user.email ?? null,
+        email: normalizedEmail,
         name: displayName,
         role: "member",
         provider,
