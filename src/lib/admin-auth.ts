@@ -8,9 +8,23 @@ export async function getAdminSession(): Promise<AdminUser | null> {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (user) {
-      const admin = await prisma.adminUser.findUnique({
+      let admin = await prisma.adminUser.findUnique({
         where: { supabaseId: user.id },
       });
+
+      if (!admin && user.email) {
+        admin = await prisma.adminUser.findUnique({
+          where: { email: user.email },
+        });
+
+        if (admin && !admin.supabaseId) {
+          admin = await prisma.adminUser.update({
+            where: { id: admin.id },
+            data: { supabaseId: user.id },
+          });
+        }
+      }
+
       if (admin && admin.isActive) return admin;
     }
   } catch (error) {

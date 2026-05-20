@@ -29,6 +29,15 @@ interface VehicleWithLineups {
   trims: TrimBasic[];
 }
 
+interface SessionSavedTrim {
+  trimId: string;
+  trimName: string;
+  vehicleId: string;
+  vehicleName: string;
+  brand: string;
+  savedAt: string;
+}
+
 interface Props {
   financeCompanies: AdminFinanceCompany[];
   vehicles: AdminVehicle[];
@@ -65,8 +74,24 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const [historySheets, setHistorySheets] = useState<CapitalRateSheet[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [isWritingSession, setIsWritingSession] = useState(false);
+  const [sessionSavedTrims, setSessionSavedTrims] = useState<SessionSavedTrim[]>([]);
 
   const selectedFc = financeCompanies.find((f) => f.id === selectedFcId);
+
+  const sessionSavedTrimIds = useMemo(() => {
+    return new Set(sessionSavedTrims.map((item) => item.trimId));
+  }, [sessionSavedTrims]);
+
+  const sessionSavedByVehicle = useMemo(() => {
+    const map = new Map<string, SessionSavedTrim[]>();
+    for (const item of sessionSavedTrims) {
+      const list = map.get(item.vehicleId) ?? [];
+      list.push(item);
+      map.set(item.vehicleId, list);
+    }
+    return map;
+  }, [sessionSavedTrims]);
 
   // 차량 선택 시 상세(라인업+트림) 로드
   useEffect(() => {
@@ -114,6 +139,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   }, [vehicleDetail, selectedTrimIds]);
 
   const toggleTrim = useCallback((id: string) => {
+    if (isWritingSession && sessionSavedTrimIds.has(id)) return;
     setSelectedTrimIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -121,10 +147,14 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       return next;
     });
     setShowHistory(false);
-  }, []);
+  }, [isWritingSession, sessionSavedTrimIds]);
 
   const selectAllTrims = () => {
-    setSelectedTrimIds(new Set(trimsInLineup.map(t => t.id)));
+    setSelectedTrimIds(new Set(
+      trimsInLineup
+        .filter((t) => !isWritingSession || !sessionSavedTrimIds.has(t.id))
+        .map((t) => t.id)
+    ));
   };
 
   const deselectAllTrims = () => {
@@ -155,7 +185,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     return activeSheets.find((s) => s.trimId === firstId);
   }, [activeSheets, selectedTrimIds]);
 
-  const handleSaved = () => {
+  const handleSaved = (savedTrimIds: string[] = []) => {
     fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
       .then((r) => r.json())
       .then((res) => setActiveSheets(res.data ?? []));
@@ -166,6 +196,44 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
         .then((r) => r.json())
         .then((res) => setHistorySheets(res.data ?? []));
     }
+
+    if (isWritingSession && vehicleDetail && savedTrimIds.length > 0) {
+      const savedAt = new Date().toISOString();
+      const trimById = new Map(vehicleDetail.trims.map((trim) => [trim.id, trim]));
+
+      setSessionSavedTrims((prev) => {
+        const prevIds = new Set(prev.map((item) => item.trimId));
+        const nextItems = savedTrimIds
+          .filter((trimId) => !prevIds.has(trimId))
+          .map((trimId) => {
+            const trim = trimById.get(trimId);
+            return {
+              trimId,
+              trimName: trim?.name ?? "알 수 없는 트림",
+              vehicleId: vehicleDetail.id,
+              vehicleName: vehicleDetail.name,
+              brand: vehicleDetail.brand,
+              savedAt,
+            };
+          });
+
+        return nextItems.length > 0 ? [...prev, ...nextItems] : prev;
+      });
+      setSelectedTrimIds(new Set());
+      setShowHistory(false);
+    }
+  };
+
+  const startWritingSession = () => {
+    setSessionSavedTrims([]);
+    setSelectedTrimIds(new Set());
+    setShowHistory(false);
+    setIsWritingSession(true);
+  };
+
+  const finishWritingSession = () => {
+    setIsWritingSession(false);
+    setSessionSavedTrims([]);
   };
 
   const handleActivate = async (sheetId: string) => {
@@ -194,7 +262,10 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
             {financeCompanies.map((fc) => (
               <button
                 key={fc.id}
-                onClick={() => setSelectedFcId(fc.id)}
+                onClick={() => {
+                  setSelectedFcId(fc.id);
+                  finishWritingSession();
+                }}
                 className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   selectedFcId === fc.id
                     ? "bg-[#000666] text-white"
@@ -232,22 +303,32 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                   </button>
                   {isExpanded && (
                     <div className="ml-2 flex flex-col gap-0.5 mt-0.5">
-                      {brandVehicles.map((v) => (
+                      {brandVehicles.map((v) => {
+                        const savedCount = sessionSavedByVehicle.get(v.id)?.length ?? 0;
+                        return (
                         <button
                           key={v.id}
                           onClick={() => {
                             setSelectedVehicleId(v.id);
                             setShowHistory(false);
                           }}
-                          className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center justify-between gap-2 ${
                             selectedVehicleId === v.id
                               ? "bg-[#6066EE] text-white font-medium"
                               : "text-[#1A1A2E] hover:bg-[#F8F9FC]"
                           }`}
                         >
-                          {v.name}
+                          <span className="truncate">{v.name}</span>
+                          {isWritingSession && savedCount > 0 && (
+                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              selectedVehicleId === v.id ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-600"
+                            }`}>
+                              {savedCount}개 저장
+                            </span>
+                          )}
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -259,6 +340,54 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
 
       {/* ── 우측: 라인업/트림 선택 + 입력 폼 ── */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
+        <div className="bg-white rounded-xl border border-[#E8EAF2] p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-bold text-[#1A1A2E]">회수율 작성 관리</p>
+            <p className="text-xs text-[#9BA4C0] mt-1">
+              {isWritingSession
+                ? `작성 중입니다. 저장 완료된 트림 ${sessionSavedTrims.length}개는 다시 선택되지 않습니다.`
+                : "주간/월간 입력을 시작하면 저장한 차량과 트림을 임시로 표시합니다."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {isWritingSession && (
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
+                저장 {sessionSavedTrims.length}개
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={isWritingSession ? finishWritingSession : startWritingSession}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                isWritingSession
+                  ? "border border-[#E8EAF2] text-[#1A1A2E] hover:bg-[#F8F9FC]"
+                  : "bg-[#000666] text-white hover:bg-[#000888]"
+              }`}
+            >
+              {isWritingSession ? "작성 마무리" : "작성 시작"}
+            </button>
+          </div>
+        </div>
+
+        {isWritingSession && sessionSavedTrims.length > 0 && (
+          <div className="bg-emerald-50/60 rounded-xl border border-emerald-100 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <p className="text-xs font-bold text-emerald-700">이번 작성에서 저장한 항목</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {sessionSavedTrims.map((item) => (
+                <span
+                  key={item.trimId}
+                  className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-medium text-[#1A1A2E]"
+                  title={new Date(item.savedAt).toLocaleString("ko-KR")}
+                >
+                  {item.brand} {item.vehicleName} · {item.trimName}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {selectedVehicleId && vehicleDetail ? (
           <>
             {/* 라인업 탭 */}
@@ -309,22 +438,31 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                     {trimsInLineup.map((trim) => {
                       const isSelected = selectedTrimIds.has(trim.id);
                       const hasSheet = activeSheets.some((s) => s.trimId === trim.id);
+                      const isSessionSaved = isWritingSession && sessionSavedTrimIds.has(trim.id);
                       return (
                         <button
                           key={trim.id}
                           onClick={() => toggleTrim(trim.id)}
+                          disabled={isSessionSaved}
                           className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors relative flex items-center gap-2 ${
+                            isSessionSaved
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 cursor-not-allowed"
+                              :
                             isSelected
                               ? "bg-[#6066EE] text-white border-[#6066EE] shadow-sm"
                               : "text-[#1A1A2E] border-[#E8EAF2] hover:border-[#6066EE] bg-white"
                           }`}
                         >
                           <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
-                            isSelected ? "bg-white border-white" : "border-[#D1D5DB]"
+                            isSelected ? "bg-white border-white" : isSessionSaved ? "bg-emerald-500 border-emerald-500" : "border-[#D1D5DB]"
                           }`}>
                             {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6066EE" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                            {isSessionSaved && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                           </div>
                           <span>{trim.name}</span>
+                          {isSessionSaved && (
+                            <span className="text-[10px] font-bold text-emerald-600">저장됨</span>
+                          )}
                           {hasSheet && (
                             <span className={`inline-block w-1.5 h-1.5 rounded-full align-middle ${isSelected ? 'bg-white' : 'bg-emerald-400'}`} />
                           )}

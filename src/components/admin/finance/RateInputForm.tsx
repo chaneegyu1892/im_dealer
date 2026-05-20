@@ -14,7 +14,7 @@ interface Props {
   trimIds: string[];
   trimPrice: number;
   existingSheet?: CapitalRateSheet;
-  onSaved: () => void;
+  onSaved: (savedTrimIds: string[]) => void;
 }
 
 const MONTHS = [36, 48, 60];
@@ -143,7 +143,7 @@ export default function RateInputForm({
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      onSaved();
+      onSaved(trimIds);
     } catch (e) {
       alert("저장 실패: " + e);
     } finally {
