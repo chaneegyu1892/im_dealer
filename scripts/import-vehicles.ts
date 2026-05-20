@@ -1,12 +1,12 @@
 /**
- * carpan.kr JSON → Supabase Postgres 임포트 스크립트
+ * 외부 차량 데이터 소스 JSON → Supabase Postgres 임포트 스크립트
  *
  * 사용법:
- *   pnpm tsx scripts/import-carpan.ts --file raw_data_ko_car.json --dry-run
- *   pnpm tsx scripts/import-carpan.ts --file raw_data_ko_car.json --model 11874
- *   pnpm tsx scripts/import-carpan.ts --file raw_data_ko_car.json --brand 111
- *   pnpm tsx scripts/import-carpan.ts --file raw_data_ko_car.json
- *   pnpm tsx scripts/import-carpan.ts --all  # 국산 + 수입 둘 다
+ *   pnpm tsx scripts/import-vehicles.ts --file raw_data_ko_car.json --dry-run
+ *   pnpm tsx scripts/import-vehicles.ts --file raw_data_ko_car.json --model 11874
+ *   pnpm tsx scripts/import-vehicles.ts --file raw_data_ko_car.json --brand 111
+ *   pnpm tsx scripts/import-vehicles.ts --file raw_data_ko_car.json
+ *   pnpm tsx scripts/import-vehicles.ts --all  # 국산 + 수입 둘 다
  *
  * 멱등 보장: externalId 기준 upsert. 재실행 안전.
  * 안전 정책: 신규 차량은 isVisible=false 로 들어감. 기존 27 차량은 externalSource IS NULL 이라 비대상.
@@ -20,21 +20,21 @@ import {
   CARTYPE_LABEL,
   BRAND_TO_SLUG,
   pickPrimaryEngine,
-  carpanImageUrl,
-  makeCarpanSlug,
+  externalImageUrl,
+  makeExternalSlug,
   isCurrentlySold,
   parseColorTsv,
   parseOptionTsv,
   normalizeHex,
   pickRepresentativeEfficiency,
   mapOptionKind,
-} from "../src/lib/carpan-mappings";
+} from "../src/lib/vehicle-import-mappings";
 
 const prisma = new PrismaClient();
 
 // ───────────────────────── JSON 타입 (필요 부분만) ─────────────────────────
 
-interface CarpanFile {
+interface ExternalFile {
   url1?: string;
   url2?: string;
   url3?: string;
@@ -44,7 +44,7 @@ interface CarpanFile {
   dir?: string;
 }
 
-interface CarpanModel {
+interface ExternalModel {
   name?: string;
   open?: string;
   update?: string;
@@ -73,7 +73,7 @@ interface CarpanModel {
   efficiency?: Record<string, { name?: string; min?: string; max?: string; unit?: string }>;
 }
 
-interface CarpanLineup {
+interface ExternalLineup {
   catalogF?: string;
   priceF?: string;
   cover?: string;
@@ -97,7 +97,7 @@ interface CarpanLineup {
   items?: string;
 }
 
-interface CarpanTrim {
+interface ExternalTrim {
   lineup?: string;
   name?: string;
   tm?: string;
@@ -121,7 +121,7 @@ interface CarpanTrim {
   specoption?: Record<string, Record<string, string>>;
 }
 
-interface CarpanOption {
+interface ExternalOption {
   name?: string;
   kind?: string;
   apply?: string;
@@ -136,7 +136,7 @@ interface CarpanOption {
   items?: string;
 }
 
-interface CarpanColorExt {
+interface ExternalColorExt {
   name?: string;
   code?: string;
   group?: string;
@@ -147,7 +147,7 @@ interface CarpanColorExt {
   intNot?: string;
 }
 
-interface CarpanColorInt {
+interface ExternalColorInt {
   name?: string;
   group?: string;
   rgb?: string;
@@ -157,7 +157,7 @@ interface CarpanColorInt {
   extNot?: string;
 }
 
-interface CarpanDocument {
+interface ExternalDocument {
   content?: string;
   remark?: string;
   link?: string;
@@ -165,7 +165,7 @@ interface CarpanDocument {
   tableIdx?: string;
 }
 
-interface CarpanModelEntry {
+interface ExternalModelEntry {
   modelId: string;
   listMeta?: {
     name?: string;
@@ -179,31 +179,31 @@ interface CarpanModelEntry {
     brand?: Record<string, { name?: string; logo?: string; local?: string }>;
     cartype?: Record<string, { name?: string }>;
     engine?: Record<string, { name?: string }>;
-    model?: Record<string, CarpanModel>;
-    lineup?: Record<string, CarpanLineup>;
-    trim?: Record<string, CarpanTrim>;
-    option?: Record<string, CarpanOption>;
-    colorExt?: Record<string, CarpanColorExt>;
-    colorInt?: Record<string, CarpanColorInt>;
-    document?: Record<string, CarpanDocument>;
+    model?: Record<string, ExternalModel>;
+    lineup?: Record<string, ExternalLineup>;
+    trim?: Record<string, ExternalTrim>;
+    option?: Record<string, ExternalOption>;
+    colorExt?: Record<string, ExternalColorExt>;
+    colorInt?: Record<string, ExternalColorInt>;
+    document?: Record<string, ExternalDocument>;
     spec?: Record<string, Record<string, string>>;
     specGroup?: Record<string, { name?: string; list?: string }>;
     specDefine?: Record<string, { name?: string; unit?: string; group?: string }>;
-    files?: Record<string, CarpanFile>;
+    files?: Record<string, ExternalFile>;
   };
 }
 
-interface CarpanBrand {
+interface ExternalBrand {
   brandId: string;
   name: string;
   meta?: { logo?: string };
-  models: Record<string, CarpanModelEntry>;
+  models: Record<string, ExternalModelEntry>;
 }
 
-interface CarpanFileFormat {
+interface ExternalFileFormat {
   meta: { source: string; brandCount: number; modelCount: number };
   lookups: Record<string, unknown>;
-  brands: Record<string, CarpanBrand>;
+  brands: Record<string, ExternalBrand>;
 }
 
 // ───────────────────────── 통계 ─────────────────────────
@@ -252,8 +252,8 @@ function splitCsv(s: string | undefined | null): string[] {
 // ───────────────────────── 모델 임포트 ─────────────────────────
 
 async function importModel(
-  brand: CarpanBrand,
-  modelEntry: CarpanModelEntry,
+  brand: ExternalBrand,
+  modelEntry: ExternalModelEntry,
   dryRun: boolean
 ): Promise<void> {
   const modelId = modelEntry.modelId;
@@ -269,18 +269,18 @@ async function importModel(
   const cartype = modelDetail.cartype ?? modelEntry.listMeta?.["cartype" as keyof typeof modelEntry.listMeta];
   const category = CARTYPE_TO_CATEGORY[cartype ?? ""] ?? "세단";
   const basePrice = toInt(modelDetail.price?.min ?? modelEntry.listMeta?.priceMin);
-  const thumbnailUrl = carpanImageUrl(modelDetail.image ?? modelEntry.listMeta?.image);
-  const slug = makeCarpanSlug(brandName, modelId);
+  const thumbnailUrl = externalImageUrl(modelDetail.image ?? modelEntry.listMeta?.image);
+  const slug = makeExternalSlug(brandName, modelId);
 
   // imageUrls: cover + imageL 등 모은 것
   const imageUrls = [
-    carpanImageUrl(modelDetail.imageL),
-    carpanImageUrl(modelDetail.cover),
+    externalImageUrl(modelDetail.imageL),
+    externalImageUrl(modelDetail.cover),
   ].filter(Boolean);
 
-  // detailedSpecs jsonb — JSON 의 model + carpan 사전 통째 보존
+  // detailedSpecs jsonb — JSON 의 model + 외부 사전 통째 보존
   const detailedSpecs = {
-    carpanRaw: {
+    externalRaw: {
       listMeta: modelEntry.listMeta,
       model: modelDetail,
       lookups: {
@@ -384,7 +384,7 @@ async function importModel(
     const trimColorInt = parseColorTsv(trim.colorInt);
 
     const trimDetailedSpecs = {
-      carpanRaw: {
+      externalRaw: {
         ...trim,
         documents,
         colorPriceMap: { ext: trimColorExt, int: trimColorInt },
@@ -588,7 +588,7 @@ function parseArgs(): CliArgs {
 
 async function main() {
   const args = parseArgs();
-  console.log(`carpan import 시작 (dryRun=${args.dryRun}, files=${args.files.join(",")})`);
+  console.log(`외부 차량 데이터 임포트 시작 (dryRun=${args.dryRun}, files=${args.files.join(",")})`);
 
   for (const file of args.files) {
     const fullPath = path.resolve(file);
@@ -597,7 +597,7 @@ async function main() {
       continue;
     }
     const raw = fs.readFileSync(fullPath, "utf-8");
-    const data: CarpanFileFormat = JSON.parse(raw);
+    const data: ExternalFileFormat = JSON.parse(raw);
 
     console.log(`\n=== ${file} (${data.meta.modelCount} 모델) ===`);
 

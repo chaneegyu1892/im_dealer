@@ -68,9 +68,9 @@ model Vehicle {
   brand         String
   category      String
   vehicleCode   String?
-  // carpan.kr 등 외부 데이터 소스 식별자 (재임포트 멱등성)
+  // 외부 데이터 소스 식별자 (재임포트 멱등성)
   externalId     String?              @unique
-  externalSource String?              // "carpan" 등
+  externalSource String?              // "external" 등 출처 식별 태그
   basePrice     Int
   thumbnailUrl  String
   imageUrls     String[]
@@ -111,7 +111,7 @@ model Trim {
   isDefault      Boolean         @default(false)
   isVisible      Boolean         @default(true)
   specs          Json?
-  // carpan.kr 식별자 및 풍부한 메타(tm/division/displace/person/tax/spec/specoption/documents/colorPriceMap)
+  // 외부 차량 데이터 소스 식별자 및 풍부한 메타(tm/division/displace/person/tax/spec/specoption/documents/colorPriceMap)
   externalId     String?         @unique
   detailedSpecs  Json?
   createdAt      DateTime        @default(now())
@@ -133,7 +133,7 @@ model VehicleLineup {
   id        String   @id @default(cuid())
   vehicleId String
   name      String
-  // carpan.kr 식별자 및 연식/엔진/가격대/연비 메타
+  // 외부 차량 데이터 소스 식별자 및 연식/엔진/가격대/연비 메타
   externalId String?  @unique
   metadata   Json?
   vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
@@ -154,7 +154,7 @@ model TrimOption {
   createdAt   DateTime @default(now())
   description String?
   isAccessory Boolean  @default(false)
-  // carpan.kr 옵션 ID (트림별로 같은 옵션이 반복되므로 trimId 와 함께 unique)
+  // 외부 차량 데이터 소스 옵션 ID (트림별로 같은 옵션이 반복되므로 trimId 와 함께 unique)
   externalId  String?
   metadata    Json?    // kind/apply/guide/package/conditionFlag 등
   trim                Trim                @relation(fields: [trimId], references: [id], onDelete: Cascade)
@@ -257,7 +257,7 @@ model VehicleColor {
   priceDelta  Int       @default(0)
   isDefault   Boolean   @default(false)
   sortOrder   Int       @default(0)
-  // carpan.kr 식별자 및 제조사 컬러 코드 (예: "WAW"), rgb2/group/호환규칙
+  // 외부 차량 데이터 소스 식별자 및 제조사 컬러 코드 (예: "WAW"), rgb2/group/호환규칙
   externalId  String?
   mfgCode     String?
   metadata    Json?

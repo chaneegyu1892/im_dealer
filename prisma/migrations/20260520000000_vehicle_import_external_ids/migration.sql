@@ -1,4 +1,4 @@
--- carpan.kr JSON 임포트를 위한 스키마 확장
+-- 외부 차량 데이터 소스 JSON 임포트를 위한 스키마 확장
 -- 모든 컬럼 nullable + 기존 데이터 무영향
 
 -- Vehicle
