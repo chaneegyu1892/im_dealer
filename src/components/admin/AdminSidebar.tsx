@@ -19,6 +19,7 @@ import {
   MessageSquare,
   ShieldCheck,
   LogOut,
+  Home,
   type LucideIcon,
 } from "lucide-react";
 
@@ -175,6 +176,16 @@ export function AdminSidebar({ admin, mobileOpen = false, onClose }: AdminSideba
 
         {/* 하단 유저 영역 */}
         <div className="px-3 py-4 border-t border-white/[0.06]">
+          <Link
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onClose}
+            className="flex items-center gap-2 px-2.5 py-1.5 mb-2 rounded-[6px] text-[12px] text-[#8890AA] hover:text-white hover:bg-white/[0.06] transition-all duration-150"
+          >
+            <Home size={12} strokeWidth={1.8} />
+            메인페이지 보기
+          </Link>
           <div className="flex items-center gap-2.5 px-2 py-2 rounded-[6px] mb-1">
             <div
               className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold text-white shrink-0"
