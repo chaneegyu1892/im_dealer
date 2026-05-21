@@ -1,6 +1,11 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { apiRateLimit, strictRateLimit } from "@/lib/rate-limit";
+import { prisma } from "@/lib/prisma";
+import { ADMIN_ROLES } from "@/lib/admin-roles";
+
+// Next 16 의 proxy.ts 는 항상 Node.js 런타임으로 실행됨 → runtime export 불필요.
+// Prisma 직접 호출 가능. https://nextjs.org/docs/messages/middleware-to-proxy
 
 // x-forwarded-for 첫 번째 IP만 사용 (스푸핑 시 체인 뒤를 노출시킬 수 있음).
 // Vercel 등 신뢰 가능한 프록시 뒤에선 헤더만 신뢰. NextRequest.ip 는 Next 15+ 에서 제거됨.
@@ -104,22 +109,32 @@ export default async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // ── 어드민 라우트 보호 (Supabase 세션 기반) ────────────────────────
+  // ── 어드민 라우트 보호 (DB 기준 단일 출처) ─────────────────────────
+  // Supabase 메타데이터가 아닌 prisma.user.role 을 진실로 삼는다. 권한 변경 즉시 반영.
   if (isAdminPage || isAdminApi) {
-    // app_metadata.role 은 grant-admin API에서 세팅됨. user_metadata 도 호환을 위해 확인.
-    const role =
-      (user?.app_metadata as { role?: string } | undefined)?.role ??
-      (user?.user_metadata as { role?: string } | undefined)?.role ??
-      null;
-    const isSupabaseAdmin =
-      role === "superadmin" || role === "admin" || role === "staff" || role === "dealer";
+    let isAdmin = false;
+    if (user) {
+      try {
+        const dbUser = await prisma.user.findUnique({
+          where: { supabaseId: user.id },
+          select: { role: true, isActive: true },
+        });
+        isAdmin =
+          !!dbUser?.isActive &&
+          (ADMIN_ROLES as readonly string[]).includes(dbUser?.role ?? "");
+      } catch (err) {
+        console.error("[proxy] DB role check failed:", err);
+        // 안전한 기본값: 차단. DB 장애로 권한 우회되는 것보다 거부가 낫다.
+        isAdmin = false;
+      }
+    }
 
     if (isAdminApi) {
-      if (!isSupabaseAdmin) {
+      if (!isAdmin) {
         return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
       }
     } else {
-      if (!isSupabaseAdmin) {
+      if (!isAdmin) {
         if (user) {
           // 로그인은 됐지만 관리자 권한 없음 → 홈으로
           return NextResponse.redirect(new URL("/", request.url));
