@@ -28,6 +28,7 @@ import {
   normalizeHex,
   pickRepresentativeEfficiency,
   mapOptionKind,
+  buildLegacySpecsShape,
 } from "../src/lib/vehicle-import-mappings";
 
 const prisma = new PrismaClient();
@@ -278,8 +279,21 @@ async function importModel(
     externalImageUrl(modelDetail.cover),
   ].filter(Boolean);
 
-  // detailedSpecs jsonb — JSON 의 model + 외부 사전 통째 보존
+  // 기존 UI 가 인식하는 specs/technical_specs 구조 변환
+  const legacyShape = buildLegacySpecsShape({
+    spec: modelEntry.detail.spec,
+    specGroup: modelEntry.detail.specGroup,
+    specDefine: modelEntry.detail.specDefine,
+    efficiency: modelDetail.efficiency,
+  });
+
+  // detailedSpecs jsonb — UI 호환 구조 + 원본 통째 보존
   const detailedSpecs = {
+    name,
+    brand: brandName,
+    category,
+    specs: legacyShape.specs,
+    technical_specs: legacyShape.technical_specs,
     externalRaw: {
       listMeta: modelEntry.listMeta,
       model: modelDetail,
