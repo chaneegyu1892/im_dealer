@@ -214,6 +214,293 @@ export function pickRepresentativeEfficiency(
   return min || max;
 }
 
+// ─────────────────────────────────────────────────────────────
+// 외부 spec/specGroup/specDefine → 기존 UI 가 읽는 jsonb 구조 변환
+// CarDetailClient.tsx 의 DetailedSpecsSection 은
+//   specs.dimensions / specs.[variant_key] / technical_specs.[section]
+// 형태만 인식하므로, 이 형태로 펼쳐서 저장한다.
+// ─────────────────────────────────────────────────────────────
+
+/** JSON 의 한국어 항목명 → 기존 UI 가 쓰는 영문 키 + 배치 섹션 */
+type FieldTarget = {
+  key: string;
+  /** "engine" = engine variant 안으로, "dimensions" = specs.dimensions, 그 외는 technical_specs 의 section 이름 */
+  section: "engine" | "dimensions" | "efficiency" | "transmission" | "capacities" | "cargo" | "electric_system" | "tire" | "weight";
+};
+
+const SPEC_FIELD_MAP: Record<string, FieldTarget> = {
+  // 외관 (1853 그룹)
+  "전장":           { key: "length",        section: "dimensions" },
+  "전폭":           { key: "width",         section: "dimensions" },
+  "전고":           { key: "height",        section: "dimensions" },
+  "축간거리":       { key: "wheelbase",     section: "dimensions" },
+  "윤거(전)":       { key: "front_track",   section: "dimensions" },
+  "윤거(후)":       { key: "rear_track",    section: "dimensions" },
+  "트렁크 용량":    { key: "trunk_capacity",section: "capacities" },
+  "적재함(장)":     { key: "cargo_length",  section: "cargo" },
+  "적재함(폭)":     { key: "cargo_width",   section: "cargo" },
+  "적재함(고)":     { key: "cargo_height",  section: "cargo" },
+  "상면고":         { key: "bed_height",    section: "cargo" },
+
+  // 엔진 (1854 그룹)
+  "엔진형식":       { key: "engine",        section: "engine" },
+  "배기량":         { key: "displacement",  section: "engine" },
+  "최고출력":       { key: "max_power",     section: "engine" },
+  "최대토크":       { key: "max_torque",    section: "engine" },
+  "연료탱크":       { key: "fuel_tank",     section: "capacities" },
+  "모터형식":       { key: "motor_type",    section: "electric_system" },
+  "모터 최고출력":  { key: "motor_max_power",  section: "electric_system" },
+  "모터 최대토크":  { key: "motor_max_torque", section: "electric_system" },
+  "배터리 종류":    { key: "battery_type",     section: "electric_system" },
+  "배터리 용량":    { key: "battery",          section: "electric_system" },
+  "축전지 정격전압":{ key: "battery_voltage",  section: "electric_system" },
+  "축전지 정격용량":{ key: "battery_amp_hours",section: "electric_system" },
+
+  // 연비 (1855 그룹)
+  "연료":             { key: "fuel_type",            section: "engine" },
+  "복합연비":         { key: "fuel_efficiency",      section: "efficiency" },
+  "도심연비":         { key: "fuel_efficiency_city", section: "efficiency" },
+  "고속도로연비":     { key: "fuel_efficiency_hwy",  section: "efficiency" },
+  "CO2 배출량":       { key: "co2_emissions",        section: "efficiency" },
+  "공차중량":         { key: "curb_weight",          section: "weight" },
+  "변속기":           { key: "transmission",         section: "transmission" },
+  "타이어":           { key: "tire_size",            section: "tire" },
+  "1회충전 주행거리 (복합)":      { key: "range",         section: "electric_system" },
+  "1회충전 주행거리 (도심)":      { key: "range_city",    section: "electric_system" },
+  "1회충전 주행거리 (고속도로)":  { key: "range_hwy",     section: "electric_system" },
+
+  // 타이어 (1882 그룹)
+  "제조사":           { key: "tire_manufacturer",        section: "tire" },
+  "규격":             { key: "tire_spec",                section: "tire" },
+  "모델명":           { key: "tire_model",               section: "tire" },
+  "회전저항(계수)":   { key: "tire_rolling_resistance",  section: "tire" },
+  "젖은 노면 제동력 지수": { key: "tire_wet_grip",       section: "tire" },
+  "장착 위치":        { key: "tire_position",            section: "tire" },
+};
+
+/** specGroup.name 의 한국어 → 처리 카테고리 */
+function classifyGroupName(name: string | undefined): "exterior" | "engine" | "efficiency" | "tire" | "other" {
+  const n = name ?? "";
+  if (n.includes("외관") || n.includes("치수")) return "exterior";
+  if (n.includes("엔진") || n.includes("동력")) return "engine";
+  if (n.includes("연비") || n.includes("성능")) return "efficiency";
+  if (n.includes("타이어")) return "tire";
+  return "other";
+}
+
+/** specSet.name → engine variant 키 (snake_case)
+ * 예: "가솔린 2.5" → "gasoline_2.5", "LPG 3.5" → "lpg_3.5", "EV" → "electric"
+ */
+export function normalizeVariantKey(name: string | undefined): string {
+  const n = (name ?? "").trim();
+  if (!n) return "default";
+  if (/전기|electric|^EV$|\bEV\b/i.test(n)) return "electric";
+  if (/수소|hydrogen|fuel\s?cell/i.test(n)) return "hydrogen";
+
+  let prefix = "gasoline";
+  if (/하이브리드|hybrid|HEV|PHEV/i.test(n)) prefix = "hybrid";
+  else if (/디젤|diesel/i.test(n)) prefix = "diesel";
+  else if (/LPG|lpg/i.test(n)) prefix = "lpg";
+  else if (/가솔린|gasoline|petrol/i.test(n)) prefix = "gasoline";
+
+  const disp = n.match(/(\d+\.\d+)/)?.[1];
+  return disp ? `${prefix}_${disp}` : prefix;
+}
+
+/** 값에 단위 붙이기 ("2497" + "㏄" → "2,497㏄") */
+function formatWithUnit(value: string, unit: string | undefined): string {
+  const v = (value ?? "").trim();
+  if (!v) return "";
+  const u = (unit ?? "").trim();
+  return u ? `${v}${u}` : v;
+}
+
+interface SpecConversionArgs {
+  spec?: Record<string, Record<string, string>>;
+  specGroup?: Record<string, { name?: string; list?: string }>;
+  specDefine?: Record<string, { name?: string; unit?: string; group?: string }>;
+  /** model.efficiency (base64 키) — 연료별 min/max */
+  efficiency?: Record<string, { name?: string; min?: string; max?: string; unit?: string }>;
+}
+
+export interface LegacySpecsShape {
+  specs: Record<string, Record<string, string>>;
+  technical_specs: Record<string, Record<string, string>>;
+}
+
+/**
+ * 외부 spec/specGroup/specDefine 을 기존 UI 가 인식하는
+ * { specs: {dimensions, variants}, technical_specs: {sections} } 형태로 변환.
+ *
+ * 처리 우선순위:
+ *   1. specGroup.name 에서 "외관/엔진/연비/타이어" 분류
+ *   2. 각 그룹의 모든 specSet 을 순회하며 specDefine 으로 항목명 lookup
+ *   3. SPEC_FIELD_MAP 으로 영문 키 + 배치 섹션 결정
+ *   4. engine 섹션이면 variant 별 객체 생성, 그 외는 technical_specs 의 section 으로
+ */
+export function buildLegacySpecsShape(args: SpecConversionArgs): LegacySpecsShape {
+  const { spec, specGroup, specDefine, efficiency } = args;
+  const result: LegacySpecsShape = { specs: {}, technical_specs: {} };
+
+  if (!spec || !specDefine || !specGroup) return result;
+
+  // specDefineId → { name, unit, group }
+  const defines = specDefine;
+
+  // specSetId → { fields: {name → value} } (with units appended)
+  // 각 specSet 의 모든 항목에 단위 붙여서 보관
+  const specSetById: Record<string, { name: string; groupId: string; fields: { defName: string; value: string }[] }> = {};
+  for (const [setId, fields] of Object.entries(spec)) {
+    const items: { defName: string; value: string }[] = [];
+    let groupId = "";
+    for (const [defId, rawValue] of Object.entries(fields)) {
+      if (defId === "name") continue;
+      const def = defines[defId];
+      if (!def?.name) continue;
+      if (!groupId && def.group) groupId = def.group;
+      items.push({
+        defName: def.name,
+        value: formatWithUnit(rawValue, def.unit),
+      });
+    }
+    const setName = (fields as Record<string, string>).name ?? "";
+    specSetById[setId] = { name: setName, groupId, fields: items };
+  }
+
+  // groupId → category
+  const groupCategory: Record<string, ReturnType<typeof classifyGroupName>> = {};
+  for (const [gid, g] of Object.entries(specGroup)) {
+    groupCategory[gid] = classifyGroupName(g.name);
+  }
+
+  // 변환할 임시 버킷
+  const dimensions: Record<string, string> = {};
+  const capacities: Record<string, string> = {};
+  const cargo: Record<string, string> = {};
+  const electric: Record<string, string> = {};
+  const tire: Record<string, string> = {};
+  const weight: Record<string, string> = {};
+
+  /** variant key → 누적 객체 */
+  const variants: Record<string, Record<string, string>> = {};
+
+  function pushToSection(section: FieldTarget["section"], key: string, value: string) {
+    if (!value) return;
+    switch (section) {
+      case "dimensions":  dimensions[key] = value; break;
+      case "capacities":  capacities[key] = value; break;
+      case "cargo":       cargo[key] = value; break;
+      case "electric_system": electric[key] = value; break;
+      case "tire":        tire[key] = value; break;
+      case "weight":      weight[key] = value; break;
+      default: break; // engine/efficiency/transmission 은 variant 안으로 별도 처리
+    }
+  }
+
+  // 1) 외관 그룹: 첫 specSet 만 사용 (트림마다 윤거가 살짝 달라도 대표값으로)
+  const exteriorGroupId = Object.keys(groupCategory).find((g) => groupCategory[g] === "exterior");
+  if (exteriorGroupId) {
+    const firstExtSet = Object.values(specSetById).find((s) => s.groupId === exteriorGroupId);
+    if (firstExtSet) {
+      for (const { defName, value } of firstExtSet.fields) {
+        const map = SPEC_FIELD_MAP[defName];
+        if (!map) continue;
+        pushToSection(map.section, map.key, value);
+      }
+    }
+  }
+
+  // 2) 엔진 그룹: 모든 specSet → 각 variant
+  const engineGroupId = Object.keys(groupCategory).find((g) => groupCategory[g] === "engine");
+  if (engineGroupId) {
+    for (const { name, groupId, fields } of Object.values(specSetById)) {
+      if (groupId !== engineGroupId) continue;
+      const variantKey = normalizeVariantKey(name);
+      const variant = (variants[variantKey] ??= {});
+      for (const { defName, value } of fields) {
+        const map = SPEC_FIELD_MAP[defName];
+        if (!map) continue;
+        if (map.section === "engine") {
+          variant[map.key] = value;
+        } else {
+          pushToSection(map.section, map.key, value);
+        }
+      }
+    }
+  }
+
+  // 3) 연비 그룹: variant 별 fuel_efficiency 등 — 매칭되는 engine variant 에 합치기
+  const efficiencyGroupId = Object.keys(groupCategory).find((g) => groupCategory[g] === "efficiency");
+  if (efficiencyGroupId) {
+    for (const { name, groupId, fields } of Object.values(specSetById)) {
+      if (groupId !== efficiencyGroupId) continue;
+      const variantKey = normalizeVariantKey(name);
+      const variant = (variants[variantKey] ??= {});
+      for (const { defName, value } of fields) {
+        const map = SPEC_FIELD_MAP[defName];
+        if (!map) continue;
+        if (map.section === "efficiency" || map.section === "transmission") {
+          variant[map.key] = value;
+        } else {
+          pushToSection(map.section, map.key, value);
+        }
+      }
+    }
+  }
+
+  // 4) 타이어 그룹
+  const tireGroupId = Object.keys(groupCategory).find((g) => groupCategory[g] === "tire");
+  if (tireGroupId) {
+    for (const { groupId, fields } of Object.values(specSetById)) {
+      if (groupId !== tireGroupId) continue;
+      for (const { defName, value } of fields) {
+        const map = SPEC_FIELD_MAP[defName];
+        if (!map) continue;
+        pushToSection(map.section, map.key, value);
+      }
+    }
+  }
+
+  // 5) model.efficiency 백업 매칭 — variant 에 fuel_efficiency 없으면 채움
+  if (efficiency) {
+    for (const eff of Object.values(efficiency)) {
+      const fuelName = eff.name ?? "";
+      // 휘발유 → gasoline, 경유 → diesel, LPG → lpg, 전기 → electric
+      let variantPrefix = "gasoline";
+      if (/경유|디젤/i.test(fuelName)) variantPrefix = "diesel";
+      else if (/LPG/i.test(fuelName)) variantPrefix = "lpg";
+      else if (/전기/i.test(fuelName)) variantPrefix = "electric";
+      else if (/수소/i.test(fuelName)) variantPrefix = "hydrogen";
+      else if (/휘발유/i.test(fuelName)) variantPrefix = "gasoline";
+
+      const min = eff.min ?? "";
+      const max = eff.max ?? "";
+      const unit = eff.unit ?? "";
+      const range = min && max && min !== max ? `${min}~${max}${unit}` : `${min || max}${unit}`;
+
+      // 매칭되는 모든 variant 에 백업 적용
+      for (const [vKey, vObj] of Object.entries(variants)) {
+        if (vKey.startsWith(variantPrefix) && !vObj.fuel_efficiency) {
+          vObj.fuel_efficiency = range;
+        }
+      }
+    }
+  }
+
+  // 결과 조립
+  if (Object.keys(dimensions).length > 0) result.specs.dimensions = dimensions;
+  for (const [vKey, vObj] of Object.entries(variants)) {
+    if (Object.keys(vObj).length > 0) result.specs[vKey] = vObj;
+  }
+  if (Object.keys(capacities).length > 0) result.technical_specs.capacities = capacities;
+  if (Object.keys(cargo).length > 0) result.technical_specs.cargo = cargo;
+  if (Object.keys(electric).length > 0) result.technical_specs.electric_system = electric;
+  if (Object.keys(tire).length > 0) result.technical_specs.tire = tire;
+  if (Object.keys(weight).length > 0) result.technical_specs.weight = weight;
+
+  return result;
+}
+
 /** 외부 option.kind → DB TrimOption.category + isAccessory
  *
  * - "A": 악세서리 → isAccessory=true, category="악세서리"
