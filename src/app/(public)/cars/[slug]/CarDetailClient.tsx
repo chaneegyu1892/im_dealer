@@ -53,13 +53,22 @@ const SPEC_KEY_LABEL: Record<string, string> = {
   displacement: "배기량",
   max_power: "최고출력",
   max_torque: "최대토크",
-  fuel_efficiency: "연비 / 전비",
-  range: "1회 충전 주행거리",
+  fuel_type: "사용 연료",
+  fuel_efficiency: "복합 연비",
+  fuel_efficiency_city: "도심 연비",
+  fuel_efficiency_hwy: "고속 연비",
+  co2_emissions: "CO2 배출량",
+  transmission: "변속기",
+  range: "1회 충전 주행거리 (복합)",
+  range_city: "1회 충전 주행거리 (도심)",
+  range_hwy: "1회 충전 주행거리 (고속)",
   // 치수
   length: "전장",
   width: "전폭",
   height: "전고",
   wheelbase: "휠베이스",
+  front_track: "윤거(전)",
+  rear_track: "윤거(후)",
   // 섀시
   front_suspension: "전륜 서스펜션",
   rear_suspension: "후륜 서스펜션",
@@ -76,17 +85,51 @@ const SPEC_KEY_LABEL: Record<string, string> = {
   ground_clearance: "최저지상고",
   // 용량
   fuel_tank: "연료탱크",
-  // 전기
+  // 적재함 (트럭/밴)
+  cargo_length: "적재함 길이",
+  cargo_width: "적재함 폭",
+  cargo_height: "적재함 높이",
+  bed_height: "상면고",
+  // 무게
+  curb_weight: "공차중량",
+  // 전기 / 하이브리드
   battery: "배터리 용량",
+  battery_type: "배터리 종류",
+  battery_voltage: "축전지 정격전압",
+  battery_amp_hours: "축전지 정격용량",
+  motor_type: "모터 형식",
+  motor_max_power: "모터 최고출력",
+  motor_max_torque: "모터 최대토크",
   charging: "충전 방식",
+  // 타이어
+  tire_size: "타이어 사이즈",
+  tire_manufacturer: "타이어 제조사",
+  tire_spec: "타이어 규격",
+  tire_model: "타이어 모델",
+  tire_rolling_resistance: "회전저항 등급",
+  tire_wet_grip: "젖은 노면 제동력",
+  tire_position: "장착 위치",
 };
 
 // 엔진 variant 키 → 한글 탭 라벨
 function engineVariantLabel(key: string): string {
   if (key === "dimensions") return "";
+  // 단일 키 (엔진 종류만)
+  if (key === "electric") return "전기";
+  if (key === "hydrogen") return "수소";
+  if (key === "gasoline") return "가솔린";
+  if (key === "diesel") return "디젤";
+  if (key === "lpg") return "LPG";
+  if (key === "hybrid") return "하이브리드";
+  if (key === "default") return "기본";
+  // 복합 키 (엔진 + 배기량)
   return key
     .replace("gasoline_", "가솔린 ")
     .replace("hybrid_", "하이브리드 ")
+    .replace("diesel_", "디젤 ")
+    .replace("lpg_", "LPG ")
+    .replace("electric_", "전기 ")
+    .replace("hydrogen_", "수소 ")
     .replace("long_range_2wd", "롱레인지 2WD")
     .replace("long_range_awd", "롱레인지 AWD")
     .replace("_turbo", "T")
@@ -100,7 +143,10 @@ const TECH_SECTION_LABEL: Record<string, string> = {
   aerodynamics: "공력 성능",
   interior_dimensions: "실내 공간",
   capacities: "용량",
-  electric_system: "전기 시스템",
+  electric_system: "전기 / 하이브리드 시스템",
+  cargo: "적재함",
+  tire: "타이어",
+  weight: "중량",
 };
 
 // ── 유틸 ───────────────────────────────────────────────────
