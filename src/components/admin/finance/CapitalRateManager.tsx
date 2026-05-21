@@ -19,15 +19,20 @@ interface TrimBasic {
   name: string;
   price: number;
   lineupId: string | null;
+  engineType?: string;
 }
 
 interface VehicleWithLineups {
   id: string;
   name: string;
   brand: string;
+  slug?: string;
   lineups: VehicleLineup[];
   trims: TrimBasic[];
 }
+
+/** 자동 채우기 버튼을 노출할 차량 slug 목록 (테스트 단계) */
+const AUTO_FILL_ENABLED_SLUGS = new Set(["hyundai-11874"]);
 
 interface Props {
   financeCompanies: AdminFinanceCompany[];
@@ -373,13 +378,27 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                     onDelete={handleDelete}
                   />
                 ) : (
-                  <RateInputForm
-                    financeCompanyId={selectedFcId}
-                    trimIds={Array.from(selectedTrimIds)}
-                    trimPrice={selectedTrims[0]?.price ?? 0}
-                    existingSheet={currentSheet}
-                    onSaved={handleSaved}
-                  />
+                  (() => {
+                    const slug = vehicleDetail.slug ?? "";
+                    const enableAutoFill = AUTO_FILL_ENABLED_SLUGS.has(slug);
+                    // 선택 트림들의 engineType 일치 여부 검사 (혼합이면 자동 채우기 비활성)
+                    const engineTypes = Array.from(
+                      new Set(selectedTrims.map((t) => t.engineType).filter(Boolean))
+                    );
+                    const uniformEngine = engineTypes.length === 1 ? engineTypes[0] : undefined;
+                    return (
+                      <RateInputForm
+                        financeCompanyId={selectedFcId}
+                        trimIds={Array.from(selectedTrimIds)}
+                        trimPrice={selectedTrims[0]?.price ?? 0}
+                        existingSheet={currentSheet}
+                        onSaved={handleSaved}
+                        enableAutoFill={enableAutoFill && Boolean(uniformEngine)}
+                        vehicleBrand={vehicleDetail.brand}
+                        defaultEngineType={uniformEngine}
+                      />
+                    );
+                  })()
                 )}
               </div>
             ) : (
