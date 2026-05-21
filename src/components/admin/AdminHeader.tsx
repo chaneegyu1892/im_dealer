@@ -57,7 +57,7 @@ export function AdminHeader() {
 
       <div className="flex items-center gap-2">
         <div className="relative">
-          <button 
+          <button
             onClick={() => setOpen(!open)}
             className={cn(
               "p-2 rounded-full hover:bg-[#F4F5F8] transition-colors relative",
