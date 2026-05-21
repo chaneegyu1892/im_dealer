@@ -25,11 +25,33 @@
 ## Phase 진행 상황
 
 - [x] Phase 0: 브랜치 + 백업 (2026-05-20)
-- [ ] Phase 1: 스키마 확장 마이그레이션
-- [ ] Phase 2: 코드 변환 매핑 상수
-- [ ] Phase 3: 임포트 스크립트 (dry-run)
-- [ ] Phase 4: 그랜저 11874 시험 임포트
-- [ ] Phase 5: 전체 임포트
+- [x] Phase 1: 스키마 확장 마이그레이션 (externalId/jsonb 컬럼)
+- [x] Phase 2: 코드 변환 매핑 상수 (vehicle-import-mappings.ts)
+- [x] Phase 3: 임포트 스크립트 (scripts/import-vehicles.ts, dry-run/model/brand/all 플래그)
+- [x] Phase 4: 그랜저 11874 시험 임포트 (2026-05-20)
+- [x] Phase 5: 전체 임포트 (2026-05-21, 425/426 성공)
+- [x] A 강화판: JSON spec → 기존 UI 호환 jsonb 변환 (CarDetailClient 상세 제원 정상 표시)
+
+## 최종 임포트 결과
+
+| 항목 | 수치 |
+|---|---|
+| 신규 Vehicle | 425 (`externalSource='external'`, isVisible=false) |
+| VehicleLineup | 1,556 |
+| Trim | 5,248 |
+| TrimOption | 19,557 |
+| VehicleColor | 4,922 |
+| 실패 | 1 (modelId 11858 Bentley Valour, basePrice 28억 → INT4 초과, 무시) |
+
+기존 데이터 무영향 확인:
+- Vehicle (externalSource IS NULL): 27 그대로
+- CapitalRateSheet: 9,130 그대로
+
+## 운영 작업 (남은 사람 작업)
+
+1. 어드민에서 신규 425대 검토 후 노출 결정 (`isVisible` 토글)
+2. 캐피탈사 회수율 입력 — 더 뉴 그랜저는 자동 채우기 버튼 (`AUTO_FILL_ENABLED_SLUGS`) 사용 가능
+3. 28억 초과 슈퍼카 처리 필요 시 `Vehicle.basePrice` Int → BigInt 마이그레이션
 
 ## 롤백 SQL
 
