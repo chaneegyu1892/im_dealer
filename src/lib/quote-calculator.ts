@@ -51,7 +51,7 @@ export function getRateFromMatrix(
   return rateMatrix[key] ?? 0;
 }
 
-/** 차량 실제 가격으로 min·max 사이를 선형보간한 회수율 반환 */
+/** 차량 실제 가격으로 min·max 선형 외삽한 회수율 반환 (범위 초과 시 연장선상에서 계산) */
 function getInterpolatedRate(
   config: RateConfigData,
   vehiclePrice: number,
@@ -62,8 +62,9 @@ function getInterpolatedRate(
   const maxRate = getRateFromMatrix(config.maxRateMatrix, contractMonths, annualMileage);
   if (minRate <= 0 && maxRate <= 0) return 0;
   if (config.maxVehiclePrice <= config.minVehiclePrice) return minRate;
-  const t = Math.max(0, Math.min(1, (vehiclePrice - config.minVehiclePrice) / (config.maxVehiclePrice - config.minVehiclePrice)));
-  return minRate + t * (maxRate - minRate);
+  // 범위 초과 시에도 연장선상에서 처리 (클램프 제거)
+  const t = (vehiclePrice - config.minVehiclePrice) / (config.maxVehiclePrice - config.minVehiclePrice);
+  return Math.max(0, minRate + t * (maxRate - minRate));
 }
 
 // ─── 단일 금융사 기준 대여료 계산 ─────────────────────────

@@ -13,6 +13,7 @@ interface Props {
   financeCompanyId: string;
   trimIds: string[];
   trimPrice: number;
+  productType: string;
   existingSheet?: CapitalRateSheet;
   onSaved: (savedTrimIds: string[]) => void;
 }
@@ -56,6 +57,7 @@ export default function RateInputForm({
   financeCompanyId,
   trimIds,
   trimPrice,
+  productType,
   existingSheet,
   onSaved,
 }: Props) {
@@ -72,16 +74,23 @@ export default function RateInputForm({
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<PreviewData | null>(null);
 
+  // 보증금·선납금 테이블은 36_10000 셀 하나만 사용 — 나머지는 0으로 초기화
+  function pickSingleKey(rates: RateSheetRaw, key: RateSheetKey): RateSheetRaw {
+    const empty = emptyRates();
+    empty[key] = rates[key] ?? 0;
+    return empty;
+  }
+
   useEffect(() => {
     if (existingSheet) {
       setMinVehiclePrice(existingSheet.minVehiclePrice);
       setMaxVehiclePrice(existingSheet.maxVehiclePrice);
       setMinBaseRates(existingSheet.minBaseRates);
-      setMinDepositRates(existingSheet.minDepositRates);
-      setMinPrepayRates(existingSheet.minPrepayRates);
+      setMinDepositRates(pickSingleKey(existingSheet.minDepositRates, "36_10000"));
+      setMinPrepayRates(pickSingleKey(existingSheet.minPrepayRates, "36_10000"));
       setMaxBaseRates(existingSheet.maxBaseRates);
-      setMaxDepositRates(existingSheet.maxDepositRates);
-      setMaxPrepayRates(existingSheet.maxPrepayRates);
+      setMaxDepositRates(pickSingleKey(existingSheet.maxDepositRates, "36_10000"));
+      setMaxPrepayRates(pickSingleKey(existingSheet.maxPrepayRates, "36_10000"));
       setMemo(existingSheet.memo ?? "");
       setWeekOf(existingSheet.weekOf.slice(0, 10));
     } else {
@@ -130,6 +139,7 @@ export default function RateInputForm({
         body: JSON.stringify({
           financeCompanyId,
           trimIds, // 단일 ID 대신 배열 전송
+          productType,
           weekOf,
           minVehiclePrice,
           maxVehiclePrice,
@@ -155,12 +165,18 @@ export default function RateInputForm({
     label: string,
     rates: RateSheetRaw,
     setter: React.Dispatch<React.SetStateAction<RateSheetRaw>>,
-    accentClass: string
+    accentClass: string,
+    activeKey?: RateSheetKey  // 지정 시 해당 셀만 활성화, 나머지는 음영 처리
   ) => (
     <div className="bg-white rounded-xl border border-[#E8EAF2]">
       <div className={`px-4 py-2.5 border-b border-[#E8EAF2] ${accentClass} rounded-t-xl flex items-center gap-2`}>
         <span className="text-xs font-semibold">{label}</span>
         <span className="text-xs text-[#9BA4C0]">단위: 원</span>
+        {activeKey && (
+          <span className="ml-auto text-[10px] text-[#9BA4C0] bg-white/60 px-2 py-0.5 rounded-full border border-[#E8EAF2]">
+            36개월 · 1만km 1개 값만 입력
+          </span>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -178,15 +194,21 @@ export default function RateInputForm({
                 <td className="py-1.5 px-3 text-[#9BA4C0] text-xs whitespace-nowrap">{MILEAGE_LABELS[mileage]}</td>
                 {MONTHS.map((months) => {
                   const key = `${months}_${mileage}` as RateSheetKey;
+                  const isActive = !activeKey || key === activeKey;
                   return (
                     <td key={months} className="py-1 px-1.5">
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={rates[key] > 0 ? rates[key].toLocaleString("ko-KR") : ""}
+                        disabled={!isActive}
+                        value={isActive && rates[key] > 0 ? rates[key].toLocaleString("ko-KR") : ""}
                         onChange={(e) => updateRate(setter, key, e.target.value)}
-                        placeholder="0"
-                        className="w-full text-center text-xs border border-[#E8EAF2] rounded-lg px-1.5 py-1.5 focus:outline-none focus:border-[#6066EE] text-[#1A1A2E]"
+                        placeholder={isActive ? "0" : "—"}
+                        className={
+                          isActive
+                            ? "w-full text-center text-xs border border-[#E8EAF2] rounded-lg px-1.5 py-1.5 focus:outline-none focus:border-[#6066EE] text-[#1A1A2E]"
+                            : "w-full text-center text-xs border border-[#F0F1FA] rounded-lg px-1.5 py-1.5 bg-[#F4F5F8] text-[#C8CDD8] cursor-not-allowed select-none"
+                        }
                       />
                     </td>
                   );
@@ -293,8 +315,8 @@ export default function RateInputForm({
         </div>
         <div className="p-3 flex flex-col gap-3">
           {renderTable("기준 견적 (보증금/선납금 없음)", minBaseRates, setMinBaseRates, "bg-[#F8F9FC]")}
-          {renderTable("보증금 10% 적용 견적", minDepositRates, setMinDepositRates, "bg-blue-50")}
-          {renderTable("선납금 10% 적용 견적", minPrepayRates, setMinPrepayRates, "bg-violet-50")}
+          {renderTable("보증금 10% 적용 견적", minDepositRates, setMinDepositRates, "bg-blue-50", "36_10000")}
+          {renderTable("선납금 10% 적용 견적", minPrepayRates, setMinPrepayRates, "bg-violet-50", "36_10000")}
         </div>
       </div>
 
@@ -306,8 +328,8 @@ export default function RateInputForm({
         </div>
         <div className="p-3 flex flex-col gap-3">
           {renderTable("기준 견적 (보증금/선납금 없음)", maxBaseRates, setMaxBaseRates, "bg-[#F8F9FC]")}
-          {renderTable("보증금 10% 적용 견적", maxDepositRates, setMaxDepositRates, "bg-blue-50")}
-          {renderTable("선납금 10% 적용 견적", maxPrepayRates, setMaxPrepayRates, "bg-violet-50")}
+          {renderTable("보증금 10% 적용 견적", maxDepositRates, setMaxDepositRates, "bg-blue-50", "36_10000")}
+          {renderTable("선납금 10% 적용 견적", maxPrepayRates, setMaxPrepayRates, "bg-violet-50", "36_10000")}
         </div>
       </div>
 

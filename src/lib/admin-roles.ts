@@ -4,7 +4,7 @@ export type AdminRole = (typeof ADMIN_ROLES)[number];
 
 // 역할별 한글 라벨
 export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
-  superadmin: "최고 관리자",
+  superadmin: "최종관리자",
   admin: "관리자",
   staff: "운영자",
   dealer: "딜러",

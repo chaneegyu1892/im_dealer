@@ -75,6 +75,10 @@ export async function POST(request: NextRequest) {
       .reduce((sum, o) => sum + o.price, 0);
     const optionsTotalPrice = trimOptionsTotalPrice + (input.extraOptionsPrice ?? 0);
 
+    // 할인가 적용: discountPrice가 있으면 차량가에서 차감하여 회수율 계산
+    const effectiveTrimPrice = trim.discountPrice ?? trim.price;
+    const discountAmount = trim.discountPrice ? trim.price - trim.discountPrice : 0;
+
     // 2) 회수율 데이터 + 순위 가산 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
       prisma.capitalRateSheet.findMany({
@@ -134,7 +138,7 @@ export async function POST(request: NextRequest) {
       const { depositRate, prepayRate } = SCENARIO_CONDITIONS[key];
 
       const calcInput: CalcInput = {
-        vehiclePrice: trim.price + optionsTotalPrice,
+        vehiclePrice: effectiveTrimPrice + optionsTotalPrice,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         depositRate,
@@ -237,8 +241,10 @@ export async function POST(request: NextRequest) {
         trimId: trim.id,
         trimName: trim.name,
         trimPrice: trim.price,
+        discountPrice: trim.discountPrice ?? null,
+        discountAmount,
         optionsTotalPrice,
-        totalVehiclePrice: trim.price + optionsTotalPrice,
+        totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         contractType: input.contractType,

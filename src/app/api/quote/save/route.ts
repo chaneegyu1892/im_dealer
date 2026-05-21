@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
     const selectedOptions = trim.options.filter((o) => selectedOptionIds.has(o.id));
     const trimOptionsTotalPrice = selectedOptions.reduce((sum, o) => sum + o.price, 0);
     const optionsTotalPrice = trimOptionsTotalPrice + input.extraOptionsPrice;
-    const totalVehiclePrice = trim.price + optionsTotalPrice;
+    const effectiveTrimPrice = trim.discountPrice ?? trim.price;
+    const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice;
 
     const [rateSheets, rankSurcharges] = await Promise.all([
       prisma.capitalRateSheet.findMany({

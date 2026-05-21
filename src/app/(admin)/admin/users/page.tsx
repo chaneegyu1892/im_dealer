@@ -1,9 +1,13 @@
 import { Suspense } from "react";
 import { getAdminUsers } from "@/lib/admin-queries";
+import { getAdminSession } from "@/lib/admin-auth";
 import UsersClient from "@/components/admin/users/UsersClient";
 
 export default async function UsersPage() {
-  const { users, stats, authError } = await getAdminUsers();
+  const [{ users, stats, authError }, admin] = await Promise.all([
+    getAdminUsers(),
+    getAdminSession(),
+  ]);
 
   return (
     <Suspense
@@ -13,7 +17,7 @@ export default async function UsersPage() {
         </div>
       }
     >
-      <UsersClient users={users} stats={stats} authError={authError} />
+      <UsersClient users={users} stats={stats} authError={authError} currentAdminRole={admin?.role ?? "staff"} />
     </Suspense>
   );
 }

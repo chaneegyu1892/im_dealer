@@ -70,6 +70,7 @@ interface TrimData {
   id: string;
   name: string;
   price: number;
+  discountPrice: number | null;
   engineType: string;
   fuelEfficiency: number | null;
   isDefault: boolean;
@@ -795,7 +796,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                               placeholder="트림을 선택하세요"
                               options={availableTrimNames.map((t) => ({
                                 value: t.name,
-                                label: `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
+                                label: t.discountPrice
+                                  ? `${t.name} — ${Math.round(t.discountPrice / 10000).toLocaleString()}만원 (할인 적용)`
+                                  : `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
                               }))}
                               onChange={(v) => {
                                 setSelectedTrimName(v || null);
@@ -812,7 +815,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           placeholder="트림을 선택하세요"
                           options={trims.map((t) => ({
                             value: t.id,
-                            label: `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
+                            label: t.discountPrice
+                              ? `${t.name} — ${Math.round(t.discountPrice / 10000).toLocaleString()}만원 (할인 적용)`
+                              : `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
                           }))}
                           onChange={(v) => {
                             setSelectedLineup(v || null);
@@ -961,9 +966,21 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             {selectedTrim.engineType}
                             {selectedTrim.fuelEfficiency ? ` · 연비 ${selectedTrim.fuelEfficiency}km/L` : ""}
                           </span>
-                          <span className="font-semibold text-ink">
-                            차량가 {Math.round((selectedTrim.price + optionsTotalPrice) / 10000).toLocaleString()}만원
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {selectedTrim.discountPrice && (
+                              <span className="text-[10px] font-semibold text-red-500 line-through">
+                                {Math.round(selectedTrim.price / 10000).toLocaleString()}만원
+                              </span>
+                            )}
+                            <span className="font-semibold text-ink">
+                              차량가 {Math.round(((selectedTrim.discountPrice ?? selectedTrim.price) + optionsTotalPrice) / 10000).toLocaleString()}만원
+                            </span>
+                            {selectedTrim.discountPrice && (
+                              <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-[4px]">
+                                -{Math.round((selectedTrim.price - selectedTrim.discountPrice) / 10000).toLocaleString()}만원 할인
+                              </span>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

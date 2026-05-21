@@ -80,9 +80,11 @@ function QuoteStatusBadge({ label }: { label: string }) {
 function UserDetailPanel({
   user,
   onClose,
+  currentAdminRole,
 }: {
   user: AdminUserRecord;
   onClose: () => void;
+  currentAdminRole: string;
 }) {
   const statusStyle = USER_STATUS_STYLE[user.userStatus];
   const sourceStyle = SOURCE_STYLE[user.source];
@@ -285,84 +287,101 @@ function UserDetailPanel({
             )}
           </div>
 
-          {/* 관리자 권한 관리 */}
-          <div className="px-5 py-4 border-b border-[#F8F9FC] bg-[#F9FAFF]">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#000666] flex items-center gap-1.5">
-                <Shield size={12} /> 권한 및 등급 설정
-              </p>
-              {user.role && (
-                <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100 uppercase">
-                  {user.role}
-                </span>
-              )}
-            </div>
-            <div className="bg-white rounded-xl border border-[#E8EAF0] p-3 shadow-sm">
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: "superadmin", label: "최종관리자", color: "#7C3AED", bg: "#F5F3FF" },
-                  { id: "admin", label: "관리자", color: "#000666", bg: "#E5E5FA" },
-                  { id: "dealer", label: "딜러", color: "#059669", bg: "#ECFDF5" },
-                ].map((r) => (
+          {/* 권한 및 등급 */}
+          {currentAdminRole === "superadmin" ? (
+            /* ── 최종관리자: 권한 편집 가능 ── */
+            <div className="px-5 py-4 border-b border-[#F8F9FC] bg-[#F9FAFF]">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#000666] flex items-center gap-1.5">
+                  <Shield size={12} /> 권한 및 등급 설정
+                </p>
+                {user.role && (
+                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100 uppercase">
+                    {user.role === "superadmin" ? "최종관리자" : user.role === "admin" ? "관리자" : user.role}
+                  </span>
+                )}
+              </div>
+              <div className="bg-white rounded-xl border border-[#E8EAF0] p-3 shadow-sm">
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "superadmin", label: "최종관리자", color: "#7C3AED", bg: "#F5F3FF" },
+                    { id: "admin", label: "관리자", color: "#000666", bg: "#E5E5FA" },
+                    { id: "dealer", label: "딜러", color: "#059669", bg: "#ECFDF5" },
+                  ].map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={async () => {
+                        if (!confirm(`${user.name} 님을 ${r.label}로 지정하시겠습니까?`)) return;
+                        try {
+                          const res = await fetch(`/api/admin/users/${user.authUserId}/grant-admin`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ role: r.id })
+                          });
+                          if (res.ok) {
+                            alert(`${r.label} 권한이 부여되었습니다.`);
+                            window.location.reload();
+                          } else {
+                            const data = await res.json();
+                            alert(data.error || "처리 중 오류가 발생했습니다.");
+                          }
+                        } catch {
+                          alert("서버 통신 중 오류가 발생했습니다.");
+                        }
+                      }}
+                      className={cn(
+                        "flex flex-col items-center justify-center p-3 rounded-lg border transition-all",
+                        user.role === r.id
+                          ? "border-[#000666] bg-[#F9FAFF]"
+                          : "border-[#F0F2F8] hover:border-[#6066EE] bg-white"
+                      )}
+                    >
+                      <ShieldCheck size={18} style={{ color: r.color }} />
+                      <span className="text-[11px] font-bold mt-1.5" style={{ color: r.color }}>{r.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {user.role && (
                   <button
-                    key={r.id}
                     onClick={async () => {
-                      if (!confirm(`${user.name} 님을 ${r.label}로 지정하시겠습니까?`)) return;
+                      if (!confirm("권한을 회수하고 일반 사용자로 변경하시겠습니까?")) return;
                       try {
                         const res = await fetch(`/api/admin/users/${user.authUserId}/grant-admin`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ role: r.id })
+                          method: "DELETE"
                         });
                         if (res.ok) {
-                          alert(`${r.label} 권한이 부여되었습니다.`);
+                          alert("권한이 회수되었습니다.");
                           window.location.reload();
                         } else {
-                          const data = await res.json();
-                          alert(data.error || "처리 중 오류가 발생했습니다.");
+                          alert("처리 중 오류가 발생했습니다.");
                         }
                       } catch {
                         alert("서버 통신 중 오류가 발생했습니다.");
                       }
                     }}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-3 rounded-lg border transition-all",
-                      user.role === r.id
-                        ? "border-[#000666] bg-[#F9FAFF]"
-                        : "border-[#F0F2F8] hover:border-[#6066EE] bg-white"
-                    )}
+                    className="mt-3 w-full py-2 rounded-lg text-[11px] font-bold text-red-500 border border-red-50 hover:bg-red-50 transition-all"
                   >
-                    <ShieldCheck size={18} style={{ color: r.color }} />
-                    <span className="text-[11px] font-bold mt-1.5" style={{ color: r.color }}>{r.label}</span>
+                    권한 회수 및 일반 사용자로 전환
                   </button>
-                ))}
+                )}
               </div>
-              
-              {user.role && (
-                <button
-                  onClick={async () => {
-                    if (!confirm("권한을 회수하고 일반 사용자로 변경하시겠습니까?")) return;
-                    try {
-                      const res = await fetch(`/api/admin/users/${user.authUserId}/grant-admin`, {
-                        method: "DELETE"
-                      });
-                      if (res.ok) {
-                        alert("권한이 회수되었습니다.");
-                        window.location.reload();
-                      } else {
-                        alert("처리 중 오류가 발생했습니다.");
-                      }
-                    } catch {
-                      alert("서버 통신 중 오류가 발생했습니다.");
-                    }
-                  }}
-                  className="mt-3 w-full py-2 rounded-lg text-[11px] font-bold text-red-500 border border-red-50 hover:bg-red-50 transition-all"
-                >
-                  권한 회수 및 일반 사용자로 전환
-                </button>
-              )}
             </div>
-          </div>
+          ) : user.role ? (
+            /* ── 일반 관리자: 역할 읽기 전용 표시 ── */
+            <div className="px-5 py-4 border-b border-[#F8F9FC] bg-[#F9FAFF]">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#9BA4C0] flex items-center gap-1.5 mb-2">
+                <Shield size={12} /> 등급
+              </p>
+              <div className="flex items-center gap-2">
+                <ShieldAlert size={14} className="text-[#9BA4C0]" />
+                <span className="text-[12px] font-semibold text-[#1A1A2E]">
+                  {user.role === "superadmin" ? "최종관리자" : user.role === "admin" ? "관리자" : user.role === "dealer" ? "딜러" : user.role}
+                </span>
+                <span className="text-[10px] text-[#9BA4C0]">· 권한 변경은 최종관리자만 가능합니다.</span>
+              </div>
+            </div>
+          ) : null}
 
           {/* 관리자 메모 */}
           <div className="px-5 py-4">
@@ -403,10 +422,12 @@ export default function UsersClient({
   users,
   stats,
   authError,
+  currentAdminRole,
 }: {
   users: AdminUserRecord[];
   stats: AdminUsersStats;
   authError?: string;
+  currentAdminRole: string;
 }) {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
@@ -774,7 +795,7 @@ export default function UsersClient({
       {/* 상세 패널 */}
       <AnimatePresence>
         {selectedUser && (
-          <UserDetailPanel user={selectedUser} onClose={() => setSelectedUser(null)} />
+          <UserDetailPanel user={selectedUser} onClose={() => setSelectedUser(null)} currentAdminRole={currentAdminRole} />
         )}
       </AnimatePresence>
     </div>

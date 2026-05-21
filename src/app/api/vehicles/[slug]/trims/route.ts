@@ -58,6 +58,7 @@ export async function GET(
         id: t.id,
         name: t.name,
         price: t.price,
+        discountPrice: t.discountPrice,
         engineType: t.engineType,
         fuelEfficiency: t.fuelEfficiency,
         isDefault: t.isDefault,

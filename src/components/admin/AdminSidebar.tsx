@@ -47,8 +47,8 @@ const NAV: NavGroup[] = [
     group: "핵심 관리",
     items: [
       { href: "/admin/vehicles", label: "차량 관리", icon: Car, roles: ["superadmin", "admin", "staff"] },
-      { href: "/admin/quotations", label: "견적 데이터", icon: FileText, roles: ["superadmin", "admin", "staff", "dealer"] },
-      { href: "/admin/users", label: "사용자 관리", icon: Users, roles: ["superadmin", "admin", "staff", "dealer"] },
+      { href: "/admin/quotations", label: "견적 데이터", icon: FileText, roles: ["superadmin", "admin", "staff"] },
+      { href: "/admin/users", label: "사용자 관리", icon: Users, roles: ["superadmin", "admin", "staff"] },
       { href: "/admin/inventory", label: "재고관리", icon: Package, roles: ["superadmin", "admin", "staff"] },
       { href: "/admin/reviews", label: "후기 관리", icon: MessageSquare, roles: ["superadmin", "admin", "staff"] },
     ],
@@ -185,7 +185,19 @@ export function AdminSidebar({ admin, mobileOpen = false, onClose }: AdminSideba
             관
           </div>
           <div className="min-w-0">
-            <p className="text-[12px] font-medium text-[#C0C5DC] truncate">{admin?.name || "관리자"}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[12px] font-medium text-[#C0C5DC] truncate">{admin?.name || "관리자"}</p>
+              {admin?.role && (
+                <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded-[3px] leading-none"
+                  style={{
+                    background: admin.role === "superadmin" ? "#3B1F6A" : "#1A1F3A",
+                    color: admin.role === "superadmin" ? "#C4B5FD" : "#6066EE",
+                  }}
+                >
+                  {admin.role === "superadmin" ? "최종관리자" : admin.role === "admin" ? "관리자" : admin.role}
+                </span>
+              )}
+            </div>
             <p className="text-[10px] text-[#3D4470] truncate">{admin?.email}</p>
           </div>
         </div>

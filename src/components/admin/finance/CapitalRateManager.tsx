@@ -70,6 +70,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const [selectedLineupId, setSelectedLineupId] = useState<string>("");
   const [selectedTrimIds, setSelectedTrimIds] = useState<Set<string>>(new Set());
   const [trimSearch, setTrimSearch] = useState("");
+  const [selectedProductType, setSelectedProductType] = useState<"장기렌트" | "리스">("장기렌트");
   const [activeSheets, setActiveSheets] = useState<CapitalRateSheet[]>([]);
   const [historySheets, setHistorySheets] = useState<CapitalRateSheet[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -122,13 +123,28 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     setTrimSearch("");
   }, [selectedLineupId]);
 
+  // 키워드 검색: 공백 기준으로 쪼갠 각 토큰이 트림명(공백 제거)에 모두 포함되어야 매칭.
+  // 공백 없이 붙여 쓴 경우 한글↔숫자 경계로 추가 분해하여 순서 무관 매칭.
+  function matchesTrimSearch(trimName: string, query: string): boolean {
+    if (!query.trim()) return true;
+    const normName = trimName.toLowerCase().replace(/\s+/g, "");
+    const spaceTokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return spaceTokens.every((token) => {
+      if (normName.includes(token)) return true;
+      // 한글↔숫자 경계로 분해 후 각 조각이 normName에 존재하는지 확인
+      const subTokens = token
+        .split(/(?<=[가-힣])(?=[0-9])|(?<=[0-9])(?=[가-힣])/)
+        .filter(Boolean);
+      return subTokens.length > 1 && subTokens.every((sub) => normName.includes(sub));
+    });
+  }
+
   // 현재 라인업의 트림 목록 (검색 필터 적용)
   const trimsInLineup = useMemo<TrimBasic[]>(() => {
     if (!vehicleDetail) return [];
     let list = vehicleDetail.trims.filter((t) => t.lineupId === selectedLineupId);
     if (trimSearch) {
-      const s = trimSearch.toLowerCase();
-      list = list.filter(t => t.name.toLowerCase().includes(s));
+      list = list.filter((t) => matchesTrimSearch(t.name, trimSearch));
     }
     return list;
   }, [vehicleDetail, selectedLineupId, trimSearch]);
@@ -182,8 +198,8 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
 
   const currentSheet = useMemo(() => {
     const firstId = Array.from(selectedTrimIds)[0];
-    return activeSheets.find((s) => s.trimId === firstId);
-  }, [activeSheets, selectedTrimIds]);
+    return activeSheets.find((s) => s.trimId === firstId && s.productType === selectedProductType);
+  }, [activeSheets, selectedTrimIds, selectedProductType]);
 
   const handleSaved = (savedTrimIds: string[] = []) => {
     fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
@@ -349,7 +365,21 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                 : "주간/월간 입력을 시작하면 저장한 차량과 트림을 임시로 표시합니다."}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex bg-[#F8F9FC] p-1 rounded-xl border border-[#E8EAF0]">
+              {(["장기렌트", "리스"] as const).map((pt) => (
+                <button
+                  key={pt}
+                  onClick={() => setSelectedProductType(pt)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                    selectedProductType === pt ? "bg-white shadow-sm text-[#6066EE]" : "text-[#9BA4C0]"
+                  }`}
+                >
+                  {pt}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
             {isWritingSession && (
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
                 저장 {sessionSavedTrims.length}개
@@ -366,6 +396,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
             >
               {isWritingSession ? "작성 마무리" : "작성 시작"}
             </button>
+            </div>
           </div>
         </div>
 
@@ -515,6 +546,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                     financeCompanyId={selectedFcId}
                     trimIds={Array.from(selectedTrimIds)}
                     trimPrice={selectedTrims[0]?.price ?? 0}
+                    productType={selectedProductType}
                     existingSheet={currentSheet}
                     onSaved={handleSaved}
                   />

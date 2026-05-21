@@ -23,6 +23,11 @@ export default async function AdminLayout({
     }
   }
 
+  // 딜러는 관리자 콘솔 접근 불가 (추후 전용 페이지로 개선 예정)
+  if (admin.role === "dealer") {
+    redirect("/");
+  }
+
   const adminData = {
     id: admin.id,
     name: admin.name,
