@@ -38,6 +38,7 @@ export const trimCreateSchema = z.object({
   name: z.string().min(1, "트림명을 입력하세요"),
   lineupId: z.string().min(1, "라인업을 선택하세요"),
   price: z.number().int().positive("가격은 양수여야 합니다"),
+  discountPrice: z.number().int().positive().nullable().optional(),
   engineType: z.enum(["가솔린", "디젤", "하이브리드", "EV"]),
   isDefault: z.boolean().default(false),
   isVisible: z.boolean().default(true),

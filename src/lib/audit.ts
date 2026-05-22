@@ -14,6 +14,7 @@ export type AuditAction =
   | "TRIM_CREATE"
   | "TRIM_UPDATE"
   | "TRIM_DELETE"
+  | "TRIM_BULK_DISCOUNT"
   | "OPTION_CREATE"
   | "OPTION_UPDATE"
   | "OPTION_DELETE"

@@ -81,6 +81,7 @@ export interface AdminTrim {
   lineupId: string | null;
   name: string;
   price: number;
+  discountPrice: number | null;
   engineType: EngineType;
   fuelEfficiency: number | null;
   isDefault: boolean;
