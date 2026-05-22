@@ -9,6 +9,7 @@ export default function QuoteLogicSimulator() {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   const [selectedTrim, setSelectedTrim] = useState<any>(null);
+  const [productType, setProductType] = useState<"장기렌트" | "리스">("장기렌트");
   const [months, setMonths] = useState(48);
   const [mileage, setMileage] = useState(20000);
   const [depositRate, setDepositRate] = useState(0);
@@ -51,7 +52,7 @@ export default function QuoteLogicSimulator() {
     if (!selectedTrim) return;
     
     // 회수율 데이터 가져오기
-    const res = await fetch(`/api/admin/capital-rates?trimId=${selectedTrim.id}`);
+    const res = await fetch(`/api/admin/capital-rates?trimId=${selectedTrim.id}&productType=${productType}`);
     const data = await res.json();
     if (!data.success || data.data.length === 0) {
       alert("이 트림에 대한 회수율 데이터가 등록되어 있지 않습니다. '회수율 데이터 관리' 탭에서 먼저 데이터를 등록해 주세요.");
@@ -78,8 +79,9 @@ export default function QuoteLogicSimulator() {
       prepayAdjustRate: rs.prepayAdjustRate,
     }));
 
+    const effectivePrice = selectedTrim.discountPrice ?? selectedTrim.price;
     const input: CalcInput = {
-      vehiclePrice: selectedTrim.price,
+      vehiclePrice: effectivePrice,
       contractMonths: months,
       annualMileage: mileage,
       depositRate,
@@ -99,6 +101,21 @@ export default function QuoteLogicSimulator() {
     <div className="space-y-6">
       {/* 설정 바 */}
       <div className="bg-white rounded-2xl border border-[#E8EAF0] p-4 md:p-6 shadow-sm flex flex-wrap gap-3 md:gap-5 items-end">
+        <div className="space-y-1">
+          <label className="text-[11px] font-bold text-[#9BA4C0] ml-1">상품 유형</label>
+          <div className="flex bg-[#F8F9FC] p-1 rounded-xl border border-[#E8EAF0]">
+            {(["장기렌트", "리스"] as const).map((pt) => (
+              <button
+                key={pt}
+                onClick={() => { setProductType(pt); setResults([]); }}
+                className={`px-4 py-1 rounded-lg text-xs font-bold transition-all ${productType === pt ? "bg-white shadow-sm text-[#6066EE]" : "text-[#9BA4C0]"}`}
+              >
+                {pt}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex-1 min-w-[200px] space-y-1.5">
           <label className="text-[11px] font-bold text-[#9BA4C0] ml-1">차량 선택</label>
           <select 
@@ -131,7 +148,7 @@ export default function QuoteLogicSimulator() {
               <option value="" disabled>트림 선택</option>
               {selectedVehicle.trims?.map((t:any) => (
                 <option key={t.id} value={t.id}>
-                  {t.name} ({t.price.toLocaleString()}원)
+                  {t.name} ({(t.discountPrice ?? t.price).toLocaleString()}원{t.discountPrice ? ` / 원가 ${t.price.toLocaleString()}원` : ""})
                 </option>
               ))}
             </select>
@@ -197,12 +214,22 @@ export default function QuoteLogicSimulator() {
       {/* 시뮬레이션 결과 테이블 */}
       {results.length > 0 && (
         <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-           <div className="flex items-center justify-between px-2">
+           <div className="flex items-center justify-between px-2 flex-wrap gap-2">
               <h3 className="text-sm font-bold text-[#1A1A2E] flex items-center gap-2">
                 <TrendingUp size={16} className="text-[#6066EE]" />
                 단계별 가산 로직 분해
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${productType === "리스" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"}`}>
+                  {productType}
+                </span>
+                {selectedTrim?.discountPrice && (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-500">
+                    할인 적용 {((selectedTrim.price - selectedTrim.discountPrice) / 10000).toLocaleString()}만원 차감
+                  </span>
+                )}
               </h3>
-              <p className="text-[11px] text-[#9BA4C0]">최종 고객 표출 가격 기준으로 정렬되었습니다.</p>
+              <p className="text-[11px] text-[#9BA4C0]">
+                기준 차량가 {((selectedTrim?.discountPrice ?? selectedTrim?.price ?? 0) / 10000).toLocaleString()}만원 · 최종 고객 표출 가격 기준 정렬
+              </p>
            </div>
 
            <div className="bg-white rounded-2xl border border-[#E8EAF0] overflow-x-auto shadow-md shadow-indigo-50/30">

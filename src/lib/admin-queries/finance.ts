@@ -9,6 +9,7 @@ interface RateSheetRow {
   id: string;
   financeCompanyId: string;
   trimId: string;
+  productType: string;
   weekOf: Date;
   minVehiclePrice: number;
   maxVehiclePrice: number;
@@ -38,6 +39,7 @@ function mapRateSheet(r: RateSheetRow): CapitalRateSheet {
     trimName: r.trim.name,
     vehicleName: r.trim.vehicle.name,
     lineupName: r.trim.lineup?.name ?? null,
+    productType: r.productType,
     weekOf: r.weekOf.toISOString(),
     minVehiclePrice: r.minVehiclePrice,
     maxVehiclePrice: r.maxVehiclePrice,

@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
       prisma.capitalRateSheet.findMany({
         where: {
           trimId: trim.id,
+          productType: input.productType,
           isActive: true,
           financeCompany: { isActive: true },
         },
