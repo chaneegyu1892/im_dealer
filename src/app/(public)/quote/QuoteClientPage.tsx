@@ -273,7 +273,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [trimsLoading, setTrimsLoading] = useState(false);
   // 캐스케이딩 선택 상태
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
-  const [selectedTrimName, setSelectedTrimName] = useState<string | null>(null);
+  const [selectedTrimId, setSelectedTrimId] = useState<string | null>(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(new Set());
   // 색상 상태 — 차량별 외장/내장 색상 선택. 어드민이 등록한 색상이 있을 때만 노출.
   const [colors, setColors] = useState<VehicleColorPublic[]>([]);
@@ -350,7 +350,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     setTrimsLoading(true);
     setTrims([]);
     setSelectedLineup(null);
-    setSelectedTrimName(null);
+    setSelectedTrimId(null);
     setSelectedOptionIds(new Set());
     setColors([]);
     setExteriorColorId(null);
@@ -391,7 +391,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           );
           if (hasLineup && resolvedLineupName) {
             setSelectedLineup(resolvedLineupName);
-            setSelectedTrimName(specs?.trimName ?? defaultTrim.name);
+            setSelectedTrimId(specs?.trimName ?? defaultTrim.name);
           } else {
             setSelectedLineup(defaultTrim.id);
           }
@@ -440,27 +440,34 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     ? trims.filter((t) => getLineupName(t) === selectedLineup)
     : [];
 
-  // 유니크 트림명 (가격 포함)
-  const availableTrimNames = [
-    ...new Map(
-      trimsForLineup.map((t) => {
-        const name = (t.specs as Record<string, string>)?.trimName ?? t.name;
-        return [name, { name, price: t.price, discountPrice: t.discountPrice, id: t.id }];
-      })
-    ).values(),
-  ];
+  // 트림 옵션 (id 기반 — 같은 specs.trimName이 여러 개여도 정확히 식별)
+  // 같은 라벨이 중복되면 t.name의 추가 prefix(연식/엔진/구동 등)를 보조 라벨로 구분.
+  const availableTrimNames = (() => {
+    const list = trimsForLineup.map((t) => {
+      const trimName = (t.specs as Record<string, string>)?.trimName ?? t.name;
+      const extra =
+        t.name !== trimName && t.name.includes(trimName)
+          ? t.name.replace(trimName, "").trim().replace(/\s+/g, " ")
+          : null;
+      return { id: t.id, name: trimName, extra, price: t.price, discountPrice: t.discountPrice };
+    });
+    // 같은 name이 여러 개면 보조 라벨 표시, 단일이면 보조 라벨 숨김
+    const nameCount = new Map<string, number>();
+    list.forEach((it) => nameCount.set(it.name, (nameCount.get(it.name) ?? 0) + 1));
+    return list.map((it) => ({
+      ...it,
+      extra: nameCount.get(it.name)! > 1 ? it.extra : null,
+    }));
+  })();
 
-  // 최종 선택된 트림 객체
+  // 최종 선택된 트림 객체 — id 기준 정확 매칭
   const selectedTrim =
     hasCascade
-      ? (selectedTrimName
-          ? trimsForLineup.find(
-              (t) => (t.specs as Record<string, string>)?.trimName === selectedTrimName
-            ) ?? null
-          : null)
+      ? (selectedTrimId ? trimsForLineup.find((t) => t.id === selectedTrimId) ?? null : null)
       : trims.find((t) => t.id === selectedLineup) ?? null;
 
-  const selectedTrimId = selectedTrim?.id ?? null;
+  // 견적 API에 보낼 트림 id — selectedTrim에서 파생 (state selectedTrimId와는 별개의 derived value)
+  const effectiveTrimId = selectedTrim?.id ?? null;
 
   const optionsTotalPrice = selectedTrim
     ? selectedTrim.options
@@ -499,7 +506,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            trimId: selectedTrimId ?? undefined,
+            trimId: effectiveTrimId ?? undefined,
             selectedOptionIds: Array.from(selectedOptionIds),
             contractMonths: conditions.contractMonths,
             annualMileage: conditions.annualMileage,
@@ -548,7 +555,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          trimId: selectedTrimId ?? undefined,
+          trimId: effectiveTrimId ?? undefined,
           selectedOptionIds: Array.from(selectedOptionIds),
           contractMonths: conditions.contractMonths,
           annualMileage: conditions.annualMileage,
@@ -830,7 +837,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             options={availableLineups.map((l) => ({ value: l, label: l }))}
                             onChange={(v) => {
                               setSelectedLineup(v || null);
-                              setSelectedTrimName(null);
+                              setSelectedTrimId(null);
                               setSelectedOptionIds(new Set());
                             }}
                           />
@@ -839,7 +846,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           {selectedLineup && (
                             <SelectRow
                               label="트림"
-                              value={selectedTrimName ?? ""}
+                              value={selectedTrimId ?? ""}
                               placeholder="트림을 선택하세요"
                               options={availableTrimNames.map((t) => ({
                                 value: t.name,
@@ -848,7 +855,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                                   : `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
                               }))}
                               onChange={(v) => {
-                                setSelectedTrimName(v || null);
+                                setSelectedTrimId(v || null);
                                 setSelectedOptionIds(new Set());
                               }}
                             />
