@@ -848,12 +848,13 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                               label="트림"
                               value={selectedTrimId ?? ""}
                               placeholder="트림을 선택하세요"
-                              options={availableTrimNames.map((t) => ({
-                                value: t.name,
-                                label: t.discountPrice
-                                  ? `${t.name} — ${Math.round(t.discountPrice / 10000).toLocaleString()}만원 (할인 적용)`
-                                  : `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
-                              }))}
+                              options={availableTrimNames.map((t) => {
+                                const baseLabel = t.extra ? `${t.name} (${t.extra})` : t.name;
+                                const priceLabel = t.discountPrice
+                                  ? `${Math.round(t.discountPrice / 10000).toLocaleString()}만원 (할인 적용)`
+                                  : `${Math.round(t.price / 10000).toLocaleString()}만원`;
+                                return { value: t.id, label: `${baseLabel} — ${priceLabel}` };
+                              })}
                               onChange={(v) => {
                                 setSelectedTrimId(v || null);
                                 setSelectedOptionIds(new Set());
