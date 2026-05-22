@@ -23,10 +23,12 @@ import {
   RefreshCw,
   UserX,
   Settings2,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
+import { SpecDiagramModal, hasSpecDiagram, SPEC_TEXT_DESC } from "@/components/cars/SpecDiagram";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import type { RecommendScenarios } from "@/types/recommendation";
@@ -53,22 +55,13 @@ const SPEC_KEY_LABEL: Record<string, string> = {
   displacement: "배기량",
   max_power: "최고출력",
   max_torque: "최대토크",
-  fuel_type: "사용 연료",
-  fuel_efficiency: "복합 연비",
-  fuel_efficiency_city: "도심 연비",
-  fuel_efficiency_hwy: "고속 연비",
-  co2_emissions: "CO2 배출량",
-  transmission: "변속기",
-  range: "1회 충전 주행거리 (복합)",
-  range_city: "1회 충전 주행거리 (도심)",
-  range_hwy: "1회 충전 주행거리 (고속)",
+  fuel_efficiency: "연비 / 전비",
+  range: "1회 충전 주행거리",
   // 치수
   length: "전장",
   width: "전폭",
   height: "전고",
   wheelbase: "휠베이스",
-  front_track: "윤거(전)",
-  rear_track: "윤거(후)",
   // 섀시
   front_suspension: "전륜 서스펜션",
   rear_suspension: "후륜 서스펜션",
@@ -85,51 +78,17 @@ const SPEC_KEY_LABEL: Record<string, string> = {
   ground_clearance: "최저지상고",
   // 용량
   fuel_tank: "연료탱크",
-  // 적재함 (트럭/밴)
-  cargo_length: "적재함 길이",
-  cargo_width: "적재함 폭",
-  cargo_height: "적재함 높이",
-  bed_height: "상면고",
-  // 무게
-  curb_weight: "공차중량",
-  // 전기 / 하이브리드
+  // 전기
   battery: "배터리 용량",
-  battery_type: "배터리 종류",
-  battery_voltage: "축전지 정격전압",
-  battery_amp_hours: "축전지 정격용량",
-  motor_type: "모터 형식",
-  motor_max_power: "모터 최고출력",
-  motor_max_torque: "모터 최대토크",
   charging: "충전 방식",
-  // 타이어
-  tire_size: "타이어 사이즈",
-  tire_manufacturer: "타이어 제조사",
-  tire_spec: "타이어 규격",
-  tire_model: "타이어 모델",
-  tire_rolling_resistance: "회전저항 등급",
-  tire_wet_grip: "젖은 노면 제동력",
-  tire_position: "장착 위치",
 };
 
 // 엔진 variant 키 → 한글 탭 라벨
 function engineVariantLabel(key: string): string {
   if (key === "dimensions") return "";
-  // 단일 키 (엔진 종류만)
-  if (key === "electric") return "전기";
-  if (key === "hydrogen") return "수소";
-  if (key === "gasoline") return "가솔린";
-  if (key === "diesel") return "디젤";
-  if (key === "lpg") return "LPG";
-  if (key === "hybrid") return "하이브리드";
-  if (key === "default") return "기본";
-  // 복합 키 (엔진 + 배기량)
   return key
     .replace("gasoline_", "가솔린 ")
     .replace("hybrid_", "하이브리드 ")
-    .replace("diesel_", "디젤 ")
-    .replace("lpg_", "LPG ")
-    .replace("electric_", "전기 ")
-    .replace("hydrogen_", "수소 ")
     .replace("long_range_2wd", "롱레인지 2WD")
     .replace("long_range_awd", "롱레인지 AWD")
     .replace("_turbo", "T")
@@ -143,10 +102,7 @@ const TECH_SECTION_LABEL: Record<string, string> = {
   aerodynamics: "공력 성능",
   interior_dimensions: "실내 공간",
   capacities: "용량",
-  electric_system: "전기 / 하이브리드 시스템",
-  cargo: "적재함",
-  tire: "타이어",
-  weight: "중량",
+  electric_system: "전기 시스템",
 };
 
 // ── 유틸 ───────────────────────────────────────────────────
@@ -161,26 +117,42 @@ function formatMonthlyShort(n: number) {
 
 // ── 스펙 카드 ──────────────────────────────────────────────
 function SpecCard({
+  specKey,
   label,
   value,
   highlight = false,
+  onClick,
 }: {
+  specKey?: string;
   label: string;
   value: string;
   highlight?: boolean;
+  onClick?: () => void;
 }) {
+  const clickable = !!onClick && !!specKey && (hasSpecDiagram(specKey) || !!SPEC_TEXT_DESC[specKey]);
+
   return (
     <div
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? onClick : undefined}
+      onKeyDown={clickable ? (e) => e.key === "Enter" && onClick?.() : undefined}
       className={cn(
-        "rounded-[10px] p-3.5",
+        "rounded-[10px] p-3.5 transition-all duration-150",
         highlight
           ? "bg-primary-100 border border-primary-200"
           : "bg-neutral border border-[#EBEBEB]",
+        clickable && "cursor-pointer hover:border-primary/40 hover:shadow-sm active:scale-[0.98]",
       )}
     >
-      <p className="text-[10px] font-medium text-ink-caption uppercase tracking-wider mb-1">
-        {label}
-      </p>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] font-medium text-ink-caption uppercase tracking-wider">
+          {label}
+        </p>
+        {clickable && (
+          <Info size={11} className="text-ink-caption opacity-50 shrink-0" />
+        )}
+      </div>
       <p
         className={cn(
           "text-[14px] font-semibold",
@@ -196,8 +168,11 @@ function SpecCard({
 // ══════════════════════════════════════════════════════════
 // DetailedSpecsSection
 // ══════════════════════════════════════════════════════════
+interface SelectedSpec { key: string; label: string; value: string }
+
 function DetailedSpecsSection({ specs }: { specs: VehicleDetailedSpecs }) {
   const [activeEngine, setActiveEngine] = useState<string>("");
+  const [selectedSpec, setSelectedSpec] = useState<SelectedSpec | null>(null);
 
   // 엔진 variant 목록 — 가솔린 우선 정렬, dimensions 제외
   const engineVariants = Object.keys(specs.specs ?? {})
@@ -215,130 +190,133 @@ function DetailedSpecsSection({ specs }: { specs: VehicleDetailedSpecs }) {
   const currentEngineSpecs = currentEngine ? specs.specs?.[currentEngine] : null;
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.37 }}
-      className="bg-white rounded-card border border-[#F0F0F0] overflow-hidden shadow-card"
-    >
-      {/* 섹션 헤더 */}
-      <div className="flex items-center gap-2.5 px-6 py-4 border-b border-[#F4F4F4] bg-neutral">
-        <Settings2 size={14} className="text-primary" />
-        <p className="text-[12px] font-semibold text-ink">상세 제원</p>
-        <span className="ml-auto text-[10px] text-ink-caption">제조사 공식 데이터 기준</span>
-      </div>
-
-      <div className="px-6 py-5 space-y-7">
-
-        {/* ── 엔진 제원 ── */}
-        {engineVariants.length > 0 && currentEngineSpecs && (
-          <div>
-            <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
-              엔진 제원
-            </p>
-            {/* 엔진 탭 (2개 이상일 때) */}
-            {engineVariants.length > 1 && (
-              <div className="flex gap-1.5 mb-4 flex-wrap">
-                {engineVariants.map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setActiveEngine(key)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150",
-                      (currentEngine === key)
-                        ? "bg-primary text-white"
-                        : "bg-neutral border border-[#E0E0E0] text-ink-label hover:border-primary/30"
-                    )}
-                  >
-                    {engineVariantLabel(key)}
-                  </button>
-                ))}
-              </div>
-            )}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentEngine}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="grid grid-cols-2 gap-2.5"
-              >
-                {Object.entries(currentEngineSpecs).map(([k, v]) => (
-                  <SpecCard
-                    key={k}
-                    label={SPEC_KEY_LABEL[k] ?? k}
-                    value={String(v)}
-                    highlight={false}
-                  />
-                ))}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+    <>
+      {/* 제원 다이어그램 모달 */}
+      <AnimatePresence>
+        {selectedSpec && (
+          <SpecDiagramModal
+            specKey={selectedSpec.key}
+            label={selectedSpec.label}
+            value={selectedSpec.value}
+            onClose={() => setSelectedSpec(null)}
+          />
         )}
+      </AnimatePresence>
 
-        {/* ── 차체 치수 ── */}
-        {dimensions && (
-          <div>
-            <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
-              차체 치수
-            </p>
-            {/* 시각적 치수 다이어그램 */}
-            <div className="relative bg-neutral rounded-[12px] border border-[#EBEBEB] p-5 mb-3">
-              <div className="flex items-center justify-center gap-0 text-center">
-                {/* 전장 */}
-                <div className="flex-1">
-                  <div className="text-[11px] text-ink-caption mb-1">전장</div>
-                  <div className="text-[15px] font-bold text-ink">{dimensions.length ?? "-"}</div>
-                </div>
-                <div className="w-px h-10 bg-[#E0E0E0] mx-3" />
-                {/* 전폭 */}
-                <div className="flex-1">
-                  <div className="text-[11px] text-ink-caption mb-1">전폭</div>
-                  <div className="text-[15px] font-bold text-ink">{dimensions.width ?? "-"}</div>
-                </div>
-                <div className="w-px h-10 bg-[#E0E0E0] mx-3" />
-                {/* 전고 */}
-                <div className="flex-1">
-                  <div className="text-[11px] text-ink-caption mb-1">전고</div>
-                  <div className="text-[15px] font-bold text-ink">{dimensions.height ?? "-"}</div>
-                </div>
-                <div className="w-px h-10 bg-[#E0E0E0] mx-3" />
-                {/* 휠베이스 */}
-                <div className="flex-1">
-                  <div className="text-[11px] text-ink-caption mb-1">휠베이스</div>
-                  <div className="text-[15px] font-bold text-primary">{dimensions.wheelbase ?? "-"}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.37 }}
+        className="bg-white rounded-card border border-[#F0F0F0] overflow-hidden shadow-card"
+      >
+        {/* 섹션 헤더 */}
+        <div className="flex items-center gap-2.5 px-6 py-4 border-b border-[#F4F4F4] bg-neutral">
+          <Settings2 size={14} className="text-primary" />
+          <p className="text-[12px] font-semibold text-ink">상세 제원</p>
+          <span className="ml-auto text-[10px] text-ink-caption flex items-center gap-1">
+            <Info size={10} />
+            항목을 클릭하면 설명을 볼 수 있어요
+          </span>
+        </div>
 
-        {/* ── technical_specs 각 섹션 ── */}
-        {techSpecs && Object.entries(techSpecs).map(([sectionKey, sectionData]) => {
-          if (!sectionData || Object.keys(sectionData).length === 0) return null;
-          const sectionLabel = TECH_SECTION_LABEL[sectionKey] ?? sectionKey;
-          return (
-            <div key={sectionKey}>
+        <div className="px-6 py-5 space-y-7">
+
+          {/* ── 엔진 제원 ── */}
+          {engineVariants.length > 0 && currentEngineSpecs && (
+            <div>
               <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
-                {sectionLabel}
+                엔진 제원
+              </p>
+              {engineVariants.length > 1 && (
+                <div className="flex gap-1.5 mb-4 flex-wrap">
+                  {engineVariants.map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setActiveEngine(key)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150",
+                        (currentEngine === key)
+                          ? "bg-primary text-white"
+                          : "bg-neutral border border-[#E0E0E0] text-ink-label hover:border-primary/30"
+                      )}
+                    >
+                      {engineVariantLabel(key)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentEngine}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="grid grid-cols-2 gap-2.5"
+                >
+                  {Object.entries(currentEngineSpecs).map(([k, v]) => (
+                    <SpecCard
+                      key={k}
+                      specKey={k}
+                      label={SPEC_KEY_LABEL[k] ?? k}
+                      value={String(v)}
+                      onClick={() => setSelectedSpec({ key: k, label: SPEC_KEY_LABEL[k] ?? k, value: String(v) })}
+                    />
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* ── 차체 치수 ── */}
+          {dimensions && (
+            <div>
+              <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
+                차체 치수
               </p>
               <div className="grid grid-cols-2 gap-2.5">
-                {Object.entries(sectionData).map(([k, v]) => (
+                {Object.entries(dimensions).map(([k, v]) => (
                   <SpecCard
                     key={k}
+                    specKey={k}
                     label={SPEC_KEY_LABEL[k] ?? k}
                     value={String(v)}
+                    highlight={k === "wheelbase"}
+                    onClick={() => setSelectedSpec({ key: k, label: SPEC_KEY_LABEL[k] ?? k, value: String(v) })}
                   />
                 ))}
               </div>
             </div>
-          );
-        })}
+          )}
 
-      </div>
-    </motion.section>
+          {/* ── technical_specs 각 섹션 ── */}
+          {techSpecs && Object.entries(techSpecs).map(([sectionKey, sectionData]) => {
+            if (!sectionData || Object.keys(sectionData).length === 0) return null;
+            const sectionLabel = TECH_SECTION_LABEL[sectionKey] ?? sectionKey;
+            return (
+              <div key={sectionKey}>
+                <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
+                  {sectionLabel}
+                </p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {Object.entries(sectionData).map(([k, v]) => (
+                    <SpecCard
+                      key={k}
+                      specKey={k}
+                      label={SPEC_KEY_LABEL[k] ?? k}
+                      value={String(v)}
+                      onClick={() => setSelectedSpec({ key: k, label: SPEC_KEY_LABEL[k] ?? k, value: String(v) })}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+        </div>
+      </motion.section>
+    </>
   );
 }
 
@@ -406,7 +384,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
       {/* ──────────────────────────────────────────────────
           HERO: 차량 이미지 배경 + 어두운 오버레이 + 텍스트
       ────────────────────────────────────────────────── */}
-      <section className="relative h-[48vh] sm:h-[56vh] md:h-[62vh] min-h-[320px] sm:min-h-[380px] md:min-h-[500px] overflow-hidden">
+      <section className="relative h-[56vh] md:h-[62vh] min-h-[380px] md:min-h-[500px] overflow-hidden">
         {/* 배경 이미지 */}
         {heroImage && (
           <div
@@ -473,7 +451,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               </div>
 
               {/* 차량명 */}
-              <h1 className="font-display text-[26px] sm:text-[32px] md:text-[54px] font-light text-white leading-tight tracking-tight mb-3 drop-shadow-md">
+              <h1 className="font-display text-[32px] md:text-[54px] font-light text-white leading-none tracking-tight mb-3 drop-shadow-md">
                 {vehicle.name}
               </h1>
 
@@ -628,7 +606,6 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                           alt={`썸네일 ${i + 1}`}
                           width={80}
                           height={45}
-                          unoptimized
                           className="w-full h-full object-cover"
                         />
                       </button>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import {
   ChevronLeft,
   Sparkles,
@@ -16,7 +17,6 @@ import {
   Download,
   Building2,
   BriefcaseBusiness,
-  HeartHandshake,
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,31 +32,20 @@ import {
   type CustomerType,
   isCustomerType,
 } from "@/constants/customer-types";
-import {
-  QUOTE_DRAFT_STORAGE_PREFIX,
-  type QuoteDraft,
-  saveQuotePdfRestore,
-  consumeQuotePdfRestore,
-} from "@/lib/quote-draft";
-import { applyRulesOnSelect, applyRulesOnDeselect } from "@/lib/option-rules";
-import { LoginRequiredModal } from "@/components/quote/LoginRequiredModal";
-import { ColorSelector, type VehicleColorPublic } from "@/components/quote/ColorSelector";
+import { QUOTE_DRAFT_STORAGE_PREFIX, type QuoteDraft } from "@/lib/quote-draft";
 
 // ─── 상수 ────────────────────────────────────────────────
 const CONTRACT_CATEGORIES = ["장기렌트", "리스"] as const;
 const CONTRACT_MONTHS = [36, 48, 60] as const;
 const ANNUAL_MILEAGES = [10000, 20000, 30000] as const;
-const CONTRACT_TYPES = ["반납형", "인수형"] as const;
 
 type ContractCategory = (typeof CONTRACT_CATEGORIES)[number];
 type ContractMonths = (typeof CONTRACT_MONTHS)[number];
 type AnnualMileage = (typeof ANNUAL_MILEAGES)[number];
-type ContractType = (typeof CONTRACT_TYPES)[number];
 
 interface Conditions {
   contractMonths: ContractMonths;
   annualMileage: AnnualMileage;
-  contractType: ContractType;
 }
 
 // ─── 트림/옵션 타입 ───────────────────────────────────────
@@ -81,6 +70,7 @@ interface TrimData {
   id: string;
   name: string;
   price: number;
+  discountPrice: number | null;
   engineType: string;
   fuelEfficiency: number | null;
   isDefault: boolean;
@@ -115,7 +105,7 @@ function SelectRow({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="w-full appearance-none bg-white border border-neutral-800 rounded-btn
-                     px-4 py-2.5 text-[16px] md:text-[14px] pr-9
+                     px-4 py-2.5 text-[14px] pr-9
                      focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10
                      transition-colors duration-150 cursor-pointer
                      text-ink disabled:text-ink-caption"
@@ -132,6 +122,16 @@ function SelectRow({
           className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-caption pointer-events-none"
         />
       </div>
+    </div>
+  );
+}
+
+// ─── 조건 칩 ──────────────────────────────────────────────
+function ConditionChip({ label, sub }: { label: string; sub?: string }) {
+  return (
+    <div className="inline-flex flex-col items-center bg-neutral border border-[#EBEBEB] rounded-[8px] px-3 py-1.5">
+      {sub && <span className="text-[9px] text-ink-caption uppercase tracking-wider mb-0.5">{sub}</span>}
+      <span className="text-[12px] font-semibold text-ink leading-none">{label}</span>
     </div>
   );
 }
@@ -231,11 +231,6 @@ const CUSTOMER_TYPE_OPTIONS: {
     desc: "법인 사업자등록 기준으로 진행합니다.",
     icon: <Building2 size={18} />,
   },
-  {
-    type: "nonprofit",
-    desc: "비영리법인 사업자등록 기준으로 진행합니다.",
-    icon: <HeartHandshake size={18} />,
-  },
 ];
 
 // ─── 메인 ────────────────────────────────────────────────
@@ -279,34 +274,15 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
   const [selectedTrimName, setSelectedTrimName] = useState<string | null>(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(new Set());
-  const [ruleNotice, setRuleNotice] = useState<{ added: string[]; removed: string[] } | null>(null);
-  // 색상 상태
-  const [colors, setColors] = useState<VehicleColorPublic[]>([]);
-  const [exteriorColorId, setExteriorColorId] = useState<string | null>(null);
-  const [interiorColorId, setInteriorColorId] = useState<string | null>(null);
 
   const [contractCategory, setContractCategory] = useState<ContractCategory>("장기렌트");
   const [conditions, setConditions] = useState<Conditions>({
     contractMonths: 48,
     annualMileage: 20000,
-    contractType: "반납형",
   });
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
-  const [loginRequiredOpen, setLoginRequiredOpen] = useState(false);
-
-  // 장기렌트 선택 시 반납형 고정
-  useEffect(() => {
-    if (contractCategory === "장기렌트") {
-      setConditions((prev) => ({ ...prev, contractType: "반납형" }));
-    }
-  }, [contractCategory]);
-
-  // 옵션 규칙 자동 변경 안내 — 4초 뒤 사라짐
-  useEffect(() => {
-    if (!ruleNotice) return;
-    const handle = setTimeout(() => setRuleNotice(null), 4000);
-    return () => clearTimeout(handle);
-  }, [ruleNotice]);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
@@ -328,18 +304,13 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         selectedOptionIds: Array.from(selectedOptionIds),
         contractMonths: quoteResult.contractMonths,
         annualMileage: quoteResult.annualMileage,
-        contractType: quoteResult.contractType === "인수형" ? "인수형" : "반납형",
+        contractType: "반납형",
         productType: contractCategory,
         customerType,
         scenarios: quoteResult.scenarios,
-        customRates: {
-          depositRate: customRates.depositRate,
-          prepayRate: customRates.prepayRate,
-        },
         optionsTotalPrice: quoteResult.optionsTotalPrice,
         totalVehiclePrice: quoteResult.totalVehiclePrice,
-        exteriorColorId,
-        interiorColorId,
+        customRates: { depositRate: 0, prepayRate: 0 },
       };
       localStorage.setItem(
         `${QUOTE_DRAFT_STORAGE_PREFIX}${quoteSessionId}`,
@@ -361,7 +332,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     customerType,
     selectedOptionIds,
     contractCategory,
-    customRates,
   ]);
 
   // 추천 프리필을 한 번만 적용하기 위한 플래그
@@ -375,26 +345,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     setSelectedLineup(null);
     setSelectedTrimName(null);
     setSelectedOptionIds(new Set());
-    setColors([]);
-    setExteriorColorId(null);
-    setInteriorColorId(null);
 
     const slug = selectedVehicle.slug;
     const shouldPrefill = !!prefillSlug && !hasPrefilled.current;
-
-    // 색상 로드 (병렬)
-    fetch(`/api/vehicles/${slug}/colors`)
-      .then((r) => r.json())
-      .then((json) => {
-        if (!json?.success || !Array.isArray(json.data)) return;
-        const list: VehicleColorPublic[] = json.data;
-        setColors(list);
-        const defaultExt = list.find((c) => c.kind === "EXTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "EXTERIOR");
-        const defaultInt = list.find((c) => c.kind === "INTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "INTERIOR");
-        setExteriorColorId(defaultExt?.id ?? null);
-        setInteriorColorId(defaultInt?.id ?? null);
-      })
-      .catch(() => {});
 
     fetch(`/api/vehicles/${slug}/trims`)
       .then((r) => r.json())
@@ -468,7 +421,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     ...new Map(
       trimsForLineup.map((t) => {
         const name = (t.specs as Record<string, string>)?.trimName ?? t.name;
-        return [name, { name, price: t.price, id: t.id }];
+        return [name, { name, price: t.price, discountPrice: t.discountPrice, id: t.id }];
       })
     ).values(),
   ];
@@ -491,10 +444,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         .reduce((sum, o) => sum + o.price, 0)
     : 0;
 
-  const selectedExteriorColor = exteriorColorId ? colors.find((c) => c.id === exteriorColorId) ?? null : null;
-  const selectedInteriorColor = interiorColorId ? colors.find((c) => c.id === interiorColorId) ?? null : null;
-  const colorDelta = (selectedExteriorColor?.priceDelta ?? 0) + (selectedInteriorColor?.priceDelta ?? 0);
-
   const restoreBaseStandardScenario = useCallback(() => {
     recalculateRequestId.current += 1;
     setIsRecalculating(false);
@@ -513,6 +462,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     if (!selectedVehicle) return;
     setIsLoading(true);
     setError(null);
+    setPdfError(null);
 
     try {
       const res = await fetch(
@@ -525,11 +475,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
             selectedOptionIds: Array.from(selectedOptionIds),
             contractMonths: conditions.contractMonths,
             annualMileage: conditions.annualMileage,
-            contractType: conditions.contractType,
+            contractType: "반납형",
             productType: contractCategory,
             customerType,
-            exteriorColorId,
-            interiorColorId,
           }),
         }
       );
@@ -574,13 +522,11 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           selectedOptionIds: Array.from(selectedOptionIds),
           contractMonths: conditions.contractMonths,
           annualMileage: conditions.annualMileage,
-          contractType: conditions.contractType,
+          contractType: "반납형",
           productType: contractCategory,
           customDepositRate: rates.depositRate,
           customPrepayRate: rates.prepayRate,
           customerType,
-          exteriorColorId,
-          interiorColorId,
         }),
       });
       const json = await res.json();
@@ -613,16 +559,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   async function handlePdfDownload() {
     if (!quoteResult || !selectedVehicle) return;
 
-    // 비회원이면 PDF API가 401을 반환하므로, 그 전에 클라이언트에서 가드.
-    // 모달을 띄우고 카카오 로그인 흐름으로 유도한다.
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setLoginRequiredOpen(true);
-      return;
-    }
-
     setIsPdfDownloading(true);
+    setPdfError(null);
 
     const selectedOptions =
       selectedTrim?.options
@@ -637,26 +575,12 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       selectedOptions,
       totalVehiclePrice:
         quoteResult.totalVehiclePrice ??
-        quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? optionsTotalPrice) + colorDelta,
+        quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? optionsTotalPrice),
       productType: contractCategory,
       contractMonths: quoteResult.contractMonths,
       annualMileage: quoteResult.annualMileage,
-      contractType: quoteResult.contractType,
+      contractType: "반납형",
       scenarios: quoteResult.scenarios,
-      exteriorColor: selectedExteriorColor
-        ? {
-            name: selectedExteriorColor.name,
-            hexCode: selectedExteriorColor.hexCode,
-            priceDelta: selectedExteriorColor.priceDelta,
-          }
-        : null,
-      interiorColor: selectedInteriorColor
-        ? {
-            name: selectedInteriorColor.name,
-            hexCode: selectedInteriorColor.hexCode,
-            priceDelta: selectedInteriorColor.priceDelta,
-          }
-        : null,
     };
 
     try {
@@ -667,9 +591,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       });
 
       if (!response.ok) {
-        // 회원이지만 PDF 생성 자체가 실패한 케이스 — 콘솔에만 남기고 silent fail
         const json = await response.json().catch(() => null);
-        console.error("[PDF download] failed", json);
+        setPdfError(json?.error ?? "PDF 다운로드에 실패했습니다.");
         return;
       }
 
@@ -686,58 +609,15 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("[PDF download] network error", error);
+    } catch {
+      setPdfError("PDF 다운로드 중 네트워크 오류가 발생했습니다.");
     } finally {
       setIsPdfDownloading(false);
     }
   }
 
-  function handleLoginModalKakao() {
-    if (!quoteResult || !selectedVehicle) {
-      setLoginRequiredOpen(false);
-      return;
-    }
-    // 견적 결과 + 입력 상태를 sessionStorage에 보존 (로그인 후 복원용)
-    saveQuotePdfRestore({
-      vehicleSlug: selectedVehicle.slug,
-      customerType,
-      selectedLineup,
-      selectedTrimName,
-      selectedOptionIds: Array.from(selectedOptionIds),
-      contractCategory,
-      conditions,
-      customRates,
-      quoteResult,
-    });
-    const target = `/quote?vehicle=${encodeURIComponent(selectedVehicle.slug)}&customerType=${customerType}`;
-    router.push(`/login?next=${encodeURIComponent(target)}`);
-  }
-
-  // 카카오 로그인 후 복원: sessionStorage에서 이전 견적 상태를 한 번만 읽어서 step3까지 복원
-  useEffect(() => {
-    const restored = consumeQuotePdfRestore();
-    if (!restored) return;
-    if (!selectedVehicle || restored.vehicleSlug !== selectedVehicle.slug) return;
-    setCustomerType(restored.customerType);
-    setSelectedLineup(restored.selectedLineup);
-    setSelectedTrimName(restored.selectedTrimName);
-    setSelectedOptionIds(new Set(restored.selectedOptionIds));
-    setContractCategory(restored.contractCategory as ContractCategory);
-    setConditions(restored.conditions as Conditions);
-    setCustomRates(restored.customRates);
-    setQuoteResult(restored.quoteResult);
-    setStep(3);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <div className="min-h-screen bg-neutral">
-      <LoginRequiredModal
-        open={loginRequiredOpen}
-        onClose={() => setLoginRequiredOpen(false)}
-        onKakaoLogin={handleLoginModalKakao}
-      />
       {/* 페이지 헤더 */}
       <div
         className="border-b border-[#F0F0F0] bg-white"
@@ -753,7 +633,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
             조건을 설정하면 실시간으로 계산됩니다
           </h1>
           <p className="text-[14px] text-ink-label mt-1">
-            개인정보 없이 실제 계약 가능한 견적을 바로 확인하세요
+            개인정보 없이, 초기비용 유무에 따른 2가지 시나리오를 바로 확인하세요
           </p>
         </div>
       </div>
@@ -917,7 +797,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                               placeholder="트림을 선택하세요"
                               options={availableTrimNames.map((t) => ({
                                 value: t.name,
-                                label: `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
+                                label: t.discountPrice
+                                  ? `${t.name} — ${Math.round(t.discountPrice / 10000).toLocaleString()}만원 (할인 적용)`
+                                  : `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
                               }))}
                               onChange={(v) => {
                                 setSelectedTrimName(v || null);
@@ -934,7 +816,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           placeholder="트림을 선택하세요"
                           options={trims.map((t) => ({
                             value: t.id,
-                            label: `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
+                            label: t.discountPrice
+                              ? `${t.name} — ${Math.round(t.discountPrice / 10000).toLocaleString()}만원 (할인 적용)`
+                              : `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
                           }))}
                           onChange={(v) => {
                             setSelectedLineup(v || null);
@@ -943,41 +827,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         />
                       )}
 
-                      {/* 옵션 규칙 자동 변경 안내 */}
-                      <AnimatePresence>
-                        {ruleNotice && (ruleNotice.added.length > 0 || ruleNotice.removed.length > 0) && (
-                          <motion.div
-                            key="rule-notice"
-                            initial={{ opacity: 0, y: -4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -4 }}
-                            transition={{ duration: 0.2 }}
-                            role="status"
-                            aria-live="polite"
-                            className="rounded-[8px] border border-primary-100 bg-primary-100/40 px-3 py-2 text-[12px] text-primary"
-                          >
-                            <div className="flex items-start gap-2">
-                              <Sparkles size={13} className="shrink-0 mt-0.5" />
-                              <div className="flex-1 space-y-0.5">
-                                {ruleNotice.added.length > 0 && (
-                                  <p>
-                                    옵션 규칙에 따라 <span className="font-semibold">{ruleNotice.added.join(", ")}</span>
-                                    {" "}이(가) 함께 선택되었습니다.
-                                  </p>
-                                )}
-                                {ruleNotice.removed.length > 0 && (
-                                  <p>
-                                    <span className="font-semibold">{ruleNotice.removed.join(", ")}</span>
-                                    {" "}은(는) 충돌 또는 종속 해제로 선택이 해제되었습니다.
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      {/* 추가 옵션 (TrimOption 체크리스트, 추천결과 선택 항목 pre-select) */}
+                      {/* 추가 옵션 — 아코디언 설명 포함 */}
                       {selectedTrim && selectedTrim.options.length > 0 && (
                         <div>
                           <p className="text-[12px] font-medium text-ink-caption mb-1.5 uppercase tracking-wide">
@@ -987,53 +837,115 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           <div className="border border-neutral-800 rounded-btn overflow-hidden divide-y divide-[#F0F0F0]">
                             {selectedTrim.options.map((opt) => {
                               const isOptSelected = selectedOptionIds.has(opt.id);
+                              const isExpanded = expandedOptionId === opt.id;
+                              const hasDesc = !!opt.description;
+
+                              const toggleSelect = () => {
+                                const rules = selectedTrim?.rules ?? [];
+                                setSelectedOptionIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(opt.id)) {
+                                    next.delete(opt.id);
+                                  } else {
+                                    next.add(opt.id);
+                                    for (const rule of rules) {
+                                      if (rule.sourceOptionId === opt.id &&
+                                        (rule.ruleType === "REQUIRED" || rule.ruleType === "INCLUDED")) {
+                                        next.add(rule.targetOptionId);
+                                      }
+                                    }
+                                    for (const rule of rules) {
+                                      if (rule.sourceOptionId === opt.id && rule.ruleType === "CONFLICT") {
+                                        next.delete(rule.targetOptionId);
+                                      }
+                                    }
+                                  }
+                                  return next;
+                                });
+                              };
+
                               return (
-                                <button
+                                <div
                                   key={opt.id}
-                                  type="button"
-                                  onClick={() => {
-                                    if (!selectedTrim) return;
-                                    const rules = selectedTrim.rules;
-                                    const isOn = selectedOptionIds.has(opt.id);
-                                    const optMap = new Map(selectedTrim.options.map((o) => [o.id, o.name]));
-                                    let nextSet: Set<string>;
-                                    let addedNames: string[] = [];
-                                    let removedNames: string[] = [];
-                                    if (isOn) {
-                                      const change = applyRulesOnDeselect(selectedOptionIds, opt.id, rules);
-                                      nextSet = change.next;
-                                      removedNames = change.removed.map((id) => optMap.get(id) ?? id);
-                                    } else {
-                                      const change = applyRulesOnSelect(selectedOptionIds, opt.id, rules);
-                                      nextSet = change.next;
-                                      addedNames = change.added.map((id) => optMap.get(id) ?? id);
-                                      removedNames = change.removed.map((id) => optMap.get(id) ?? id);
-                                    }
-                                    setSelectedOptionIds(nextSet);
-                                    if (addedNames.length > 0 || removedNames.length > 0) {
-                                      setRuleNotice({ added: addedNames, removed: removedNames });
-                                    }
-                                  }}
                                   className={cn(
-                                    "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100",
-                                    isOptSelected ? "bg-primary-100" : "bg-white hover:bg-neutral"
+                                    "transition-colors duration-100",
+                                    isOptSelected ? "bg-primary-100" : "bg-white"
                                   )}
                                 >
-                                  <div className={cn(
-                                    "w-4 h-4 rounded border-[1.5px] shrink-0 flex items-center justify-center",
-                                    isOptSelected ? "bg-primary border-primary" : "border-neutral-600 bg-white"
-                                  )}>
-                                    {isOptSelected && <Check size={9} strokeWidth={3} className="text-white" />}
+                                  {/* 메인 행: 체크박스 + 이름 + 가격 + 설명 토글 */}
+                                  <div className="flex items-center gap-3 px-4 py-2.5">
+                                    {/* 체크박스 */}
+                                    <button
+                                      type="button"
+                                      onClick={toggleSelect}
+                                      className="shrink-0"
+                                    >
+                                      <div className={cn(
+                                        "w-4 h-4 rounded border-[1.5px] flex items-center justify-center",
+                                        isOptSelected ? "bg-primary border-primary" : "border-neutral-600 bg-white"
+                                      )}>
+                                        {isOptSelected && <Check size={9} strokeWidth={3} className="text-white" />}
+                                      </div>
+                                    </button>
+
+                                    {/* 옵션명 (클릭 시 선택) */}
+                                    <button
+                                      type="button"
+                                      onClick={toggleSelect}
+                                      className={cn(
+                                        "flex-1 text-[13px] text-left",
+                                        isOptSelected ? "text-primary font-medium" : "text-ink"
+                                      )}
+                                    >
+                                      {opt.name}
+                                    </button>
+
+                                    {/* 가격 */}
+                                    <span className={cn(
+                                      "text-[12px] font-medium shrink-0",
+                                      isOptSelected ? "text-primary" : "text-ink-label"
+                                    )}>
+                                      +{opt.price >= 10000
+                                        ? `${Math.round(opt.price / 10000).toLocaleString()}만원`
+                                        : `${opt.price.toLocaleString()}원`}
+                                    </span>
+
+                                    {/* 설명 토글 버튼 */}
+                                    {hasDesc && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setExpandedOptionId(isExpanded ? null : opt.id)}
+                                        className="shrink-0 p-1 rounded-md hover:bg-black/5 transition-colors"
+                                        aria-label="설명 보기"
+                                      >
+                                        <ChevronDown
+                                          size={14}
+                                          className={cn(
+                                            "text-ink-caption transition-transform duration-200",
+                                            isExpanded && "rotate-180"
+                                          )}
+                                        />
+                                      </button>
+                                    )}
                                   </div>
-                                  <span className={cn("flex-1 text-[13px]", isOptSelected ? "text-primary font-medium" : "text-ink")}>
-                                    {opt.name}
-                                  </span>
-                                  <span className={cn("text-[12px] font-medium shrink-0", isOptSelected ? "text-primary" : "text-ink-label")}>
-                                    +{opt.price >= 10000
-                                      ? `${Math.round(opt.price / 10000).toLocaleString()}만원`
-                                      : `${opt.price.toLocaleString()}원`}
-                                  </span>
-                                </button>
+
+                                  {/* 아코디언 설명 */}
+                                  <AnimatePresence>
+                                    {isExpanded && hasDesc && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                                        className="overflow-hidden"
+                                      >
+                                        <p className="px-11 pb-3 text-[12px] text-ink-label leading-relaxed border-t border-[#F0F0F0] pt-2.5">
+                                          {opt.description}
+                                        </p>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
                               );
                             })}
                           </div>
@@ -1048,19 +960,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         </div>
                       )}
 
-                      {/* 색상 선택 */}
-                      {selectedTrim && colors.length > 0 && (
-                        <ColorSelector
-                          colors={colors}
-                          exteriorColorId={exteriorColorId}
-                          interiorColorId={interiorColorId}
-                          onChange={(kind, id) => {
-                            if (kind === "EXTERIOR") setExteriorColorId(id);
-                            else setInteriorColorId(id);
-                          }}
-                        />
-                      )}
-
                       {/* 선택된 트림 가격 요약 */}
                       {selectedTrim && (
                         <div className="flex items-center justify-between py-2 px-3 bg-neutral rounded-[6px] text-[12px]">
@@ -1068,14 +967,21 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             {selectedTrim.engineType}
                             {selectedTrim.fuelEfficiency ? ` · 연비 ${selectedTrim.fuelEfficiency}km/L` : ""}
                           </span>
-                          <span className="font-semibold text-ink">
-                            차량가 {Math.round((selectedTrim.price + optionsTotalPrice + colorDelta) / 10000).toLocaleString()}만원
-                            {colorDelta > 0 && (
-                              <span className="ml-1 text-[11px] text-ink-caption font-normal">
-                                (색상 +{Math.round(colorDelta / 10000).toLocaleString()}만원)
+                          <div className="flex items-center gap-2">
+                            {selectedTrim.discountPrice && (
+                              <span className="text-[10px] font-semibold text-red-500 line-through">
+                                {Math.round(selectedTrim.price / 10000).toLocaleString()}만원
                               </span>
                             )}
-                          </span>
+                            <span className="font-semibold text-ink">
+                              차량가 {Math.round(((selectedTrim.discountPrice ?? selectedTrim.price) + optionsTotalPrice) / 10000).toLocaleString()}만원
+                            </span>
+                            {selectedTrim.discountPrice && (
+                              <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-[4px]">
+                                -{Math.round((selectedTrim.price - selectedTrim.discountPrice) / 10000).toLocaleString()}만원 할인
+                              </span>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1158,30 +1064,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         </div>
                       </div>
 
-                      {/* ④ 계약 종류 */}
-                      <div>
-                        <p className="text-[13px] font-medium text-ink-label mb-1.5">
-                          계약 종류
-                        </p>
-                        <p className="text-[12px] text-ink-caption mb-3">
-                          {contractCategory === "리스"
-                            ? "반납형: 계약 종료 후 반납 · 인수형: 잔존가치로 차량 매입"
-                            : "장기렌트는 반납형이 기본입니다 · 인수형: 잔존가치로 차량 매입 (월 납입금 +12% 적용)"}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {CONTRACT_TYPES.map((t) => (
-                            <OptionButton
-                              key={t}
-                              selected={conditions.contractType === t}
-                              onClick={() =>
-                                setConditions((prev) => ({ ...prev, contractType: t }))
-                              }
-                            >
-                              {t}
-                            </OptionButton>
-                          ))}
-                        </div>
-                      </div>
                     </>
                   )}
                 </div>
@@ -1190,7 +1072,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 <div className="bg-white rounded-[8px] border border-[#F0F0F0] p-4 text-[13px] text-ink-label mb-4 flex items-start gap-2">
                   <Sparkles size={13} className="text-primary shrink-0 mt-0.5" />
                   <p>
-                    보증금·선납금 비율을 자유롭게 조정하면서 월 납입금이 어떻게 달라지는지 바로 확인할 수 있어요.
+                    초기비용 없음·초기비용 있음 2가지
+                    시나리오를 한 번에 확인할 수 있습니다.
                   </p>
                 </div>
 
@@ -1251,53 +1134,75 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.25 }}
               >
-                {/* 조건 요약 배너 */}
-                <div className="bg-primary-100 border border-primary-200 rounded-card p-4 mb-4">
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
-                    <span className="font-medium text-primary">
-                      {quoteResult.trimName
-                        ? `${selectedVehicle?.name} · ${quoteResult.trimName}`
-                        : selectedVehicle?.name}
-                    </span>
-                    {(quoteResult as QuoteResponse & { optionsTotalPrice?: number }).optionsTotalPrice
-                      ? (
-                        <span className="text-ink-label">
-                          옵션 +{Math.round(((quoteResult as QuoteResponse & { optionsTotalPrice?: number }).optionsTotalPrice ?? 0) / 10000).toLocaleString()}만원
-                        </span>
-                      )
-                      : null}
-                    <span className="text-ink-label">
-                      계약 {quoteResult.contractMonths}개월
-                    </span>
-                    <span className="text-ink-label">
-                      연 {(quoteResult.annualMileage / 10000).toFixed(0)}만km
-                    </span>
-                    <span className="text-ink-label">{quoteResult.contractType}</span>
-                    <span className="text-ink-label">
-                      {CUSTOMER_TYPE_LABELS[customerType]}
-                    </span>
+                {/* ── 차량 + 조건 요약 배너 ── */}
+                <div className="bg-white border border-[#F0F0F0] rounded-card overflow-hidden shadow-card mb-4">
+                  {/* 상단: 차량 이미지 + 기본 정보 + 조건 변경 버튼 */}
+                  <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#F4F4F4]">
+                    {selectedVehicle?.thumbnailUrl && (
+                      <div className="w-[72px] h-[46px] rounded-[8px] overflow-hidden bg-neutral shrink-0">
+                        <Image
+                          src={selectedVehicle.thumbnailUrl}
+                          alt={selectedVehicle.name ?? "차량"}
+                          width={72}
+                          height={46}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-ink-caption uppercase tracking-wider mb-0.5">
+                        {selectedVehicle?.brand}
+                      </p>
+                      <p className="text-[15px] font-semibold text-ink truncate leading-snug">
+                        {selectedVehicle?.name}
+                      </p>
+                      {quoteResult.trimName && (
+                        <p className="text-[12px] text-ink-label mt-0.5 truncate">
+                          {quoteResult.trimName}
+                        </p>
+                      )}
+                    </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        goToStep(2);
-                        setQuoteResult(null);
-                        setError(null);
-                      }}
-                      className="ml-auto text-[12px] text-ink-caption hover:text-primary transition-colors shrink-0"
+                      onClick={() => { goToStep(2); setQuoteResult(null); setError(null); }}
+                      className="shrink-0 flex items-center gap-1 text-[12px] font-medium text-ink-label
+                                 border border-[#E8E8E8] hover:border-primary/40 hover:text-primary
+                                 rounded-[8px] px-3 py-1.5 transition-all duration-150"
                     >
-                      조건 변경
+                      <ChevronLeft size={13} />
+                      이전
                     </button>
+                  </div>
+
+                  {/* 하단: 조건 칩 */}
+                  <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+                    <ConditionChip label={`${quoteResult.contractMonths}개월`} sub="계약기간" />
+                    <ConditionChip label={`연 ${(quoteResult.annualMileage / 10000).toFixed(0)}만km`} sub="약정거리" />
+                    {(quoteResult as QuoteResponse & { optionsTotalPrice?: number }).optionsTotalPrice
+                      ? <ConditionChip label={`옵션 +${Math.round(((quoteResult as QuoteResponse & { optionsTotalPrice?: number }).optionsTotalPrice ?? 0) / 10000).toLocaleString()}만원`} sub="추가옵션" />
+                      : null}
+                    <ConditionChip label={CUSTOMER_TYPE_LABELS[customerType]} sub="고객 유형" />
                   </div>
                 </div>
 
-                {/* 견적 결과 카드 */}
-                <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card p-6 mb-4">
+                {/* 견적 결과 */}
+                <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card p-5 md:p-6 mb-4">
+                  <div className="flex items-center gap-2 mb-5">
+                    <Sparkles size={14} className="text-primary" />
+                    <p className="text-[13px] text-ink-label">
+                      초기비용 여부에 따라 월 납입금이 달라집니다
+                    </p>
+                  </div>
                   <QuoteBreakdownTabs
                     scenarios={quoteResult.scenarios}
                     customerType={customerType}
                     customRates={customRates}
                     onCustomRatesChange={setCustomRates}
                     isRecalculating={isRecalculating}
+                    onReset={() => {
+                      setCustomRates({ depositRate: 0, prepayRate: 0 });
+                      restoreBaseStandardScenario();
+                    }}
                   />
                 </div>
 
@@ -1312,11 +1217,11 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     conditions={{
                       contractMonths: conditions.contractMonths,
                       annualMileage: conditions.annualMileage,
-                      contractType: conditions.contractType,
+                      contractType: "반납형",
                       productType: contractCategory,
                     }}
+                    customRates={{ depositRate: 0, prepayRate: 0 }}
                     allVehicles={vehicles}
-                    customRates={customRates}
                   />
                 )}
 
@@ -1351,6 +1256,13 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     </>
                   )}
                 </button>
+
+                {pdfError && (
+                  <div className="bg-[#FFEBEB] border border-red-100 rounded-[8px] p-3 text-[12px] text-destructive flex items-start gap-2 mb-2">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                    <p>{pdfError}</p>
+                  </div>
+                )}
 
                 {/* 계약 신청하기 */}
                 <button
