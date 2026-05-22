@@ -391,7 +391,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           );
           if (hasLineup && resolvedLineupName) {
             setSelectedLineup(resolvedLineupName);
-            setSelectedTrimId(specs?.trimName ?? defaultTrim.name);
+            setSelectedTrimId(defaultTrim.id);
           } else {
             setSelectedLineup(defaultTrim.id);
           }
@@ -798,11 +798,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         <p className="text-[12px] text-ink-caption">선택된 차량</p>
                         <p className="text-[14px] font-medium text-primary">
                           {selectedVehicle.name}
-                          {selectedVehicle.defaultTrim && (
-                            <span className="text-ink-label font-normal ml-1.5">
-                              {selectedVehicle.defaultTrim.name}
-                            </span>
-                          )}
                         </p>
                         <p className="text-[12px] text-ink-caption mt-0.5">
                           고객 유형: {CUSTOMER_TYPE_LABELS[customerType]}
