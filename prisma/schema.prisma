@@ -416,6 +416,9 @@ model QuoteCalcLog {
   resultMonthly      Int                       // 최종 월 납입금
   bestFinanceCompany String
   scenarioType       String                    // conservative / standard / aggressive
+  // 차량가 + 옵션가가 회수율 시트 범위(min~max)를 초과한 경우 true.
+  // 어드민 대시보드 "범위 초과 견적" 위젯에서 집계 — 회수율 데이터 보강 신호.
+  rangeExceeded      Boolean  @default(false)
 
   // ── 행동 추적 ──
   clickedApply       Boolean  @default(false)  // 계약 신청 클릭 여부

@@ -176,6 +176,7 @@ export async function POST(
       purchaseSurcharge: number;
       breakdown: FinanceQuoteResult["breakdown"] | null;
       surcharges: FinanceQuoteResult["surcharges"] | null;
+      rangeExceeded: boolean;
       allFinanceResults: {
         financeCompanyName: string;
         rank: number;
@@ -219,6 +220,7 @@ export async function POST(
           purchaseSurcharge: 0,
           breakdown: null,
           surcharges: null,
+          rangeExceeded: false,
           allFinanceResults: [],
         };
         continue;
@@ -246,6 +248,7 @@ export async function POST(
         purchaseSurcharge,
         breakdown: best.breakdown,
         surcharges: best.surcharges,
+        rangeExceeded: best.rangeExceeded,
         allFinanceResults: results.map((r) => ({
           financeCompanyName: r.financeCompanyName,
           rank: r.rank,

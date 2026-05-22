@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
       purchaseSurcharge: number;
       breakdown: FinanceQuoteResult["breakdown"] | null;
       surcharges: FinanceQuoteResult["surcharges"] | null;
+      rangeExceeded: boolean;
       allFinanceResults: {
         financeCompanyName: string;
         rank: number;
@@ -182,6 +183,7 @@ export async function POST(request: NextRequest) {
           purchaseSurcharge: 0,
           breakdown: null,
           surcharges: null,
+          rangeExceeded: false,
           allFinanceResults: [],
         };
         continue;
@@ -203,6 +205,9 @@ export async function POST(request: NextRequest) {
         purchaseSurcharge,
         breakdown: best.breakdown,
         surcharges: best.surcharges,
+        // 최저가 금융사의 회수율 시트 범위 초과 여부.
+        // 모든 금융사가 같은 차량가 입력을 받으므로 어느 best 기준이든 같다.
+        rangeExceeded: best.rangeExceeded,
         allFinanceResults: results.map((r) => {
           const rPurchase = isPurchase ? Math.round(r.monthlyPayment * 0.12) : 0;
           return {
@@ -248,6 +253,7 @@ export async function POST(request: NextRequest) {
             resultMonthly: sc.monthlyPayment,
             bestFinanceCompany: sc.bestFinanceCompany,
             scenarioType,
+            rangeExceeded: sc.rangeExceeded,
             deviceType: /Mobile|Android|iPhone/i.test(userAgent ?? "") ? "mobile" : "desktop",
             referrer: request.headers.get("referer") ?? undefined,
             userAgent,
