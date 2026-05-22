@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
+import { ColorSelector, type VehicleColorPublic } from "@/components/quote/ColorSelector";
 import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
@@ -274,6 +275,10 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
   const [selectedTrimName, setSelectedTrimName] = useState<string | null>(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(new Set());
+  // 색상 상태 — 차량별 외장/내장 색상 선택. 어드민이 등록한 색상이 있을 때만 노출.
+  const [colors, setColors] = useState<VehicleColorPublic[]>([]);
+  const [exteriorColorId, setExteriorColorId] = useState<string | null>(null);
+  const [interiorColorId, setInteriorColorId] = useState<string | null>(null);
 
   const [contractCategory, setContractCategory] = useState<ContractCategory>("장기렌트");
   const [conditions, setConditions] = useState<Conditions>({
@@ -311,6 +316,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         optionsTotalPrice: quoteResult.optionsTotalPrice,
         totalVehiclePrice: quoteResult.totalVehiclePrice,
         customRates: { depositRate: 0, prepayRate: 0 },
+        exteriorColorId,
+        interiorColorId,
       };
       localStorage.setItem(
         `${QUOTE_DRAFT_STORAGE_PREFIX}${quoteSessionId}`,
@@ -345,9 +352,26 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     setSelectedLineup(null);
     setSelectedTrimName(null);
     setSelectedOptionIds(new Set());
+    setColors([]);
+    setExteriorColorId(null);
+    setInteriorColorId(null);
 
     const slug = selectedVehicle.slug;
     const shouldPrefill = !!prefillSlug && !hasPrefilled.current;
+
+    // 색상 로드 (병렬) — 어드민이 등록한 차량 색상이 있으면 외장/내장 기본값을 선택해둠
+    fetch(`/api/vehicles/${slug}/colors`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (!json?.success || !Array.isArray(json.data)) return;
+        const list: VehicleColorPublic[] = json.data;
+        setColors(list);
+        const defaultExt = list.find((c) => c.kind === "EXTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "EXTERIOR");
+        const defaultInt = list.find((c) => c.kind === "INTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "INTERIOR");
+        setExteriorColorId(defaultExt?.id ?? null);
+        setInteriorColorId(defaultInt?.id ?? null);
+      })
+      .catch(() => {});
 
     fetch(`/api/vehicles/${slug}/trims`)
       .then((r) => r.json())
@@ -444,6 +468,10 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         .reduce((sum, o) => sum + o.price, 0)
     : 0;
 
+  const selectedExteriorColor = exteriorColorId ? colors.find((c) => c.id === exteriorColorId) ?? null : null;
+  const selectedInteriorColor = interiorColorId ? colors.find((c) => c.id === interiorColorId) ?? null : null;
+  const colorDelta = (selectedExteriorColor?.priceDelta ?? 0) + (selectedInteriorColor?.priceDelta ?? 0);
+
   const restoreBaseStandardScenario = useCallback(() => {
     recalculateRequestId.current += 1;
     setIsRecalculating(false);
@@ -478,6 +506,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
             contractType: "반납형",
             productType: contractCategory,
             customerType,
+            exteriorColorId,
+            interiorColorId,
           }),
         }
       );
@@ -527,6 +557,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           customDepositRate: rates.depositRate,
           customPrepayRate: rates.prepayRate,
           customerType,
+          exteriorColorId,
+          interiorColorId,
         }),
       });
       const json = await res.json();
@@ -575,12 +607,26 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       selectedOptions,
       totalVehiclePrice:
         quoteResult.totalVehiclePrice ??
-        quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? optionsTotalPrice),
+        quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? optionsTotalPrice) + colorDelta,
       productType: contractCategory,
       contractMonths: quoteResult.contractMonths,
       annualMileage: quoteResult.annualMileage,
       contractType: "반납형",
       scenarios: quoteResult.scenarios,
+      exteriorColor: selectedExteriorColor
+        ? {
+            name: selectedExteriorColor.name,
+            hexCode: selectedExteriorColor.hexCode,
+            priceDelta: selectedExteriorColor.priceDelta,
+          }
+        : null,
+      interiorColor: selectedInteriorColor
+        ? {
+            name: selectedInteriorColor.name,
+            hexCode: selectedInteriorColor.hexCode,
+            priceDelta: selectedInteriorColor.priceDelta,
+          }
+        : null,
     };
 
     try {
@@ -958,6 +1004,19 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             </p>
                           )}
                         </div>
+                      )}
+
+                      {/* 색상 선택 — 어드민이 등록한 색상이 있을 때만 노출 */}
+                      {selectedTrim && colors.length > 0 && (
+                        <ColorSelector
+                          colors={colors}
+                          exteriorColorId={exteriorColorId}
+                          interiorColorId={interiorColorId}
+                          onChange={(kind, id) => {
+                            if (kind === "EXTERIOR") setExteriorColorId(id);
+                            else setInteriorColorId(id);
+                          }}
+                        />
                       )}
 
                       {/* 선택된 트림 가격 요약 */}
