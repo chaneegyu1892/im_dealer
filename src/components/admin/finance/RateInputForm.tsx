@@ -283,17 +283,33 @@ export default function RateInputForm({
           />
         </div>
         <div>
-          <label className="text-xs text-[#9BA4C0] font-medium block mb-1">최대 차량가 (원)</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={maxVehiclePrice.toLocaleString("ko-KR")}
-            onChange={(e) => {
-              const num = parseInt(e.target.value.replace(/,/g, ""), 10);
-              if (!isNaN(num)) setMaxVehiclePrice(num);
-            }}
-            className="w-full md:w-40 border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
-          />
+          <label className="text-xs text-[#9BA4C0] font-medium block mb-1">
+            최대 차량가 (원)
+            <span className="ml-1 text-[10px] text-[#B0B8D0] font-normal">· 풀옵션 +20% 권장</span>
+          </label>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={maxVehiclePrice.toLocaleString("ko-KR")}
+              onChange={(e) => {
+                const num = parseInt(e.target.value.replace(/,/g, ""), 10);
+                if (!isNaN(num)) setMaxVehiclePrice(num);
+              }}
+              className="w-full md:w-40 border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
+            />
+            <button
+              type="button"
+              onClick={() => setMaxVehiclePrice(Math.round(trimPrice * 1.3))}
+              title="트림가 × 1.3으로 자동 채움 — 풀옵션 + 여유분"
+              className="px-2 py-1.5 text-[10px] font-semibold text-[#000666] bg-[#F0F2F8] hover:bg-[#E8EAF0] rounded-md whitespace-nowrap"
+            >
+              +30% 채우기
+            </button>
+          </div>
+          <p className="mt-1 text-[10px] text-[#9BA4C0]">
+            옵션 추가로 차량가가 max를 넘으면 회수율은 max값으로 고정됩니다(클램프). 견적 정확도를 위해 max를 넓게 잡으세요.
+          </p>
         </div>
         <div className="col-span-2 sm:col-span-2 md:flex-1">
           <label className="text-xs text-[#9BA4C0] font-medium block mb-1">메모</label>

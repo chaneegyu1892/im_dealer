@@ -12,6 +12,9 @@ export interface FinanceQuoteResult {
   monthlyPayment: number;        // 최종 월 대여료 (가산 후)
   breakdown: QuoteBreakdown;
   surcharges: SurchargeDetail;
+  /** 차량가가 회수율 시트 범위(min~max)를 벗어났는지 여부.
+   * true 면 클램프된 값으로 계산됨 — 어드민에게 회수율 데이터 보강 권고. */
+  rangeExceeded: boolean;
 }
 
 /** 비용 항목 상세 */
