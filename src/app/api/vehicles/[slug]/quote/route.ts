@@ -120,6 +120,10 @@ export async function POST(
       : null;
     const colorDelta = (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
 
+    // 할인가: discountPrice 있으면 그것을 차량가 기준으로 사용
+    const effectiveTrimPrice = trim.discountPrice ?? trim.price;
+    const discountAmount = trim.discountPrice ? trim.price - trim.discountPrice : 0;
+
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
       (prisma as any).capitalRateSheet.findMany({
@@ -185,7 +189,7 @@ export async function POST(
       }
 
       const calcInput: CalcInput = {
-        vehiclePrice: trim.price + optionsTotalPrice + colorDelta,
+        vehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         depositRate,
@@ -254,9 +258,11 @@ export async function POST(
         trimId: trim.id,
         trimName: trim.name,
         trimPrice: trim.price,
+        discountPrice: trim.discountPrice ?? null,
+        discountAmount,
         optionsTotalPrice,
         colorDelta,
-        totalVehiclePrice: trim.price + optionsTotalPrice + colorDelta,
+        totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         contractType: input.contractType,

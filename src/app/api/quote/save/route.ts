@@ -99,7 +99,9 @@ export async function POST(request: NextRequest) {
     }
     const colorDelta = (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
 
-    const totalVehiclePrice = trim.price + optionsTotalPrice + colorDelta;
+    // 할인가: discountPrice 있으면 그것을 차량가 기준으로 사용
+    const effectiveTrimPrice = trim.discountPrice ?? trim.price;
+    const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
 
     const [rateSheets, rankSurcharges] = await Promise.all([
       prisma.capitalRateSheet.findMany({
