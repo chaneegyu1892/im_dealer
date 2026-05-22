@@ -19,6 +19,13 @@ export const vehicleCreateSchema = z.object({
 
 export const vehicleUpdateSchema = vehicleCreateSchema.partial();
 
+// ─── Brand ──────────────────────────────────────────────
+export const brandCreateSchema = z.object({
+  name: z.string().min(1, "브랜드명을 입력하세요").max(40),
+  logoUrl: z.string().url().nullable().optional(),
+  displayOrder: z.number().int().default(0),
+});
+
 // ─── Lineup ─────────────────────────────────────────────
 export const lineupCreateSchema = z.object({
   name: z.string().min(1, "라인업명을 입력하세요"),

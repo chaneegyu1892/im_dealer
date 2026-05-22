@@ -110,9 +110,12 @@ export interface AdminTrimOption {
   description: string | null;
 }
 
-// ─── Brand (Vehicle.brand DISTINCT 집계) ────────────────
+// ─── Brand ──────────────────────────────────────────────
 export interface AdminBrand {
+  id: string;
   name: string;
+  logoUrl: string | null;
+  displayOrder: number;
   vehicleCount: number;
 }
 

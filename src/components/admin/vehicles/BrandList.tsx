@@ -1,8 +1,12 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdminBrand } from "@/types/admin";
+import { BrandFormModal } from "./BrandFormModal";
 
 interface BrandListProps {
   brands: AdminBrand[];
@@ -11,25 +15,20 @@ interface BrandListProps {
 }
 
 export function BrandList({ brands, selected, onSelect }: BrandListProps) {
-  const getLogoPath = (brandName: string) => {
-    const mapping: Record<string, string> = {
-      "현대": "/images/vehicles/logos/hyundai.svg",
-      "기아": "/images/vehicles/logos/kia.svg",
-      "제네시스": "/images/vehicles/logos/genesis.svg",
-      "KGM": "/images/vehicles/logos/kgm.svg",
-      "쉐보레": "/images/vehicles/logos/chevrolet.svg",
-      "르노": "/images/vehicles/logos/renault.svg",
-      "BMW": "/images/vehicles/logos/bmw.svg",
-      "벤츠": "/images/vehicles/logos/mercedes.svg",
-      "테슬라": "/images/vehicles/logos/tesla.svg",
-    };
-    return mapping[brandName] || null;
-  };
+  const router = useRouter();
+  const [modalOpen, setModalOpen] = useState(false);
 
   return (
-    <div className="w-full md:w-[280px] border-r border-[#E8EAF0] flex flex-col shrink-0 bg-[#FAFBFF]">
-      <div className="px-4 py-3 border-b border-[#E8EAF0] bg-white z-10">
+    <div className="w-full md:w-[280px] h-full border-r border-[#E8EAF0] flex flex-col shrink-0 min-h-0 bg-[#FAFBFF]">
+      <div className="px-4 py-3 border-b border-[#E8EAF0] bg-white z-10 flex items-center justify-between">
         <h2 className="text-[14px] font-semibold text-[#1A1A2E]">차량 브랜드</h2>
+        <button
+          onClick={() => setModalOpen(true)}
+          className="w-6 h-6 flex items-center justify-center rounded-[6px] hover:bg-[#F0F2F8] text-[#000666] transition-colors"
+          aria-label="브랜드 추가"
+        >
+          <Plus size={15} />
+        </button>
       </div>
       <div className="flex-1 overflow-y-auto p-3">
         {brands.length === 0 ? (
@@ -40,7 +39,7 @@ export function BrandList({ brands, selected, onSelect }: BrandListProps) {
             <div className="grid grid-cols-2 gap-2 md:hidden">
               {brands.map((b) => {
                 const isSelected = selected === b.name;
-                const logoPath = getLogoPath(b.name);
+                const logoPath = b.logoUrl;
                 return (
                   <div
                     key={b.name}
@@ -74,7 +73,7 @@ export function BrandList({ brands, selected, onSelect }: BrandListProps) {
             <div className="hidden md:flex flex-col gap-1">
               {brands.map((b) => {
                 const isSelected = selected === b.name;
-                const logoPath = getLogoPath(b.name);
+                const logoPath = b.logoUrl;
                 return (
                   <div
                     key={b.name}
@@ -108,6 +107,18 @@ export function BrandList({ brands, selected, onSelect }: BrandListProps) {
           </>
         )}
       </div>
+
+      {modalOpen && (
+        <BrandFormModal
+          existingNames={brands.map((b) => b.name)}
+          onClose={() => setModalOpen(false)}
+          onCreated={(name) => {
+            setModalOpen(false);
+            router.refresh();
+            onSelect(name);
+          }}
+        />
+      )}
     </div>
   );
 }

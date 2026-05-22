@@ -247,14 +247,23 @@ export async function getVehicleQuoteStats(
 }
 
 export async function getAdminBrands(): Promise<AdminBrand[]> {
-  const groups = await prisma.vehicle.groupBy({
-    by: ["brand"],
-    _count: { id: true },
-    orderBy: { _count: { id: "desc" } },
-  });
+  const [brands, counts] = await Promise.all([
+    prisma.brand.findMany({
+      orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+    }),
+    prisma.vehicle.groupBy({
+      by: ["brand"],
+      _count: { id: true },
+    }),
+  ]);
 
-  return groups.map((g) => ({
-    name: g.brand,
-    vehicleCount: g._count.id,
+  const countMap = new Map(counts.map((g) => [g.brand, g._count.id]));
+
+  return brands.map((b) => ({
+    id: b.id,
+    name: b.name,
+    logoUrl: b.logoUrl,
+    displayOrder: b.displayOrder,
+    vehicleCount: countMap.get(b.name) ?? 0,
   }));
 }

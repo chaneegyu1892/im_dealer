@@ -61,6 +61,15 @@ model RankSurchargeConfig {
   rate Float
 }
 
+model Brand {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  logoUrl      String?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model Vehicle {
   id            String                @id @default(cuid())
   slug          String                @unique
