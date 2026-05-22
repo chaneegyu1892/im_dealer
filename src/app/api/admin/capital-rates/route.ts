@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const financeCompanyId = searchParams.get("financeCompanyId");
   const trimId = searchParams.get("trimId");
+  const productType = searchParams.get("productType");
   const history = searchParams.get("history") === "true";
 
   if (!financeCompanyId && !trimId) {
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
     const where = {
       ...(financeCompanyId ? { financeCompanyId } : {}),
       ...(trimId ? { trimId } : {}),
+      ...(productType ? { productType } : {}),
       ...(!history ? { isActive: true } : {}),
     };
 
@@ -54,6 +56,7 @@ export async function GET(request: NextRequest) {
       vehicleName: r.trim.vehicle.name,
       vehicleBrand: r.trim.vehicle.brand,
       lineupName: r.trim.lineup?.name ?? null,
+      productType: r.productType,
       weekOf: r.weekOf.toISOString(),
       minVehiclePrice: r.minVehiclePrice,
       maxVehiclePrice: r.maxVehiclePrice,
@@ -90,6 +93,7 @@ export async function POST(request: NextRequest) {
       financeCompanyId,
       trimId,
       trimIds,
+      productType = "장기렌트",
       weekOf,
       minVehiclePrice,
       maxVehiclePrice,
@@ -104,6 +108,7 @@ export async function POST(request: NextRequest) {
       financeCompanyId: string;
       trimId?: string;
       trimIds?: string[];
+      productType?: string;
       weekOf: string;
       minVehiclePrice: number;
       maxVehiclePrice: number;
@@ -155,7 +160,12 @@ export async function POST(request: NextRequest) {
       for (const tid of targetTrimIds) {
         const existing = await (tx as any).capitalRateSheet.findUnique({
           where: {
-            financeCompanyId_trimId_weekOf: { financeCompanyId, trimId: tid, weekOf: weekDate },
+            financeCompanyId_trimId_weekOf_productType: {
+              financeCompanyId,
+              trimId: tid,
+              weekOf: weekDate,
+              productType,
+            },
           },
         });
 
@@ -167,11 +177,11 @@ export async function POST(request: NextRequest) {
           saved.push(updated.id);
         } else {
           await (tx as any).capitalRateSheet.updateMany({
-            where: { financeCompanyId, trimId: tid, isActive: true },
+            where: { financeCompanyId, trimId: tid, productType, isActive: true },
             data: { isActive: false },
           });
           const created = await (tx as any).capitalRateSheet.create({
-            data: { financeCompanyId, trimId: tid, weekOf: weekDate, ...sheetData },
+            data: { financeCompanyId, trimId: tid, productType, weekOf: weekDate, ...sheetData },
           });
           saved.push(created.id);
         }
@@ -188,6 +198,7 @@ export async function POST(request: NextRequest) {
       meta: {
         financeCompanyId,
         trimIds: targetTrimIds,
+        productType,
         weekOf,
         sheetIds: results,
         minVehiclePrice,

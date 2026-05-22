@@ -26,6 +26,7 @@ model CapitalRateSheet {
   id                  String         @id @default(cuid())
   financeCompanyId    String
   trimId              String
+  productType         String         @default("장기렌트") // "장기렌트" | "리스"
   weekOf              DateTime       // 해당 주 시작일 (월요일 기준)
   // 가격 범위
   minVehiclePrice     Int            // 최소 차량가
@@ -49,7 +50,7 @@ model CapitalRateSheet {
   financeCompany      FinanceCompany @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
   trim                Trim           @relation(fields: [trimId], references: [id], onDelete: Cascade)
 
-  @@unique([financeCompanyId, trimId, weekOf])
+  @@unique([financeCompanyId, trimId, weekOf, productType])
   @@index([financeCompanyId, trimId])
   @@index([financeCompanyId, weekOf])
   @@index([isActive])

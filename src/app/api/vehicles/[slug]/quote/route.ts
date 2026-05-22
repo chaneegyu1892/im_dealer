@@ -127,7 +127,12 @@ export async function POST(
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
       (prisma as any).capitalRateSheet.findMany({
-        where: { trimId: trim.id, isActive: true, financeCompany: { isActive: true } },
+        where: {
+          trimId: trim.id,
+          productType: input.productType,
+          isActive: true,
+          financeCompany: { isActive: true },
+        },
         include: { financeCompany: true },
       }),
       prisma.rankSurchargeConfig.findMany({ orderBy: { rank: "asc" } }),

@@ -262,6 +262,7 @@ export interface CapitalRateSheet {
   trimName: string;
   vehicleName: string;
   lineupName: string | null;
+  productType: string;
   weekOf: string;
   minVehiclePrice: number;
   maxVehiclePrice: number;
@@ -283,6 +284,7 @@ export interface CapitalRateSheet {
 export interface CapitalRateSheetInput {
   financeCompanyId: string;
   trimId: string;
+  productType?: string;
   weekOf: string;
   minVehiclePrice: number;
   maxVehiclePrice: number;
