@@ -13,6 +13,7 @@
  */
 
 import { PrismaClient, Prisma } from "@prisma/client";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
@@ -30,8 +31,33 @@ import {
   mapOptionKind,
   buildLegacySpecsShape,
 } from "../src/lib/vehicle-import-mappings";
+import { mirrorImage, type MirrorContext } from "../src/lib/vehicle-image-mirror";
 
 const prisma = new PrismaClient();
+
+function buildMirrorContext(): MirrorContext | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  const supabase: SupabaseClient = createClient(url, key, { auth: { persistSession: false } });
+  return { supabase, cache: new Map<string, string>() };
+}
+
+const mirrorCtx = buildMirrorContext();
+
+/** 외부 URL을 Supabase Storage로 미러링. 실패 시 빈 문자열 반환(=해당 이미지 제외). */
+async function safeMirror(url: string): Promise<string> {
+  if (!url) return "";
+  if (!mirrorCtx) return url;
+  try {
+    const r = await mirrorImage(url, mirrorCtx);
+    return r.url;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`  ⚠ 이미지 미러링 실패 (제외): ${url.slice(0, 80)} — ${msg}`);
+    return "";
+  }
+}
 
 // ───────────────────────── JSON 타입 (필요 부분만) ─────────────────────────
 
@@ -270,14 +296,26 @@ async function importModel(
   const cartype = modelDetail.cartype ?? modelEntry.listMeta?.["cartype" as keyof typeof modelEntry.listMeta];
   const category = CARTYPE_TO_CATEGORY[cartype ?? ""] ?? "세단";
   const basePrice = toInt(modelDetail.price?.min ?? modelEntry.listMeta?.priceMin);
-  const thumbnailUrl = externalImageUrl(modelDetail.image ?? modelEntry.listMeta?.image);
+  const rawThumbnailUrl = externalImageUrl(modelDetail.image ?? modelEntry.listMeta?.image);
   const slug = makeExternalSlug(brandName, modelId);
 
   // imageUrls: cover + imageL 등 모은 것
-  const imageUrls = [
+  const rawImageUrls = [
     externalImageUrl(modelDetail.imageL),
     externalImageUrl(modelDetail.cover),
   ].filter(Boolean);
+
+  // 외부 CDN(p.ca8.kr) 이미지를 Supabase Storage로 미러링 — 핫링크/장애 회피
+  const thumbnailUrl = dryRun ? rawThumbnailUrl : await safeMirror(rawThumbnailUrl);
+  const imageUrls: string[] = [];
+  if (!dryRun) {
+    for (const u of rawImageUrls) {
+      const mirrored = await safeMirror(u);
+      if (mirrored) imageUrls.push(mirrored);
+    }
+  } else {
+    imageUrls.push(...rawImageUrls);
+  }
 
   // 기존 UI 가 인식하는 specs/technical_specs 구조 변환
   const legacyShape = buildLegacySpecsShape({
@@ -316,6 +354,13 @@ async function importModel(
     stats.modelsProcessed++;
     return;
   }
+
+  // 0) Brand upsert — 어드민 BrandList에서 보이도록 차량 이전에 등록
+  await prisma.brand.upsert({
+    where: { name: brandName },
+    create: { name: brandName },
+    update: {},
+  });
 
   // 1) Vehicle upsert
   const existing = await prisma.vehicle.findUnique({ where: { externalId: modelId } });
