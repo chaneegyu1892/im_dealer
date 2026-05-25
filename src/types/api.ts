@@ -94,4 +94,9 @@ export interface QuoteResponse {
   contractType: string;
   customerType?: string;
   scenarios: QuoteScenarioDetails;
+  /**
+   * 회수율 데이터가 1건도 등록되지 않아 자동 견적이 불가능한 경우 true.
+   * 이 경우 scenarios 는 비어 있을 수 있으며, 프론트는 "별도 상담 필요" 안내를 노출한다.
+   */
+  requiresConsultation?: boolean;
 }

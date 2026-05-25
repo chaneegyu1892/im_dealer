@@ -5,6 +5,7 @@ import {
   getVehiclesForReviewSelect,
 } from "@/lib/admin-queries/reviews";
 import { ReviewsGalleryClient } from "./ReviewsGalleryClient";
+import { compareBrandNames } from "@/lib/brand-sort";
 
 export const metadata: Metadata = {
   title: "고객 후기 | 아임딜러",
@@ -21,7 +22,8 @@ export default async function ReviewsPage() {
     getVehiclesForReviewSelect(),
   ]);
 
-  const brands = Array.from(new Set(vehicles.map((v) => v.brand))).sort();
+  // 어드민/공개 일관 정렬: 현대/기아/제네시스/BMW/벤츠 우선 + 가나다순
+  const brands = Array.from(new Set(vehicles.map((v) => v.brand))).sort(compareBrandNames);
 
   return (
     <div className="page-container py-10 md:py-14 space-y-10">

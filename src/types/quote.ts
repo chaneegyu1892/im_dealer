@@ -83,6 +83,9 @@ export interface QuoteScenarioDetail {
   breakdown: QuoteBreakdown | null;
   surcharges: SurchargeDetail | null;
   allFinanceResults: FinanceCompanyQuote[];
+  /** 차량가가 회수율 시트 범위(min~max)를 벗어났는지 여부 (1순위 금융사 기준).
+   * true 면 클램프된 값으로 계산되어 정확도가 떨어질 수 있다. */
+  rangeExceeded?: boolean;
 }
 
 export interface QuoteScenarioDetails {

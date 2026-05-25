@@ -1247,44 +1247,79 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   </div>
                 </div>
 
-                {/* 견적 결과 */}
-                <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card p-5 md:p-6 mb-4">
-                  <div className="flex items-center gap-2 mb-5">
-                    <Sparkles size={14} className="text-primary" />
-                    <p className="text-[13px] text-ink-label">
-                      초기비용 여부에 따라 월 납입금이 달라집니다
-                    </p>
+                {/* 견적 결과 또는 별도 상담 안내 */}
+                {quoteResult.requiresConsultation ? (
+                  <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card p-5 md:p-6 mb-4">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <AlertCircle size={20} className="text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-semibold text-ink leading-snug">
+                          이 차량은 별도 상담이 필요합니다
+                        </p>
+                        <p className="text-[13px] text-ink-label mt-1 leading-relaxed">
+                          현재 자동 견적에 필요한 회수율 데이터가 등록되지 않아
+                          정확한 금액을 즉시 산출하기 어렵습니다. 전문 상담을 통해
+                          맞춤 견적을 받아보실 수 있습니다.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-[8px] bg-neutral border border-[#F0F0F0] p-3 text-[12px] text-ink-caption leading-relaxed">
+                      옵션·계약조건에 따라 캐피탈사별 금액이 크게 달라질 수 있어
+                      상담을 통한 견적이 더 정확합니다.
+                    </div>
                   </div>
-                  <QuoteBreakdownTabs
-                    scenarios={quoteResult.scenarios}
-                    customerType={customerType}
-                    customRates={customRates}
-                    onCustomRatesChange={setCustomRates}
-                    isRecalculating={isRecalculating}
-                    onReset={() => {
-                      setCustomRates({ depositRate: 0, prepayRate: 0 });
-                      restoreBaseStandardScenario();
-                    }}
-                  />
-                </div>
+                ) : (
+                  <>
+                    <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card p-5 md:p-6 mb-4">
+                      <div className="flex items-center gap-2 mb-5">
+                        <Sparkles size={14} className="text-primary" />
+                        <p className="text-[13px] text-ink-label">
+                          초기비용 여부에 따라 월 납입금이 달라집니다
+                        </p>
+                      </div>
+                      <QuoteBreakdownTabs
+                        scenarios={quoteResult.scenarios}
+                        customerType={customerType}
+                        customRates={customRates}
+                        onCustomRatesChange={setCustomRates}
+                        isRecalculating={isRecalculating}
+                        onReset={() => {
+                          setCustomRates({ depositRate: 0, prepayRate: 0 });
+                          restoreBaseStandardScenario();
+                        }}
+                      />
+                      {quoteResult.scenarios?.standard?.rangeExceeded && (
+                        <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12px] text-amber-800 leading-relaxed flex items-start gap-2">
+                          <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                          <p>
+                            선택하신 옵션 조합으로 차량가가 등록 회수율 범위를 초과해 참고용 견적으로 표시됩니다.
+                            정확한 금액은 상담을 통해 확인해 주세요.
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
-                {selectedVehicle && (
-                  <ComparisonSection
-                    primary={{
-                      slug: selectedVehicle.slug,
-                      brand: selectedVehicle.brand,
-                      name: selectedVehicle.name,
-                      result: quoteResult,
-                    }}
-                    conditions={{
-                      contractMonths: conditions.contractMonths,
-                      annualMileage: conditions.annualMileage,
-                      contractType: "반납형",
-                      productType: contractCategory,
-                    }}
-                    customRates={{ depositRate: 0, prepayRate: 0 }}
-                    allVehicles={vehicles}
-                  />
+                    {selectedVehicle && (
+                      <ComparisonSection
+                        primary={{
+                          slug: selectedVehicle.slug,
+                          brand: selectedVehicle.brand,
+                          name: selectedVehicle.name,
+                          result: quoteResult,
+                        }}
+                        conditions={{
+                          contractMonths: conditions.contractMonths,
+                          annualMileage: conditions.annualMileage,
+                          contractType: "반납형",
+                          productType: contractCategory,
+                        }}
+                        customRates={{ depositRate: 0, prepayRate: 0 }}
+                        allVehicles={vehicles}
+                      />
+                    )}
+                  </>
                 )}
 
                 {/* 면책 안내 */}
