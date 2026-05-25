@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 import { prisma } from "../prisma";
 import { maskAuthorName, formatReviewDate, maskPhone } from "../review-utils";
+import { compareBrandNames } from "../brand-sort";
 import type {
   PublicReview,
   AdminReview,
@@ -311,10 +312,15 @@ export async function getAllReviewsForAdmin(): Promise<AdminReview[]> {
 export async function getVehiclesForReviewSelect(): Promise<AdminReviewVehicleOption[]> {
   const rows = await prisma.vehicle.findMany({
     where: { isVisible: true },
-    orderBy: [{ brand: "asc" }, { name: "asc" }],
     select: { id: true, name: true, brand: true },
   });
-  return rows;
+  // 어드민/공개 일관 정렬: 현대/기아/제네시스/BMW/벤츠 우선 + 가나다순
+  // (Prisma orderBy로는 커스텀 우선순위 표현이 어려워 JS로 재정렬)
+  return [...rows].sort((a, b) => {
+    const brandDiff = compareBrandNames(a.brand, b.brand);
+    if (brandDiff !== 0) return brandDiff;
+    return a.name.localeCompare(b.name, "ko");
+  });
 }
 
 function buildReviewWriteUrl(token: string): string {

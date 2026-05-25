@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CarCard } from "@/components/cars/CarCard";
 import type { VehicleListItem } from "@/types/api";
+import { BRAND_PRIORITY_ORDER, compareBrandNames } from "@/lib/brand-sort";
 
 // ── 상수 ──────────────────────────────────────────────────
 const VEHICLE_CATEGORIES = ["전체", "세단", "SUV", "밴", "트럭"] as const;
@@ -37,7 +38,9 @@ const BRAND_LOGO_MAP: Record<string, string> = {
   테슬라: "/images/vehicles/logos/tesla.svg",
 };
 
-const PRIORITY_BRANDS = ["현대", "기아", "제네시스"];
+// 어드민/공개 페이지 전반에 일관된 브랜드 우선순위 (현대/기아/제네시스/BMW/벤츠)는
+// src/lib/brand-sort.ts 의 BRAND_PRIORITY_ORDER 를 사용한다.
+const PRIORITY_BRANDS: readonly string[] = BRAND_PRIORITY_ORDER;
 const CATEGORY_ROWS: CategoryFilter[][] = [["전체", "세단", "SUV"], ["밴", "트럭"]];
 
 // ── 차종 아이콘 ────────────────────────────────────────────
@@ -229,14 +232,9 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     filterPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
-  // 현대/기아/제네시스 우선 정렬
+  // 어드민/공개 일관 정렬: 현대/기아/제네시스/BMW/벤츠 우선 + 가나다순
   const brands = useMemo(() => {
-    const unique = Array.from(new Set(vehicles.map((v) => v.brand)));
-    const priority = unique
-      .filter((b) => PRIORITY_BRANDS.includes(b))
-      .sort((a, b) => PRIORITY_BRANDS.indexOf(a) - PRIORITY_BRANDS.indexOf(b));
-    const rest = unique.filter((b) => !PRIORITY_BRANDS.includes(b)).sort();
-    return [...priority, ...rest];
+    return Array.from(new Set(vehicles.map((v) => v.brand))).sort(compareBrandNames);
   }, [vehicles]);
 
   const featured = useMemo(

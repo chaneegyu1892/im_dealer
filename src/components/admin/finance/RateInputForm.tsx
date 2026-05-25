@@ -12,7 +12,10 @@ import {
 interface Props {
   financeCompanyId: string;
   trimIds: string[];
-  trimPrice: number;
+  /** 선택된 라인업 내 트림들의 가격 기준 자동 계산된 최소가 (discountPrice 우선) */
+  initialMinPrice: number;
+  /** 선택된 라인업 내 트림들의 가격 기준 자동 계산된 최대가 (discountPrice 우선) */
+  initialMaxPrice: number;
   productType: string;
   existingSheet?: CapitalRateSheet;
   onSaved: (savedTrimIds: string[]) => void;
@@ -56,14 +59,17 @@ type PreviewData = {
 export default function RateInputForm({
   financeCompanyId,
   trimIds,
-  trimPrice,
+  initialMinPrice,
+  initialMaxPrice,
   productType,
   existingSheet,
   onSaved,
 }: Props) {
   const [weekOf, setWeekOf] = useState(getWeekOf());
-  const [minVehiclePrice, setMinVehiclePrice] = useState(trimPrice);
-  const [maxVehiclePrice, setMaxVehiclePrice] = useState(trimPrice);
+  const [minVehiclePrice, setMinVehiclePrice] = useState(initialMinPrice);
+  const [maxVehiclePrice, setMaxVehiclePrice] = useState(initialMaxPrice);
+  // 사용자가 수동 덮어쓰기한 경우 자동 동기화를 멈추기 위한 플래그
+  const [priceManuallyEdited, setPriceManuallyEdited] = useState(false);
   const [minBaseRates, setMinBaseRates] = useState<RateSheetRaw>(emptyRates());
   const [minDepositRates, setMinDepositRates] = useState<RateSheetRaw>(emptyRates());
   const [minPrepayRates, setMinPrepayRates] = useState<RateSheetRaw>(emptyRates());
@@ -93,9 +99,10 @@ export default function RateInputForm({
       setMaxPrepayRates(pickSingleKey(existingSheet.maxPrepayRates, "36_10000"));
       setMemo(existingSheet.memo ?? "");
       setWeekOf(existingSheet.weekOf.slice(0, 10));
+      setPriceManuallyEdited(true); // 기존 시트값을 그대로 유지
     } else {
-      setMinVehiclePrice(trimPrice);
-      setMaxVehiclePrice(trimPrice);
+      setMinVehiclePrice(initialMinPrice);
+      setMaxVehiclePrice(initialMaxPrice);
       setMinBaseRates(emptyRates());
       setMinDepositRates(emptyRates());
       setMinPrepayRates(emptyRates());
@@ -104,9 +111,25 @@ export default function RateInputForm({
       setMaxPrepayRates(emptyRates());
       setMemo("");
       setWeekOf(getWeekOf());
+      setPriceManuallyEdited(false);
     }
     setPreview(null);
-  }, [existingSheet, trimIds, trimPrice]);
+  }, [existingSheet, trimIds.join(","), initialMinPrice, initialMaxPrice]);
+
+  // 라인업 선택 변경 → 자동 가격 갱신 (단, 사용자가 수동 편집한 경우는 유지)
+  useEffect(() => {
+    if (existingSheet) return;
+    if (priceManuallyEdited) return;
+    setMinVehiclePrice(initialMinPrice);
+    setMaxVehiclePrice(initialMaxPrice);
+  }, [initialMinPrice, initialMaxPrice, existingSheet, priceManuallyEdited]);
+
+  const resetPriceToAuto = () => {
+    setMinVehiclePrice(initialMinPrice);
+    setMaxVehiclePrice(initialMaxPrice);
+    setPriceManuallyEdited(false);
+    setPreview(null);
+  };
 
   const updateRate = (
     setter: React.Dispatch<React.SetStateAction<RateSheetRaw>>,
@@ -270,14 +293,20 @@ export default function RateInputForm({
           />
         </div>
         <div>
-          <label className="text-xs text-[#9BA4C0] font-medium block mb-1">최소 차량가 (원)</label>
+          <label className="text-xs text-[#9BA4C0] font-medium block mb-1">
+            최소 차량가 (원)
+            <span className="ml-1 text-[10px] text-[#B0B8D0] font-normal">· 라인업 자동</span>
+          </label>
           <input
             type="text"
             inputMode="numeric"
             value={minVehiclePrice.toLocaleString("ko-KR")}
             onChange={(e) => {
               const num = parseInt(e.target.value.replace(/,/g, ""), 10);
-              if (!isNaN(num)) setMinVehiclePrice(num);
+              if (!isNaN(num)) {
+                setMinVehiclePrice(num);
+                setPriceManuallyEdited(true);
+              }
             }}
             className="w-full md:w-40 border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
           />
@@ -285,7 +314,7 @@ export default function RateInputForm({
         <div>
           <label className="text-xs text-[#9BA4C0] font-medium block mb-1">
             최대 차량가 (원)
-            <span className="ml-1 text-[10px] text-[#B0B8D0] font-normal">· 풀옵션 +20% 권장</span>
+            <span className="ml-1 text-[10px] text-[#B0B8D0] font-normal">· 라인업 자동</span>
           </label>
           <div className="flex items-center gap-1.5">
             <input
@@ -294,21 +323,26 @@ export default function RateInputForm({
               value={maxVehiclePrice.toLocaleString("ko-KR")}
               onChange={(e) => {
                 const num = parseInt(e.target.value.replace(/,/g, ""), 10);
-                if (!isNaN(num)) setMaxVehiclePrice(num);
+                if (!isNaN(num)) {
+                  setMaxVehiclePrice(num);
+                  setPriceManuallyEdited(true);
+                }
               }}
               className="w-full md:w-40 border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
             />
-            <button
-              type="button"
-              onClick={() => setMaxVehiclePrice(Math.round(trimPrice * 1.3))}
-              title="트림가 × 1.3으로 자동 채움 — 풀옵션 + 여유분"
-              className="px-2 py-1.5 text-[10px] font-semibold text-[#000666] bg-[#F0F2F8] hover:bg-[#E8EAF0] rounded-md whitespace-nowrap"
-            >
-              +30% 채우기
-            </button>
+            {priceManuallyEdited && initialMinPrice > 0 && initialMaxPrice > 0 && (
+              <button
+                type="button"
+                onClick={resetPriceToAuto}
+                title="라인업 트림가 기준 자동값으로 복원"
+                className="px-2 py-1.5 text-[10px] font-semibold text-[#000666] bg-[#F0F2F8] hover:bg-[#E8EAF0] rounded-md whitespace-nowrap"
+              >
+                자동값 복원
+              </button>
+            )}
           </div>
           <p className="mt-1 text-[10px] text-[#9BA4C0]">
-            옵션 추가로 차량가가 max를 넘으면 회수율은 max값으로 고정됩니다(클램프). 견적 정확도를 위해 max를 넓게 잡으세요.
+            선택된 라인업 내 트림가(할인가 우선) 기준으로 자동 입력됩니다. 옵션 풀장착으로 max를 초과하면 회수율은 max값으로 고정(클램프)되므로, 필요하면 수동으로 늘려주세요.
           </p>
         </div>
         <div className="col-span-2 sm:col-span-2 md:flex-1">

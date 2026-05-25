@@ -109,10 +109,29 @@ export async function POST(request: NextRequest) {
     ]);
 
     if (rateSheets.length === 0) {
-      return NextResponse.json(
-        { error: "이 차량의 견적 데이터가 아직 준비되지 않았습니다." },
-        { status: 404 }
-      );
+      // 회수율 시트가 1건도 없으면 "별도 상담 필요" 안내로 분기.
+      return NextResponse.json({
+        success: true,
+        data: {
+          vehicleSlug: input.vehicleSlug,
+          vehicleName: vehicle.name,
+          vehicleBrand: vehicle.brand,
+          trimId: trim.id,
+          trimName: trim.name,
+          trimPrice: trim.price,
+          discountPrice: trim.discountPrice ?? null,
+          discountAmount,
+          optionsTotalPrice,
+          colorDelta,
+          totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
+          contractMonths: input.contractMonths,
+          annualMileage: input.annualMileage,
+          contractType: input.contractType,
+          customerType: input.customerType,
+          scenarios: {} as Record<string, never>,
+          requiresConsultation: true,
+        },
+      });
     }
 
     // 3) 데이터 매핑

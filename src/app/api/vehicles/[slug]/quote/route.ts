@@ -139,10 +139,28 @@ export async function POST(
     ]);
 
     if (rateSheets.length === 0) {
-      return NextResponse.json(
-        { error: "이 차량의 견적 데이터가 아직 준비되지 않았습니다." },
-        { status: 404 }
-      );
+      // 해당 트림(라인업)의 회수율 시트가 1건도 등록되지 않은 경우 → "별도 상담 필요" 분기.
+      // 자동 견적은 불가하지만 차량/트림 메타정보는 그대로 반환하여 프론트가 안내 카드를 렌더링할 수 있게 함.
+      return NextResponse.json({
+        success: true,
+        data: {
+          vehicleSlug: slug,
+          trimId: trim.id,
+          trimName: trim.name,
+          trimPrice: trim.price,
+          discountPrice: trim.discountPrice ?? null,
+          discountAmount,
+          optionsTotalPrice,
+          colorDelta,
+          totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
+          contractMonths: input.contractMonths,
+          annualMileage: input.annualMileage,
+          contractType: input.contractType,
+          customerType: input.customerType,
+          scenarios: {} as Record<string, never>,
+          requiresConsultation: true,
+        },
+      });
     }
 
     // 3) 데이터 매핑
