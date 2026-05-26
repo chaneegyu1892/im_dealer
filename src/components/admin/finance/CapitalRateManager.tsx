@@ -8,7 +8,7 @@ import type {
 } from "@/types/admin";
 import RateInputForm from "./RateInputForm";
 import RateHistory from "./RateHistory";
-import { compareBrandNames } from "@/lib/brand-sort";
+import { useBrandSignals } from "@/lib/use-brand-signals";
 
 interface VehicleLineup {
   id: string;
@@ -69,6 +69,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const [companyError, setCompanyError] = useState("");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
+  const { comparator: brandComparator } = useBrandSignals();
 
   const vehiclesByBrand = useMemo(() => {
     const map = new Map<string, AdminVehicle[]>();
@@ -77,9 +78,9 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       list.push(v);
       map.set(v.brand, list);
     }
-    // 어드민 일관 정렬: 현대/기아/제네시스/BMW/벤츠 우선, 그 외 가나다순
-    return new Map(Array.from(map.entries()).sort(([a], [b]) => compareBrandNames(a, b)));
-  }, [vehicles]);
+    // 어드민 일관 정렬 SSOT: isFeatured → 차량 수 → 가나다
+    return new Map(Array.from(map.entries()).sort(([a], [b]) => brandComparator(a, b)));
+  }, [vehicles, brandComparator]);
 
   const toggleBrand = useCallback((brand: string) => {
     setExpandedBrands((prev) => {

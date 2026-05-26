@@ -11,23 +11,45 @@ const inputClass =
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/svg+xml"]);
 const MAX_BYTES = 2 * 1024 * 1024;
 
-interface BrandFormModalProps {
+interface BrandFormModalBaseProps {
   existingNames: string[];
   onClose: () => void;
-  onCreated: (name: string) => void;
 }
 
-export function BrandFormModal({ existingNames, onClose, onCreated }: BrandFormModalProps) {
+interface BrandFormModalCreateProps extends BrandFormModalBaseProps {
+  mode?: "create";
+  onSaved: (name: string) => void;
+}
+
+interface BrandFormModalEditProps extends BrandFormModalBaseProps {
+  mode: "edit";
+  brand: { id: string; name: string; logoUrl: string | null };
+  onSaved: (name: string) => void;
+}
+
+type BrandFormModalProps = BrandFormModalCreateProps | BrandFormModalEditProps;
+
+export function BrandFormModal(props: BrandFormModalProps) {
+  const { existingNames, onClose, onSaved } = props;
+  const isEdit = props.mode === "edit";
+  const initial = isEdit ? props.brand : { id: "", name: "", logoUrl: null as string | null };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState("");
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [name, setName] = useState(initial.name);
+  const [logoUrl, setLogoUrl] = useState<string | null>(initial.logoUrl);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const lowerExisting = new Set(existingNames.map((n) => n.toLowerCase()));
-  const nameError = name.trim()
-    ? lowerExisting.has(name.trim().toLowerCase())
+  // 자기 자신 제외한 기존 이름들과 중복 체크
+  const lowerExisting = new Set(
+    existingNames
+      .filter((n) => !isEdit || n !== initial.name)
+      .map((n) => n.toLowerCase())
+  );
+  const trimmed = name.trim();
+  const nameError = trimmed
+    ? lowerExisting.has(trimmed.toLowerCase())
       ? "이미 존재하는 브랜드명입니다."
       : null
     : null;
@@ -67,27 +89,30 @@ export function BrandFormModal({ existingNames, onClose, onCreated }: BrandFormM
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (saving || nameError || !name.trim()) return;
+    if (saving || nameError || !trimmed) return;
 
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/brands", {
-        method: "POST",
+      const url = isEdit ? `/api/admin/brands/${initial.id}` : "/api/admin/brands";
+      const method = isEdit ? "PATCH" : "POST";
+      // displayOrder는 서버에서 1000(우선순위 5개 뒤)으로 강제. 클라이언트가 보내면
+      // brand-sort 규칙(우선순위 5개 + 가나다순)이 깨지므로 의도적으로 생략한다.
+      const payload = isEdit
+        ? { name: trimmed, logoUrl }
+        : { name: trimmed, logoUrl };
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          logoUrl,
-          displayOrder: existingNames.length,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error ?? "브랜드 생성 실패");
+        throw new Error(data.error ?? (isEdit ? "브랜드 수정 실패" : "브랜드 생성 실패"));
       }
-      onCreated(name.trim());
+      onSaved(trimmed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "브랜드 생성 중 오류");
+      setError(err instanceof Error ? err.message : "브랜드 저장 중 오류");
       setSaving(false);
     }
   };
@@ -100,7 +125,9 @@ export function BrandFormModal({ existingNames, onClose, onCreated }: BrandFormM
         animate={{ opacity: 1, y: 0 }}
         className="relative bg-white rounded-[14px] w-[420px] p-6 shadow-xl"
       >
-        <h3 className="text-[16px] font-bold text-[#1A1A2E] mb-5">브랜드 추가</h3>
+        <h3 className="text-[16px] font-bold text-[#1A1A2E] mb-5">
+          {isEdit ? "브랜드 수정" : "브랜드 추가"}
+        </h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -119,6 +146,12 @@ export function BrandFormModal({ existingNames, onClose, onCreated }: BrandFormM
               <p className="mt-1 text-[11px] text-red-500 flex items-center gap-1">
                 <AlertCircle size={11} />
                 {nameError}
+              </p>
+            )}
+            {isEdit && trimmed !== initial.name && trimmed && (
+              <p className="mt-1 text-[11px] text-[#6B7399] flex items-center gap-1">
+                <AlertCircle size={11} />
+                이름 변경 시 이 브랜드를 사용하는 차량들의 브랜드 표기도 함께 갱신됩니다.
               </p>
             )}
           </div>
@@ -185,11 +218,11 @@ export function BrandFormModal({ existingNames, onClose, onCreated }: BrandFormM
             </button>
             <button
               type="submit"
-              disabled={saving || uploading || !name.trim() || !!nameError}
+              disabled={saving || uploading || !trimmed || !!nameError}
               className="px-4 py-2 text-[13px] font-semibold text-white bg-[#000666] hover:bg-[#1A1F8F] rounded-[8px] transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
               {saving && <Loader2 size={13} className="animate-spin" />}
-              등록
+              {isEdit ? "저장" : "등록"}
             </button>
           </div>
         </form>

@@ -67,6 +67,9 @@ model Brand {
   name         String   @unique
   logoUrl      String?
   displayOrder Int      @default(0)
+  // 인기 브랜드 그룹 플래그. 정렬에서 일반 브랜드보다 우선 표시되고,
+  // 공개 페이지에서 "인기 브랜드" 섹션으로 묶어 보여줄 수 있다.
+  isFeatured   Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

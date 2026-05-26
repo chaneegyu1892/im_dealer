@@ -9,6 +9,8 @@ import type {
 } from "@/types/admin";
 import { fillDailyGaps } from "./shared";
 import { getCalcConditionDistribution } from "./quote-calc-stats";
+import { makeBrandComparator } from "@/lib/brand-sort";
+import { getBrandSignals } from "@/lib/brand-signals";
 
 export async function getAdminVehicles(brand?: string): Promise<AdminVehicle[]> {
   const vehicles = await prisma.vehicle.findMany({
@@ -249,9 +251,7 @@ export async function getVehicleQuoteStats(
 
 export async function getAdminBrands(): Promise<AdminBrand[]> {
   const [brands, counts] = await Promise.all([
-    prisma.brand.findMany({
-      orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-    }),
+    prisma.brand.findMany(),
     prisma.vehicle.groupBy({
       by: ["brand"],
       _count: { id: true },
@@ -260,11 +260,30 @@ export async function getAdminBrands(): Promise<AdminBrand[]> {
 
   const countMap = new Map(counts.map((g) => [g.brand, g._count.id]));
 
-  return brands.map((b) => ({
+  const enriched: AdminBrand[] = brands.map((b) => ({
     id: b.id,
     name: b.name,
     logoUrl: b.logoUrl,
     displayOrder: b.displayOrder,
+    isFeatured: b.isFeatured,
     vehicleCount: countMap.get(b.name) ?? 0,
   }));
+
+  // 정렬 SSOT: makeBrandComparator(signals).
+  // 자체 enriched 결과로 신호 맵을 구성해 외부 fetch 없이 정렬 가능.
+  const signals = new Map(
+    enriched.map((b) => [
+      b.name,
+      {
+        isFeatured: b.isFeatured,
+        displayOrder: b.displayOrder,
+        vehicleCount: b.vehicleCount,
+      },
+    ])
+  );
+  const cmp = makeBrandComparator(signals);
+  return enriched.sort((a, b) => cmp(a.name, b.name));
 }
+
+// 외부 호출처가 직접 signals 가 필요한 경우에 사용
+export { getBrandSignals };

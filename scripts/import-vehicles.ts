@@ -355,10 +355,12 @@ async function importModel(
     return;
   }
 
-  // 0) Brand upsert — 어드민 BrandList에서 보이도록 차량 이전에 등록
+  // 0) Brand upsert — 어드민 BrandList에서 보이도록 차량 이전에 등록.
+  //    우선순위 5개(현대/기아/제네시스/BMW/벤츠, displayOrder 1~5)의 뒤에 가나다순으로
+  //    배치되도록 신규 브랜드는 displayOrder=1000으로 통일한다.
   await prisma.brand.upsert({
     where: { name: brandName },
-    create: { name: brandName },
+    create: { name: brandName, displayOrder: 1000 },
     update: {},
   });
 

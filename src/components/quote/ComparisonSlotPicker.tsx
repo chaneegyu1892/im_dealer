@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { SelectRow, type SelectOption } from "./primitives";
 import type { VehicleListItem } from "@/types/api";
-import { compareBrandNames } from "@/lib/brand-sort";
+import { useBrandSignals } from "@/lib/use-brand-signals";
 
 export interface TrimOption {
   id: string;
@@ -53,15 +53,16 @@ export function ComparisonSlotPicker({
   const [trimsLoading, setTrimsLoading] = useState(false);
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
   const [selectedTrimId, setSelectedTrimId] = useState<string | null>(null);
+  const { comparator: brandComparator } = useBrandSignals();
 
   // 현재 차량 제외한 선택 가능 목록
-  // 어드민/공개 일관 정렬: 현대/기아/제네시스/BMW/벤츠 우선 + 가나다순
+  // 어드민/공개 일관 정렬 SSOT: isFeatured → 차량 수 → 가나다
   const vehicleOptions: SelectOption[] = useMemo(
     () =>
       [...allVehicles]
         .filter((v) => v.slug !== excludeSlug)
         .sort((a, b) => {
-          const brandDiff = compareBrandNames(a.brand, b.brand);
+          const brandDiff = brandComparator(a.brand, b.brand);
           if (brandDiff !== 0) return brandDiff;
           return a.name.localeCompare(b.name, "ko");
         })
@@ -69,7 +70,7 @@ export function ComparisonSlotPicker({
           value: v.slug,
           label: `${v.brand} ${v.name}`,
         })),
-    [allVehicles, excludeSlug],
+    [allVehicles, excludeSlug, brandComparator],
   );
 
   // 차량 선택 시 트림 로드

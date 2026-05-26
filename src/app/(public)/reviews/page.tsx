@@ -5,7 +5,8 @@ import {
   getVehiclesForReviewSelect,
 } from "@/lib/admin-queries/reviews";
 import { ReviewsGalleryClient } from "./ReviewsGalleryClient";
-import { compareBrandNames } from "@/lib/brand-sort";
+import { makeBrandComparator } from "@/lib/brand-sort";
+import { getBrandSignals } from "@/lib/brand-signals";
 
 export const metadata: Metadata = {
   title: "고객 후기 | 아임딜러",
@@ -16,14 +17,16 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function ReviewsPage() {
-  const [bestReviews, initialList, vehicles] = await Promise.all([
+  const [bestReviews, initialList, vehicles, brandSignals] = await Promise.all([
     getBestReviews({ limit: 6 }),
     listPublicReviews({ limit: 12, sort: "recent" }),
     getVehiclesForReviewSelect(),
+    getBrandSignals(),
   ]);
 
-  // 어드민/공개 일관 정렬: 현대/기아/제네시스/BMW/벤츠 우선 + 가나다순
-  const brands = Array.from(new Set(vehicles.map((v) => v.brand))).sort(compareBrandNames);
+  // 어드민/공개 일관 정렬 SSOT: isFeatured → 차량 수 → 가나다
+  const cmp = makeBrandComparator(brandSignals);
+  const brands = Array.from(new Set(vehicles.map((v) => v.brand))).sort(cmp);
 
   return (
     <div className="page-container py-10 md:py-14 space-y-10">

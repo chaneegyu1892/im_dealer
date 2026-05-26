@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Loader2, TrendingUp, Search } from "lucide-react";
 import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
-import { compareBrandNames } from "@/lib/brand-sort";
+import { useBrandSignals } from "@/lib/use-brand-signals";
 
 type ProductType = "장기렌트" | "리스";
 type RegistrationFilter = "all" | "registered" | "unregistered";
@@ -43,6 +43,7 @@ export default function QuoteLogicSimulator() {
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
   const [calcError, setCalcError] = useState<string>("");
+  const { comparator: brandComparator } = useBrandSignals();
 
   useEffect(() => {
     async function init() {
@@ -118,7 +119,7 @@ export default function QuoteLogicSimulator() {
     });
   }, [vehicles, searchQuery, registrationFilter, vehicleRegistrationStatus]);
 
-  // 차량 → 브랜드별 그룹 (어드민 일관 정렬: 현대/기아/제네시스/BMW/벤츠 우선, 그 외 가나다순)
+  // 차량 → 브랜드별 그룹 (SSOT 정렬: isFeatured → 차량 수 → 가나다)
   const groupedVehicles = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const v of filteredVehicles) {
@@ -126,8 +127,8 @@ export default function QuoteLogicSimulator() {
       list.push(v);
       map.set(v.brand, list);
     }
-    return new Map(Array.from(map.entries()).sort(([a], [b]) => compareBrandNames(a, b)));
-  }, [filteredVehicles]);
+    return new Map(Array.from(map.entries()).sort(([a], [b]) => brandComparator(a, b)));
+  }, [filteredVehicles, brandComparator]);
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
 
