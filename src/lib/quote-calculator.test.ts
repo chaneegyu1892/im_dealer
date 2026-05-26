@@ -35,8 +35,8 @@ describe("quote-calculator", () => {
       "60_20000": 0.012,
       "60_30000": 0.013,
     },
-    depositDiscountRate: -0.0005, // 보증금 10%당 0.05% 할인 (음수 저장)
-    prepayAdjustRate: 0.0002,     // 선납금 10%당 추가 0.02% 할인 (양수 저장, CLAUDE.md 규칙)
+    depositDiscountRate: -0.0005, // 보증금 10%당 0.05% 할인 (음수 전용)
+    prepayAdjustRate: -0.0002,    // 선납금 10%당 0.02% 할인 (음수=할인, 양수=가산)
   };
 
   const defaultInput: CalcInput = {
@@ -92,31 +92,77 @@ describe("quote-calculator", () => {
 
       // 기본 렌트료: 420,000원
       // 선납금 원금 차감액 (월): 900만원 / 48개월 = 187,500원
-      // 선납금 추가 할인율 (3단계): -0.0002 * 3 = -0.0006
-      // 선납금 추가 할인액: 3천만원 * 0.0006 = 18,000원
-      // 최종 월 렌트료 = 420,000 - 187,500 - 18,000 = 214,500원
+      // 선납금 조정율 (3단계): -0.0002 * 3 = -0.0006 (음수 = 할인)
+      // 선납금 조정액: 3천만원 * (-0.0006) = -18,000원
+      // 최종 월 렌트료 = 420,000 - 187,500 + (-18,000) = 214,500원
       expect(quote.baseMonthly).toBe(214500);
+    });
+
+    it("prepayAdjustRate 가 양수면 가산으로 동작해야 한다", () => {
+      const inputWithSurchargePrepay: CalcInput = {
+        ...defaultInput,
+        prepayRate: 30,
+        rateConfigs: [{ ...mockRateConfig, prepayAdjustRate: 0.0002 }],
+      };
+      const results = calculateMultiFinanceQuote(inputWithSurchargePrepay);
+      const quote = results[0];
+
+      // 선납금 조정율: +0.0002 * 3 = +0.0006 (양수 = 가산)
+      // 선납금 조정액: 3천만원 * 0.0006 = +18,000원
+      // 최종 = 420,000 - 187,500 + 18,000 = 250,500원
+      expect(quote.baseMonthly).toBe(250500);
     });
   });
 
-  describe("가산율(Surcharge) 적용 계산", () => {
-    it("차량 가산율과 순위 가산율이 누적되어 정확히 더해져야 한다", () => {
+  describe("가산율(Surcharge) 적용 계산 — 차량가 기준 합산", () => {
+    it("순위·차량 가산은 (차량가 × 가산율 ÷ 개월수) 로 합산되어야 한다", () => {
       const inputWithSurcharge: CalcInput = {
         ...defaultInput,
-        vehicleSurchargeRate: 5, // 차량 가산율 5%
-        rankSurchargeRates: [10], // 1순위 가산율 10%
+        vehicleSurchargeRate: 5,    // 차량 가산율 5%
+        rankSurchargeRates: [10],   // 1순위 가산율 10%
       };
-      
+
       const results = calculateMultiFinanceQuote(inputWithSurcharge);
       const quote = results[0];
 
       // 기본 렌트료: 420,000원
-      // 순위 가산(10%): 42,000원 -> 누적 462,000원
-      // 차량 가산(5%): 462,000 * 0.05 = 23,100원 -> 누적 485,100원
-      
-      expect(quote.surcharges.rankSurcharge).toBe(42000);
-      expect(quote.surcharges.vehicleSurcharge).toBe(23100);
-      expect(quote.monthlyPayment).toBe(485100);
+      // 순위 가산: 30,000,000 × 10% / 48개월 = 3,000,000 / 48 = 62,500원
+      // 차량 가산: 30,000,000 × 5% / 48개월  = 1,500,000 / 48 = 31,250원
+      // 금융사 가산: 0
+      // 최종 월 렌트료 = 420,000 + 62,500 + 31,250 = 513,750원
+      expect(quote.surcharges.rankSurcharge).toBe(62500);
+      expect(quote.surcharges.vehicleSurcharge).toBe(31250);
+      expect(quote.surcharges.financeSurcharge).toBe(0);
+      expect(quote.monthlyPayment).toBe(513750);
+    });
+
+    it("고객 명세 예시: 차량가 5천만 × 1% / 48개월 → 월 10,417원 가산", () => {
+      // 명세 예시는 단일 1% 가산. 차량 가산율 1% 로 모사.
+      const config: RateConfigData = {
+        ...mockRateConfig,
+        minVehiclePrice: 50_000_000,
+        maxVehiclePrice: 50_000_000,
+        minRateMatrix: { ...mockRateConfig.minRateMatrix, "48_20000": 0.01 },
+        maxRateMatrix: { ...mockRateConfig.maxRateMatrix, "48_20000": 0.01 },
+      };
+      const input: CalcInput = {
+        ...defaultInput,
+        vehiclePrice: 50_000_000,
+        contractMonths: 48,
+        annualMileage: 20000,
+        vehicleSurchargeRate: 1,
+        rankSurchargeRates: [0],
+        rateConfigs: [config],
+      };
+
+      const results = calculateMultiFinanceQuote(input);
+      const quote = results[0];
+
+      // 기본: 50,000,000 × 1% = 500,000원
+      // 차량 가산: 50,000,000 × 1% / 48 = 500,000 / 48 ≒ 10,416.67원
+      // 최종: 500,000 + 10,416.67 → round → 510,417원
+      expect(quote.baseMonthly).toBe(500000);
+      expect(quote.monthlyPayment).toBe(510417);
     });
   });
 

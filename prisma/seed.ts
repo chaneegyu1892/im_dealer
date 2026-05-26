@@ -488,8 +488,8 @@ function generateRateMatrix(baseRate: number): Record<string, Record<string, num
 
 // ─── CapitalRateSheet 헬퍼 ────────────────────────────────
 
-const DEPOSIT_DISCOUNT_RATE = -0.000523; // CLAUDE.md 규칙 준수
-const PREPAY_ADJUST_RATE = 0.000073;     // CLAUDE.md 규칙 준수
+const DEPOSIT_DISCOUNT_RATE = -0.000523; // 보증금은 항상 음수(할인 전용)
+const PREPAY_ADJUST_RATE = -0.000073;    // 선납금: 양수=가산, 음수=할인. 시드는 추가 할인 의도 → 음수
 
 /** 기준 회수율 × 기간·거리 조정 → RateSheetRaw (월 지불액, 원) */
 function buildBaseRates(vehiclePrice: number, baseRate: number): Record<string, number> {
@@ -512,14 +512,20 @@ function buildDepositRates(baseSheet: Record<string, number>, vehiclePrice: numb
   return Object.fromEntries(Object.entries(baseSheet).map(([k, v]) => [k, v + adj]));
 }
 
-/** 10% 선납금 적용 월 지불액 시트 */
+/**
+ * 10% 선납금 적용 월 지불액 시트
+ *
+ * 신 컨벤션: PREPAY_ADJUST_RATE 양수=가산, 음수=할인.
+ * calculator 의 applyPrepay 와 동일하게 `+ adjustAmount` 로 합산해야 결과적으로
+ * 시드 데이터의 부호 의미와 calculator 의 부호 의미가 일치한다.
+ */
 function buildPrepayRates(baseSheet: Record<string, number>, vehiclePrice: number): Record<string, number> {
   const adjustAmount = vehiclePrice * PREPAY_ADJUST_RATE * 1; // 1 step (10%)
   return Object.fromEntries(
     Object.entries(baseSheet).map(([key, monthly]) => {
       const months = parseInt(key.split("_")[0]);
       const prepayDeduction = (vehiclePrice * 0.10) / months;
-      return [key, Math.round(monthly - prepayDeduction - adjustAmount)];
+      return [key, Math.round(monthly - prepayDeduction + adjustAmount)];
     })
   );
 }
