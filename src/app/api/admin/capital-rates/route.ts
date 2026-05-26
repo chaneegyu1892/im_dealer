@@ -134,6 +134,17 @@ export async function POST(request: NextRequest) {
     const depositDiscountRate = calcDepositDiscountRate(minBaseRates, minDepositRates, minVehiclePrice);
     const prepayAdjustRate = calcPrepayAdjustRate(minBaseRates, minPrepayRates, minVehiclePrice);
 
+    // 보증금은 할인 전용 정책. 보증금 적용 견적이 기준 견적보다 비싸면(=가산 결과) 차단.
+    if (depositDiscountRate > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "보증금 적용 월 지불액이 기준 월 지불액보다 높습니다. 보증금은 할인(Deposit Discount) 전용이며 가산은 적용할 수 없습니다.",
+        },
+        { status: 400 }
+      );
+    }
+
     const weekDate = new Date(weekOf);
     const db = prisma as any;
 
