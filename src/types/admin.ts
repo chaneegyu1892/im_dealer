@@ -117,6 +117,7 @@ export interface AdminBrand {
   name: string;
   logoUrl: string | null;
   displayOrder: number;
+  isFeatured: boolean;
   vehicleCount: number;
 }
 

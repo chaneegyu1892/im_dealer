@@ -2,7 +2,8 @@ import type { Prisma } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 import { prisma } from "../prisma";
 import { maskAuthorName, formatReviewDate, maskPhone } from "../review-utils";
-import { compareBrandNames } from "../brand-sort";
+import { makeBrandComparator } from "../brand-sort";
+import { getBrandSignals } from "../brand-signals";
 import type {
   PublicReview,
   AdminReview,
@@ -310,14 +311,17 @@ export async function getAllReviewsForAdmin(): Promise<AdminReview[]> {
 }
 
 export async function getVehiclesForReviewSelect(): Promise<AdminReviewVehicleOption[]> {
-  const rows = await prisma.vehicle.findMany({
-    where: { isVisible: true },
-    select: { id: true, name: true, brand: true },
-  });
-  // 어드민/공개 일관 정렬: 현대/기아/제네시스/BMW/벤츠 우선 + 가나다순
-  // (Prisma orderBy로는 커스텀 우선순위 표현이 어려워 JS로 재정렬)
+  const [rows, signals] = await Promise.all([
+    prisma.vehicle.findMany({
+      where: { isVisible: true },
+      select: { id: true, name: true, brand: true },
+    }),
+    getBrandSignals(),
+  ]);
+  // 어드민/공개 일관 정렬 SSOT: isFeatured → 차량 수 → 가나다
+  const cmp = makeBrandComparator(signals);
   return [...rows].sort((a, b) => {
-    const brandDiff = compareBrandNames(a.brand, b.brand);
+    const brandDiff = cmp(a.brand, b.brand);
     if (brandDiff !== 0) return brandDiff;
     return a.name.localeCompare(b.name, "ko");
   });

@@ -24,7 +24,19 @@ export const brandCreateSchema = z.object({
   name: z.string().min(1, "브랜드명을 입력하세요").max(40),
   logoUrl: z.string().url().nullable().optional(),
   displayOrder: z.number().int().default(0),
+  isFeatured: z.boolean().default(false),
 });
+
+export const brandUpdateSchema = z
+  .object({
+    name: z.string().min(1, "브랜드명을 입력하세요").max(40).optional(),
+    logoUrl: z.string().url().nullable().optional(),
+    displayOrder: z.number().int().optional(),
+    isFeatured: z.boolean().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, {
+    message: "수정할 항목이 없습니다.",
+  });
 
 // ─── Lineup ─────────────────────────────────────────────
 export const lineupCreateSchema = z.object({

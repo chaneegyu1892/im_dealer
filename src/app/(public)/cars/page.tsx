@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
+import { getBrandSignals } from "@/lib/brand-signals";
+import type { BrandSignal } from "@/lib/brand-sort";
 import { CarsClientPage } from "./CarsClientPage";
 
 async function getVehicles(): Promise<VehicleListItem[]> {
@@ -83,6 +85,8 @@ async function getVehicles(): Promise<VehicleListItem[]> {
 }
 
 export default async function CarsPage() {
-  const vehicles = await getVehicles();
-  return <CarsClientPage vehicles={vehicles} />;
+  const [vehicles, signalsMap] = await Promise.all([getVehicles(), getBrandSignals()]);
+  // Map은 직렬화 안 되므로 plain object로 변환해 클라이언트 컴포넌트에 전달
+  const brandSignals: Record<string, BrandSignal> = Object.fromEntries(signalsMap);
+  return <CarsClientPage vehicles={vehicles} brandSignals={brandSignals} />;
 }

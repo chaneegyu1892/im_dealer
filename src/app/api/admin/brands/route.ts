@@ -4,6 +4,7 @@ import { getAdminBrands } from "@/lib/admin-queries";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { brandCreateSchema } from "@/lib/validations/admin";
 import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 // ─── GET /api/admin/brands ──────────────────────────────
 export async function GET() {
@@ -43,13 +44,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 신규 브랜드는 기본적으로 우선 5개 브랜드(현대/기아/제네시스/BMW/벤츠) 뒤에 가나다순으로 배치되도록
-    // displayOrder 기본값을 1000으로 사용. 정렬 키는 (displayOrder ASC, name ASC).
+    // displayOrder 는 데이터 보존용 컬럼이며 표시 순서엔 영향 없음.
+    // 표시 순서는 lib/brand-sort.ts 의 makeBrandComparator(signals) 가 결정한다
+    // (isFeatured 우선 → 차량 수 → 가나다).
     const brand = await prisma.brand.create({
       data: {
         name: parsed.data.name,
         logoUrl: parsed.data.logoUrl ?? null,
         displayOrder: parsed.data.displayOrder ?? 1000,
+        isFeatured: parsed.data.isFeatured ?? false,
       },
     });
 
@@ -61,6 +64,7 @@ export async function POST(request: NextRequest) {
       targetId: brand.id,
       after: brand,
     });
+    revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: brand }, { status: 201 });
   } catch (error) {
