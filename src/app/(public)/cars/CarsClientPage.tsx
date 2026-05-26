@@ -38,7 +38,6 @@ const BRAND_LOGO_MAP: Record<string, string> = {
   테슬라: "/images/vehicles/logos/tesla.svg",
 };
 
-const CATEGORY_ROWS: CategoryFilter[][] = [["전체", "세단", "SUV"], ["밴", "트럭"]];
 
 // ── 차종 아이콘 ────────────────────────────────────────────
 function CategoryIcon({ category }: { category: string }) {
@@ -278,7 +277,7 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
           return diff !== 0 ? diff : a.displayOrder - b.displayOrder;
         });
     }
-  }, [vehicles, categoryFilter, brandFilter, sortBy, featured, searchQuery]);
+  }, [vehicles, categoryFilter, brandFilter, sortBy, featured, searchQuery, brandSignals]);
 
   const suggestedVehicles = useMemo(() => {
     if (!searchQuery.trim() || filteredVehicles.length === 0) return [];
