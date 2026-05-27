@@ -340,22 +340,32 @@ export function calcRateMatrix(
   return result;
 }
 
-/** 보증금 10% 견적 → depositDiscountRate 계산 */
+/**
+ * 보증금 10% 견적 → depositDiscountRate 계산
+ *
+ * 부호 컨벤션: 음수 = 할인 (정상), 양수 = 가산 (정책 위반, API에서 차단됨).
+ * - 운영자가 dep < base (보증금 적용가가 기본가보다 낮음 = 할인 의도) 로 입력하면 음수 반환.
+ * - dep > base (실수로 더 높게 입력) 이면 양수 반환 → 어드민 API 가 400 으로 차단.
+ *
+ * calculator 의 applyDeposit 가 `baseRate + depositDiscountRate × steps` 식이므로
+ * 음수 반환 시 회수율이 감소 → 월대여료 감소 → 할인이 자연스럽게 적용된다.
+ */
 export function calcDepositDiscountRate(
   baseRates: RateSheetRaw,
   depositRates: RateSheetRaw,
   vehicleBasePrice: number
 ): number {
-  const discounts: number[] = [];
+  const adjustRates: number[] = [];
   for (const key of RATE_KEYS) {
     const base = baseRates[key] ?? 0;
     const dep = depositRates[key] ?? 0;
     if (base > 0 && dep > 0) {
-      discounts.push((base - dep) / vehicleBasePrice);
+      // dep < base (정상 할인) → 음수, dep > base (잘못된 입력) → 양수
+      adjustRates.push((dep - base) / vehicleBasePrice);
     }
   }
-  if (discounts.length === 0) return 0;
-  const avg = discounts.reduce((a, b) => a + b, 0) / discounts.length;
+  if (adjustRates.length === 0) return 0;
+  const avg = adjustRates.reduce((a, b) => a + b, 0) / adjustRates.length;
   return Math.round(avg * 100_000) / 100_000;
 }
 

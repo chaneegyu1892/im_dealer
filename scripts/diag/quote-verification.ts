@@ -9,9 +9,12 @@
 
 import {
   calculateMultiFinanceQuote,
+  calcDepositDiscountRate,
+  calcPrepayAdjustRate,
   type CalcInput,
   type RateConfigData,
 } from "../../src/lib/quote-calculator";
+import type { RateSheetRaw } from "../../src/types/admin";
 
 // ─── 헬퍼 ──────────────────────────────────────────────
 
@@ -182,6 +185,52 @@ function scenarioF_multi_finance_ranking() {
   console.log("  ※ 순위/차량/금융사 가산이 차량가 기준 합산 공식으로 적용");
 }
 
+function scenarioG_admin_helper_sign() {
+  console.log("\n━━━━━━━━━━ [G] 어드민 자동 산출 헬퍼 부호 검증 ━━━━━━━━━━");
+  console.log("  운영자가 캐피탈 견적표를 입력 → calcDepositDiscountRate / calcPrepayAdjustRate 가");
+  console.log("  올바른 부호로 산출하는지 확인 (이게 양수면 API 차단 발동).");
+
+  const VP = 50_000_000;
+  const baseMonthly = VP * 0.012506; // 약 625,300원
+  const make = (m: number): RateSheetRaw => ({
+    "36_10000": m, "36_20000": m, "36_30000": m,
+    "48_10000": m, "48_20000": m, "48_30000": m,
+    "60_10000": m, "60_20000": m, "60_30000": m,
+  });
+
+  // (1) 정상 보증금 입력 (dep < base) → 음수
+  const depDiscount = calcDepositDiscountRate(
+    make(baseMonthly),
+    make(baseMonthly - 25_000), // 보증금 적용 시 25,000원 할인
+    VP,
+  );
+  console.log(`  보증금 정상 (할인) :  ${depDiscount.toFixed(6)}  ${depDiscount < 0 ? "✅ 음수 → 정상 할인" : "❌ 양수 → 가산처럼 동작"}`);
+
+  // (2) 잘못된 보증금 입력 (dep > base) → 양수 → API 차단되어야 함
+  const depWrong = calcDepositDiscountRate(
+    make(baseMonthly),
+    make(baseMonthly + 25_000),
+    VP,
+  );
+  console.log(`  보증금 비정상(가산):  ${depWrong.toFixed(6)}  ${depWrong > 0 ? "✅ 양수 → API 400 차단 발동" : "❌ 음수 → 차단 안 됨"}`);
+
+  // (3) 선납금 할인 → 음수
+  const prepayDiscount = calcPrepayAdjustRate(
+    make(baseMonthly),
+    (() => {
+      const sheet: RateSheetRaw = {} as RateSheetRaw;
+      for (const k of ["36_10000","36_20000","36_30000","48_10000","48_20000","48_30000","60_10000","60_20000","60_30000"] as const) {
+        const months = Number(k.split("_")[0]);
+        const deduction = (VP * 0.1) / months;
+        sheet[k] = baseMonthly - deduction - 3_500;
+      }
+      return sheet;
+    })(),
+    VP,
+  );
+  console.log(`  선납금 할인        :  ${prepayDiscount.toFixed(6)}  ${prepayDiscount < 0 ? "✅ 음수 → 정상 할인" : "❌ 양수 → 가산"}`);
+}
+
 // ─── 실행 ──────────────────────────────────────────────
 
 console.log("================================================================");
@@ -193,6 +242,7 @@ scenarioC_prepay_discount();
 scenarioD_prepay_surcharge();
 scenarioE_customer_spec();
 scenarioF_multi_finance_ranking();
+scenarioG_admin_helper_sign();
 console.log("\n================================================================");
 console.log("  모든 시나리오 완료. 각 케이스의 결과값과 기대값을 비교하세요.");
 console.log("================================================================\n");

@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateMultiFinanceQuote,
+  calcDepositDiscountRate,
+  calcPrepayAdjustRate,
   getRateFromMatrix,
   type RateConfigData,
   type CalcInput,
 } from "./quote-calculator";
+import type { RateSheetRaw } from "@/types/admin";
 
 describe("quote-calculator", () => {
   const mockRateConfig: RateConfigData = {
@@ -172,11 +175,127 @@ describe("quote-calculator", () => {
         ...defaultInput,
         contractMonths: 12, // 12개월은 매트릭스에 없음
       };
-      
+
       const results = calculateMultiFinanceQuote(inputWithInvalidMonths);
-      
+
       // 유효한 회수율이 없으므로 결과 배열은 비어있어야 함
       expect(results).toHaveLength(0);
+    });
+  });
+
+  // ─── 어드민 자동 산출 헬퍼 검증 ───────────────────────────
+  describe("calcDepositDiscountRate 부호 컨벤션", () => {
+    const VEHICLE_PRICE = 50_000_000;
+
+    function makeSheet(rate: number): RateSheetRaw {
+      // 9개 키 모두 같은 월 지불액으로 채움 (헬퍼 평균 산출 검증용)
+      const months = VEHICLE_PRICE * rate;
+      return {
+        "36_10000": months, "36_20000": months, "36_30000": months,
+        "48_10000": months, "48_20000": months, "48_30000": months,
+        "60_10000": months, "60_20000": months, "60_30000": months,
+      };
+    }
+
+    it("dep < base (할인 정상 입력) 시 음수를 반환해야 한다", () => {
+      const base = makeSheet(0.012506);
+      // 보증금 적용 시 회수율 -0.0005 만큼 할인된 값으로 입력했다고 가정
+      const dep = makeSheet(0.012506 - 0.0005);
+
+      const result = calcDepositDiscountRate(base, dep, VEHICLE_PRICE);
+      expect(result).toBeLessThan(0);
+      // -0.0005 근사
+      expect(result).toBeCloseTo(-0.0005, 4);
+    });
+
+    it("dep > base (잘못된 가산 입력) 시 양수를 반환해야 한다 (API가 차단)", () => {
+      const base = makeSheet(0.012506);
+      const dep = makeSheet(0.012506 + 0.0003);
+
+      const result = calcDepositDiscountRate(base, dep, VEHICLE_PRICE);
+      expect(result).toBeGreaterThan(0);
+    });
+
+    it("입력 시트가 비어 있으면 0 반환", () => {
+      const empty: RateSheetRaw = {
+        "36_10000": 0, "36_20000": 0, "36_30000": 0,
+        "48_10000": 0, "48_20000": 0, "48_30000": 0,
+        "60_10000": 0, "60_20000": 0, "60_30000": 0,
+      };
+      expect(calcDepositDiscountRate(empty, empty, VEHICLE_PRICE)).toBe(0);
+    });
+
+    it("calculator 와 일관 동작: 음수 반환값을 calculator 에 넣으면 할인 적용", () => {
+      const base = makeSheet(0.012506);
+      const dep = makeSheet(0.012506 - 0.0005);
+      const discountRate = calcDepositDiscountRate(base, dep, VEHICLE_PRICE);
+      expect(discountRate).toBeLessThan(0);
+
+      // 헬퍼 산출값을 calculator 에 그대로 주입해 할인이 적용되는지 검증
+      const config: RateConfigData = {
+        ...mockRateConfig,
+        minVehiclePrice: VEHICLE_PRICE,
+        maxVehiclePrice: VEHICLE_PRICE,
+        minRateMatrix: { ...mockRateConfig.minRateMatrix, "48_20000": 0.012506 },
+        maxRateMatrix: { ...mockRateConfig.maxRateMatrix, "48_20000": 0.012506 },
+        depositDiscountRate: discountRate,
+      };
+      const withDeposit = calculateMultiFinanceQuote({
+        ...defaultInput,
+        vehiclePrice: VEHICLE_PRICE,
+        depositRate: 10,
+        rateConfigs: [config],
+      })[0];
+      const noDeposit = calculateMultiFinanceQuote({
+        ...defaultInput,
+        vehiclePrice: VEHICLE_PRICE,
+        depositRate: 0,
+        rateConfigs: [config],
+      })[0];
+
+      expect(withDeposit.baseMonthly).toBeLessThan(noDeposit.baseMonthly);
+    });
+  });
+
+  describe("calcPrepayAdjustRate 부호 컨벤션", () => {
+    const VEHICLE_PRICE = 50_000_000;
+
+    function makeSheet(monthly: number): RateSheetRaw {
+      return {
+        "36_10000": monthly, "36_20000": monthly, "36_30000": monthly,
+        "48_10000": monthly, "48_20000": monthly, "48_30000": monthly,
+        "60_10000": monthly, "60_20000": monthly, "60_30000": monthly,
+      };
+    }
+
+    it("선납금 적용 시 base 보다 낮으면 (할인) 음수 반환", () => {
+      const base = makeSheet(VEHICLE_PRICE * 0.012506);
+      // prepay 시 base - prepayDeduction - extra(할인)
+      // 36개월 prepayDeduction = 50M * 0.1 / 36 = 138,888.89
+      // 정확한 음수 산출 확인용
+      const prepay: RateSheetRaw = {} as RateSheetRaw;
+      for (const k of Object.keys(base)) {
+        const [m] = k.split("_");
+        const months = Number(m);
+        const deduction = (VEHICLE_PRICE * 0.1) / months;
+        prepay[k as keyof RateSheetRaw] = (base[k as keyof RateSheetRaw] ?? 0) - deduction - 3000;
+      }
+      const result = calcPrepayAdjustRate(base, prepay, VEHICLE_PRICE);
+      expect(result).toBeLessThan(0);
+    });
+
+    it("선납금 적용 시 base 보다 높으면 (가산) 양수 반환", () => {
+      const base = makeSheet(VEHICLE_PRICE * 0.012506);
+      const prepay: RateSheetRaw = {} as RateSheetRaw;
+      for (const k of Object.keys(base)) {
+        const [m] = k.split("_");
+        const months = Number(m);
+        const deduction = (VEHICLE_PRICE * 0.1) / months;
+        // base - deduction + 가산 → prepay 가 base - deduction 보다 큼
+        prepay[k as keyof RateSheetRaw] = (base[k as keyof RateSheetRaw] ?? 0) - deduction + 3000;
+      }
+      const result = calcPrepayAdjustRate(base, prepay, VEHICLE_PRICE);
+      expect(result).toBeGreaterThan(0);
     });
   });
 });
