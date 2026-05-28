@@ -4,12 +4,27 @@ import type { User } from "@prisma/client";
 import { ADMIN_ROLES, type AdminRole } from "@/lib/admin-roles";
 
 // 현재 로그인된 사용자 행 반환 (member 포함, isActive 무관 — 호출자에서 처리)
+// supabaseId 우선 조회 → 없으면 email fallback → supabaseId 자동 연결
 export async function getCurrentUser(): Promise<User | null> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
-    return prisma.user.findUnique({ where: { supabaseId: user.id } });
+
+    let dbUser = await prisma.user.findUnique({ where: { supabaseId: user.id } });
+
+    // supabaseId 미연결 계정을 이메일로 찾아 자동 연결
+    if (!dbUser && user.email) {
+      dbUser = await prisma.user.findFirst({ where: { email: user.email } });
+      if (dbUser && !dbUser.supabaseId) {
+        dbUser = await prisma.user.update({
+          where: { id: dbUser.id },
+          data: { supabaseId: user.id },
+        });
+      }
+    }
+
+    return dbUser;
   } catch (error) {
     console.error("[getCurrentUser] Supabase session check failed:", error);
     return null;

@@ -640,3 +640,12 @@ model AdminNotification {
   @@index([isRead])
   @@index([createdAt])
 }
+
+// AI 추천 플로우 전역 설정 (싱글톤 — id = "singleton")
+model RecommendFlowConfig {
+  id        String   @id @default("singleton")
+  questions Json     // 질문·선택지 텍스트 오버라이드
+  scoring   Json     // 점수 규칙 파라미터
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}

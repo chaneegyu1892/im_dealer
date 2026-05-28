@@ -118,10 +118,21 @@ export default async function middleware(request: NextRequest) {
     let isAdmin = false;
     if (user) {
       try {
-        const dbUser = await prisma.user.findUnique({
+        let dbUser = await prisma.user.findUnique({
           where: { supabaseId: user.id },
-          select: { role: true, isActive: true },
+          select: { id: true, role: true, isActive: true, supabaseId: true },
         });
+        // supabaseId 미연결 계정을 이메일로 fallback 조회 후 자동 연결
+        if (!dbUser && user.email) {
+          const byEmail = await prisma.user.findFirst({
+            where: { email: user.email },
+            select: { id: true, role: true, isActive: true, supabaseId: true },
+          });
+          if (byEmail && !byEmail.supabaseId) {
+            await prisma.user.update({ where: { id: byEmail.id }, data: { supabaseId: user.id } });
+            dbUser = { ...byEmail, supabaseId: user.id };
+          }
+        }
         isAdmin =
           !!dbUser?.isActive &&
           (ADMIN_ROLES as readonly string[]).includes(dbUser?.role ?? "");

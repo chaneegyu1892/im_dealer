@@ -1326,7 +1326,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     )}
                   </>
                 )}
-                )}
 
                 {/* 면책 안내 */}
                 <div className="bg-neutral rounded-[8px] border border-[#F0F0F0] p-4 text-[12px] text-ink-caption mb-4 leading-relaxed">
