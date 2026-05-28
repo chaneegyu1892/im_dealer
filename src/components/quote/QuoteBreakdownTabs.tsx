@@ -15,7 +15,8 @@ type CostMode = "none" | "initial";
 type CostType = "deposit" | "prepay";
 
 // ─── 상수 ─────────────────────────────────────────────────
-const PRESET_RATES = [10, 20, 30, 40] as const;
+const PRESET_RATES = [10, 20, 30] as const;
+const RATE_MAX = 30;
 
 const APPROVAL_COPY: Record<ApprovalPreviewLevel, {
   label: string; message: string;
@@ -310,7 +311,7 @@ export function QuoteBreakdownTabs({
                 <input
                   type="number"
                   min={0}
-                  max={40}
+                  max={RATE_MAX}
                   value={directValue}
                   onChange={(e) => setDirectValue(e.target.value)}
                   placeholder="0"
@@ -321,7 +322,7 @@ export function QuoteBreakdownTabs({
               <button
                 type="button"
                 onClick={() => {
-                  const v = Math.min(40, Math.max(0, parseInt(directValue) || 0));
+                  const v = Math.min(RATE_MAX, Math.max(0, parseInt(directValue) || 0));
                   applyRate(v);
                   setDirectValue(String(v));
                 }}
@@ -333,13 +334,13 @@ export function QuoteBreakdownTabs({
           )}
 
           {/* 슬라이더 */}
-          <div className="space-y-2">
+          <div className="space-y-1">
             <div className="relative h-5 flex items-center">
               <div className="absolute inset-x-0 h-[6px] rounded-full bg-[#E2E8F0] overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-300"
                   style={{
-                    width: `${(activeRate / 40) * 100}%`,
+                    width: `${(activeRate / RATE_MAX) * 100}%`,
                     background: "linear-gradient(90deg, #000666 0%, #6066EE 100%)",
                   }}
                 />
@@ -347,8 +348,8 @@ export function QuoteBreakdownTabs({
               <input
                 type="range"
                 min={0}
-                max={40}
-                step={5}
+                max={RATE_MAX}
+                step={1}
                 value={activeRate}
                 onChange={(e) => {
                   applyRate(Number(e.target.value));
@@ -360,19 +361,30 @@ export function QuoteBreakdownTabs({
               <div
                 className="absolute w-5 h-5 rounded-full -translate-x-1/2 pointer-events-none transition-all duration-300 shadow-md"
                 style={{
-                  left: `${(activeRate / 40) * 100}%`,
+                  left: `${(activeRate / RATE_MAX) * 100}%`,
                   background: "#fff",
                   border: "2.5px solid #000666",
                   boxShadow: activeRate > 0 ? "0 1px 8px rgba(0,6,102,0.3)" : "0 1px 4px rgba(0,0,0,0.15)",
                 }}
               />
             </div>
-            <div className="flex justify-between text-[10px] text-ink-caption px-1">
-              <span>없음</span>
-              <span>10%</span>
-              <span>20%</span>
-              <span>30%</span>
-              <span>40%</span>
+            {/* 클릭 가능한 눈금 레이블 */}
+            <div className="flex justify-between px-0.5">
+              {[0, 10, 20, 30].map((tick) => (
+                <button
+                  key={tick}
+                  type="button"
+                  onClick={() => { applyRate(tick); setDirectMode(false); }}
+                  className={cn(
+                    "text-[10px] font-medium transition-colors px-0.5",
+                    activeRate === tick
+                      ? "text-primary font-bold"
+                      : "text-ink-caption hover:text-primary"
+                  )}
+                >
+                  {tick === 0 ? "0%" : `${tick}%`}
+                </button>
+              ))}
             </div>
           </div>
 

@@ -1308,6 +1308,11 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           brand: selectedVehicle.brand,
                           name: selectedVehicle.name,
                           result: quoteResult,
+                          // 비교 패널에 필요한 추가 정보
+                          thumbnailUrl: selectedVehicle.thumbnailUrl,
+                          trims: trims,
+                          currentTrimId: effectiveTrimId,
+                          currentOptionIds: selectedOptionIds,
                         }}
                         conditions={{
                           contractMonths: conditions.contractMonths,
@@ -1315,7 +1320,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           contractType: "반납형",
                           productType: contractCategory,
                         }}
-                        customRates={{ depositRate: 0, prepayRate: 0 }}
                         allVehicles={vehicles}
                       />
                     )}
