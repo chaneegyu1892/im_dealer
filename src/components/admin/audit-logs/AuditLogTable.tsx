@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ShieldCheck, Filter, X, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -151,9 +151,8 @@ export function AuditLogTable({ logs, filter }: AuditLogTableProps) {
                 const isOpen = expanded.has(log.id);
                 const hasDiff = log.diff && Object.keys(log.diff).length > 0;
                 return (
-                  <>
+                  <React.Fragment key={log.id}>
                     <tr
-                      key={log.id}
                       className={cn(
                         "border-b border-[#F0F2F8] hover:bg-[#F8F9FC]",
                         hasDiff && "cursor-pointer"
@@ -203,7 +202,7 @@ export function AuditLogTable({ logs, filter }: AuditLogTableProps) {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 );
               })
             )}
