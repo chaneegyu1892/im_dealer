@@ -4,8 +4,8 @@ import { Check } from "lucide-react";
 const STEPS = [
   { id: 1, label: "업종" },
   { id: 2, label: "목적" },
-  { id: 3, label: "예산" },
-  { id: 4, label: "성향" },
+  { id: 3, label: "예산·납입" },
+  { id: 4, label: "주행·연료" },
 ] as const;
 
 type StepId = (typeof STEPS)[number]["id"];

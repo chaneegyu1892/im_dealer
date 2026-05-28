@@ -19,6 +19,25 @@ export const vehicleCreateSchema = z.object({
 
 export const vehicleUpdateSchema = vehicleCreateSchema.partial();
 
+// ─── Brand ──────────────────────────────────────────────
+export const brandCreateSchema = z.object({
+  name: z.string().min(1, "브랜드명을 입력하세요").max(40),
+  logoUrl: z.string().url().nullable().optional(),
+  displayOrder: z.number().int().default(0),
+  isFeatured: z.boolean().default(false),
+});
+
+export const brandUpdateSchema = z
+  .object({
+    name: z.string().min(1, "브랜드명을 입력하세요").max(40).optional(),
+    logoUrl: z.string().url().nullable().optional(),
+    displayOrder: z.number().int().optional(),
+    isFeatured: z.boolean().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, {
+    message: "수정할 항목이 없습니다.",
+  });
+
 // ─── Lineup ─────────────────────────────────────────────
 export const lineupCreateSchema = z.object({
   name: z.string().min(1, "라인업명을 입력하세요"),
@@ -52,6 +71,28 @@ export const optionCreateSchema = z.object({
 });
 
 export const optionUpdateSchema = optionCreateSchema.partial();
+
+// ─── VehicleColor ───────────────────────────────────────
+const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;
+
+export const vehicleColorCreateSchema = z.object({
+  kind: z.enum(["EXTERIOR", "INTERIOR"]),
+  name: z.string().min(1, "색상명을 입력하세요").max(60),
+  hexCode: z.string().regex(HEX_REGEX, "Hex 색상 코드는 #RRGGBB 형식이어야 합니다"),
+  imageUrl: z
+    .string()
+    .max(1000)
+    .refine((v) => v.startsWith("/") || /^https?:\/\//.test(v), {
+      message: "이미지 URL은 절대 URL 또는 / 로 시작하는 경로여야 합니다",
+    })
+    .nullable()
+    .optional(),
+  priceDelta: z.number().int().min(0, "추가요금은 0 이상이어야 합니다").default(0),
+  isDefault: z.boolean().default(false),
+  sortOrder: z.number().int().default(0),
+});
+
+export const vehicleColorUpdateSchema = vehicleColorCreateSchema.partial();
 
 // ─── OptionRule ─────────────────────────────────────────
 export const ruleCreateSchema = z.object({

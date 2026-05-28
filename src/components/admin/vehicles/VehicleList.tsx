@@ -30,7 +30,7 @@ export function VehicleList({
   onDelete,
 }: VehicleListProps) {
   return (
-    <div className="w-full md:w-[360px] border-r border-[#E8EAF0] flex flex-col shrink-0 bg-white">
+    <div className="w-full md:w-[360px] h-full border-r border-[#E8EAF0] flex flex-col shrink-0 min-h-0 bg-white">
       <div className="p-4 border-b border-[#E8EAF0] flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-[14px] font-semibold text-[#1A1A2E] flex items-center gap-1.5">

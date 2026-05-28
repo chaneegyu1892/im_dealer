@@ -5,10 +5,6 @@ import { isAdminLike } from "@/lib/admin-roles";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
-function isUniqueConstraintError(error: unknown) {
-  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
-}
-
 export async function GET() {
   try {
     const session = await getAdminSession();
@@ -19,7 +15,8 @@ export async function GET() {
     });
 
     return NextResponse.json({ success: true, data: financeCompanies });
-  } catch {
+  } catch (error) {
+    console.error("[GET /api/admin/finance-companies]", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
@@ -32,32 +29,43 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const name = String(body.name ?? "").trim();
-    const code = String(body.code ?? "").trim().toUpperCase();
-    const surchargeRate = Number(body.surchargeRate ?? 0);
-    const isActive = body.isActive ?? true;
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    const code = typeof body?.code === "string" ? body.code.trim().toUpperCase() : "";
+    const surchargeRate = Number(body?.surchargeRate ?? 0);
+    const isActive = typeof body?.isActive === "boolean" ? body.isActive : true;
 
     if (!name || !code) {
-      return NextResponse.json({ error: "캐피탈사명과 코드는 필수입니다." }, { status: 400 });
+      return NextResponse.json(
+        { error: "캐피탈사명과 코드를 입력해 주세요." },
+        { status: 400 }
+      );
     }
-
     if (!Number.isFinite(surchargeRate)) {
-      return NextResponse.json({ error: "가산율은 숫자여야 합니다." }, { status: 400 });
+      return NextResponse.json(
+        { error: "가산율은 숫자로 입력해 주세요." },
+        { status: 400 }
+      );
     }
 
-    const last = await prisma.financeCompany.findFirst({
-      orderBy: { displayOrder: "desc" },
-      select: { displayOrder: true },
+    const duplicate = await prisma.financeCompany.findFirst({
+      where: { OR: [{ name }, { code }] },
+      select: { name: true, code: true },
     });
+    if (duplicate) {
+      const conflictField = duplicate.name === name ? "캐피탈사명" : "코드";
+      return NextResponse.json(
+        { error: `이미 등록된 ${conflictField}입니다.` },
+        { status: 400 }
+      );
+    }
+
+    const maxOrder = await prisma.financeCompany.aggregate({
+      _max: { displayOrder: true },
+    });
+    const displayOrder = (maxOrder._max.displayOrder ?? 0) + 1;
 
     const created = await prisma.financeCompany.create({
-      data: {
-        name,
-        code,
-        surchargeRate,
-        isActive: Boolean(isActive),
-        displayOrder: (last?.displayOrder ?? 0) + 1,
-      },
+      data: { name, code, surchargeRate, isActive, displayOrder },
     });
 
     await logAdminAction({
@@ -71,10 +79,7 @@ export async function POST(req: NextRequest) {
     revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: created }, { status: 201 });
-  } catch (error: unknown) {
-    if (isUniqueConstraintError(error)) {
-      return NextResponse.json({ error: "이미 사용 중인 캐피탈사명 또는 코드입니다." }, { status: 409 });
-    }
+  } catch (error) {
     console.error("[POST /api/admin/finance-companies]", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

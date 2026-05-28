@@ -8,6 +8,7 @@ import type {
 } from "@/types/admin";
 import RateInputForm from "./RateInputForm";
 import RateHistory from "./RateHistory";
+import { useBrandSignals } from "@/lib/use-brand-signals";
 
 interface VehicleLineup {
   id: string;
@@ -18,6 +19,7 @@ interface TrimBasic {
   id: string;
   name: string;
   price: number;
+  discountPrice: number | null;
   lineupId: string | null;
 }
 
@@ -29,12 +31,13 @@ interface VehicleWithLineups {
   trims: TrimBasic[];
 }
 
-interface SessionSavedTrim {
-  trimId: string;
-  trimName: string;
+interface SessionSavedLineup {
+  lineupId: string;
+  lineupName: string;
   vehicleId: string;
   vehicleName: string;
   brand: string;
+  trimCount: number;
   savedAt: string;
 }
 
@@ -66,6 +69,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const [companyError, setCompanyError] = useState("");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
+  const { comparator: brandComparator } = useBrandSignals();
 
   const vehiclesByBrand = useMemo(() => {
     const map = new Map<string, AdminVehicle[]>();
@@ -74,8 +78,9 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       list.push(v);
       map.set(v.brand, list);
     }
-    return map;
-  }, [vehicles]);
+    // 어드민 일관 정렬 SSOT: isFeatured → 차량 수 → 가나다
+    return new Map(Array.from(map.entries()).sort(([a], [b]) => brandComparator(a, b)));
+  }, [vehicles, brandComparator]);
 
   const toggleBrand = useCallback((brand: string) => {
     setExpandedBrands((prev) => {
@@ -86,16 +91,14 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     });
   }, []);
   const [vehicleDetail, setVehicleDetail] = useState<VehicleWithLineups | null>(null);
-  const [selectedLineupId, setSelectedLineupId] = useState<string>("");
-  const [selectedTrimIds, setSelectedTrimIds] = useState<Set<string>>(new Set());
-  const [trimSearch, setTrimSearch] = useState("");
+  const [selectedLineupIds, setSelectedLineupIds] = useState<Set<string>>(new Set());
   const [selectedProductType, setSelectedProductType] = useState<"장기렌트" | "리스">("장기렌트");
   const [activeSheets, setActiveSheets] = useState<CapitalRateSheet[]>([]);
   const [historySheets, setHistorySheets] = useState<CapitalRateSheet[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [isWritingSession, setIsWritingSession] = useState(false);
-  const [sessionSavedTrims, setSessionSavedTrims] = useState<SessionSavedTrim[]>([]);
+  const [sessionSavedLineups, setSessionSavedLineups] = useState<SessionSavedLineup[]>([]);
 
   const selectedFc = localFinanceCompanies.find((f) => f.id === selectedFcId);
 
@@ -108,27 +111,25 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     setSelectedFcId(localFinanceCompanies[0].id);
   }, [localFinanceCompanies, selectedFcId]);
 
-  const sessionSavedTrimIds = useMemo(() => {
-    return new Set(sessionSavedTrims.map((item) => item.trimId));
-  }, [sessionSavedTrims]);
+  const sessionSavedLineupIds = useMemo(() => {
+    return new Set(sessionSavedLineups.map((item) => item.lineupId));
+  }, [sessionSavedLineups]);
 
   const sessionSavedByVehicle = useMemo(() => {
-    const map = new Map<string, SessionSavedTrim[]>();
-    for (const item of sessionSavedTrims) {
+    const map = new Map<string, SessionSavedLineup[]>();
+    for (const item of sessionSavedLineups) {
       const list = map.get(item.vehicleId) ?? [];
       list.push(item);
       map.set(item.vehicleId, list);
     }
     return map;
-  }, [sessionSavedTrims]);
+  }, [sessionSavedLineups]);
 
   // 차량 선택 시 상세(라인업+트림) 로드
   useEffect(() => {
     if (!selectedVehicleId) {
       setVehicleDetail(null);
-      setSelectedLineupId("");
-      setSelectedTrimIds(new Set());
-      setTrimSearch("");
+      setSelectedLineupIds(new Set());
       return;
     }
     setLoadingDetail(true);
@@ -137,72 +138,61 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       .then((res) => {
         const vehicle = res.data ?? res; // { success, data } 또는 직접 vehicle
         setVehicleDetail(vehicle);
-        const firstLineup = vehicle.lineups?.[0];
-        setSelectedLineupId(firstLineup?.id ?? "");
-        setSelectedTrimIds(new Set());
+        setSelectedLineupIds(new Set());
       })
       .catch(console.error)
       .finally(() => setLoadingDetail(false));
   }, [selectedVehicleId]);
 
-  // 라인업 변경 시 트림 초기화
-  useEffect(() => { 
-    setSelectedTrimIds(new Set()); 
-    setTrimSearch("");
-  }, [selectedLineupId]);
-
-  // 키워드 검색: 공백 기준으로 쪼갠 각 토큰이 트림명(공백 제거)에 모두 포함되어야 매칭.
-  // 공백 없이 붙여 쓴 경우 한글↔숫자 경계로 추가 분해하여 순서 무관 매칭.
-  function matchesTrimSearch(trimName: string, query: string): boolean {
-    if (!query.trim()) return true;
-    const normName = trimName.toLowerCase().replace(/\s+/g, "");
-    const spaceTokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return spaceTokens.every((token) => {
-      if (normName.includes(token)) return true;
-      // 한글↔숫자 경계로 분해 후 각 조각이 normName에 존재하는지 확인
-      const subTokens = token
-        .split(/(?<=[가-힣])(?=[0-9])|(?<=[0-9])(?=[가-힣])/)
-        .filter(Boolean);
-      return subTokens.length > 1 && subTokens.every((sub) => normName.includes(sub));
-    });
-  }
-
-  // 현재 라인업의 트림 목록 (검색 필터 적용)
-  const trimsInLineup = useMemo<TrimBasic[]>(() => {
+  // 선택된 라인업들에 속한 모든 트림 ID 자동 도출 (B안: 라인업 단위 입력 → 백엔드는 트림 단위 저장)
+  const derivedTrimIds = useMemo<string[]>(() => {
     if (!vehicleDetail) return [];
-    let list = vehicleDetail.trims.filter((t) => t.lineupId === selectedLineupId);
-    if (trimSearch) {
-      list = list.filter((t) => matchesTrimSearch(t.name, trimSearch));
-    }
-    return list;
-  }, [vehicleDetail, selectedLineupId, trimSearch]);
+    return vehicleDetail.trims
+      .filter((t) => t.lineupId && selectedLineupIds.has(t.lineupId))
+      .map((t) => t.id);
+  }, [vehicleDetail, selectedLineupIds]);
 
-  const selectedTrims = useMemo(() => {
-    if (!vehicleDetail) return [];
-    return vehicleDetail.trims.filter(t => selectedTrimIds.has(t.id));
-  }, [vehicleDetail, selectedTrimIds]);
+  // 선택된 라인업 내 트림 가격 기준 자동 MIN/MAX (A안: 여유분 없이 정확한 값. discountPrice 우선)
+  const autoPriceRange = useMemo(() => {
+    if (!vehicleDetail) return null;
+    const trims = vehicleDetail.trims.filter(
+      (t) => t.lineupId && selectedLineupIds.has(t.lineupId)
+    );
+    if (trims.length === 0) return null;
+    const prices = trims.map((t) => t.discountPrice ?? t.price);
+    return {
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+    };
+  }, [vehicleDetail, selectedLineupIds]);
 
-  const toggleTrim = useCallback((id: string) => {
-    if (isWritingSession && sessionSavedTrimIds.has(id)) return;
-    setSelectedTrimIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    setShowHistory(false);
-  }, [isWritingSession, sessionSavedTrimIds]);
+  const toggleLineup = useCallback(
+    (id: string) => {
+      if (isWritingSession && sessionSavedLineupIds.has(id)) return;
+      setSelectedLineupIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+      setShowHistory(false);
+    },
+    [isWritingSession, sessionSavedLineupIds]
+  );
 
-  const selectAllTrims = () => {
-    setSelectedTrimIds(new Set(
-      trimsInLineup
-        .filter((t) => !isWritingSession || !sessionSavedTrimIds.has(t.id))
-        .map((t) => t.id)
-    ));
+  const selectAllLineups = () => {
+    if (!vehicleDetail) return;
+    setSelectedLineupIds(
+      new Set(
+        vehicleDetail.lineups
+          .filter((l) => !isWritingSession || !sessionSavedLineupIds.has(l.id))
+          .map((l) => l.id)
+      )
+    );
   };
 
-  const deselectAllTrims = () => {
-    setSelectedTrimIds(new Set());
+  const deselectAllLineups = () => {
+    setSelectedLineupIds(new Set());
   };
 
   // 활성 시트 로드 (캐피탈사 선택 시)
@@ -214,70 +204,92 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       .catch(console.error);
   }, [selectedFcId]);
 
-  // 이력 로드 (다중 선택 시에는 마지막 선택된 트림 기준 또는 첫 번째 기준 - 여기서는 편의상 첫 번째)
+  // 이력 로드 — 1개 라인업만 선택된 경우, 그 라인업의 대표 트림(첫 트림) 기준으로 조회
+  const firstDerivedTrimId = derivedTrimIds[0];
   useEffect(() => {
-    const firstId = Array.from(selectedTrimIds)[0];
-    if (!selectedFcId || !firstId || !showHistory) return;
-    fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}&trimId=${firstId}&history=true`)
+    if (!selectedFcId || !firstDerivedTrimId || !showHistory) return;
+    if (selectedLineupIds.size !== 1) return;
+    fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}&trimId=${firstDerivedTrimId}&history=true`)
       .then((r) => r.json())
       .then((res) => setHistorySheets(res.data ?? []))
       .catch(console.error);
-  }, [selectedFcId, selectedTrimIds, showHistory]);
+  }, [selectedFcId, firstDerivedTrimId, showHistory, selectedLineupIds]);
 
+  // 현재 라인업 대표 시트 — 라인업 내 첫 트림의 시트 (B안: 모든 트림이 동일값이라는 전제)
   const currentSheet = useMemo(() => {
-    const firstId = Array.from(selectedTrimIds)[0];
-    return activeSheets.find((s) => s.trimId === firstId && s.productType === selectedProductType);
-  }, [activeSheets, selectedTrimIds, selectedProductType]);
+    if (!firstDerivedTrimId) return undefined;
+    return activeSheets.find(
+      (s) => s.trimId === firstDerivedTrimId && s.productType === selectedProductType
+    );
+  }, [activeSheets, firstDerivedTrimId, selectedProductType]);
+
+  // 라인업 내 트림들의 시트값이 서로 다른 경우 안내용 플래그
+  const hasMixedSheetsInLineup = useMemo(() => {
+    if (selectedLineupIds.size !== 1 || derivedTrimIds.length <= 1) return false;
+    const sheets = derivedTrimIds
+      .map((tid) => activeSheets.find((s) => s.trimId === tid && s.productType === selectedProductType))
+      .filter((s) => s !== undefined) as CapitalRateSheet[];
+    if (sheets.length <= 1) return false;
+    const first = sheets[0];
+    return sheets.some(
+      (s) =>
+        s.minVehiclePrice !== first.minVehiclePrice ||
+        s.maxVehiclePrice !== first.maxVehiclePrice ||
+        JSON.stringify(s.minBaseRates) !== JSON.stringify(first.minBaseRates) ||
+        JSON.stringify(s.maxBaseRates) !== JSON.stringify(first.maxBaseRates)
+    );
+  }, [selectedLineupIds, derivedTrimIds, activeSheets, selectedProductType]);
 
   const handleSaved = (savedTrimIds: string[] = []) => {
     fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
       .then((r) => r.json())
       .then((res) => setActiveSheets(res.data ?? []));
-    
-    const firstId = Array.from(selectedTrimIds)[0];
-    if (showHistory && firstId) {
-      fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}&trimId=${firstId}&history=true`)
+
+    if (showHistory && firstDerivedTrimId && selectedLineupIds.size === 1) {
+      fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}&trimId=${firstDerivedTrimId}&history=true`)
         .then((r) => r.json())
         .then((res) => setHistorySheets(res.data ?? []));
     }
 
     if (isWritingSession && vehicleDetail && savedTrimIds.length > 0) {
       const savedAt = new Date().toISOString();
-      const trimById = new Map(vehicleDetail.trims.map((trim) => [trim.id, trim]));
+      const lineupById = new Map(vehicleDetail.lineups.map((l) => [l.id, l]));
 
-      setSessionSavedTrims((prev) => {
-        const prevIds = new Set(prev.map((item) => item.trimId));
-        const nextItems = savedTrimIds
-          .filter((trimId) => !prevIds.has(trimId))
-          .map((trimId) => {
-            const trim = trimById.get(trimId);
+      setSessionSavedLineups((prev) => {
+        const prevIds = new Set(prev.map((item) => item.lineupId));
+        const nextItems = Array.from(selectedLineupIds)
+          .filter((lid) => !prevIds.has(lid))
+          .map((lid) => {
+            const lineup = lineupById.get(lid);
+            const trimCount = vehicleDetail.trims.filter((t) => t.lineupId === lid).length;
             return {
-              trimId,
-              trimName: trim?.name ?? "알 수 없는 트림",
+              lineupId: lid,
+              lineupName: lineup?.name ?? "알 수 없는 라인업",
               vehicleId: vehicleDetail.id,
               vehicleName: vehicleDetail.name,
               brand: vehicleDetail.brand,
+              trimCount,
               savedAt,
             };
           });
 
         return nextItems.length > 0 ? [...prev, ...nextItems] : prev;
       });
-      setSelectedTrimIds(new Set());
+      setSelectedLineupIds(new Set());
       setShowHistory(false);
     }
   };
 
   const startWritingSession = () => {
-    setSessionSavedTrims([]);
-    setSelectedTrimIds(new Set());
+    setSessionSavedLineups([]);
+    setSelectedLineupIds(new Set());
     setShowHistory(false);
     setIsWritingSession(true);
   };
 
   const finishWritingSession = () => {
     setIsWritingSession(false);
-    setSessionSavedTrims([]);
+    setSessionSavedLineups([]);
   };
 
   const handleActivate = async (sheetId: string) => {
@@ -380,7 +392,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
 
   return (
     <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:h-full overflow-y-auto md:overflow-hidden">
-      {/* ── 좌측: 캐피탈사 + 차량/라인업/트림 선택 ── */}
+      {/* ── 좌측: 캐피탈사 + 차량 선택 ── */}
       <div className="w-full md:w-72 md:flex-shrink-0 flex flex-col gap-4 md:overflow-y-auto">
         {/* 캐피탈사 선택 및 관리 */}
         <div className="bg-white rounded-xl border border-[#E8EAF2] p-4">
@@ -543,7 +555,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                             <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                               selectedVehicleId === v.id ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-600"
                             }`}>
-                              {savedCount}개 저장
+                              라인업 {savedCount}개 저장
                             </span>
                           )}
                         </button>
@@ -558,15 +570,15 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
         </div>
       </div>
 
-      {/* ── 우측: 라인업/트림 선택 + 입력 폼 ── */}
+      {/* ── 우측: 라인업 멀티셀렉트 + 입력 폼 ── */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
         <div className="bg-white rounded-xl border border-[#E8EAF2] p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm font-bold text-[#1A1A2E]">회수율 작성 관리</p>
             <p className="text-xs text-[#9BA4C0] mt-1">
               {isWritingSession
-                ? `작성 중입니다. 저장 완료된 트림 ${sessionSavedTrims.length}개는 다시 선택되지 않습니다.`
-                : "주간/월간 입력을 시작하면 저장한 차량과 트림을 임시로 표시합니다."}
+                ? `작성 중입니다. 저장 완료된 라인업 ${sessionSavedLineups.length}개는 다시 선택되지 않습니다.`
+                : "주간/월간 입력을 시작하면 저장한 차량과 라인업을 임시로 표시합니다."}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -586,7 +598,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
             <div className="flex items-center gap-2">
             {isWritingSession && (
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
-                저장 {sessionSavedTrims.length}개
+                저장 {sessionSavedLineups.length}개
               </span>
             )}
             <button
@@ -604,19 +616,19 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
           </div>
         </div>
 
-        {isWritingSession && sessionSavedTrims.length > 0 && (
+        {isWritingSession && sessionSavedLineups.length > 0 && (
           <div className="bg-emerald-50/60 rounded-xl border border-emerald-100 p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
               <p className="text-xs font-bold text-emerald-700">이번 작성에서 저장한 항목</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {sessionSavedTrims.map((item) => (
+              {sessionSavedLineups.map((item) => (
                 <span
-                  key={item.trimId}
+                  key={item.lineupId}
                   className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-medium text-[#1A1A2E]"
                   title={new Date(item.savedAt).toLocaleString("ko-KR")}
                 >
-                  {item.brand} {item.vehicleName} · {item.trimName}
+                  {item.brand} {item.vehicleName} · {item.lineupName} ({item.trimCount}개 트림)
                 </span>
               ))}
             </div>
@@ -625,121 +637,116 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
 
         {selectedVehicleId && vehicleDetail ? (
           <>
-            {/* 라인업 탭 */}
+            {/* 라인업 멀티 체크박스 */}
             {vehicleDetail.lineups.length > 0 && (
               <div className="bg-white rounded-xl border border-[#E8EAF2] p-4">
-                <p className="text-xs font-semibold text-[#9BA4C0] uppercase tracking-wider mb-3">라인업</p>
-                <div className="flex flex-wrap gap-2">
-                  {vehicleDetail.lineups.map((lineup: VehicleLineup) => (
-                    <button
-                      key={lineup.id}
-                      onClick={() => setSelectedLineupId(lineup.id)}
-                      className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                        selectedLineupId === lineup.id
-                          ? "bg-[#000666] text-white border-[#000666]"
-                          : "text-[#1A1A2E] border-[#E8EAF2] hover:border-[#6066EE]"
-                      }`}
-                    >
-                      {lineup.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 트림 선택 */}
-            {selectedLineupId && (
-              <div className="bg-white rounded-xl border border-[#E8EAF2] p-4">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <p className="text-xs font-semibold text-[#9BA4C0] uppercase tracking-wider">트림 선택 ({selectedTrimIds.size}개 선택됨)</p>
-                  <div className="flex flex-wrap items-center gap-2 ml-auto">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={trimSearch}
-                        onChange={(e) => setTrimSearch(e.target.value)}
-                        placeholder="트림명 검색..."
-                        className="pl-8 pr-3 py-1.5 border border-[#E8EAF2] rounded-lg text-xs focus:outline-none focus:border-[#6066EE] w-36 sm:w-48"
-                      />
-                      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9BA4C0]" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                    </div>
-                    <button onClick={selectAllTrims} className="text-[11px] text-[#6066EE] hover:underline font-medium">전체 선택</button>
-                    <button onClick={deselectAllTrims} className="text-[11px] text-[#9BA4C0] hover:underline font-medium">선택 해제</button>
+                  <p className="text-xs font-semibold text-[#9BA4C0] uppercase tracking-wider">
+                    라인업 선택 ({selectedLineupIds.size}개 / 트림 {derivedTrimIds.length}개 자동 적용)
+                  </p>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <button onClick={selectAllLineups} className="text-[11px] text-[#6066EE] hover:underline font-medium">전체 선택</button>
+                    <button onClick={deselectAllLineups} className="text-[11px] text-[#9BA4C0] hover:underline font-medium">선택 해제</button>
                   </div>
                 </div>
-                
-                {trimsInLineup.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {trimsInLineup.map((trim) => {
-                      const isSelected = selectedTrimIds.has(trim.id);
-                      const hasSheet = activeSheets.some((s) => s.trimId === trim.id);
-                      const isSessionSaved = isWritingSession && sessionSavedTrimIds.has(trim.id);
-                      return (
-                        <button
-                          key={trim.id}
-                          onClick={() => toggleTrim(trim.id)}
-                          disabled={isSessionSaved}
-                          className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors relative flex items-center gap-2 ${
-                            isSessionSaved
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 cursor-not-allowed"
-                              :
-                            isSelected
-                              ? "bg-[#6066EE] text-white border-[#6066EE] shadow-sm"
-                              : "text-[#1A1A2E] border-[#E8EAF2] hover:border-[#6066EE] bg-white"
+                <div className="flex flex-wrap gap-2">
+                  {vehicleDetail.lineups.map((lineup) => {
+                    const isSelected = selectedLineupIds.has(lineup.id);
+                    const lineupTrims = vehicleDetail.trims.filter((t) => t.lineupId === lineup.id);
+                    const trimCount = lineupTrims.length;
+                    const hasSheet = lineupTrims.some((t) =>
+                      activeSheets.some((s) => s.trimId === t.id && s.productType === selectedProductType)
+                    );
+                    const isSessionSaved = isWritingSession && sessionSavedLineupIds.has(lineup.id);
+                    return (
+                      <button
+                        key={lineup.id}
+                        onClick={() => toggleLineup(lineup.id)}
+                        disabled={isSessionSaved}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors relative flex items-center gap-2 ${
+                          isSessionSaved
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 cursor-not-allowed"
+                            : isSelected
+                            ? "bg-[#6066EE] text-white border-[#6066EE] shadow-sm"
+                            : "text-[#1A1A2E] border-[#E8EAF2] hover:border-[#6066EE] bg-white"
+                        }`}
+                      >
+                        <div
+                          className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
+                            isSelected ? "bg-white border-white" : isSessionSaved ? "bg-emerald-500 border-emerald-500" : "border-[#D1D5DB]"
                           }`}
                         >
-                          <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
-                            isSelected ? "bg-white border-white" : isSessionSaved ? "bg-emerald-500 border-emerald-500" : "border-[#D1D5DB]"
-                          }`}>
-                            {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6066EE" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                            {isSessionSaved && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                          </div>
-                          <span>{trim.name}</span>
+                          {isSelected && (
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6066EE" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
                           {isSessionSaved && (
-                            <span className="text-[10px] font-bold text-emerald-600">저장됨</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
                           )}
-                          {hasSheet && (
-                            <span className={`inline-block w-1.5 h-1.5 rounded-full align-middle ${isSelected ? 'bg-white' : 'bg-emerald-400'}`} />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-[#9BA4C0] text-sm">
-                    검색 결과가 없습니다.
-                  </div>
-                )}
+                        </div>
+                        <span>{lineup.name}</span>
+                        <span
+                          className={`text-[10px] ${
+                            isSelected ? "text-white/80" : isSessionSaved ? "text-emerald-500" : "text-[#9BA4C0]"
+                          }`}
+                        >
+                          트림 {trimCount}개
+                        </span>
+                        {isSessionSaved && (
+                          <span className="text-[10px] font-bold text-emerald-600">저장됨</span>
+                        )}
+                        {hasSheet && !isSelected && !isSessionSaved && (
+                          <span className="inline-block w-1.5 h-1.5 rounded-full align-middle bg-emerald-400" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
             {/* 입력 폼 or 이력 */}
-            {selectedTrimIds.size > 0 && selectedFc ? (
+            {selectedLineupIds.size > 0 && selectedFc ? (
               <div className="flex flex-col gap-4 flex-1">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-bold text-[#1A1A2E] flex items-center gap-2">
-                      {selectedTrimIds.size === 1 ? (
+                      {selectedLineupIds.size === 1 ? (
                         <>
-                          {vehicleDetail.name} {selectedTrims[0]?.name}
+                          {vehicleDetail.name}{" "}
+                          <span className="text-[#6066EE]">
+                            {vehicleDetail.lineups.find((l) => l.id === Array.from(selectedLineupIds)[0])?.name}
+                          </span>
                         </>
                       ) : (
                         <>
-                          {vehicleDetail.name} <span className="text-[#6066EE]">{selectedTrimIds.size}개 트림 선택됨</span>
+                          {vehicleDetail.name}{" "}
+                          <span className="text-[#6066EE]">{selectedLineupIds.size}개 라인업 선택됨</span>
                         </>
                       )}
                     </h2>
-                    <p className="text-sm text-[#9BA4C0]">{selectedFc.name}</p>
+                    <p className="text-sm text-[#9BA4C0]">
+                      {selectedFc.name} · 적용 트림 {derivedTrimIds.length}개
+                    </p>
                   </div>
                   <button
                     onClick={() => setShowHistory((v) => !v)}
                     className="text-sm text-[#6066EE] hover:underline"
                   >
-                    {showHistory ? "입력 폼으로" : (selectedTrimIds.size === 1 ? "이력 보기" : "")}
+                    {showHistory ? "입력 폼으로" : selectedLineupIds.size === 1 ? "이력 보기" : ""}
                   </button>
                 </div>
 
-                {showHistory && selectedTrimIds.size === 1 ? (
+                {hasMixedSheetsInLineup && !showHistory && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+                    ⚠️ 이 라인업 내 트림들의 기존 시트값이 서로 다릅니다. 표시된 값은 대표 트림 기준이며, 저장 시 라인업 내 모든 트림에 동일하게 덮어쓰여집니다.
+                  </div>
+                )}
+
+                {showHistory && selectedLineupIds.size === 1 ? (
                   <RateHistory
                     sheets={historySheets}
                     onActivate={handleActivate}
@@ -748,8 +755,9 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                 ) : (
                   <RateInputForm
                     financeCompanyId={selectedFcId}
-                    trimIds={Array.from(selectedTrimIds)}
-                    trimPrice={selectedTrims[0]?.price ?? 0}
+                    trimIds={derivedTrimIds}
+                    initialMinPrice={autoPriceRange?.min ?? 0}
+                    initialMaxPrice={autoPriceRange?.max ?? 0}
                     productType={selectedProductType}
                     existingSheet={currentSheet}
                     onSaved={handleSaved}
@@ -758,7 +766,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center text-[#9BA4C0] text-sm">
-                {loadingDetail ? "로딩 중..." : "트림을 선택해 주세요"}
+                {loadingDetail ? "로딩 중..." : "라인업을 선택해 주세요"}
               </div>
             )}
           </>

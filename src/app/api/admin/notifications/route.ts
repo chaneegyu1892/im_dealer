@@ -1,11 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 
 export async function GET(request: NextRequest) {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
 
   try {
     const { searchParams } = new URL(request.url);

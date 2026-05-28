@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { User, Check } from "lucide-react";
 import AdminManager from "@/components/admin/settings/AdminManager";
+import UserManager from "@/components/admin/settings/UserManager";
 import { isAdminLike } from "@/lib/admin-roles";
 
 interface AdminInfo {
@@ -12,11 +13,14 @@ interface AdminInfo {
   role: string;
 }
 
+type PartnerTab = "admins" | "users";
+
 export default function AdminSettingsPage() {
   const [info, setInfo] = useState<AdminInfo | null>(null);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
+  const [partnerTab, setPartnerTab] = useState<PartnerTab>("admins");
 
   useEffect(() => {
     fetch("/api/admin/auth/me")
@@ -47,13 +51,13 @@ export default function AdminSettingsPage() {
   return (
     <div className="flex flex-col h-full space-y-6">
       <div className="flex flex-col">
-        <h1 className="text-2xl font-bold text-[#1A1A2E]">시스템 설정</h1>
-        <p className="text-sm text-[#9BA4C0] mt-1">계정 관리와 서비스 운영에 필요한 정책을 설정합니다.</p>
+        <h1 className="text-2xl font-bold text-[#1A1A2E]">계정 관리</h1>
+        <p className="text-sm text-[#9BA4C0] mt-1">내 계정 정보와 운영 파트너 권한을 관리합니다.</p>
       </div>
 
-      <div className="space-y-6 max-w-2xl animate-in fade-in duration-300">
+      <div className="space-y-6 animate-in fade-in duration-300">
         {/* 기본 프로필 */}
-        <div className="bg-white rounded-3xl border border-[#E8EAF0] p-8 shadow-sm">
+        <div className="bg-white rounded-3xl border border-[#E8EAF0] p-8 shadow-sm max-w-2xl">
           <h2 className="text-lg font-bold text-[#1A1A2E] mb-6 flex items-center gap-2">
             <User size={20} className="text-[#6066EE]" />
             기본 프로필 정보
@@ -96,9 +100,35 @@ export default function AdminSettingsPage() {
 
         {/* 운영 파트너 관리 — admin/superadmin 전용 */}
         {isAdminLike(info?.role) && (
-          <div className="bg-white rounded-3xl border border-[#E8EAF0] p-8 shadow-sm">
-            <h2 className="text-lg font-bold text-[#1A1A2E] mb-6">운영 파트너 관리</h2>
-            <AdminManager />
+          <div className="bg-white rounded-3xl border border-[#E8EAF0] p-8 shadow-sm max-w-5xl">
+            <div className="flex items-end justify-between mb-6 border-b border-[#F0F1FA] pb-3">
+              <h2 className="text-lg font-bold text-[#1A1A2E]">운영 파트너 관리</h2>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPartnerTab("admins")}
+                  className={`text-xs px-4 py-2 rounded-xl font-bold transition-colors ${
+                    partnerTab === "admins"
+                      ? "bg-[#000666] text-white"
+                      : "text-[#5A6080] hover:bg-[#F0F1FA]"
+                  }`}
+                >
+                  어드민 관리
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPartnerTab("users")}
+                  className={`text-xs px-4 py-2 rounded-xl font-bold transition-colors ${
+                    partnerTab === "users"
+                      ? "bg-[#000666] text-white"
+                      : "text-[#5A6080] hover:bg-[#F0F1FA]"
+                  }`}
+                >
+                  전체 사용자 관리
+                </button>
+              </div>
+            </div>
+            {partnerTab === "admins" ? <AdminManager /> : <UserManager />}
           </div>
         )}
       </div>

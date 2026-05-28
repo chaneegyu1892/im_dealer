@@ -1,12 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getAdminBrands } from "@/lib/admin-queries";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
+import { brandCreateSchema } from "@/lib/validations/admin";
+import { logAdminAction } from "@/lib/audit";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 // ─── GET /api/admin/brands ──────────────────────────────
 export async function GET() {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const brands = await getAdminBrands();
     return NextResponse.json({ success: true, data: brands });
@@ -14,6 +17,60 @@ export async function GET() {
     console.error("[GET /api/admin/brands]", error);
     return NextResponse.json(
       { error: "브랜드 목록 조회 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+}
+
+// ─── POST /api/admin/brands ─────────────────────────────
+export async function POST(request: NextRequest) {
+  const { admin: session, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
+  try {
+    const body = await request.json();
+    const parsed = brandCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "입력값이 올바르지 않습니다.", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.brand.findUnique({ where: { name: parsed.data.name } });
+    if (existing) {
+      return NextResponse.json(
+        { error: "이미 동일한 브랜드명이 존재합니다." },
+        { status: 400 }
+      );
+    }
+
+    // displayOrder 는 데이터 보존용 컬럼이며 표시 순서엔 영향 없음.
+    // 표시 순서는 lib/brand-sort.ts 의 makeBrandComparator(signals) 가 결정한다
+    // (isFeatured 우선 → 차량 수 → 가나다).
+    const brand = await prisma.brand.create({
+      data: {
+        name: parsed.data.name,
+        logoUrl: parsed.data.logoUrl ?? null,
+        displayOrder: parsed.data.displayOrder ?? 1000,
+        isFeatured: parsed.data.isFeatured ?? false,
+      },
+    });
+
+    await logAdminAction({
+      request,
+      actor: session,
+      action: "BRAND_CREATE",
+      resource: "Brand",
+      targetId: brand.id,
+      after: brand,
+    });
+    revalidatePublicVehicleSurfaces();
+
+    return NextResponse.json({ success: true, data: brand }, { status: 201 });
+  } catch (error) {
+    console.error("[POST /api/admin/brands]", error);
+    return NextResponse.json(
+      { error: "브랜드 생성 중 오류가 발생했습니다." },
       { status: 500 }
     );
   }

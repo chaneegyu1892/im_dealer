@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import {
   calcRateMatrix,
   calcDepositDiscountRate,
@@ -12,9 +12,8 @@ import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 // GET /api/admin/capital-rates?financeCompanyId=...&trimId=...&history=true
 export async function GET(request: NextRequest) {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("admin");
+  if (error) return error;
 
   const { searchParams } = new URL(request.url);
   const financeCompanyId = searchParams.get("financeCompanyId");
@@ -85,10 +84,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/capital-rates — 신규 주별 시트 저장
 export async function POST(request: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin: session, error } = await requireRoleAtLeast("admin");
+  if (error) return error;
 
   try {
     const body = await request.json();
@@ -137,6 +134,17 @@ export async function POST(request: NextRequest) {
     const depositDiscountRate = calcDepositDiscountRate(minBaseRates, minDepositRates, minVehiclePrice);
     const prepayAdjustRate = calcPrepayAdjustRate(minBaseRates, minPrepayRates, minVehiclePrice);
 
+    // 보증금은 할인 전용 정책. 보증금 적용 견적이 기준 견적보다 비싸면(=가산 결과) 차단.
+    if (depositDiscountRate > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "보증금 적용 월 지불액이 기준 월 지불액보다 높습니다. 보증금은 할인(Deposit Discount) 전용이며 가산은 적용할 수 없습니다.",
+        },
+        { status: 400 }
+      );
+    }
+
     const weekDate = new Date(weekOf);
     const db = prisma as any;
 
@@ -163,7 +171,12 @@ export async function POST(request: NextRequest) {
       for (const tid of targetTrimIds) {
         const existing = await (tx as any).capitalRateSheet.findUnique({
           where: {
-            financeCompanyId_trimId_weekOf_productType: { financeCompanyId, trimId: tid, weekOf: weekDate, productType },
+            financeCompanyId_trimId_weekOf_productType: {
+              financeCompanyId,
+              trimId: tid,
+              weekOf: weekDate,
+              productType,
+            },
           },
         });
 
@@ -196,6 +209,7 @@ export async function POST(request: NextRequest) {
       meta: {
         financeCompanyId,
         trimIds: targetTrimIds,
+        productType,
         weekOf,
         sheetIds: results,
         minVehiclePrice,

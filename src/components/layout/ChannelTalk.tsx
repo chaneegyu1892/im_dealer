@@ -14,12 +14,12 @@ export function ChannelTalk() {
     const pluginKey = process.env.NEXT_PUBLIC_CHANNEL_TALK_PLUGIN_KEY;
     if (!pluginKey || window.ChannelIO) return;
 
-    const ch: Window['ChannelIO'] = function (...args) {
-      ch!.q!.push(args);
-    };
-    ch.q = [];
-    ch.c = function (...args) {
-      ch!.q!.push(args);
+    const ch: NonNullable<Window['ChannelIO']> = function (...args: unknown[]) {
+      ch.q!.push(args);
+    } as NonNullable<Window['ChannelIO']>;
+    ch.q = [] as unknown[];
+    ch.c = function (...args: unknown[]) {
+      ch.q!.push(args);
     };
     window.ChannelIO = ch;
 

@@ -1,37 +1,28 @@
-import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { AdminLayoutClient } from "@/components/admin/AdminLayoutClient";
-import { getAdminSession } from "@/lib/admin-auth";
-import { createClient } from "@/lib/supabase/server";
+import { requireAccess } from "@/lib/require-access";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const admin = await getAdminSession();
+  // 미들웨어가 세팅한 x-pathname을 기준으로 경로별 권한 판정
+  const headerList = await headers();
+  const pathname = headerList.get("x-pathname") || "/admin";
 
-  // 미들웨어가 1차 차단하지만 layout은 DB 조회/isActive까지 검증한다.
-  // 어드민 레코드가 삭제·비활성화된 경우 사이드바만 사라진 어색한 화면 대신
-  // 권한 유무에 따라 홈/로그인으로 보낸다.
+  // requireAccess가 비로그인/권한부족을 자동 redirect 처리.
+  // /admin 경로 정책이 dealer 이상이므로 통과 시 admin은 반드시 존재한다.
+  const { admin } = await requireAccess(pathname);
   if (!admin) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      redirect("/");
-    } else {
-      redirect("/login?next=/admin");
-    }
-  }
-
-  // 딜러는 관리자 콘솔 접근 불가 (추후 전용 페이지로 개선 예정)
-  if (admin.role === "dealer") {
-    redirect("/");
+    // 정책상 도달 불가. 타입 안전 보강용.
+    throw new Error("admin session missing after requireAccess");
   }
 
   const adminData = {
     id: admin.id,
     name: admin.name,
-    email: admin.email,
+    email: admin.email ?? "",
     role: admin.role,
   };
 

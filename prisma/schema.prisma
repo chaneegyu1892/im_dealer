@@ -62,6 +62,18 @@ model RankSurchargeConfig {
   rate Float
 }
 
+model Brand {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  logoUrl      String?
+  displayOrder Int      @default(0)
+  // 인기 브랜드 그룹 플래그. 정렬에서 일반 브랜드보다 우선 표시되고,
+  // 공개 페이지에서 "인기 브랜드" 섹션으로 묶어 보여줄 수 있다.
+  isFeatured   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model Vehicle {
   id            String                @id @default(cuid())
   slug          String                @unique
@@ -69,6 +81,9 @@ model Vehicle {
   brand         String
   category      String
   vehicleCode   String?
+  // 외부 데이터 소스 식별자 (재임포트 멱등성)
+  externalId     String?              @unique
+  externalSource String?              // "external" 등 출처 식별 태그
   basePrice     Int
   thumbnailUrl  String
   imageUrls     String[]
@@ -91,10 +106,12 @@ model Vehicle {
   popularConfigs PopularConfig[]
   quoteCalcLogs  QuoteCalcLog[]
   reviews        Review[]
+  colors         VehicleColor[]
 
   @@index([isVisible, isPopular])
   @@index([category])
   @@index([vehicleCode])
+  @@index([externalSource])
 }
 
 model Trim {
@@ -108,6 +125,9 @@ model Trim {
   isDefault      Boolean         @default(false)
   isVisible      Boolean         @default(true)
   specs          Json?
+  // 외부 차량 데이터 소스 식별자 및 풍부한 메타(tm/division/displace/person/tax/spec/specoption/documents/colorPriceMap)
+  externalId     String?         @unique
+  detailedSpecs  Json?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   quoteVars      QuoteVariable[]
@@ -127,6 +147,9 @@ model VehicleLineup {
   id        String   @id @default(cuid())
   vehicleId String
   name      String
+  // 외부 차량 데이터 소스 식별자 및 연식/엔진/가격대/연비 메타
+  externalId String?  @unique
+  metadata   Json?
   vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   trims     Trim[]
   createdAt DateTime @default(now())
@@ -145,11 +168,15 @@ model TrimOption {
   createdAt   DateTime @default(now())
   description String?
   isAccessory Boolean  @default(false)
+  // 외부 차량 데이터 소스 옵션 ID (트림별로 같은 옵션이 반복되므로 trimId 와 함께 unique)
+  externalId  String?
+  metadata    Json?    // kind/apply/guide/package/conditionFlag 등
   trim                Trim                @relation(fields: [trimId], references: [id], onDelete: Cascade)
   popularConfigItems  PopularConfigItem[]
   rulesSource         OptionRule[]        @relation("SourceRule")
   rulesTarget         OptionRule[]        @relation("TargetRule")
 
+  @@unique([trimId, externalId])
   @@index([trimId])
 }
 
@@ -229,6 +256,36 @@ enum QuoteStatus {
   LOST
 }
 
+enum ColorKind {
+  EXTERIOR
+  INTERIOR
+}
+
+model VehicleColor {
+  id          String    @id @default(cuid())
+  vehicleId   String
+  kind        ColorKind
+  name        String
+  hexCode     String
+  imageUrl    String?
+  priceDelta  Int       @default(0)
+  isDefault   Boolean   @default(false)
+  sortOrder   Int       @default(0)
+  // 외부 차량 데이터 소스 식별자 및 제조사 컬러 코드 (예: "WAW"), rgb2/group/호환규칙
+  externalId  String?
+  mfgCode     String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  exteriorOf  SavedQuote[] @relation("SavedQuoteExteriorColor")
+  interiorOf  SavedQuote[] @relation("SavedQuoteInteriorColor")
+
+  @@unique([vehicleId, kind, externalId])
+  @@index([vehicleId, kind, sortOrder])
+}
+
 model SavedQuote {
   id                    String      @id @default(cuid())
   sessionId             String
@@ -261,8 +318,15 @@ model SavedQuote {
   contactedAt           DateTime?
   convertedAt           DateTime?
 
+  // 색상 선택
+  exteriorColorId       String?
+  interiorColorId       String?
+  exteriorColor         VehicleColor? @relation("SavedQuoteExteriorColor", fields: [exteriorColorId], references: [id])
+  interiorColor         VehicleColor? @relation("SavedQuoteInteriorColor", fields: [interiorColorId], references: [id])
+
   activityLogs          QuoteActivityLog[]
   reviews               Review[]
+  reviewTokens          ReviewRequestToken[]
 
   @@index([sessionId])
   @@index([status])
@@ -271,6 +335,8 @@ model SavedQuote {
   @@index([expiresAt])
   @@index([createdAt])
   @@index([deletedAt])
+  @@index([exteriorColorId])
+  @@index([interiorColorId])
 }
 
 model QuoteActivityLog {
@@ -339,6 +405,7 @@ model QuoteCalcLog {
   // ── 입력 조건 (독립 컬럼 → SQL 집계·ML 학습에 최적) ──
   vehicleId          String
   vehicleSlug        String
+  vehicleName        String?
   trimId             String?
   optionIds          String[]
   contractMonths     Int
@@ -352,6 +419,9 @@ model QuoteCalcLog {
   resultMonthly      Int                       // 최종 월 납입금
   bestFinanceCompany String
   scenarioType       String                    // conservative / standard / aggressive
+  // 차량가 + 옵션가가 회수율 시트 범위(min~max)를 초과한 경우 true.
+  // 어드민 대시보드 "범위 초과 견적" 위젯에서 집계 — 회수율 데이터 보강 신호.
+  rangeExceeded      Boolean  @default(false)
 
   // ── 행동 추적 ──
   clickedApply       Boolean  @default(false)  // 계약 신청 클릭 여부
@@ -367,6 +437,8 @@ model QuoteCalcLog {
 
   @@index([vehicleSlug, createdAt])
   @@index([sessionId])
+  @@index([userId])
+  @@index([vehicleId, createdAt(sort: Desc)])
   @@index([createdAt])
   @@index([scenarioType, createdAt])
 }
@@ -415,18 +487,26 @@ model OperationalNote {
   @@index([category, isPinned])
 }
 
-model AdminUser {
-  id           String    @id @default(cuid())
-  supabaseId   String?   @unique  // Supabase auth user.id 와의 1:1 연결 (Supabase 세션 기반 로그인용)
-  email        String    @unique
-  passwordHash String?   // 레거시 JWT 인증 잔재. Supabase 전환 후 신규 어드민은 비어 있음. 추후 컬럼 자체 제거 예정.
-  name         String
-  role         String    @default("staff")  // "superadmin" | "admin" | "staff" | "dealer"
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
+model User {
+  id               String    @id @default(cuid())
+  supabaseId       String?   @unique  // Supabase auth user.id 와의 1:1 연결
+  email            String?   // 카카오 이메일 미동의 케이스 수용 위해 nullable, unique 해제
+  passwordHash     String?   // 레거시 JWT 인증 잔재. 추후 컬럼 자체 제거 예정.
+  name             String
+  role             String    @default("member")  // "member" | "dealer" | "staff" | "admin" | "superadmin"
+  isActive         Boolean   @default(true)
+  lastLoginAt      DateTime?
+  phone            String?
+  provider         String?   // "kakao" 등
+  kakaoNickname    String?
+  marketingConsent Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   auditLogs AdminAuditLog[]
+
+  @@index([role, isActive])
+  @@index([email])
 }
 
 model AdminAuditLog {
@@ -441,7 +521,7 @@ model AdminAuditLog {
   userAgent  String?
   createdAt  DateTime @default(now())
 
-  actor AdminUser @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Cascade)
 
   @@index([actorId, createdAt])
   @@index([resource, targetId])
@@ -478,13 +558,50 @@ model Review {
   savedQuoteId   String?
   savedQuote     SavedQuote? @relation(fields: [savedQuoteId], references: [id], onDelete: SetNull)
   isPublic       Boolean     @default(true)
+  isBest         Boolean     @default(false)
   displayOrder   Int         @default(0)
+  likeCount      Int         @default(0)
   reviewDate     DateTime    @default(now())
+  imageUrls      String[]    @default([])
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
+  requestToken   ReviewRequestToken?
+  likes          ReviewLike[]
+
   @@index([vehicleId, isPublic, displayOrder])
   @@index([isPublic, displayOrder])
+  @@index([isPublic, isBest, displayOrder])
+  @@index([isPublic, likeCount])
+}
+
+model ReviewLike {
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  anonId    String
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, anonId])
+  @@index([reviewId])
+  @@index([anonId])
+}
+
+model ReviewRequestToken {
+  id           String     @id @default(cuid())
+  token        String     @unique
+  savedQuoteId String
+  savedQuote   SavedQuote @relation(fields: [savedQuoteId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  usedAt       DateTime?
+  revokedAt    DateTime?
+  reviewId     String?    @unique
+  review       Review?    @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+  createdById  String?
+
+  @@index([savedQuoteId])
+  @@index([expiresAt])
 }
 
 model Inventory {

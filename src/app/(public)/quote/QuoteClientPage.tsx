@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
+import { ColorSelector, type VehicleColorPublic } from "@/components/quote/ColorSelector";
 import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
@@ -272,8 +273,12 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [trimsLoading, setTrimsLoading] = useState(false);
   // 캐스케이딩 선택 상태
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
-  const [selectedTrimName, setSelectedTrimName] = useState<string | null>(null);
+  const [selectedTrimId, setSelectedTrimId] = useState<string | null>(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(new Set());
+  // 색상 상태 — 차량별 외장/내장 색상 선택. 어드민이 등록한 색상이 있을 때만 노출.
+  const [colors, setColors] = useState<VehicleColorPublic[]>([]);
+  const [exteriorColorId, setExteriorColorId] = useState<string | null>(null);
+  const [interiorColorId, setInteriorColorId] = useState<string | null>(null);
 
   const [contractCategory, setContractCategory] = useState<ContractCategory>("장기렌트");
   const [conditions, setConditions] = useState<Conditions>({
@@ -310,6 +315,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         scenarios: quoteResult.scenarios,
         optionsTotalPrice: quoteResult.optionsTotalPrice,
         totalVehiclePrice: quoteResult.totalVehiclePrice,
+        customRates: { depositRate: 0, prepayRate: 0 },
+        exteriorColorId,
+        interiorColorId,
       };
       localStorage.setItem(
         `${QUOTE_DRAFT_STORAGE_PREFIX}${quoteSessionId}`,
@@ -342,11 +350,28 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     setTrimsLoading(true);
     setTrims([]);
     setSelectedLineup(null);
-    setSelectedTrimName(null);
+    setSelectedTrimId(null);
     setSelectedOptionIds(new Set());
+    setColors([]);
+    setExteriorColorId(null);
+    setInteriorColorId(null);
 
     const slug = selectedVehicle.slug;
     const shouldPrefill = !!prefillSlug && !hasPrefilled.current;
+
+    // 색상 로드 (병렬) — 어드민이 등록한 차량 색상이 있으면 외장/내장 기본값을 선택해둠
+    fetch(`/api/vehicles/${slug}/colors`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (!json?.success || !Array.isArray(json.data)) return;
+        const list: VehicleColorPublic[] = json.data;
+        setColors(list);
+        const defaultExt = list.find((c) => c.kind === "EXTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "EXTERIOR");
+        const defaultInt = list.find((c) => c.kind === "INTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "INTERIOR");
+        setExteriorColorId(defaultExt?.id ?? null);
+        setInteriorColorId(defaultInt?.id ?? null);
+      })
+      .catch(() => {});
 
     fetch(`/api/vehicles/${slug}/trims`)
       .then((r) => r.json())
@@ -366,7 +391,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           );
           if (hasLineup && resolvedLineupName) {
             setSelectedLineup(resolvedLineupName);
-            setSelectedTrimName(specs?.trimName ?? defaultTrim.name);
+            setSelectedTrimId(defaultTrim.id);
           } else {
             setSelectedLineup(defaultTrim.id);
           }
@@ -415,33 +440,44 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     ? trims.filter((t) => getLineupName(t) === selectedLineup)
     : [];
 
-  // 유니크 트림명 (가격 포함)
-  const availableTrimNames = [
-    ...new Map(
-      trimsForLineup.map((t) => {
-        const name = (t.specs as Record<string, string>)?.trimName ?? t.name;
-        return [name, { name, price: t.price, id: t.id }];
-      })
-    ).values(),
-  ];
+  // 트림 옵션 (id 기반 — 같은 specs.trimName이 여러 개여도 정확히 식별)
+  // 같은 라벨이 중복되면 t.name의 추가 prefix(연식/엔진/구동 등)를 보조 라벨로 구분.
+  const availableTrimNames = (() => {
+    const list = trimsForLineup.map((t) => {
+      const trimName = (t.specs as Record<string, string>)?.trimName ?? t.name;
+      const extra =
+        t.name !== trimName && t.name.includes(trimName)
+          ? t.name.replace(trimName, "").trim().replace(/\s+/g, " ")
+          : null;
+      return { id: t.id, name: trimName, extra, price: t.price, discountPrice: t.discountPrice };
+    });
+    // 같은 name이 여러 개면 보조 라벨 표시, 단일이면 보조 라벨 숨김
+    const nameCount = new Map<string, number>();
+    list.forEach((it) => nameCount.set(it.name, (nameCount.get(it.name) ?? 0) + 1));
+    return list.map((it) => ({
+      ...it,
+      extra: nameCount.get(it.name)! > 1 ? it.extra : null,
+    }));
+  })();
 
-  // 최종 선택된 트림 객체
+  // 최종 선택된 트림 객체 — id 기준 정확 매칭
   const selectedTrim =
     hasCascade
-      ? (selectedTrimName
-          ? trimsForLineup.find(
-              (t) => (t.specs as Record<string, string>)?.trimName === selectedTrimName
-            ) ?? null
-          : null)
+      ? (selectedTrimId ? trimsForLineup.find((t) => t.id === selectedTrimId) ?? null : null)
       : trims.find((t) => t.id === selectedLineup) ?? null;
 
-  const selectedTrimId = selectedTrim?.id ?? null;
+  // 견적 API에 보낼 트림 id — selectedTrim에서 파생 (state selectedTrimId와는 별개의 derived value)
+  const effectiveTrimId = selectedTrim?.id ?? null;
 
   const optionsTotalPrice = selectedTrim
     ? selectedTrim.options
         .filter((o) => selectedOptionIds.has(o.id))
         .reduce((sum, o) => sum + o.price, 0)
     : 0;
+
+  const selectedExteriorColor = exteriorColorId ? colors.find((c) => c.id === exteriorColorId) ?? null : null;
+  const selectedInteriorColor = interiorColorId ? colors.find((c) => c.id === interiorColorId) ?? null : null;
+  const colorDelta = (selectedExteriorColor?.priceDelta ?? 0) + (selectedInteriorColor?.priceDelta ?? 0);
 
   const restoreBaseStandardScenario = useCallback(() => {
     recalculateRequestId.current += 1;
@@ -470,13 +506,15 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            trimId: selectedTrimId ?? undefined,
+            trimId: effectiveTrimId ?? undefined,
             selectedOptionIds: Array.from(selectedOptionIds),
             contractMonths: conditions.contractMonths,
             annualMileage: conditions.annualMileage,
             contractType: "반납형",
             productType: contractCategory,
             customerType,
+            exteriorColorId,
+            interiorColorId,
           }),
         }
       );
@@ -517,7 +555,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          trimId: selectedTrimId ?? undefined,
+          trimId: effectiveTrimId ?? undefined,
           selectedOptionIds: Array.from(selectedOptionIds),
           contractMonths: conditions.contractMonths,
           annualMileage: conditions.annualMileage,
@@ -526,6 +564,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           customDepositRate: rates.depositRate,
           customPrepayRate: rates.prepayRate,
           customerType,
+          exteriorColorId,
+          interiorColorId,
         }),
       });
       const json = await res.json();
@@ -574,12 +614,26 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       selectedOptions,
       totalVehiclePrice:
         quoteResult.totalVehiclePrice ??
-        quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? optionsTotalPrice),
+        quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? optionsTotalPrice) + colorDelta,
       productType: contractCategory,
       contractMonths: quoteResult.contractMonths,
       annualMileage: quoteResult.annualMileage,
       contractType: "반납형",
       scenarios: quoteResult.scenarios,
+      exteriorColor: selectedExteriorColor
+        ? {
+            name: selectedExteriorColor.name,
+            hexCode: selectedExteriorColor.hexCode,
+            priceDelta: selectedExteriorColor.priceDelta,
+          }
+        : null,
+      interiorColor: selectedInteriorColor
+        ? {
+            name: selectedInteriorColor.name,
+            hexCode: selectedInteriorColor.hexCode,
+            priceDelta: selectedInteriorColor.priceDelta,
+          }
+        : null,
     };
 
     try {
@@ -744,11 +798,6 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         <p className="text-[12px] text-ink-caption">선택된 차량</p>
                         <p className="text-[14px] font-medium text-primary">
                           {selectedVehicle.name}
-                          {selectedVehicle.defaultTrim && (
-                            <span className="text-ink-label font-normal ml-1.5">
-                              {selectedVehicle.defaultTrim.name}
-                            </span>
-                          )}
                         </p>
                         <p className="text-[12px] text-ink-caption mt-0.5">
                           고객 유형: {CUSTOMER_TYPE_LABELS[customerType]}
@@ -783,7 +832,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             options={availableLineups.map((l) => ({ value: l, label: l }))}
                             onChange={(v) => {
                               setSelectedLineup(v || null);
-                              setSelectedTrimName(null);
+                              setSelectedTrimId(null);
                               setSelectedOptionIds(new Set());
                             }}
                           />
@@ -792,16 +841,17 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           {selectedLineup && (
                             <SelectRow
                               label="트림"
-                              value={selectedTrimName ?? ""}
+                              value={selectedTrimId ?? ""}
                               placeholder="트림을 선택하세요"
-                              options={availableTrimNames.map((t) => ({
-                                value: t.name,
-                                label: t.discountPrice
-                                  ? `${t.name} — ${Math.round(t.discountPrice / 10000).toLocaleString()}만원 (할인 적용)`
-                                  : `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
-                              }))}
+                              options={availableTrimNames.map((t) => {
+                                const baseLabel = t.extra ? `${t.name} (${t.extra})` : t.name;
+                                const priceLabel = t.discountPrice
+                                  ? `${Math.round(t.discountPrice / 10000).toLocaleString()}만원 (할인 적용)`
+                                  : `${Math.round(t.price / 10000).toLocaleString()}만원`;
+                                return { value: t.id, label: `${baseLabel} — ${priceLabel}` };
+                              })}
                               onChange={(v) => {
-                                setSelectedTrimName(v || null);
+                                setSelectedTrimId(v || null);
                                 setSelectedOptionIds(new Set());
                               }}
                             />
@@ -957,6 +1007,19 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             </p>
                           )}
                         </div>
+                      )}
+
+                      {/* 색상 선택 — 어드민이 등록한 색상이 있을 때만 노출 */}
+                      {selectedTrim && colors.length > 0 && (
+                        <ColorSelector
+                          colors={colors}
+                          exteriorColorId={exteriorColorId}
+                          interiorColorId={interiorColorId}
+                          onChange={(kind, id) => {
+                            if (kind === "EXTERIOR") setExteriorColorId(id);
+                            else setInteriorColorId(id);
+                          }}
+                        />
                       )}
 
                       {/* 선택된 트림 가격 요약 */}
@@ -1173,6 +1236,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     </button>
                   </div>
 
+
                   {/* 하단: 조건 칩 */}
                   <div className="flex flex-wrap items-center gap-2 px-4 py-3">
                     <ConditionChip label={`${quoteResult.contractMonths}개월`} sub="계약기간" />
@@ -1184,43 +1248,84 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   </div>
                 </div>
 
-                {/* 견적 결과 */}
-                <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card p-5 md:p-6 mb-4">
-                  <div className="flex items-center gap-2 mb-5">
-                    <Sparkles size={14} className="text-primary" />
-                    <p className="text-[13px] text-ink-label">
-                      초기비용 여부에 따라 월 납입금이 달라집니다
-                    </p>
+                {/* 견적 결과 또는 별도 상담 안내 */}
+                {quoteResult.requiresConsultation ? (
+                  <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card p-5 md:p-6 mb-4">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <AlertCircle size={20} className="text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-semibold text-ink leading-snug">
+                          이 차량은 별도 상담이 필요합니다
+                        </p>
+                        <p className="text-[13px] text-ink-label mt-1 leading-relaxed">
+                          현재 자동 견적에 필요한 회수율 데이터가 등록되지 않아
+                          정확한 금액을 즉시 산출하기 어렵습니다. 전문 상담을 통해
+                          맞춤 견적을 받아보실 수 있습니다.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-[8px] bg-neutral border border-[#F0F0F0] p-3 text-[12px] text-ink-caption leading-relaxed">
+                      옵션·계약조건에 따라 캐피탈사별 금액이 크게 달라질 수 있어
+                      상담을 통한 견적이 더 정확합니다.
+                    </div>
                   </div>
-                  <QuoteBreakdownTabs
-                    scenarios={quoteResult.scenarios}
-                    customerType={customerType}
-                    customRates={customRates}
-                    onCustomRatesChange={setCustomRates}
-                    isRecalculating={isRecalculating}
-                    onReset={() => {
-                      setCustomRates({ depositRate: 0, prepayRate: 0 });
-                      restoreBaseStandardScenario();
-                    }}
-                  />
-                </div>
+                ) : (
+                  <>
+                    <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card p-5 md:p-6 mb-4">
+                      <div className="flex items-center gap-2 mb-5">
+                        <Sparkles size={14} className="text-primary" />
+                        <p className="text-[13px] text-ink-label">
+                          초기비용 여부에 따라 월 납입금이 달라집니다
+                        </p>
+                      </div>
+                      <QuoteBreakdownTabs
+                        scenarios={quoteResult.scenarios}
+                        customerType={customerType}
+                        customRates={customRates}
+                        onCustomRatesChange={setCustomRates}
+                        isRecalculating={isRecalculating}
+                        onReset={() => {
+                          setCustomRates({ depositRate: 0, prepayRate: 0 });
+                          restoreBaseStandardScenario();
+                        }}
+                      />
+                      {quoteResult.scenarios?.standard?.rangeExceeded && (
+                        <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12px] text-amber-800 leading-relaxed flex items-start gap-2">
+                          <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                          <p>
+                            선택하신 옵션 조합으로 차량가가 등록 회수율 범위를 초과해 참고용 견적으로 표시됩니다.
+                            정확한 금액은 상담을 통해 확인해 주세요.
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
-                {selectedVehicle && (
-                  <ComparisonSection
-                    primary={{
-                      slug: selectedVehicle.slug,
-                      brand: selectedVehicle.brand,
-                      name: selectedVehicle.name,
-                      result: quoteResult,
-                    }}
-                    conditions={{
-                      contractMonths: conditions.contractMonths,
-                      annualMileage: conditions.annualMileage,
-                      contractType: "반납형",
-                      productType: contractCategory,
-                    }}
-                    allVehicles={vehicles}
-                  />
+                    {selectedVehicle && (
+                      <ComparisonSection
+                        primary={{
+                          slug: selectedVehicle.slug,
+                          brand: selectedVehicle.brand,
+                          name: selectedVehicle.name,
+                          result: quoteResult,
+                          // 비교 패널에 필요한 추가 정보
+                          thumbnailUrl: selectedVehicle.thumbnailUrl,
+                          trims: trims,
+                          currentTrimId: effectiveTrimId,
+                          currentOptionIds: selectedOptionIds,
+                        }}
+                        conditions={{
+                          contractMonths: conditions.contractMonths,
+                          annualMileage: conditions.annualMileage,
+                          contractType: "반납형",
+                          productType: contractCategory,
+                        }}
+                        allVehicles={vehicles}
+                      />
+                    )}
+                  </>
+                )}
                 )}
 
                 {/* 면책 안내 */}

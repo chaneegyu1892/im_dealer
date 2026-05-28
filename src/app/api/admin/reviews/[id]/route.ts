@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicReviewSurfaces } from "@/lib/revalidate";
 
@@ -12,6 +12,7 @@ const reviewUpdateSchema = z.object({
   vehicleId: z.string().nullable().optional(),
   savedQuoteId: z.string().nullable().optional(),
   isPublic: z.boolean().optional(),
+  isBest: z.boolean().optional(),
   displayOrder: z.number().int().optional(),
   reviewDate: z.string().datetime().optional(),
 });
@@ -20,9 +21,8 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const review = await prisma.review.findUnique({ where: { id: (await params).id } });
     if (!review) {
@@ -39,10 +39,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin: session, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const { id } = await params;
     const body = await request.json();
@@ -86,10 +84,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin: session, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const { id } = await params;
     const before = await prisma.review.findUnique({ where: { id } });

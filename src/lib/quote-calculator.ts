@@ -2,10 +2,15 @@
  * 견적 계산 엔진 — 회수율(Recovery Rate) 기반
  *
  * 핵심 공식:
- *   기준 대여료 = 차량가 × 회수율
- *   보증금 적용 = 차량가 × (기준회수율 + 보증금할인회수율 × 보증금10%단위수)
- *   선납금 적용 = (기준대여료 - 선납금/개월수) - 차량가 × 선납금조정회수율 × 선납금10%단위수
- *   최종 대여료 = 보증금or선납금 적용 대여료 × (1+순위가산율) × (1+차량가산율) × (1+금융사가산율)
+ *   기준 대여료      = 차량가 × 회수율
+ *   보증금 적용 대여료 = 차량가 × (기준회수율 + 보증금할인회수율 × 보증금10%단위수)
+ *                     (depositDiscountRate 는 음수만 허용 — 할인 전용)
+ *   선납금 적용 대여료 = 기준대여료 - 선납금/개월수 + 차량가 × 선납금조정회수율 × 선납금10%단위수
+ *                     (prepayAdjustRate 는 부호 자유 — 양수=가산, 음수=할인)
+ *
+ *   가산 월 추가금(i) = 차량가 × 가산율_i / 100 ÷ 계약개월수
+ *   최종 대여료      = 보증금or선납금 적용 대여료
+ *                     + 월 추가금(순위) + 월 추가금(차량) + 월 추가금(금융사)
  */
 
 import type {
@@ -51,7 +56,7 @@ export function getRateFromMatrix(
   return rateMatrix[key] ?? 0;
 }
 
-/** 차량 실제 가격으로 min·max 선형 외삽한 회수율 반환 (범위 초과 시 연장선상에서 계산) */
+/** 차량 실제 가격으로 min·max 사이를 선형보간한 회수율 반환 (외삽 금지 — t를 [0,1]로 클램프) */
 function getInterpolatedRate(
   config: RateConfigData,
   vehiclePrice: number,
@@ -65,6 +70,14 @@ function getInterpolatedRate(
   // 범위 초과 시에도 연장선상에서 처리 (클램프 제거)
   const t = (vehiclePrice - config.minVehiclePrice) / (config.maxVehiclePrice - config.minVehiclePrice);
   return Math.max(0, minRate + t * (maxRate - minRate));
+}
+
+/** 차량가가 회수율 시트 범위(min~max)를 벗어났는지 검사 */
+export function isVehiclePriceOutOfRange(
+  config: Pick<RateConfigData, "minVehiclePrice" | "maxVehiclePrice">,
+  vehiclePrice: number
+): boolean {
+  return vehiclePrice < config.minVehiclePrice || vehiclePrice > config.maxVehiclePrice;
 }
 
 // ─── 단일 금융사 기준 대여료 계산 ─────────────────────────
@@ -88,7 +101,13 @@ function applyDeposit(
   return { monthly, depositAmount, discount };
 }
 
-/** 선납금 적용 월 대여료 계산 */
+/**
+ * 선납금 적용 월 대여료 계산
+ *
+ * - 선납금 분할 차감(prepayAmount / months)은 실제로 미리 낸 돈이므로 항상 차감.
+ * - prepayAdjustRate 항(`차량가 × rate × 단위수`)은 부호 그대로 반영.
+ *   양수면 가산, 음수면 할인.
+ */
 function applyPrepay(
   vehiclePrice: number,
   baseMonthly: number,
@@ -100,8 +119,8 @@ function applyPrepay(
   const prepayAmount = Math.round(vehiclePrice * (prepayRate / 100));
   const prepayDeduction = prepayAmount / contractMonths;
   const adjustAmount = vehiclePrice * prepayAdjustRate * steps;
-  const monthly = baseMonthly - prepayDeduction - adjustAmount;
-  return { monthly, prepayAmount, adjust: -(prepayDeduction + adjustAmount) };
+  const monthly = baseMonthly - prepayDeduction + adjustAmount;
+  return { monthly, prepayAmount, adjust: -prepayDeduction + adjustAmount };
 }
 
 // ─── 다중 금융사 견적 계산 (메인 함수) ──────────────────
@@ -171,20 +190,27 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
   // 기본 대여료 기준 1차 정렬 (순위 결정)
   intermediates.sort((a, b) => a.monthlyBeforeSurcharge - b.monthlyBeforeSurcharge);
 
-  // 순위 가산 → 차량 가산 → 금융사 가산 누적 곱셈
+  // 가산 월 추가금 = (차량가 × 가산율 / 100) ÷ 계약개월수
+  // 순위/차량/금융사 각 항목을 따로 계산해 단순 합산 (누적 곱셈 X)
+  const perMonthSurcharge = (rate: number): number =>
+    (vehiclePrice * (rate / 100)) / contractMonths;
+
   const results: FinanceQuoteResult[] = intermediates.map((item, idx) => {
     const rank = idx + 1;
     const rankRate = rank <= rankSurchargeRates.length
       ? rankSurchargeRates[rank - 1]
       : rankSurchargeRates[rankSurchargeRates.length - 1];
 
-    const afterRank    = item.monthlyBeforeSurcharge * (1 + rankRate / 100);
-    const afterVehicle = afterRank * (1 + vehicleSurchargeRate / 100);
-    const monthlyPayment = Math.round(afterVehicle * (1 + item.config.financeSurchargeRate / 100));
+    const rankSurchargeRaw    = perMonthSurcharge(rankRate);
+    const vehicleSurchargeRaw = perMonthSurcharge(vehicleSurchargeRate);
+    const financeSurchargeRaw = perMonthSurcharge(item.config.financeSurchargeRate);
+    const totalSurchargeRaw   = rankSurchargeRaw + vehicleSurchargeRaw + financeSurchargeRaw;
 
-    const rankSurcharge    = Math.round(afterRank - item.monthlyBeforeSurcharge);
-    const vehicleSurcharge = Math.round(afterVehicle - afterRank);
-    const financeSurcharge = monthlyPayment - Math.round(afterVehicle);
+    const monthlyPayment = Math.round(item.monthlyBeforeSurcharge + totalSurchargeRaw);
+
+    const rankSurcharge    = Math.round(rankSurchargeRaw);
+    const vehicleSurcharge = Math.round(vehicleSurchargeRaw);
+    const financeSurcharge = Math.round(financeSurchargeRaw);
     const totalSurcharge   = rankSurcharge + vehicleSurcharge + financeSurcharge;
 
     const breakdown: QuoteBreakdown = {
@@ -213,6 +239,7 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
       monthlyPayment,
       breakdown,
       surcharges,
+      rangeExceeded: isVehiclePriceOutOfRange(item.config, vehiclePrice),
     };
   });
 
@@ -314,26 +341,41 @@ export function calcRateMatrix(
   return result;
 }
 
-/** 보증금 10% 견적 → depositDiscountRate 계산 */
+/**
+ * 보증금 10% 견적 → depositDiscountRate 계산
+ *
+ * 부호 컨벤션: 음수 = 할인 (정상), 양수 = 가산 (정책 위반, API에서 차단됨).
+ * - 운영자가 dep < base (보증금 적용가가 기본가보다 낮음 = 할인 의도) 로 입력하면 음수 반환.
+ * - dep > base (실수로 더 높게 입력) 이면 양수 반환 → 어드민 API 가 400 으로 차단.
+ *
+ * calculator 의 applyDeposit 가 `baseRate + depositDiscountRate × steps` 식이므로
+ * 음수 반환 시 회수율이 감소 → 월대여료 감소 → 할인이 자연스럽게 적용된다.
+ */
 export function calcDepositDiscountRate(
   baseRates: RateSheetRaw,
   depositRates: RateSheetRaw,
   vehicleBasePrice: number
 ): number {
-  const discounts: number[] = [];
+  const adjustRates: number[] = [];
   for (const key of RATE_KEYS) {
     const base = baseRates[key] ?? 0;
     const dep = depositRates[key] ?? 0;
     if (base > 0 && dep > 0) {
-      discounts.push((base - dep) / vehicleBasePrice);
+      // dep < base (정상 할인) → 음수, dep > base (잘못된 입력) → 양수
+      adjustRates.push((dep - base) / vehicleBasePrice);
     }
   }
-  if (discounts.length === 0) return 0;
-  const avg = discounts.reduce((a, b) => a + b, 0) / discounts.length;
+  if (adjustRates.length === 0) return 0;
+  const avg = adjustRates.reduce((a, b) => a + b, 0) / adjustRates.length;
   return Math.round(avg * 100_000) / 100_000;
 }
 
-/** 선납금 10% 견적 → prepayAdjustRate 계산 */
+/**
+ * 선납금 10% 견적 → prepayAdjustRate 계산
+ *
+ * 부호 컨벤션: 양수 = 가산, 음수 = 할인.
+ * 캐피탈사가 선납금에 추가 할인을 주면 결과는 음수, 추가 가산을 매기면 양수.
+ */
 export function calcPrepayAdjustRate(
   baseRates: RateSheetRaw,
   prepayRates: RateSheetRaw,
@@ -346,13 +388,12 @@ export function calcPrepayAdjustRate(
     const base = baseRates[key] ?? 0;
     const prepay = prepayRates[key] ?? 0;
     if (base > 0 && prepay > 0) {
-      // 총할인 = base - prepay
-      // 월선납할인 = vehicleBasePrice * 10% / months
-      // 추가할인 = 총할인 - 월선납할인
-      const totalDiscount = base - prepay;
+      // 캐피탈 견적 표기 기준 추가가산액 = (실제 월지불액 - 기본 월지불액) + 월 선납금 분할차감
+      //   prepay - base 가 음수면 할인, 양수면 가산.
+      //   prepayDeduction(선납금 분할차감)은 견적상 이미 base 대비 -로 들어가 있으므로 더해 보정.
       const monthlyPrepayDeduction = (vehicleBasePrice * 0.1) / months;
-      const extraDiscount = totalDiscount - monthlyPrepayDeduction;
-      adjustRates.push(extraDiscount / vehicleBasePrice);
+      const extraSurcharge = (prepay - base) + monthlyPrepayDeduction;
+      adjustRates.push(extraSurcharge / vehicleBasePrice);
     }
   }
   if (adjustRates.length === 0) return 0;

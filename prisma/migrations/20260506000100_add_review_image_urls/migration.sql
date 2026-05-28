@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Review" ADD COLUMN "imageUrls" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

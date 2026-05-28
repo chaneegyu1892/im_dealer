@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { SelectRow, type SelectOption } from "./primitives";
 import type { VehicleListItem } from "@/types/api";
+import { useBrandSignals } from "@/lib/use-brand-signals";
 
 export interface TrimOption {
   id: string;
@@ -51,18 +52,25 @@ export function ComparisonSlotPicker({
   const [trims, setTrims] = useState<TrimData[]>([]);
   const [trimsLoading, setTrimsLoading] = useState(false);
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
-  const [selectedTrimName, setSelectedTrimName] = useState<string | null>(null);
+  const [selectedTrimId, setSelectedTrimId] = useState<string | null>(null);
+  const { comparator: brandComparator } = useBrandSignals();
 
   // 현재 차량 제외한 선택 가능 목록
+  // 어드민/공개 일관 정렬 SSOT: isFeatured → 차량 수 → 가나다
   const vehicleOptions: SelectOption[] = useMemo(
     () =>
-      allVehicles
+      [...allVehicles]
         .filter((v) => v.slug !== excludeSlug)
+        .sort((a, b) => {
+          const brandDiff = brandComparator(a.brand, b.brand);
+          if (brandDiff !== 0) return brandDiff;
+          return a.name.localeCompare(b.name, "ko");
+        })
         .map((v) => ({
           value: v.slug,
           label: `${v.brand} ${v.name}`,
         })),
-    [allVehicles, excludeSlug],
+    [allVehicles, excludeSlug, brandComparator],
   );
 
   // 차량 선택 시 트림 로드
@@ -77,7 +85,7 @@ export function ComparisonSlotPicker({
       setTrimsLoading(true);
       setTrims([]);
       setSelectedLineup(null);
-      setSelectedTrimName(null);
+      setSelectedTrimId(null);
 
       try {
         const response = await fetch(`/api/vehicles/${selectedSlug}/trims`);
@@ -131,28 +139,32 @@ export function ComparisonSlotPicker({
     [trims, selectedLineup],
   );
 
-  const availableTrimNames = useMemo(
-    () =>
-      [
-        ...new Map(
-          trimsForLineup.map((t) => {
-            const name = t.specs?.trimName ?? t.name;
-            return [name, { name, price: t.price, id: t.id }];
-          }),
-        ).values(),
-      ],
-    [trimsForLineup],
-  );
+  // 트림 옵션 — id 기반 식별 (같은 specs.trimName 중복 차량 대응).
+  // 같은 이름이 여러 개면 t.name의 prefix 차이를 보조 라벨로 자동 표시.
+  const availableTrimNames = useMemo(() => {
+    const list = trimsForLineup.map((t) => {
+      const trimName = t.specs?.trimName ?? t.name;
+      const extra =
+        t.name !== trimName && t.name.includes(trimName)
+          ? t.name.replace(trimName, "").trim().replace(/\s+/g, " ")
+          : null;
+      return { id: t.id, name: trimName, extra, price: t.price };
+    });
+    const nameCount = new Map<string, number>();
+    list.forEach((it) => nameCount.set(it.name, (nameCount.get(it.name) ?? 0) + 1));
+    return list.map((it) => ({
+      ...it,
+      extra: nameCount.get(it.name)! > 1 ? it.extra : null,
+    }));
+  }, [trimsForLineup]);
 
   const resolvedTrim = useMemo(() => {
     if (hasCascade) {
-      if (!selectedTrimName) return null;
-      return (
-        trimsForLineup.find((t) => (t.specs?.trimName ?? t.name) === selectedTrimName) ?? null
-      );
+      if (!selectedTrimId) return null;
+      return trimsForLineup.find((t) => t.id === selectedTrimId) ?? null;
     }
     return trims.find((t) => t.id === selectedLineup) ?? null;
-  }, [hasCascade, selectedTrimName, trimsForLineup, trims, selectedLineup]);
+  }, [hasCascade, selectedTrimId, trimsForLineup, trims, selectedLineup]);
 
   // 트림 확정 시 부모에 통지
   useEffect(() => {
@@ -193,7 +205,7 @@ export function ComparisonSlotPicker({
 	            setSelectedSlug(v);
 	            setTrims([]);
 	            setSelectedLineup(null);
-	            setSelectedTrimName(null);
+	            setSelectedTrimId(null);
 	          }}
         />
 
@@ -215,19 +227,22 @@ export function ComparisonSlotPicker({
                   options={availableLineups.map((l) => ({ value: l, label: l }))}
                   onChange={(v) => {
                     setSelectedLineup(v || null);
-                    setSelectedTrimName(null);
+                    setSelectedTrimId(null);
                   }}
                 />
                 {selectedLineup && (
                   <SelectRow
                     label="트림"
-                    value={selectedTrimName ?? ""}
+                    value={selectedTrimId ?? ""}
                     placeholder="트림을 선택하세요"
-                    options={availableTrimNames.map((t) => ({
-                      value: t.name,
-                      label: `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
-                    }))}
-                    onChange={(v) => setSelectedTrimName(v || null)}
+                    options={availableTrimNames.map((t) => {
+                      const baseLabel = t.extra ? `${t.name} (${t.extra})` : t.name;
+                      return {
+                        value: t.id,
+                        label: `${baseLabel} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
+                      };
+                    })}
+                    onChange={(v) => setSelectedTrimId(v || null)}
                   />
                 )}
               </>

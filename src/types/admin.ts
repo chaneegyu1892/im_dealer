@@ -25,6 +25,24 @@ export interface AdminVehicleDetail extends AdminVehicle {
   trims: AdminTrim[];
   lineups: AdminVehicleLineup[];
   popularConfigs?: AdminPopularConfig[];
+  colors?: AdminVehicleColor[];
+}
+
+// ─── VehicleColor ───────────────────────────────────────
+export type ColorKind = "EXTERIOR" | "INTERIOR";
+
+export interface AdminVehicleColor {
+  id: string;
+  vehicleId: string;
+  kind: ColorKind;
+  name: string;
+  hexCode: string;
+  imageUrl: string | null;
+  priceDelta: number;
+  isDefault: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── PopularConfig ──────────────────────────────────────
@@ -93,9 +111,13 @@ export interface AdminTrimOption {
   description: string | null;
 }
 
-// ─── Brand (Vehicle.brand DISTINCT 집계) ────────────────
+// ─── Brand ──────────────────────────────────────────────
 export interface AdminBrand {
+  id: string;
   name: string;
+  logoUrl: string | null;
+  displayOrder: number;
+  isFeatured: boolean;
   vehicleCount: number;
 }
 
@@ -106,6 +128,10 @@ export interface DashboardStats {
   todayQuoteViews: number;
   todayAiSessions: number;
   monthlyQuotes: number;
+  /** 이달 견적 계산 중 회원(userId 있음) 비율 (%) */
+  memberRatio: number;
+  /** 이달 견적 계산 → 신청 클릭 전환율 (%) */
+  applyClickRate: number;
 }
 
 export interface DailyCount {
@@ -129,12 +155,47 @@ export interface DashboardData {
 }
 
 // ─── Analytics ──────────────────────────────────────────
+export interface ColorPopularityItem {
+  colorId: string;
+  name: string;
+  hexCode: string;
+  count: number;
+}
+
 export interface AnalyticsData {
   totalQuoteViews: number;
   totalVisitors: number;
   dailyTrend: DailyCount[];
   vehicleLeaderboard: { vehicleId: string; name: string; count: number }[];
   engineTypeDistribution: { engineType: string; count: number }[];
+  /** QuoteCalcLog 기반 인기 차량 TOP 10 (기간: 30일) */
+  calcPopularVehicles: { vehicleId: string; name: string; count: number }[];
+  /** 계약조건 분포 (30일) */
+  calcConditionDistribution: {
+    months: CategoryCount[];
+    mileages: CategoryCount[];
+    depositPrepayMix: CategoryCount[];
+  };
+  /** 인기 외장 색상 TOP 5 (SavedQuote 기반, 30일) */
+  topExteriorColors: ColorPopularityItem[];
+  /** 인기 내장 색상 TOP 5 */
+  topInteriorColors: ColorPopularityItem[];
+}
+
+// ─── QuoteCalcLog 기반 차량별 통계 (P1 차량 상세 탭) ──────
+export interface VehicleQuoteStats {
+  totalCount: number;
+  avgMonthly: number;
+  memberRatio: number;
+  applyClickRate: number;
+  dailyTrend: DailyCount[];
+  topTrims: { label: string; value: number }[];
+  topOptions: { label: string; value: number }[];
+  conditionDistribution: {
+    months: CategoryCount[];
+    mileages: CategoryCount[];
+    depositPrepayMix: CategoryCount[];
+  };
 }
 
 // ─── SavedQuote (admin 조회용) ──────────────────────────
@@ -164,6 +225,10 @@ export interface AdminSavedQuote {
   quoteType: "AI" | "DETAIL";
   createdAt: string;
   updatedAt: string;
+  exteriorColorName: string | null;
+  exteriorColorHex: string | null;
+  interiorColorName: string | null;
+  interiorColorHex: string | null;
 }
 
 export interface AdminNotification {

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Trash2, Star, Save, MessageSquare, ChevronLeft } from "lucide-react";
+import { Search, Plus, Trash2, Star, Save, MessageSquare, Sparkles, Heart } from "lucide-react";
 import type {
   AdminReview,
   AdminReviewVehicleOption,
@@ -23,6 +23,7 @@ type FormState = {
   vehicleId: string;
   savedQuoteId: string;
   isPublic: boolean;
+  isBest: boolean;
   displayOrder: number;
   reviewDate: string;
 };
@@ -34,6 +35,7 @@ const EMPTY_FORM: FormState = {
   vehicleId: "",
   savedQuoteId: "",
   isPublic: true,
+  isBest: false,
   displayOrder: 0,
   reviewDate: new Date().toISOString().slice(0, 10),
 };
@@ -46,6 +48,7 @@ function reviewToForm(r: AdminReview): FormState {
     vehicleId: r.vehicleId ?? "",
     savedQuoteId: r.savedQuoteId ?? "",
     isPublic: r.isPublic,
+    isBest: r.isBest,
     displayOrder: r.displayOrder,
     reviewDate: r.reviewDate.slice(0, 10),
   };
@@ -72,10 +75,15 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
   const [search, setSearch] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<string>("");
   const [visibilityFilter, setVisibilityFilter] = useState<"all" | "public" | "private">("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [bestOnly, setBestOnly] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(initialReviews[0]?.id ?? null);
   const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
+  const [form, setForm] = useState<FormState>(
+    initialReviews[0] ? reviewToForm(initialReviews[0]) : EMPTY_FORM
+  );
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(
+    initialReviews[0] ? reviewToSelectedCustomer(initialReviews[0]) : null
+  );
   const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
@@ -83,6 +91,7 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
       if (vehicleFilter && r.vehicleId !== vehicleFilter) return false;
       if (visibilityFilter === "public" && !r.isPublic) return false;
       if (visibilityFilter === "private" && r.isPublic) return false;
+      if (bestOnly && !r.isBest) return false;
       if (search) {
         const q = search.toLowerCase();
         const hay = `${r.authorRealName} ${r.content} ${r.vehicleName ?? ""}`.toLowerCase();
@@ -90,7 +99,7 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
       }
       return true;
     });
-  }, [initialReviews, search, vehicleFilter, visibilityFilter]);
+  }, [initialReviews, search, vehicleFilter, visibilityFilter, bestOnly]);
 
   const handleSelect = (id: string) => {
     const r = initialReviews.find((x) => x.id === id);
@@ -138,6 +147,7 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
         vehicleId: form.vehicleId || null,
         savedQuoteId: form.savedQuoteId || null,
         isPublic: form.isPublic,
+        isBest: form.isBest,
         displayOrder: form.displayOrder,
         reviewDate: new Date(form.reviewDate).toISOString(),
       };
@@ -185,12 +195,15 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
     ? maskAuthorName(form.authorRealName)
     : "—";
 
-  const showingForm = isCreating || !!selectedId;
+  const selectedReview = selectedId
+    ? initialReviews.find((r) => r.id === selectedId)
+    : null;
+  const selectedImageUrls = !isCreating && selectedReview ? selectedReview.imageUrls : [];
 
   return (
-    <div className="flex h-full bg-[#F8F9FC]">
-      {/* 좌측: 목록 - 모바일에서 폼 열리면 숨김 */}
-      <div className={`${showingForm ? "max-md:hidden" : ""} w-full md:w-[360px] shrink-0 border-r border-[#E8EAF2] bg-white flex flex-col`}>
+    <div className="flex h-[calc(100vh-64px)] bg-[#F8F9FC]">
+      {/* 좌측: 목록 */}
+      <div className="w-[360px] shrink-0 border-r border-[#E8EAF2] bg-white flex flex-col">
         <div className="p-5 border-b border-[#E8EAF2]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-[15px] font-semibold text-[#1A1A2E] flex items-center gap-2">
@@ -241,6 +254,20 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
               <option value="private">비공개</option>
             </select>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setBestOnly((v) => !v)}
+            className={
+              "mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors " +
+              (bestOnly
+                ? "bg-[#000666] text-white border-[#000666]"
+                : "bg-white text-[#71749A] border-[#E8EAF2] hover:border-[#6066EE]")
+            }
+          >
+            <Sparkles size={11} />
+            베스트만 보기
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -283,10 +310,24 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
                   </div>
                   <p className="text-[12px] text-[#71749A] line-clamp-2">{r.content}</p>
                   <div className="mt-1.5 flex items-center justify-between text-[10px] text-[#9BA4C0]">
-                    <span>{r.vehicleName ?? "차량 미연결"}</span>
-                    {!r.isPublic && (
-                      <span className="bg-[#FFEBEB] text-[#CC0000] px-1.5 py-0.5 rounded">비공개</span>
-                    )}
+                    <span className="truncate">{r.vehicleName ?? "차량 미연결"}</span>
+                    <span className="flex items-center gap-1">
+                      {r.likeCount > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-[#71749A]">
+                          <Heart size={9} className="fill-current" />
+                          {r.likeCount}
+                        </span>
+                      )}
+                      {r.isBest && (
+                        <span className="inline-flex items-center gap-0.5 bg-[#000666] text-white px-1.5 py-0.5 rounded font-medium">
+                          <Sparkles size={9} />
+                          BEST
+                        </span>
+                      )}
+                      {!r.isPublic && (
+                        <span className="bg-[#FFEBEB] text-[#CC0000] px-1.5 py-0.5 rounded">비공개</span>
+                      )}
+                    </span>
                   </div>
                 </button>
               );
@@ -295,18 +336,8 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
         </div>
       </div>
 
-      {/* 우측: 편집 폼 - 모바일에서 목록 상태면 숨김 */}
-      <div className={`${!showingForm ? "max-md:hidden" : ""} flex-1 overflow-y-auto p-4 md:p-8`}>
-        {/* 모바일 뒤로가기 */}
-        {showingForm && (
-          <button
-            type="button"
-            onClick={() => { setSelectedId(null); setIsCreating(false); }}
-            className="md:hidden flex items-center gap-1.5 text-[13px] font-medium text-[#6B7399] hover:text-[#1A1A2E] mb-4 transition-colors"
-          >
-            <ChevronLeft size={16} /> 목록으로
-          </button>
-        )}
+      {/* 우측: 편집 폼 */}
+      <div className="flex-1 overflow-y-auto p-8">
         {!isCreating && !selectedId ? (
           <div className="h-full flex items-center justify-center text-[#9BA4C0] text-[13px]">
             후기를 선택하거나 새로 만드세요.
@@ -448,6 +479,33 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
                 </div>
               </div>
 
+              {/* 첨부 이미지 (고객 작성 후기에만 노출) */}
+              {selectedImageUrls.length > 0 && (
+                <div>
+                  <label className="block text-[12px] font-medium text-[#1A1A2E] mb-1.5">
+                    첨부 이미지
+                    <span className="ml-1 text-[11px] text-[#9BA4C0] font-normal">
+                      ({selectedImageUrls.length}장 · 고객 첨부)
+                    </span>
+                  </label>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {selectedImageUrls.map((url, idx) => (
+                      <a
+                        key={url}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-20 h-20 shrink-0 rounded-[6px] overflow-hidden border border-[#E8EAF2] bg-[#F4F5F8] hover:border-[#6066EE]"
+                        title={`이미지 ${idx + 1} 원본 열기`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`첨부 ${idx + 1}`} className="w-full h-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 공개 여부 */}
               <div>
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -460,6 +518,24 @@ export function ReviewManager({ initialReviews, vehicleOptions }: ReviewManagerP
                   <span className="text-[13px] text-[#1A1A2E]">공개</span>
                   <span className="text-[11px] text-[#9BA4C0]">
                     꺼두면 메인페이지·차량 상세페이지에서 노출되지 않습니다.
+                  </span>
+                </label>
+              </div>
+
+              {/* 베스트 후기 */}
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isBest}
+                    onChange={(e) => setForm({ ...form, isBest: e.target.checked })}
+                    className="w-4 h-4 accent-[#000666]"
+                  />
+                  <span className="text-[13px] text-[#1A1A2E] inline-flex items-center gap-1">
+                    <Sparkles size={12} className="text-[#000666]" /> 베스트 후기
+                  </span>
+                  <span className="text-[11px] text-[#9BA4C0]">
+                    홈 캐러셀과 후기 페이지 상단, 차량 상세에 우선 노출됩니다.
                   </span>
                 </label>
               </div>

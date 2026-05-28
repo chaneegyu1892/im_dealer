@@ -8,7 +8,8 @@ import {
   Users, UserCheck, Clock, Search, X,
   ChevronRight, Phone, CalendarDays,
   FileText, MessageSquare, AlertCircle, CheckCircle2,
-  Sparkles, TrendingUp, Mail, Shield, ShieldCheck, ShieldAlert
+  Sparkles, TrendingUp, Mail, Shield, ShieldAlert,
+  Download, ArrowDown, ArrowUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -17,6 +18,9 @@ import type { AdminUserRecord, AdminUsersStats } from "@/lib/admin-queries";
 // ─── 상태 매핑 ─────────────────────────────────────────
 type UserStatusFilter = "전체" | "정상" | "휴면";
 type ActiveFilter = "전체" | "진행중" | "계약있음" | "없음";
+type TabKind = "all" | "dormant";
+type DormantSortKey = "dormancy" | "lastContact" | "consultationCount";
+type SortDirection = "asc" | "desc";
 
 const USER_STATUS_STYLE: Record<"active" | "dormant", { color: string; bg: string; label: string }> = {
   active:  { color: "#059669", bg: "#ECFDF5", label: "정상" },
@@ -63,6 +67,68 @@ function formatMonthly(amount: number) {
   return `${Math.round(amount / 10000).toLocaleString()}만원`;
 }
 
+function dormancyDays(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+}
+
+function dormancyTone(days: number): { color: string; bg: string } {
+  if (days >= 91) return { color: "#DC2626", bg: "#FEF2F2" };
+  if (days >= 31) return { color: "#D97706", bg: "#FFFBEB" };
+  return { color: "#6B7399", bg: "#F4F5F8" };
+}
+
+function todayKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}${m}${day}`;
+}
+
+function csvCell(value: string | number | null | undefined) {
+  const s = value == null ? "" : String(value);
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function downloadDormantCsv(rows: AdminUserRecord[]) {
+  const header = [
+    "이름",
+    "연락처",
+    "이메일",
+    "휴면일수",
+    "최근접수일",
+    "최초접수일",
+    "총 견적건수",
+    "계약 건수",
+    "메모",
+  ];
+  const body = rows.map((u) => [
+    csvCell(u.name),
+    csvCell(u.phone),
+    csvCell(u.email ?? ""),
+    csvCell(dormancyDays(u.lastContactAt)),
+    csvCell(formatDate(u.lastContactAt)),
+    csvCell(formatDate(u.firstContactAt)),
+    csvCell(u.consultationCount),
+    csvCell(u.contractCount),
+    csvCell(u.internalMemo ?? ""),
+  ].join(","));
+  const csv = [header.map(csvCell).join(","), ...body].join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `dormant_users_${todayKey()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ─── 견적 상태 배지 ─────────────────────────────────────
 function QuoteStatusBadge({ label }: { label: string }) {
   const s = QUOTE_STATUS_STYLE[label] ?? { color: "#9BA4C0", bg: "#F4F5F8" };
@@ -80,11 +146,9 @@ function QuoteStatusBadge({ label }: { label: string }) {
 function UserDetailPanel({
   user,
   onClose,
-  currentAdminRole,
 }: {
   user: AdminUserRecord;
   onClose: () => void;
-  currentAdminRole: string;
 }) {
   const statusStyle = USER_STATUS_STYLE[user.userStatus];
   const sourceStyle = SOURCE_STYLE[user.source];
@@ -107,7 +171,7 @@ function UserDetailPanel({
         animate={{ x: 0 }}
         exit={{ x: "100%" }}
         transition={{ duration: 0.28, ease: "easeOut" }}
-        className="fixed right-0 top-0 bottom-0 w-full sm:w-[420px] bg-white shadow-2xl z-50 flex flex-col overflow-hidden"
+        className="fixed right-0 top-0 bottom-0 w-[420px] bg-white shadow-2xl z-50 flex flex-col overflow-hidden"
       >
         {/* 헤더 */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F2F8]">
@@ -287,101 +351,17 @@ function UserDetailPanel({
             )}
           </div>
 
-          {/* 권한 및 등급 */}
-          {currentAdminRole === "superadmin" ? (
-            /* ── 최종관리자: 권한 편집 가능 ── */
-            <div className="px-5 py-4 border-b border-[#F8F9FC] bg-[#F9FAFF]">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#000666] flex items-center gap-1.5">
-                  <Shield size={12} /> 권한 및 등급 설정
-                </p>
-                {user.role && (
-                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100 uppercase">
-                    {user.role === "superadmin" ? "최종관리자" : user.role === "admin" ? "관리자" : user.role}
-                  </span>
-                )}
-              </div>
-              <div className="bg-white rounded-xl border border-[#E8EAF0] p-3 shadow-sm">
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: "superadmin", label: "최종관리자", color: "#7C3AED", bg: "#F5F3FF" },
-                    { id: "admin", label: "관리자", color: "#000666", bg: "#E5E5FA" },
-                    { id: "dealer", label: "딜러", color: "#059669", bg: "#ECFDF5" },
-                  ].map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={async () => {
-                        if (!confirm(`${user.name} 님을 ${r.label}로 지정하시겠습니까?`)) return;
-                        try {
-                          const res = await fetch(`/api/admin/users/${user.authUserId}/grant-admin`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ role: r.id })
-                          });
-                          if (res.ok) {
-                            alert(`${r.label} 권한이 부여되었습니다.`);
-                            window.location.reload();
-                          } else {
-                            const data = await res.json();
-                            alert(data.error || "처리 중 오류가 발생했습니다.");
-                          }
-                        } catch {
-                          alert("서버 통신 중 오류가 발생했습니다.");
-                        }
-                      }}
-                      className={cn(
-                        "flex flex-col items-center justify-center p-3 rounded-lg border transition-all",
-                        user.role === r.id
-                          ? "border-[#000666] bg-[#F9FAFF]"
-                          : "border-[#F0F2F8] hover:border-[#6066EE] bg-white"
-                      )}
-                    >
-                      <ShieldCheck size={18} style={{ color: r.color }} />
-                      <span className="text-[11px] font-bold mt-1.5" style={{ color: r.color }}>{r.label}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {user.role && (
-                  <button
-                    onClick={async () => {
-                      if (!confirm("권한을 회수하고 일반 사용자로 변경하시겠습니까?")) return;
-                      try {
-                        const res = await fetch(`/api/admin/users/${user.authUserId}/grant-admin`, {
-                          method: "DELETE"
-                        });
-                        if (res.ok) {
-                          alert("권한이 회수되었습니다.");
-                          window.location.reload();
-                        } else {
-                          alert("처리 중 오류가 발생했습니다.");
-                        }
-                      } catch {
-                        alert("서버 통신 중 오류가 발생했습니다.");
-                      }
-                    }}
-                    className="mt-3 w-full py-2 rounded-lg text-[11px] font-bold text-red-500 border border-red-50 hover:bg-red-50 transition-all"
-                  >
-                    권한 회수 및 일반 사용자로 전환
-                  </button>
-                )}
-              </div>
+          {/* 권한 안내 — 부여/회수는 운영 파트너 관리로 이동 */}
+          {user.role && (
+            <div className="px-5 py-3 border-b border-[#F8F9FC] bg-[#F9FAFF] text-[11px] text-[#5A6080] flex items-center gap-2">
+              <Shield size={12} className="text-[#000666] shrink-0" />
+              <span>
+                현재 권한 <strong className="text-[#000666] uppercase">{user.role}</strong>. 권한 부여·회수는{" "}
+                <a href="/admin/settings" className="underline font-bold text-[#000666]">운영 파트너 관리</a>
+                에서 진행하세요.
+              </span>
             </div>
-          ) : user.role ? (
-            /* ── 일반 관리자: 역할 읽기 전용 표시 ── */
-            <div className="px-5 py-4 border-b border-[#F8F9FC] bg-[#F9FAFF]">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#9BA4C0] flex items-center gap-1.5 mb-2">
-                <Shield size={12} /> 등급
-              </p>
-              <div className="flex items-center gap-2">
-                <ShieldAlert size={14} className="text-[#9BA4C0]" />
-                <span className="text-[12px] font-semibold text-[#1A1A2E]">
-                  {user.role === "superadmin" ? "최종관리자" : user.role === "admin" ? "관리자" : user.role === "dealer" ? "딜러" : user.role}
-                </span>
-                <span className="text-[10px] text-[#9BA4C0]">· 권한 변경은 최종관리자만 가능합니다.</span>
-              </div>
-            </div>
-          ) : null}
+          )}
 
           {/* 관리자 메모 */}
           <div className="px-5 py-4">
@@ -422,26 +402,33 @@ export default function UsersClient({
   users,
   stats,
   authError,
-  currentAdminRole,
 }: {
   users: AdminUserRecord[];
   stats: AdminUsersStats;
   authError?: string;
-  currentAdminRole: string;
 }) {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<UserStatusFilter>("전체");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("전체");
   const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
+  const [tab, setTab] = useState<TabKind>(
+    searchParams.get("tab") === "dormant" ? "dormant" : "all"
+  );
+  const [dormantSortKey, setDormantSortKey] = useState<DormantSortKey>("dormancy");
+  const [dormantSortDir, setDormantSortDir] = useState<SortDirection>("desc");
 
-  // URL ?search= 파라미터 연동
+  // URL ?search=, ?tab= 파라미터 연동
   useEffect(() => {
     const s = searchParams.get("search");
     if (s) {
       setSearch(s);
       const match = users.find((u) => u.name === s);
       if (match) setSelectedUser(match);
+    }
+    const t = searchParams.get("tab");
+    if (t === "dormant" || t === "all") {
+      setTab(t);
     }
   }, [searchParams, users]);
 
@@ -458,6 +445,9 @@ export default function UsersClient({
   ];
 
   const filtered = useMemo(() => {
+    const isDormantTab = tab === "dormant";
+    const effectiveStatusFilter: UserStatusFilter = isDormantTab ? "휴면" : statusFilter;
+
     const list = users.filter((u) => {
       const q = search.trim().toLowerCase();
       const normalizedPhone = u.phone.replace(/-/g, "").toLowerCase();
@@ -468,8 +458,8 @@ export default function UsersClient({
         !normalizedPhone.includes(q) &&
         !email.includes(q)
       ) return false;
-      if (statusFilter === "정상" && u.userStatus !== "active") return false;
-      if (statusFilter === "휴면" && u.userStatus !== "dormant") return false;
+      if (effectiveStatusFilter === "정상" && u.userStatus !== "active") return false;
+      if (effectiveStatusFilter === "휴면" && u.userStatus !== "dormant") return false;
       const hasActive = u.activeItems.some((i) => i.statusRaw !== "CONVERTED");
       const hasContract = u.contractItems.length > 0;
       if (activeFilter === "진행중" && !hasActive) return false;
@@ -478,7 +468,23 @@ export default function UsersClient({
       return true;
     });
 
-    // 정렬: 최종관리자(superadmin) > 관리자(admin) > 딜러(dealer) > 일반사용자(null)
+    if (isDormantTab) {
+      const flip = dormantSortDir === "desc" ? -1 : 1;
+      return list.sort((a, b) => {
+        if (dormantSortKey === "dormancy") {
+          const cmp = dormancyDays(a.lastContactAt) - dormancyDays(b.lastContactAt);
+          return cmp * flip;
+        }
+        if (dormantSortKey === "lastContact") {
+          const cmp =
+            new Date(a.lastContactAt).getTime() - new Date(b.lastContactAt).getTime();
+          return cmp * flip;
+        }
+        return (a.consultationCount - b.consultationCount) * flip;
+      });
+    }
+
+    // 전체 탭 정렬: 최종관리자(superadmin) > 관리자(admin) > 딜러(dealer) > 일반사용자(null)
     const rolePriority: Record<string, number> = { superadmin: 4, admin: 3, dealer: 2, staff: 1 };
     return list.sort((a, b) => {
       const prioA = rolePriority[a.role || ""] || 0;
@@ -486,23 +492,36 @@ export default function UsersClient({
       if (prioA !== prioB) return prioB - prioA;
       return new Date(b.lastContactAt).getTime() - new Date(a.lastContactAt).getTime();
     });
-  }, [users, search, statusFilter, activeFilter]);
+  }, [users, search, statusFilter, activeFilter, tab, dormantSortKey, dormantSortDir]);
+
+  const isDormantTab = tab === "dormant";
+
+  const toggleDormantSort = (key: DormantSortKey) => {
+    if (dormantSortKey === key) {
+      setDormantSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setDormantSortKey(key);
+      setDormantSortDir("desc");
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#F8F9FC] border border-[#E8EAF0] overflow-hidden shadow-sm rounded-[16px]">
 
       {/* 헤더 */}
-      <div className="bg-white border-b border-[#E8EAF0] px-4 md:px-6 py-4 flex items-center gap-3 shrink-0 z-20">
-        <div className="p-2 bg-[#F4F5F8] rounded-[8px] text-[#000666] shrink-0">
-          <Users size={18} strokeWidth={2.5} />
-        </div>
-        <div className="min-w-0">
-          <h1 className="text-[16px] md:text-[18px] font-bold text-[#1A1A2E]">사용자 관리</h1>
-          <p className="text-[11px] text-[#6B7399] mt-0.5 truncate hidden sm:block">{today} · 플랫폼 접수 고객 관리 및 상담 추적</p>
+      <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-[#F4F5F8] rounded-[8px] text-[#000666]">
+            <Users size={20} strokeWidth={2.5} />
+          </div>
+          <div>
+            <h1 className="text-[18px] font-bold text-[#1A1A2E]">사용자 관리</h1>
+            <p className="text-[12px] text-[#6B7399] mt-1">{today} · 플랫폼 접수 고객 관리 및 상담 추적</p>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-3 md:p-6 flex flex-col gap-3 md:gap-5 scrollbar-hide">
+      <div className="flex-1 overflow-auto p-6 flex flex-col gap-5 scrollbar-hide">
 
         {/* 회원 데이터 로드 실패 경고 */}
         {authError && (
@@ -519,7 +538,7 @@ export default function UsersClient({
         )}
 
         {/* KPI 카드 */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 shrink-0">
+        <div className="grid grid-cols-5 gap-4 shrink-0">
           {KPI_LIST.map((kpi) => {
             const Icon = kpi.icon;
             return (
@@ -542,9 +561,57 @@ export default function UsersClient({
           })}
         </div>
 
+        {/* 탭 토글 */}
+        <div className="bg-white rounded-[12px] border border-[#E8EAF0] px-5 py-3 flex items-center gap-3 shadow-sm shrink-0">
+          <div className="flex items-center gap-1 bg-[#F4F5F8] p-1 rounded-[8px]">
+            {([
+              { key: "all" as const, label: "전체 사용자", count: stats.total },
+              { key: "dormant" as const, label: "휴면 사용자", count: stats.dormant },
+            ]).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-[6px] text-[12px] font-bold transition-all flex items-center gap-2",
+                  tab === t.key
+                    ? "bg-white text-[#000666] shadow-sm"
+                    : "text-[#6B7399] hover:text-[#1A1A2E]"
+                )}
+              >
+                {t.label}
+                <span
+                  className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full"
+                  style={{
+                    color: tab === t.key ? "#000666" : "#9BA4C0",
+                    background: tab === t.key ? "#E5E5FA" : "transparent",
+                  }}
+                >
+                  {t.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {isDormantTab && (
+            <button
+              onClick={() => downloadDormantCsv(filtered)}
+              disabled={filtered.length === 0}
+              className={cn(
+                "ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[11px] font-bold transition-all",
+                filtered.length === 0
+                  ? "bg-[#F4F5F8] text-[#C0C5D8] cursor-not-allowed"
+                  : "bg-[#000666] text-white hover:opacity-90 shadow-md shadow-blue-900/10"
+              )}
+            >
+              <Download size={12} />
+              CSV 내보내기 ({filtered.length}명)
+            </button>
+          )}
+        </div>
+
         {/* 필터 & 검색 바 */}
-        <div className="bg-white rounded-[12px] border border-[#E8EAF0] px-4 py-3 flex flex-wrap items-center gap-2 shadow-sm shrink-0">
-          <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-[300px]">
+        <div className="bg-white rounded-[12px] border border-[#E8EAF0] px-5 py-3.5 flex items-center gap-4 shadow-sm shrink-0">
+          <div className="relative flex-1 max-w-[300px]">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9BA4C0]" />
             <input
               type="text"
@@ -555,36 +622,39 @@ export default function UsersClient({
             />
           </div>
 
-          <div className="hidden sm:block w-px h-6 bg-[#E8EAF0]" />
+          {!isDormantTab && (
+            <>
+              <div className="w-px h-6 bg-[#E8EAF0]" />
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider mr-1">계정 상태</span>
+                {(["전체", "정상", "휴면"] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-[6px] text-[11px] font-bold transition-all",
+                      statusFilter === s
+                        ? "bg-[#000666] text-white shadow-md shadow-blue-900/10"
+                        : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#E8EAF0]"
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider">계정 상태</span>
-            {(["전체", "정상", "휴면"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={cn(
-                  "px-2.5 py-1 rounded-[6px] text-[11px] font-bold transition-all",
-                  statusFilter === s
-                    ? "bg-[#000666] text-white shadow-md shadow-blue-900/10"
-                    : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#E8EAF0]"
-                )}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+          <div className="w-px h-6 bg-[#E8EAF0]" />
 
-          <div className="hidden sm:block w-px h-6 bg-[#E8EAF0]" />
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider">진행/계약</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-[#9BA4C0] uppercase tracking-wider mr-1">진행/계약</span>
             {(["전체", "진행중", "계약있음", "없음"] as const).map((a) => (
               <button
                 key={a}
                 onClick={() => setActiveFilter(a)}
                 className={cn(
-                  "px-2.5 py-1 rounded-[6px] text-[11px] font-bold transition-all",
+                  "px-3 py-1.5 rounded-[6px] text-[11px] font-bold transition-all",
                   activeFilter === a
                     ? "bg-[#000666] text-white shadow-md shadow-blue-900/10"
                     : "bg-[#F4F5F8] text-[#6B7399] hover:bg-[#E8EAF0]"
@@ -595,199 +665,318 @@ export default function UsersClient({
             ))}
           </div>
 
-          <p className="w-full sm:w-auto sm:ml-auto text-[11px] font-bold text-[#9BA4C0]">{filtered.length}명의 데이터 검색됨</p>
+          <p className="ml-auto text-[11px] font-bold text-[#9BA4C0]">{filtered.length}명의 데이터 검색됨</p>
         </div>
 
-        {/* 빈 상태 */}
-        {users.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-[#C0C5D8] bg-white rounded-[12px] border border-[#E8EAF0]">
-            <Users size={32} strokeWidth={1} className="mb-3 opacity-40" />
-            <p className="text-[13px] font-bold">아직 회원 또는 접수 고객이 없습니다</p>
-            <p className="text-[11px] mt-1">카카오 로그인 또는 견적 신청 시 자동으로 등록됩니다.</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-[#C0C5D8] bg-white rounded-[12px] border border-[#E8EAF0]">
-            <Search size={32} strokeWidth={1} className="mb-3 opacity-40" />
-            <p className="text-[13px] font-bold">검색 결과가 없습니다</p>
-            <p className="text-[11px] mt-1">필터 조건을 변경하거나 검색어를 다시 확인해 주세요.</p>
-          </div>
-        ) : (
-          <>
-            {/* ── 모바일 카드 뷰 ── */}
-            <div className="md:hidden space-y-2">
-              {filtered.map((user, idx) => {
+        {/* 사용자 목록 테이블 */}
+        <div className="bg-white rounded-[12px] border border-[#E8EAF0] shadow-sm flex flex-col flex-1 min-h-0 relative">
+          {/* 헤더 */}
+          {isDormantTab ? (
+            <div
+              className="grid border-b border-[#F0F2F8] px-6 py-3.5 bg-[#FAFBFF] sticky top-0 z-10"
+              style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 1fr 0.9fr 0.9fr 1.8fr" }}
+            >
+              {([
+                { key: null, label: "고객" },
+                { key: null, label: "연락처" },
+                { key: "dormancy" as const, label: "휴면일수" },
+                { key: "lastContact" as const, label: "최근 접수일" },
+                { key: "consultationCount" as const, label: "총 견적" },
+                { key: null, label: "계약" },
+                { key: null, label: "메모" },
+              ]).map((col, idx) => (
+                col.key ? (
+                  <button
+                    key={idx}
+                    onClick={() => toggleDormantSort(col.key as DormantSortKey)}
+                    className="flex items-center gap-1 text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest hover:text-[#000666] transition-colors text-left"
+                  >
+                    {col.label}
+                    {dormantSortKey === col.key && (
+                      dormantSortDir === "desc"
+                        ? <ArrowDown size={10} className="text-[#000666]" />
+                        : <ArrowUp size={10} className="text-[#000666]" />
+                    )}
+                  </button>
+                ) : (
+                  <span key={idx} className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">
+                    {col.label}
+                  </span>
+                )
+              ))}
+            </div>
+          ) : (
+            <div
+              className="grid border-b border-[#F0F2F8] px-6 py-3.5 bg-[#FAFBFF] sticky top-0 z-10"
+              style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 0.8fr 1fr 1.8fr 1.2fr" }}
+            >
+              {["고객", "연락처", "상태", "견적 건수", "최초 접수", "진행/계약", "최근 접수"].map((col) => (
+                <span key={col} className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">{col}</span>
+              ))}
+            </div>
+          )}
+
+          {/* 바디 */}
+          <div className="flex-1 overflow-y-auto divide-y divide-[#F8F9FC]">
+            {users.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-[#C0C5D8]">
+                <Users size={32} strokeWidth={1} className="mb-3 opacity-40" />
+                <p className="text-[13px] font-bold">아직 회원 또는 접수 고객이 없습니다</p>
+                <p className="text-[11px] mt-1">카카오 로그인 또는 견적 신청 시 자동으로 등록됩니다.</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-[#C0C5D8]">
+                {isDormantTab ? (
+                  <>
+                    <Clock size={32} strokeWidth={1} className="mb-3 opacity-40" />
+                    <p className="text-[13px] font-bold">휴면 사용자가 없습니다</p>
+                    <p className="text-[11px] mt-1">최근 30일 내 모든 고객이 활성 상태입니다.</p>
+                  </>
+                ) : (
+                  <>
+                    <Search size={32} strokeWidth={1} className="mb-3 opacity-40" />
+                    <p className="text-[13px] font-bold">검색 결과가 없습니다</p>
+                    <p className="text-[11px] mt-1">필터 조건을 변경하거나 검색어를 다시 확인해 주세요.</p>
+                  </>
+                )}
+              </div>
+            ) : isDormantTab ? (
+              filtered.map((user, idx) => {
+                const days = dormancyDays(user.lastContactAt);
+                const tone = dormancyTone(days);
+                return (
+                  <motion.div
+                    key={user.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.02 }}
+                    onClick={() => setSelectedUser(user)}
+                    className="grid items-center px-6 py-4 hover:bg-[#FAFBFF] transition-all cursor-pointer group relative"
+                    style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 1fr 0.9fr 0.9fr 1.8fr" }}
+                  >
+                    {/* 고객 */}
+                    <div className="flex items-center gap-3 pr-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-[#F4F5F8] flex items-center justify-center shrink-0 border border-[#E8EAF0] group-hover:border-[#000666] transition-colors">
+                        <span className="text-[12px] font-black text-[#6B7399] group-hover:text-[#000666]">
+                          {user.name[0]}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-bold text-[#1A1A2E] truncate">{user.name}</p>
+                        <p className="text-[10px] text-[#9BA4C0] truncate mt-0.5">
+                          {user.source === "member" ? (user.provider === "kakao" ? "Kakao 회원" : "회원") : "상담 고객"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 연락처 */}
+                    <div className="min-w-0 pr-2">
+                      <p className="text-[12px] font-medium text-[#4A5270] tabular-nums truncate">{user.phone}</p>
+                      {user.email && (
+                        <p className="text-[10px] text-[#9BA4C0] truncate mt-0.5">{user.email}</p>
+                      )}
+                    </div>
+
+                    {/* 휴면일수 */}
+                    <div>
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums"
+                        style={{ color: tone.color, background: tone.bg }}
+                      >
+                        <Clock size={10} />
+                        {days}일
+                      </span>
+                    </div>
+
+                    {/* 최근 접수일 */}
+                    <div className="text-[11px] font-medium text-[#6B7399] tabular-nums">
+                      {formatDate(user.lastContactAt)}
+                    </div>
+
+                    {/* 총 견적 */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[12px] font-bold text-[#1A1A2E] tabular-nums">{user.consultationCount}</span>
+                      <span className="text-[10px] text-[#9BA4C0]">건</span>
+                    </div>
+
+                    {/* 계약 */}
+                    <div className="flex items-center gap-1">
+                      {user.contractCount > 0 ? (
+                        <>
+                          <span className="text-[12px] font-bold text-[#059669] tabular-nums">{user.contractCount}</span>
+                          <span className="text-[10px] text-[#9BA4C0]">건</span>
+                        </>
+                      ) : (
+                        <span className="text-[11px] text-[#D4D8EC]">-</span>
+                      )}
+                    </div>
+
+                    {/* 메모 */}
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                      {user.internalMemo ? (
+                        <p className="text-[11px] text-[#78350F] truncate" title={user.internalMemo}>
+                          {user.internalMemo}
+                        </p>
+                      ) : (
+                        <span className="text-[11px] text-[#D4D8EC]">메모 없음</span>
+                      )}
+                      <ChevronRight size={14} className="text-[#D4D8EC] group-hover:text-[#000666] transition-all group-hover:translate-x-1 ml-auto shrink-0" />
+                    </div>
+                  </motion.div>
+                );
+              })
+            ) : (
+              filtered.map((user, idx) => {
                 const statusStyle = USER_STATUS_STYLE[user.userStatus];
                 const activeItems = user.activeItems.filter((i) => i.statusRaw !== "CONVERTED");
-                const roleLabel = user.role
-                  ? (user.role === "superadmin" ? "최종관리자" : user.role === "admin" ? "관리자" : "딜러")
-                  : (user.source === "member" ? "회원" : "상담 고객");
-                const roleColor = user.role
-                  ? { color: user.role === "superadmin" ? "#7C3AED" : user.role === "admin" ? "#000666" : "#059669", bg: user.role === "superadmin" ? "#F5F3FF" : user.role === "admin" ? "#E5E5FA" : "#ECFDF5" }
-                  : SOURCE_STYLE[user.source];
+                const hasActive = activeItems.length > 0;
+                const hasContracts = user.contractItems.length > 0;
 
                 return (
                   <motion.div
                     key={user.id}
-                    initial={{ opacity: 0, y: 8 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.02 }}
+                    transition={{ delay: idx * 0.03 }}
                     onClick={() => setSelectedUser(user)}
-                    className="bg-white rounded-[12px] border border-[#E8EAF0] p-3.5 cursor-pointer active:bg-[#FAFBFF] transition-colors"
+                    className="grid items-center px-6 py-4 hover:bg-[#FAFBFF] transition-all cursor-pointer group relative"
+                    style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 0.8fr 1fr 1.8fr 1.2fr" }}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#F4F5F8] flex items-center justify-center shrink-0 border border-[#E8EAF0]">
-                        <span className="text-[13px] font-black text-[#6B7399]">{user.name[0]}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <p className="text-[13px] font-bold text-[#1A1A2E] truncate">{user.name}</p>
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] shrink-0" style={{ color: roleColor.color, background: roleColor.bg }}>
-                            {roleLabel}
-                          </span>
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0" style={{ color: statusStyle.color, background: statusStyle.bg }}>
-                            {statusStyle.label}
-                          </span>
-                        </div>
-                        <p className="text-[12px] text-[#6B7399] truncate">{user.phone}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-[12px] font-bold text-[#1A1A2E]">{user.consultationCount}건</p>
-                        <p className="text-[11px] text-[#9BA4C0]">{daysSince(user.lastContactAt)}</p>
-                      </div>
-                      <ChevronRight size={14} className="text-[#D4D8EC] shrink-0" />
-                    </div>
-                    {activeItems.length > 0 && (
-                      <div className="mt-2.5 pt-2.5 border-t border-[#F0F2F8] flex flex-wrap gap-1.5">
-                        {activeItems.slice(0, 2).map((item) => (
-                          <div key={item.quoteId} className="flex items-center gap-1">
-                            <QuoteStatusBadge label={item.statusLabel} />
-                            <span className="text-[11px] text-[#6B7399] truncate max-w-[110px]">
-                              {item.vehicleName.split(" ").slice(0, 2).join(" ")}
-                            </span>
-                          </div>
-                        ))}
-                        {activeItems.length > 2 && (
-                          <span className="text-[10px] text-[#B0B5CC]">+{activeItems.length - 2}건</span>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* ── 데스크탑 테이블 뷰 ── */}
-            <div className="hidden md:flex bg-white rounded-[12px] border border-[#E8EAF0] shadow-sm flex-col flex-1 min-h-0 relative overflow-x-auto">
-              <div
-                className="grid border-b border-[#F0F2F8] px-6 py-3.5 bg-[#FAFBFF] sticky top-0 z-10 min-w-[700px]"
-                style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 0.8fr 1fr 1.8fr 1.2fr" }}
-              >
-                {["고객", "연락처", "상태", "견적 건수", "최초 접수", "진행/계약", "최근 접수"].map((col) => (
-                  <span key={col} className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">{col}</span>
-                ))}
-              </div>
-              <div className="flex-1 overflow-y-auto divide-y divide-[#F8F9FC]">
-                {filtered.map((user, idx) => {
-                  const statusStyle = USER_STATUS_STYLE[user.userStatus];
-                  const activeItems = user.activeItems.filter((i) => i.statusRaw !== "CONVERTED");
-                  const hasActive = activeItems.length > 0;
-                  const hasContracts = user.contractItems.length > 0;
-                  return (
-                    <motion.div
-                      key={user.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.03 }}
-                      onClick={() => setSelectedUser(user)}
-                      className="grid items-center px-6 py-4 hover:bg-[#FAFBFF] transition-all cursor-pointer group relative min-w-[700px]"
-                      style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 0.8fr 1fr 1.8fr 1.2fr" }}
-                    >
-                      <div className="flex items-center gap-3 pr-2 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-[#F4F5F8] flex items-center justify-center shrink-0 border border-[#E8EAF0] group-hover:border-[#000666] transition-colors">
-                          <span className="text-[12px] font-black text-[#6B7399] group-hover:text-[#000666]">{user.name[0]}</span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-bold text-[#1A1A2E] truncate">{user.name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold" style={{ color: user.role ? (user.role === "superadmin" ? "#7C3AED" : user.role === "admin" ? "#000666" : "#059669") : SOURCE_STYLE[user.source].color, background: user.role ? (user.role === "superadmin" ? "#F5F3FF" : user.role === "admin" ? "#E5E5FA" : "#ECFDF5") : SOURCE_STYLE[user.source].bg }}>
-                              {user.role ? (user.role === "superadmin" ? "최종관리자" : user.role === "admin" ? "관리자" : "딜러") : (user.source === "member" ? "회원" : "상담 고객")}
-                            </span>
-                            <p className="text-[10px] text-[#9BA4C0] truncate">{user.id.slice(0, 12)}…</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="min-w-0 pr-2">
-                        <p className="text-[12px] font-medium text-[#4A5270] tabular-nums truncate">{user.phone}</p>
-                        {user.email && <p className="text-[10px] text-[#9BA4C0] truncate mt-0.5">{user.email}</p>}
-                      </div>
-                      <div>
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ color: statusStyle.color, background: statusStyle.bg }}>
-                          <div className="w-1 h-1 rounded-full" style={{ background: statusStyle.color }} />
-                          {statusStyle.label}
+                    {/* 고객 */}
+                    <div className="flex items-center gap-3 pr-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-[#F4F5F8] flex items-center justify-center shrink-0 border border-[#E8EAF0] group-hover:border-[#000666] transition-colors">
+                        <span className="text-[12px] font-black text-[#6B7399] group-hover:text-[#000666]">
+                          {user.name[0]}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[12px] font-bold text-[#1A1A2E] tabular-nums">{user.consultationCount}</span>
-                        <span className="text-[10px] text-[#9BA4C0]">건</span>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-bold text-[#1A1A2E] truncate">{user.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span
+                            className="rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold"
+                            style={{
+                              color: user.role ? (user.role === "superadmin" ? "#7C3AED" : user.role === "admin" ? "#000666" : "#059669") : SOURCE_STYLE[user.source].color,
+                              background: user.role ? (user.role === "superadmin" ? "#F5F3FF" : user.role === "admin" ? "#E5E5FA" : "#ECFDF5") : SOURCE_STYLE[user.source].bg,
+                            }}
+                          >
+                            {user.role ? (user.role === "superadmin" ? "최종관리자" : user.role === "admin" ? "관리자" : "딜러") : (user.source === "member" ? "회원" : "상담 고객")}
+                          </span>
+                          <p className="text-[10px] text-[#9BA4C0] truncate">{user.id.slice(0, 12)}…</p>
+                        </div>
                       </div>
-                      <div className="text-[11px] font-medium text-[#9BA4C0] tabular-nums">{formatDate(user.firstContactAt)}</div>
-                      <div className="min-w-0 pr-4">
-                        {hasActive || hasContracts ? (
-                          <div className="flex flex-col gap-1">
-                            {activeItems.slice(0, 2).map((item) => (
+                    </div>
+
+                    {/* 연락처 */}
+                    <div className="min-w-0 pr-2">
+                      <p className="text-[12px] font-medium text-[#4A5270] tabular-nums truncate">{user.phone}</p>
+                      {user.email && (
+                        <p className="text-[10px] text-[#9BA4C0] truncate mt-0.5">{user.email}</p>
+                      )}
+                    </div>
+
+                    {/* 상태 */}
+                    <div>
+                      <span
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                        style={{ color: statusStyle.color, background: statusStyle.bg }}
+                      >
+                        <div className="w-1 h-1 rounded-full" style={{ background: statusStyle.color }} />
+                        {statusStyle.label}
+                      </span>
+                    </div>
+
+                    {/* 견적 건수 */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[12px] font-bold text-[#1A1A2E] tabular-nums">{user.consultationCount}</span>
+                      <span className="text-[10px] text-[#9BA4C0]">건</span>
+                    </div>
+
+                    {/* 최초 접수 */}
+                    <div className="text-[11px] font-medium text-[#9BA4C0] tabular-nums">
+                      {formatDate(user.firstContactAt)}
+                    </div>
+
+                    {/* 진행 항목 */}
+                    <div className="min-w-0 pr-4">
+                      {hasActive || hasContracts ? (
+                        <div className="flex flex-col gap-1">
+                          {activeItems
+                            .slice(0, 2)
+                            .map((item) => (
                               <div key={item.quoteId} className="flex items-center gap-1.5 min-w-0">
                                 <QuoteStatusBadge label={item.statusLabel} />
-                                <span className="text-[10px] text-[#6B7399] truncate font-medium">{item.vehicleName.split(" ").slice(0, 3).join(" ")}</span>
+                                <span className="text-[10px] text-[#6B7399] truncate font-medium">
+                                  {item.vehicleName.split(" ").slice(0, 3).join(" ")}
+                                </span>
                               </div>
                             ))}
-                            {activeItems.length > 2 && <p className="text-[9px] text-[#B0B5CC] pl-1">+ {activeItems.length - 2}건 더 있음</p>}
-                            {hasContracts && (
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <QuoteStatusBadge label="계약완료" />
-                                <span className="text-[10px] text-[#059669] truncate font-semibold">{user.contractCount}건 · 만기임박 {user.expiringSoonCount}건</span>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-[11px] text-[#D4D8EC]">-</span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-medium text-[#9BA4C0] tabular-nums">{daysSince(user.lastContactAt)}</span>
-                        <ChevronRight size={14} className="text-[#D4D8EC] group-hover:text-[#000666] transition-all group-hover:translate-x-1" />
-                      </div>
-                    </motion.div>
-                  );
-                })}
-                <div className="h-12 shrink-0" />
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-70" />
-            </div>
-          </>
-        )}
+                          {activeItems.length > 2 && (
+                            <p className="text-[9px] text-[#B0B5CC] pl-1">
+                              + {activeItems.length - 2}건 더 있음
+                            </p>
+                          )}
+                          {hasContracts && (
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <QuoteStatusBadge label="계약완료" />
+                              <span className="text-[10px] text-[#059669] truncate font-semibold">
+                                {user.contractCount}건 · 만기임박 {user.expiringSoonCount}건
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-[#D4D8EC]">-</span>
+                      )}
+                    </div>
+
+                    {/* 최근 접수 */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-[#9BA4C0] tabular-nums">
+                        {daysSince(user.lastContactAt)}
+                      </span>
+                      <ChevronRight size={14} className="text-[#D4D8EC] group-hover:text-[#000666] transition-all group-hover:translate-x-1" />
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+            <div className="h-12 shrink-0" />
+          </div>
+
+          {/* 하단 페이드 */}
+          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-70" />
+        </div>
       </div>
 
       {/* 하단 상태 바 */}
-      <div className="bg-[#FAFBFF] border-t border-[#E8EAF0] px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 shrink-0 z-20">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[12px] text-[#6B7399]">
-            전체: <strong className="text-[#1A1A2E]">{stats.total}명</strong>
-          </span>
+      <div className="bg-[#FAFBFF] border-t border-[#E8EAF0] px-6 py-4 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[12px] text-[#6B7399]">
+              전체 고객: <strong className="text-[#1A1A2E]">{stats.total}명</strong>
+            </span>
+          </div>
+          <div className="w-px h-3 bg-[#E8EAF0]" />
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-[#6B7399]">
+              이번 달 신규: <strong className="text-[#7C3AED]">{stats.newThisMonth}명</strong>
+            </span>
+          </div>
+          <div className="w-px h-3 bg-[#E8EAF0]" />
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-[#6B7399]">
+              계약 완료: <strong className="text-[#0EA5E9]">{stats.contracts}건</strong>
+            </span>
+          </div>
+          <div className="w-px h-3 bg-[#E8EAF0]" />
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-[#6B7399]">
+              만기 임박: <strong className="text-[#D97706]">{stats.expiringSoon}건</strong>
+            </span>
+          </div>
         </div>
-        <div className="hidden sm:block w-px h-3 bg-[#E8EAF0]" />
-        <span className="text-[12px] text-[#6B7399]">
-          신규: <strong className="text-[#7C3AED]">{stats.newThisMonth}명</strong>
-        </span>
-        <div className="hidden sm:block w-px h-3 bg-[#E8EAF0]" />
-        <span className="text-[12px] text-[#6B7399]">
-          계약: <strong className="text-[#0EA5E9]">{stats.contracts}건</strong>
-        </span>
-        <div className="hidden sm:block w-px h-3 bg-[#E8EAF0]" />
-        <span className="text-[12px] text-[#6B7399]">
-          만기임박: <strong className="text-[#D97706]">{stats.expiringSoon}건</strong>
-        </span>
-        <div className="ml-auto text-[11px] font-bold text-[#B0B5CC] tracking-widest uppercase hidden sm:block">
+        <div className="text-[11px] font-bold text-[#B0B5CC] tracking-widest uppercase">
           실시간 DB · <span className="text-emerald-500">Live</span>
         </div>
       </div>
@@ -795,7 +984,7 @@ export default function UsersClient({
       {/* 상세 패널 */}
       <AnimatePresence>
         {selectedUser && (
-          <UserDetailPanel user={selectedUser} onClose={() => setSelectedUser(null)} currentAdminRole={currentAdminRole} />
+          <UserDetailPanel user={selectedUser} onClose={() => setSelectedUser(null)} />
         )}
       </AnimatePresence>
     </div>

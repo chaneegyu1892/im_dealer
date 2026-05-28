@@ -1,5 +1,11 @@
 import type { QuoteScenarioDetails, QuoteScenarioDetail } from "@/types/quote";
 
+export interface PDFQuoteColor {
+  name: string;
+  hexCode: string;
+  priceDelta: number;
+}
+
 export interface PDFQuoteData {
   vehicleName: string;
   vehicleBrand: string;
@@ -13,6 +19,8 @@ export interface PDFQuoteData {
   contractType: string;
   scenarios: QuoteScenarioDetails;
   userEmail: string;
+  exteriorColor?: PDFQuoteColor | null;
+  interiorColor?: PDFQuoteColor | null;
 }
 
 function fmt(n: number): string {
@@ -83,6 +91,18 @@ export function generateQuotePDFHtml(data: PDFQuoteData): string {
           .map((o) => `${o.name} <span style="color:#9BA4C0">(${fmt(o.price)})</span>`)
           .join(" &middot; ")
       : "<span style='color:#9BA4C0'>선택 옵션 없음</span>";
+
+  const colorChip = (hex: string) =>
+    `<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${hex};border:1px solid #d8dae6;margin-right:6px;vertical-align:middle;"></span>`;
+  const colorLineHtml = (label: string, c: PDFQuoteColor | null | undefined) => {
+    if (!c) return "";
+    const delta = c.priceDelta > 0 ? ` <span style="color:#9BA4C0">(+${fmt(c.priceDelta)})</span>` : "";
+    return `<div style="display:flex;align-items:center;gap:6px;line-height:1.6;"><span style="color:#5a607a;">${label}</span>${colorChip(c.hexCode)}${c.name}${delta}</div>`;
+  };
+  const colorRowHtml =
+    data.exteriorColor || data.interiorColor
+      ? `<tr><th>색상 선택</th><td colspan="3">${colorLineHtml("외장:", data.exteriorColor)}${colorLineHtml("내장:", data.interiorColor)}</td></tr>`
+      : "";
 
   const mileageLabel = `연 ${(data.annualMileage / 10000).toFixed(0)}만km`;
   const { conservative, standard, aggressive } = data.scenarios;
@@ -281,6 +301,7 @@ export function generateQuotePDFHtml(data: PDFQuoteData): string {
         <th>선택 옵션</th>
         <td colspan="3">${optionsText}</td>
       </tr>
+      ${colorRowHtml}
       <tr>
         <th>트림 기본가</th>
         <td>${fmt(data.trimPrice)}</td>

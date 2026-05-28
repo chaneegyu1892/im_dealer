@@ -14,24 +14,26 @@ const getRedisInstance = () => {
 
 const redis = getRedisInstance();
 
-// 1. 일반 API용 속도 제한 (예: 차량 목록/상세 조회)
-// 10초당 최대 20회 요청 허용 (Sliding Window 방식)
+// 1. 일반 API용 속도 제한 (차량 목록/상세, 견적 조회·계산·저장, 비교 견적 등)
+// 10초당 최대 40회 요청 허용 (Sliding Window 방식)
+// 비교 차량 변경·옵션 변경 시 짧은 시간에 여러 호출이 누적되어도 정상 사용자는 걸리지 않도록 완화.
 export const apiRateLimit = redis
   ? new Ratelimit({
       redis,
-      limiter: Ratelimit.slidingWindow(20, "10 s"),
+      limiter: Ratelimit.slidingWindow(40, "10 s"),
       ephemeralCache: cache,
       analytics: true,
       prefix: "ratelimit:api",
     })
   : null;
 
-// 2. 견적 계산 및 AI 추천 등 무거운/민감한 API용 속도 제한
-// 1분당 최대 5회 요청 허용 (Token Bucket 방식)
+// 2. 무거운/민감한 API용 속도 제한 (AI 추천, PDF 생성, 파일 업로드)
+// 1분당 최대 30회 요청 허용 (Token Bucket 방식)
+// 단순 견적 계산은 여기서 제외(일반 apiRateLimit). 진짜 리소스 소비형만 보호.
 export const strictRateLimit = redis
   ? new Ratelimit({
       redis,
-      limiter: Ratelimit.tokenBucket(5, "1 m", 5),
+      limiter: Ratelimit.tokenBucket(30, "1 m", 30),
       ephemeralCache: cache,
       analytics: true,
       prefix: "ratelimit:strict",
@@ -46,5 +48,16 @@ export const loginRateLimit = redis
       ephemeralCache: cache,
       analytics: true,
       prefix: "ratelimit:login",
+    })
+  : null;
+
+// 4. 후기 좋아요 토글 — 10초당 최대 10회. 익명 어뷰징 1차 방어.
+export const likeRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "10 s"),
+      ephemeralCache: cache,
+      analytics: true,
+      prefix: "ratelimit:like",
     })
   : null;

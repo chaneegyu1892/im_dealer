@@ -8,6 +8,7 @@ import {
 } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { normalizeSelectedOptions } from "@/lib/option-rules";
 
 const quoteSchema = z.object({
   trimId: z.string().optional(),
@@ -20,6 +21,8 @@ const quoteSchema = z.object({
   customerType: z.enum(["individual", "self_employed", "corporate", "nonprofit"]).default("individual"),
   customDepositRate: z.number().int().min(0).max(30).optional(),
   customPrepayRate: z.number().int().min(0).max(30).optional(),
+  exteriorColorId: z.string().nullable().optional(),
+  interiorColorId: z.string().nullable().optional(),
 });
 
 // ── 시나리오별 보증금·선납금 조건 ───────────────────────
@@ -47,7 +50,19 @@ export async function POST(
         trims: {
           where: { isVisible: true },
           orderBy: { isDefault: "desc" },
-          include: { options: { select: { id: true, price: true } } },
+          include: {
+            options: { select: { id: true, name: true, price: true } },
+            rules: {
+              select: {
+                ruleType: true,
+                sourceOptionId: true,
+                targetOptionId: true,
+              },
+            },
+          },
+        },
+        colors: {
+          select: { id: true, kind: true, priceDelta: true },
         },
       },
     });
@@ -70,31 +85,82 @@ export async function POST(
       );
     }
 
-    // 선택된 옵션 가격 합산 (TrimOption 기반) + 추천 구성 추가금
-    const selectedOptionIds = new Set(input.selectedOptionIds ?? []);
+    // 선택된 옵션을 규칙(REQUIRED/INCLUDED/CONFLICT) 기준으로 검증·정규화
+    const { normalized: selectedOptionIds, conflicts } = normalizeSelectedOptions(
+      input.selectedOptionIds ?? [],
+      trim.rules,
+    );
+
+    if (conflicts.length > 0) {
+      const optMap = new Map(trim.options.map((o) => [o.id, o.name]));
+      const pairs = conflicts
+        .map(
+          (c) =>
+            `${optMap.get(c.sourceOptionId) ?? c.sourceOptionId} ↔ ${optMap.get(c.targetOptionId) ?? c.targetOptionId}`,
+        )
+        .join(", ");
+      return NextResponse.json(
+        { error: `함께 선택할 수 없는 옵션 조합입니다: ${pairs}` },
+        { status: 400 },
+      );
+    }
+
+    // 정규화된 옵션 집합으로 가격 합산 (REQUIRED/INCLUDED 자동 포함분 반영)
     const trimOptionsTotalPrice = trim.options
       .filter((o) => selectedOptionIds.has(o.id))
       .reduce((sum, o) => sum + o.price, 0);
     const optionsTotalPrice = trimOptionsTotalPrice + (input.extraOptionsPrice ?? 0);
 
-    // 할인가 적용: discountPrice가 있으면 차량가에서 차감하여 회수율 계산
+    // 색상 priceDelta (kind 일치 검증)
+    const exteriorColor = input.exteriorColorId
+      ? vehicle.colors.find((c) => c.id === input.exteriorColorId && c.kind === "EXTERIOR")
+      : null;
+    const interiorColor = input.interiorColorId
+      ? vehicle.colors.find((c) => c.id === input.interiorColorId && c.kind === "INTERIOR")
+      : null;
+    const colorDelta = (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
+
+    // 할인가: discountPrice 있으면 그것을 차량가 기준으로 사용
     const effectiveTrimPrice = trim.discountPrice ?? trim.price;
     const discountAmount = trim.discountPrice ? trim.price - trim.discountPrice : 0;
 
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
       (prisma as any).capitalRateSheet.findMany({
-        where: { trimId: trim.id, isActive: true, financeCompany: { isActive: true } },
+        where: {
+          trimId: trim.id,
+          productType: input.productType,
+          isActive: true,
+          financeCompany: { isActive: true },
+        },
         include: { financeCompany: true },
       }),
       prisma.rankSurchargeConfig.findMany({ orderBy: { rank: "asc" } }),
     ]);
 
     if (rateSheets.length === 0) {
-      return NextResponse.json(
-        { error: "이 차량의 견적 데이터가 아직 준비되지 않았습니다." },
-        { status: 404 }
-      );
+      // 해당 트림(라인업)의 회수율 시트가 1건도 등록되지 않은 경우 → "별도 상담 필요" 분기.
+      // 자동 견적은 불가하지만 차량/트림 메타정보는 그대로 반환하여 프론트가 안내 카드를 렌더링할 수 있게 함.
+      return NextResponse.json({
+        success: true,
+        data: {
+          vehicleSlug: slug,
+          trimId: trim.id,
+          trimName: trim.name,
+          trimPrice: trim.price,
+          discountPrice: trim.discountPrice ?? null,
+          discountAmount,
+          optionsTotalPrice,
+          colorDelta,
+          totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
+          contractMonths: input.contractMonths,
+          annualMileage: input.annualMileage,
+          contractType: input.contractType,
+          customerType: input.customerType,
+          scenarios: {} as Record<string, never>,
+          requiresConsultation: true,
+        },
+      });
     }
 
     // 3) 데이터 매핑
@@ -128,6 +194,7 @@ export async function POST(
       purchaseSurcharge: number;
       breakdown: FinanceQuoteResult["breakdown"] | null;
       surcharges: FinanceQuoteResult["surcharges"] | null;
+      rangeExceeded: boolean;
       allFinanceResults: {
         financeCompanyName: string;
         rank: number;
@@ -146,7 +213,7 @@ export async function POST(
       }
 
       const calcInput: CalcInput = {
-        vehiclePrice: effectiveTrimPrice + optionsTotalPrice,
+        vehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         depositRate,
@@ -171,6 +238,7 @@ export async function POST(
           purchaseSurcharge: 0,
           breakdown: null,
           surcharges: null,
+          rangeExceeded: false,
           allFinanceResults: [],
         };
         continue;
@@ -198,6 +266,7 @@ export async function POST(
         purchaseSurcharge,
         breakdown: best.breakdown,
         surcharges: best.surcharges,
+        rangeExceeded: best.rangeExceeded,
         allFinanceResults: results.map((r) => ({
           financeCompanyName: r.financeCompanyName,
           rank: r.rank,
@@ -218,7 +287,8 @@ export async function POST(
         discountPrice: trim.discountPrice ?? null,
         discountAmount,
         optionsTotalPrice,
-        totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice,
+        colorDelta,
+        totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         contractType: input.contractType,

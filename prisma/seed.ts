@@ -488,8 +488,8 @@ function generateRateMatrix(baseRate: number): Record<string, Record<string, num
 
 // ─── CapitalRateSheet 헬퍼 ────────────────────────────────
 
-const DEPOSIT_DISCOUNT_RATE = -0.000523; // CLAUDE.md 규칙 준수
-const PREPAY_ADJUST_RATE = 0.000073;     // CLAUDE.md 규칙 준수
+const DEPOSIT_DISCOUNT_RATE = -0.000523; // 보증금은 항상 음수(할인 전용)
+const PREPAY_ADJUST_RATE = -0.000073;    // 선납금: 양수=가산, 음수=할인. 시드는 추가 할인 의도 → 음수
 
 /** 기준 회수율 × 기간·거리 조정 → RateSheetRaw (월 지불액, 원) */
 function buildBaseRates(vehiclePrice: number, baseRate: number): Record<string, number> {
@@ -512,14 +512,20 @@ function buildDepositRates(baseSheet: Record<string, number>, vehiclePrice: numb
   return Object.fromEntries(Object.entries(baseSheet).map(([k, v]) => [k, v + adj]));
 }
 
-/** 10% 선납금 적용 월 지불액 시트 */
+/**
+ * 10% 선납금 적용 월 지불액 시트
+ *
+ * 신 컨벤션: PREPAY_ADJUST_RATE 양수=가산, 음수=할인.
+ * calculator 의 applyPrepay 와 동일하게 `+ adjustAmount` 로 합산해야 결과적으로
+ * 시드 데이터의 부호 의미와 calculator 의 부호 의미가 일치한다.
+ */
 function buildPrepayRates(baseSheet: Record<string, number>, vehiclePrice: number): Record<string, number> {
   const adjustAmount = vehiclePrice * PREPAY_ADJUST_RATE * 1; // 1 step (10%)
   return Object.fromEntries(
     Object.entries(baseSheet).map(([key, monthly]) => {
       const months = parseInt(key.split("_")[0]);
       const prepayDeduction = (vehiclePrice * 0.10) / months;
-      return [key, Math.round(monthly - prepayDeduction - adjustAmount)];
+      return [key, Math.round(monthly - prepayDeduction + adjustAmount)];
     })
   );
 }
@@ -723,24 +729,44 @@ async function main() {
 
     const budgetRange = { low: [200, 400], mid: [350, 600], high: [500, 900] }[profile.budget] ?? [300, 600];
 
+    // 신규 PURPOSE 옵션을 위한 파생 점수 (profile의 4개 기본 축 + 차량 특성으로 도출)
+    const isCargo = ["porter2-ev", "bongo3-ev"].includes(v.slug);
+    const cargoScore = isCargo ? 10 : 1;
+    const officialScore = profile.business >= 8 ? profile.business : Math.max(1, profile.business - 3);
+    const firstcarScore = profile.budget === "low" ? 8 : profile.budget === "mid" ? 5 : 2;
+
+    // INDUSTRY_OPTIONS, PURPOSE_OPTIONS_BY_INDUSTRY와 키 일치.
+    // ai-recommender의 matrix[input.industry][input.purpose] 조회가 정상 동작하도록 함.
+    const scoreMatrix = {
+      industry: {
+        법인: profile.business,
+        개인사업자: Math.max(1, profile.business - 1),
+        직장인: profile.commute,
+        개인: Math.max(1, profile.commute - 1),
+      },
+      purpose: {
+        출퇴근: profile.commute,
+        "영업·외근": profile.business,
+        가족: profile.family,
+        "화물·배달": cargoScore,
+        "의전·임원용": officialScore,
+        첫차: firstcarScore,
+        "레저·캠핑": profile.leisure,
+        기타: profile.commute,
+      },
+      budget: { min: budgetRange[0], max: budgetRange[1] },
+    };
+
     await prisma.recommendationConfig.upsert({
       where: { vehicleId: vehicleIds[v.slug] },
       update: {
-        scoreMatrix: {
-          industry: { 법인사업자: profile.business, 개인사업자: Math.max(1, profile.business - 1), 프리랜서: Math.max(1, profile.business - 2) },
-          purpose: { 업무용: profile.commute, 출퇴근: profile.commute, 가족용: profile.family, 레저: profile.leisure },
-          budget: { min: budgetRange[0], max: budgetRange[1] },
-        },
+        scoreMatrix,
         highlights: profile.highlights,
         aiCaption: profile.caption,
       },
       create: {
         vehicleId: vehicleIds[v.slug],
-        scoreMatrix: {
-          industry: { 법인사업자: profile.business, 개인사업자: Math.max(1, profile.business - 1), 프리랜서: Math.max(1, profile.business - 2) },
-          purpose: { 업무용: profile.commute, 출퇴근: profile.commute, 가족용: profile.family, 레저: profile.leisure },
-          budget: { min: budgetRange[0], max: budgetRange[1] },
-        },
+        scoreMatrix,
         highlights: profile.highlights,
         aiCaption: profile.caption,
         updatedBy: "seed",
@@ -1217,12 +1243,16 @@ async function main() {
     if (!vehicle || vehicle.trims.length === 0) continue;
     const defaultTrim = vehicle.trims[0];
 
-    // 기존 TrimOptions 로드 (이름→ID 맵)
+    // 기존 TrimOptions 로드 (이름 → {id, price} 맵)
+    // 키는 name만 사용한다. 같은 trimId+name인데 가격만 다른 옵션을 새로 만들면
+    // 어드민 옵션 목록에 동명 옵션이 중복 노출되는 문제가 생긴다.
     const existingOptions = await prisma.trimOption.findMany({
       where: { trimId: defaultTrim.id },
       select: { id: true, name: true, price: true },
     });
-    const optionMap = new Map(existingOptions.map((o) => [`${o.name}::${o.price}`, o.id]));
+    const optionMap = new Map<string, { id: string; price: number }>(
+      existingOptions.map((o) => [o.name, { id: o.id, price: o.price }]),
+    );
 
     const vehiclePopularConfigs = await prisma.popularConfig.findMany({
       where: { vehicleId: vehicle.id },
@@ -1234,16 +1264,25 @@ async function main() {
         // 이미 연결되어 있으면 스킵
         if (item.trimOptionId) continue;
 
-        const key = `${item.name}::${item.price}`;
-        let trimOptionId = optionMap.get(key);
+        const existing = optionMap.get(item.name);
+        let trimOptionId: string;
 
-        if (!trimOptionId) {
-          // TrimOption 신규 생성
+        if (existing) {
+          trimOptionId = existing.id;
+          // 가격이 바뀌었으면 신규 행을 만들지 않고 기존 행 가격만 갱신
+          if (existing.price !== item.price) {
+            await prisma.trimOption.update({
+              where: { id: existing.id },
+              data: { price: item.price },
+            });
+            optionMap.set(item.name, { id: existing.id, price: item.price });
+          }
+        } else {
           const trimOption = await prisma.trimOption.create({
             data: { trimId: defaultTrim.id, name: item.name, price: item.price },
           });
           trimOptionId = trimOption.id;
-          optionMap.set(key, trimOptionId);
+          optionMap.set(item.name, { id: trimOption.id, price: item.price });
           trimOptionCount++;
         }
 
@@ -1259,13 +1298,25 @@ async function main() {
   }
   console.log(`   ✅ TrimOption 신규 ${trimOptionCount}개 생성, ${linkCount}개 연결\n`);
 
+  // 같은 trimId+name 옵션이 어떤 경로로든 중복 생성됐다면 마지막에 정리한다.
+  // 그룹별 MAX(id) 1행만 남기고 나머지를 제거 — 가장 최근에 만들어진 가격이 살아남음.
+  console.log("🧹 TrimOption 중복 정리 중...");
+  const dedupRows = await prisma.$executeRawUnsafe(`
+    WITH ranked AS (
+      SELECT id, ROW_NUMBER() OVER (PARTITION BY "trimId", name ORDER BY id DESC) AS rn
+      FROM "TrimOption"
+    )
+    DELETE FROM "TrimOption" WHERE id IN (SELECT id FROM ranked WHERE rn > 1)
+  `);
+  console.log(`   ✅ 중복 ${dedupRows}행 정리\n`);
+
   // 초기 어드민 계정
   const adminEmail = process.env.ADMIN_INITIAL_EMAIL ?? "admin@imdealers.com";
   const adminPassword = process.env.ADMIN_INITIAL_PASSWORD ?? "changeme123!";
-  const existingAdmin = await prisma.adminUser.findUnique({ where: { email: adminEmail } });
+  const existingAdmin = await prisma.user.findFirst({ where: { email: adminEmail } });
   if (!existingAdmin) {
     const passwordHash = await bcrypt.hash(adminPassword, 12);
-    await prisma.adminUser.create({
+    await prisma.user.create({
       data: {
         email: adminEmail,
         passwordHash,

@@ -12,9 +12,10 @@ const inputClass =
 const selectClass =
   "w-full px-3 py-2 text-[13px] text-[#1A1A2E] bg-[#F8F9FC] border border-[#E8EAF0] rounded-[6px] outline-none focus:border-[#000666] focus:bg-white transition-colors appearance-none cursor-pointer";
 
-function calcDiscountRate(price: number, discountPrice: number): number {
-  if (!price || !discountPrice || discountPrice >= price) return 0;
-  return Math.round(((price - discountPrice) / price) * 100);
+/** 할인 금액(discountAmount)을 기준으로 할인율 계산 */
+function calcDiscountRate(price: number, discountAmount: number): number {
+  if (!price || !discountAmount || discountAmount <= 0 || discountAmount >= price) return 0;
+  return Math.round((discountAmount / price) * 100);
 }
 
 interface TrimTabProps {
@@ -34,10 +35,14 @@ export function TrimTab({ vehicle }: TrimTabProps) {
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [selectedTrimIds, setSelectedTrimIds] = useState<Set<string>>(new Set());
   const [bulkDiscountInput, setBulkDiscountInput] = useState("");
+  const [bulkRateInput, setBulkRateInput] = useState("");
+  const [bulkDiscountMode, setBulkDiscountMode] = useState<"amount" | "rate">("amount");
   const [bulkSaving, setBulkSaving] = useState(false);
 
-  // 개별 트림 모달 할인가 입력
+  // 개별 트림 모달 할인 입력
   const [modalDiscountInput, setModalDiscountInput] = useState("");
+  const [modalRateInput, setModalRateInput] = useState("");
+  const [modalDiscountMode, setModalDiscountMode] = useState<"amount" | "rate">("amount");
   const [modalPriceInput, setModalPriceInput] = useState("");
 
   const filteredTrims = useMemo(() => {
@@ -48,8 +53,13 @@ export function TrimTab({ vehicle }: TrimTabProps) {
 
   const openModal = (trim: AdminTrim | null) => {
     setTrimModal({ isOpen: true, target: trim });
+    setModalDiscountMode("amount");
+    setModalRateInput("");
+    // 기존 discountPrice가 있으면 "할인 금액 = 원가 - 할인가"로 역산해서 초기화
     setModalDiscountInput(
-      trim?.discountPrice ? String(trim.discountPrice / 10000) : ""
+      trim?.discountPrice && trim?.price && trim.discountPrice < trim.price
+        ? String((trim.price - trim.discountPrice) / 10000)
+        : ""
     );
     setModalPriceInput(
       trim?.price ? String(trim.price / 10000) : ""
@@ -59,7 +69,25 @@ export function TrimTab({ vehicle }: TrimTabProps) {
   const closeModal = () => {
     setTrimModal({ isOpen: false, target: null });
     setModalDiscountInput("");
+    setModalRateInput("");
+    setModalDiscountMode("amount");
     setModalPriceInput("");
+  };
+
+  /** 모달 입력 모드 전환 — 기존 값을 자동 변환 */
+  const switchModalMode = (mode: "amount" | "rate") => {
+    if (mode === modalDiscountMode) return;
+    const price = Number(modalPriceInput) * 10000;
+    if (mode === "rate" && modalDiscountInput && price > 0) {
+      const amt = Number(modalDiscountInput) * 10000;
+      const rate = Math.round((amt / price) * 100);
+      setModalRateInput(rate > 0 ? String(rate) : "");
+    } else if (mode === "amount" && modalRateInput && price > 0) {
+      const rate = Number(modalRateInput);
+      const amt = Math.round((price * rate) / 100) / 10000;
+      setModalDiscountInput(amt > 0 ? String(amt) : "");
+    }
+    setModalDiscountMode(mode);
   };
 
   const handleSaveTrim = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -68,12 +96,24 @@ export function TrimTab({ vehicle }: TrimTabProps) {
     setSaving(true);
     const fd = new FormData(e.currentTarget);
 
-    const rawDiscount = Number(modalDiscountInput);
-    const discountPrice = rawDiscount > 0 ? rawDiscount * 10000 : null;
+    const priceWon = Number(modalPriceInput) * 10000;
+    // 입력 모드에 따라 최종 할인 금액 계산
+    let discountAmountWon = 0;
+    if (modalDiscountMode === "amount") {
+      discountAmountWon = Number(modalDiscountInput) > 0 ? Number(modalDiscountInput) * 10000 : 0;
+    } else {
+      const rate = Number(modalRateInput);
+      discountAmountWon = rate > 0 && priceWon > 0 ? Math.round(priceWon * rate / 100) : 0;
+    }
+    // DB에는 최종 할인가(discountPrice) 저장 = 원가 - 할인 금액
+    const discountPrice =
+      discountAmountWon > 0 && discountAmountWon < priceWon
+        ? priceWon - discountAmountWon
+        : null;
 
     const payload = {
       name: fd.get("name") as string,
-      price: Number(modalPriceInput) * 10000,
+      price: priceWon,
       discountPrice,
       engineType: fd.get("engineType") as string,
       isDefault: fd.get("isDefault") === "on",
@@ -128,14 +168,42 @@ export function TrimTab({ vehicle }: TrimTabProps) {
     setMultiSelectMode(false);
     setSelectedTrimIds(new Set());
     setBulkDiscountInput("");
+    setBulkRateInput("");
+    setBulkDiscountMode("amount");
+  };
+
+  /** 일괄 할인 입력 모드 전환 — 기존 값을 자동 변환 */
+  const switchBulkMode = (mode: "amount" | "rate") => {
+    if (mode === bulkDiscountMode) return;
+    // 변환 기준: 선택된 트림이 1개면 해당 가격, 여러 개면 평균 가격 사용
+    const refPrice = selectedTrims.length === 1
+      ? selectedTrims[0].price
+      : avgPrice;
+    if (mode === "rate" && bulkDiscountInput && refPrice > 0) {
+      const amt = Number(bulkDiscountInput) * 10000;
+      const rate = Math.round((amt / refPrice) * 100);
+      setBulkRateInput(rate > 0 ? String(rate) : "");
+    } else if (mode === "amount" && bulkRateInput && refPrice > 0) {
+      const rate = Number(bulkRateInput);
+      const amt = Math.round((refPrice * rate) / 100) / 10000;
+      setBulkDiscountInput(amt > 0 ? String(amt) : "");
+    }
+    setBulkDiscountMode(mode);
   };
 
   const handleBulkDiscount = async () => {
     if (bulkSaving || selectedTrimIds.size === 0) return;
     setBulkSaving(true);
 
-    const rawDiscount = Number(bulkDiscountInput);
-    const discountPrice = rawDiscount > 0 ? rawDiscount * 10000 : null;
+    // 모드에 따라 payload 구성
+    let bulkPayload: Record<string, unknown>;
+    if (bulkDiscountMode === "amount") {
+      const raw = Number(bulkDiscountInput);
+      bulkPayload = { trimIds: Array.from(selectedTrimIds), discountAmount: raw > 0 ? raw * 10000 : null };
+    } else {
+      const rate = Number(bulkRateInput);
+      bulkPayload = { trimIds: Array.from(selectedTrimIds), discountRate: rate > 0 ? rate : null };
+    }
 
     try {
       const resp = await fetch(
@@ -143,7 +211,7 @@ export function TrimTab({ vehicle }: TrimTabProps) {
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ trimIds: Array.from(selectedTrimIds), discountPrice }),
+          body: JSON.stringify(bulkPayload),
         }
       );
       if (resp.ok) {
@@ -155,18 +223,50 @@ export function TrimTab({ vehicle }: TrimTabProps) {
     }
   };
 
-  // 모달에서 가격 / 할인가 입력 중 실시간 % 계산
+  // ── 모달 실시간 계산 ──────────────────────────────
   const modalPrice = Number(modalPriceInput) * 10000;
-  const modalDiscount = Number(modalDiscountInput) * 10000;
-  const modalDiscountRate = calcDiscountRate(modalPrice, modalDiscount);
 
-  // 일괄 할인 패널에서 기준 가격은 선택된 트림들의 평균
+  // 입력 모드에 따라 할인 금액 / 할인율 계산
+  const modalDiscountAmount: number = (() => {
+    if (modalDiscountMode === "amount") {
+      return Number(modalDiscountInput) > 0 ? Number(modalDiscountInput) * 10000 : 0;
+    }
+    const rate = Number(modalRateInput);
+    return rate > 0 && modalPrice > 0 ? Math.round(modalPrice * rate / 100) : 0;
+  })();
+  const modalDiscountRate: number = (() => {
+    if (modalDiscountMode === "rate") return Number(modalRateInput) || 0;
+    return calcDiscountRate(modalPrice, modalDiscountAmount);
+  })();
+  const modalResultPrice = modalDiscountAmount > 0 && modalDiscountAmount < modalPrice
+    ? modalPrice - modalDiscountAmount
+    : 0;
+
+  // ── 일괄 할인 패널 계산 ───────────────────────────
   const selectedTrims = filteredTrims.filter(t => selectedTrimIds.has(t.id));
   const avgPrice = selectedTrims.length
     ? selectedTrims.reduce((s, t) => s + t.price, 0) / selectedTrims.length
     : 0;
-  const bulkDiscount = Number(bulkDiscountInput) * 10000;
-  const bulkDiscountRate = calcDiscountRate(avgPrice, bulkDiscount);
+  const minPrice = selectedTrims.length
+    ? Math.min(...selectedTrims.map(t => t.price))
+    : 0;
+
+  const bulkDiscountAmount: number = (() => {
+    if (bulkDiscountMode === "amount") {
+      return Number(bulkDiscountInput) > 0 ? Number(bulkDiscountInput) * 10000 : 0;
+    }
+    const rate = Number(bulkRateInput);
+    return rate > 0 && avgPrice > 0 ? Math.round(avgPrice * rate / 100) : 0;
+  })();
+  const bulkDiscountRate: number = (() => {
+    if (bulkDiscountMode === "rate") return Number(bulkRateInput) || 0;
+    return calcDiscountRate(avgPrice, bulkDiscountAmount);
+  })();
+  const isBulkDiscountTooLarge =
+    bulkDiscountMode === "amount"
+      ? bulkDiscountAmount > 0 && minPrice > 0 && bulkDiscountAmount >= minPrice
+      : Number(bulkRateInput) >= 100;
+  const isBulkInputEmpty = bulkDiscountMode === "amount" ? !bulkDiscountInput : !bulkRateInput;
 
   return (
     <div className="space-y-6">
@@ -264,34 +364,114 @@ export function TrimTab({ vehicle }: TrimTabProps) {
                   </div>
                   <div className="flex items-end gap-3">
                     <div className="flex-1 space-y-1">
-                      <label className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">
-                        일괄 할인가 (만원)
-                      </label>
+                      {/* 입력 모드 토글 */}
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">
+                          일괄 할인 설정
+                        </label>
+                        <div className="flex rounded-[6px] overflow-hidden border border-amber-300 text-[11px] font-bold">
+                          <button
+                            type="button"
+                            onClick={() => switchBulkMode("amount")}
+                            className={cn(
+                              "px-3 py-1 transition-colors",
+                              bulkDiscountMode === "amount"
+                                ? "bg-amber-500 text-white"
+                                : "bg-white text-amber-600 hover:bg-amber-50"
+                            )}
+                          >
+                            금액 (만원)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => switchBulkMode("rate")}
+                            className={cn(
+                              "px-3 py-1 transition-colors",
+                              bulkDiscountMode === "rate"
+                                ? "bg-amber-500 text-white"
+                                : "bg-white text-amber-600 hover:bg-amber-50"
+                            )}
+                          >
+                            할인율 (%)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 입력 필드 */}
                       <div className="relative">
-                        <input
-                          type="number"
-                          value={bulkDiscountInput}
-                          onChange={e => setBulkDiscountInput(e.target.value)}
-                          placeholder="0 또는 빈칸 = 할인 없음"
-                          className="w-full px-3 py-2 text-[13px] text-[#1A1A2E] bg-white border border-amber-300 rounded-[6px] outline-none focus:border-amber-500 transition-colors placeholder:text-[#B0B8D0]"
-                        />
-                        {bulkDiscountRate > 0 && (
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-bold text-emerald-600">
-                            -{bulkDiscountRate}%
-                          </span>
+                        {bulkDiscountMode === "amount" ? (
+                          <>
+                            <input
+                              type="number"
+                              value={bulkDiscountInput}
+                              onChange={e => setBulkDiscountInput(e.target.value)}
+                              placeholder="빈칸 = 할인 없음"
+                              className={cn(
+                                "w-full px-3 py-2 text-[13px] text-[#1A1A2E] bg-white border rounded-[6px] outline-none transition-colors placeholder:text-[#B0B8D0]",
+                                isBulkDiscountTooLarge
+                                  ? "border-red-400 focus:border-red-500"
+                                  : "border-amber-300 focus:border-amber-500"
+                              )}
+                            />
+                            {bulkDiscountRate > 0 && !isBulkDiscountTooLarge && (
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-[4px]">
+                                -{bulkDiscountRate}%
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              value={bulkRateInput}
+                              onChange={e => setBulkRateInput(e.target.value)}
+                              placeholder="빈칸 = 할인 없음"
+                              className={cn(
+                                "w-full px-3 py-2 text-[13px] text-[#1A1A2E] bg-white border rounded-[6px] outline-none transition-colors placeholder:text-[#B0B8D0]",
+                                isBulkDiscountTooLarge
+                                  ? "border-red-400 focus:border-red-500"
+                                  : "border-amber-300 focus:border-amber-500"
+                              )}
+                            />
+                            {bulkDiscountAmount > 0 && !isBulkDiscountTooLarge && (
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-[4px]">
+                                -{formatKRWMan(bulkDiscountAmount)}
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
-                      <p className="text-[11px] text-amber-500">
-                        {selectedTrims.length > 1
-                          ? "선택한 트림들의 평균 가격 기준으로 할인율이 표시됩니다"
-                          : selectedTrims.length === 1
-                          ? `기준가: ${formatKRWMan(selectedTrims[0].price)}`
-                          : "트림을 선택하세요"}
-                      </p>
+
+                      {/* 안내 문구 */}
+                      {isBulkDiscountTooLarge ? (
+                        <p className="text-[11px] text-red-500">
+                          {bulkDiscountMode === "amount"
+                            ? `할인 금액이 최저 트림가(${formatKRWMan(minPrice)})보다 크거나 같습니다.`
+                            : "할인율은 0~99% 사이여야 합니다."}
+                        </p>
+                      ) : (bulkDiscountAmount > 0 || (bulkDiscountMode === "rate" && Number(bulkRateInput) > 0)) && selectedTrims.length > 0 ? (
+                        <p className="text-[11px] text-emerald-600">
+                          {selectedTrims.length === 1
+                            ? `${formatKRWMan(selectedTrims[0].price)} → ${formatKRWMan(
+                                bulkDiscountMode === "rate"
+                                  ? Math.round(selectedTrims[0].price * (1 - Number(bulkRateInput) / 100))
+                                  : selectedTrims[0].price - bulkDiscountAmount
+                              )} (-${bulkDiscountMode === "rate" ? bulkRateInput : bulkDiscountRate}%)`
+                            : bulkDiscountMode === "amount"
+                            ? `각 트림에서 ${formatKRWMan(bulkDiscountAmount)} 차감 (평균 기준 -${bulkDiscountRate}%)`
+                            : `각 트림에서 ${bulkRateInput}% 할인 (평균 기준 -${formatKRWMan(bulkDiscountAmount)})`}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-amber-500">
+                          {selectedTrims.length === 0 ? "트림을 선택하세요" : "할인 값을 입력하면 트림별 결과가 표시됩니다"}
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={handleBulkDiscount}
-                      disabled={bulkSaving || selectedTrimIds.size === 0}
+                      disabled={bulkSaving || selectedTrimIds.size === 0 || isBulkDiscountTooLarge || isBulkInputEmpty}
                       className="px-5 py-2 bg-amber-500 text-white rounded-[8px] text-[13px] font-bold hover:bg-amber-600 disabled:opacity-40 transition-colors shrink-0"
                     >
                       {bulkSaving ? "적용 중..." : "선택 트림에 적용"}
@@ -304,9 +484,8 @@ export function TrimTab({ vehicle }: TrimTabProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredTrims.map((trim) => {
-              const discountRate = trim.discountPrice
-                ? calcDiscountRate(trim.price, trim.discountPrice)
-                : 0;
+              const trimDiscountAmount = trim.discountPrice ? trim.price - trim.discountPrice : 0;
+              const discountRate = calcDiscountRate(trim.price, trimDiscountAmount);
               const isSelected = selectedTrimIds.has(trim.id);
 
               return (
@@ -460,29 +639,107 @@ export function TrimTab({ vehicle }: TrimTabProps) {
                   </div>
                 </div>
 
-                {/* 할인가 입력 */}
+                {/* 할인 입력 — 금액 / 할인율 모드 */}
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-[#6B7399] uppercase tracking-wider flex items-center gap-1.5">
-                    <Tag size={11} />
-                    할인가 (만원)
-                    <span className="text-[10px] font-normal text-[#B0B8D0] normal-case tracking-normal">· 0 또는 빈칸 = 할인 없음</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-[#6B7399] uppercase tracking-wider flex items-center gap-1.5">
+                      <Tag size={11} />
+                      할인 설정
+                      <span className="text-[10px] font-normal text-[#B0B8D0] normal-case tracking-normal">· 빈칸 = 할인 없음</span>
+                    </label>
+                    {/* 모드 토글 */}
+                    <div className="flex rounded-[6px] overflow-hidden border border-[#E8EAF0] text-[11px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => switchModalMode("amount")}
+                        className={cn(
+                          "px-3 py-1 transition-colors",
+                          modalDiscountMode === "amount"
+                            ? "bg-[#000666] text-white"
+                            : "bg-white text-[#6B7399] hover:bg-[#F0F2F8]"
+                        )}
+                      >
+                        금액 (만원)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => switchModalMode("rate")}
+                        className={cn(
+                          "px-3 py-1 transition-colors",
+                          modalDiscountMode === "rate"
+                            ? "bg-[#000666] text-white"
+                            : "bg-white text-[#6B7399] hover:bg-[#F0F2F8]"
+                        )}
+                      >
+                        할인율 (%)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 입력 필드 */}
                   <div className="relative">
-                    <input
-                      type="number"
-                      value={modalDiscountInput}
-                      onChange={e => setModalDiscountInput(e.target.value)}
-                      placeholder="미입력 시 할인 없음"
-                      className={inputClass}
-                    />
-                    {modalDiscountRate > 0 && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-[4px]">
-                        -{modalDiscountRate}%
-                      </span>
+                    {modalDiscountMode === "amount" ? (
+                      <>
+                        <input
+                          type="number"
+                          value={modalDiscountInput}
+                          onChange={e => setModalDiscountInput(e.target.value)}
+                          placeholder="미입력 시 할인 없음"
+                          className={cn(
+                            inputClass,
+                            modalDiscountAmount > 0 && modalPrice > 0 && modalDiscountAmount >= modalPrice
+                              ? "border-red-400 focus:border-red-500"
+                              : ""
+                          )}
+                        />
+                        {modalDiscountRate > 0 && modalDiscountAmount < modalPrice && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-[4px]">
+                            -{modalDiscountRate}%
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          value={modalRateInput}
+                          onChange={e => setModalRateInput(e.target.value)}
+                          placeholder="예: 10 (10% 할인)"
+                          className={cn(
+                            inputClass,
+                            Number(modalRateInput) >= 100
+                              ? "border-red-400 focus:border-red-500"
+                              : ""
+                          )}
+                        />
+                        {modalDiscountAmount > 0 && modalDiscountAmount < modalPrice && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-[4px]">
+                            -{formatKRWMan(modalDiscountAmount)}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
-                  {modalDiscount > 0 && modalPrice > 0 && modalDiscount >= modalPrice && (
-                    <p className="text-[11px] text-red-500">할인가는 원가보다 낮아야 합니다.</p>
+
+                  {/* 결과 미리보기 */}
+                  {modalDiscountAmount > 0 && modalPrice > 0 && modalDiscountAmount < modalPrice && (
+                    <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-[6px] px-3 py-2">
+                      <span className="text-[12px] text-[#9BA4C0] line-through">{formatKRWMan(modalPrice)}</span>
+                      <span className="text-[11px] text-[#9BA4C0]">→</span>
+                      <span className="text-[13px] font-bold text-emerald-700">{formatKRWMan(modalResultPrice)}</span>
+                      <span className="text-[11px] font-bold text-emerald-600 bg-white border border-emerald-200 px-1.5 py-0.5 rounded-[4px] ml-auto">
+                        -{modalDiscountRate}% · {formatKRWMan(modalDiscountAmount)} 할인
+                      </span>
+                    </div>
+                  )}
+                  {/* 오류 메시지 */}
+                  {modalDiscountMode === "amount" && modalDiscountAmount > 0 && modalPrice > 0 && modalDiscountAmount >= modalPrice && (
+                    <p className="text-[11px] text-red-500">할인 금액은 원가보다 작아야 합니다.</p>
+                  )}
+                  {modalDiscountMode === "rate" && Number(modalRateInput) >= 100 && (
+                    <p className="text-[11px] text-red-500">할인율은 0~99% 사이여야 합니다.</p>
                   )}
                 </div>
 
@@ -518,7 +775,11 @@ export function TrimTab({ vehicle }: TrimTabProps) {
                   </button>
                   <button
                     type="submit"
-                    disabled={saving || (modalDiscount > 0 && modalPrice > 0 && modalDiscount >= modalPrice)}
+                    disabled={
+                      saving ||
+                      (modalDiscountAmount > 0 && modalPrice > 0 && modalDiscountAmount >= modalPrice) ||
+                      (modalDiscountMode === "rate" && Number(modalRateInput) >= 100)
+                    }
                     className="flex-1 py-3 bg-[#000666] text-white rounded-[8px] text-[14px] font-bold hover:bg-[#1A1A6E] shadow-lg shadow-indigo-100 disabled:opacity-50"
                   >
                     {saving ? "처리 중..." : trimModal.target ? "수정하기" : "추가하기"}

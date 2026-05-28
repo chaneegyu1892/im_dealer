@@ -128,10 +128,11 @@ async function main() {
       for (const trim of v.trims) {
         await prisma.capitalRateSheet.upsert({
           where: {
-            financeCompanyId_trimId_weekOf: {
+            financeCompanyId_trimId_weekOf_productType: {
               financeCompanyId: fcId,
               trimId: trim.id,
               weekOf,
+              productType: "장기렌트",
             },
           },
           update: {

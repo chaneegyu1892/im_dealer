@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { ADMIN_ROLES, type AdminRole } from "@/lib/admin-roles";
 
 const NAV_LINKS = [
   { href: "/recommend", label: "AI 추천" },
@@ -18,6 +19,7 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [dbRole, setDbRole] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -31,6 +33,30 @@ export function Header() {
 
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  // DB role 은 권한의 단일 출처(SSOT). Supabase 메타가 아니라 /api/me 를 통해 받는다.
+  useEffect(() => {
+    if (!user) {
+      setDbRole(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/me", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload) => {
+        if (!cancelled) {
+          setDbRole(payload?.data?.role ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDbRole(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const isAdminUser = !!dbRole && (ADMIN_ROLES as readonly string[]).includes(dbRole as AdminRole);
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
@@ -118,6 +144,7 @@ export function Header() {
                         alt={displayName}
                         width={28}
                         height={28}
+                        unoptimized
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -133,7 +160,7 @@ export function Header() {
 
                 {dropdownOpen && (
                   <div className="absolute right-0 top-full mt-1.5 w-40 bg-white border border-[#F0F0F0] rounded-xl shadow-lg py-1 z-50">
-                    {(user?.app_metadata?.role === "admin" || user?.user_metadata?.role === "superadmin" || user?.user_metadata?.role === "admin" || user?.user_metadata?.role === "dealer") && (
+                    {isAdminUser && (
                       <Link
                         href="/admin"
                         className="w-full block text-left px-4 py-2.5 text-[13px] text-primary font-medium hover:bg-primary/[0.04] transition-colors border-b border-[#F0F0F0]"

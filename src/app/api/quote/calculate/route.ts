@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
 import {
   calculateMultiFinanceQuote,
@@ -29,6 +30,8 @@ const calculateSchema = z.object({
   contractType: z.enum(["인수형", "반납형"]),
   customerType: z.enum(["individual", "self_employed", "corporate", "nonprofit"]).default("individual"),
   productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
+  exteriorColorId: z.string().nullable().optional(),
+  interiorColorId: z.string().nullable().optional(),
 });
 
 // ── POST /api/quote/calculate ────────────────────────────
@@ -46,6 +49,9 @@ export async function POST(request: NextRequest) {
           where: { isVisible: true },
           orderBy: { isDefault: "desc" },
           include: { options: { select: { id: true, price: true } } },
+        },
+        colors: {
+          select: { id: true, kind: true, priceDelta: true },
         },
       },
     });
@@ -75,24 +81,57 @@ export async function POST(request: NextRequest) {
       .reduce((sum, o) => sum + o.price, 0);
     const optionsTotalPrice = trimOptionsTotalPrice + (input.extraOptionsPrice ?? 0);
 
-    // 할인가 적용: discountPrice가 있으면 차량가에서 차감하여 회수율 계산
+    // 색상 priceDelta 합산 (벨리데이션 — kind 일치 확인)
+    const exteriorColor = input.exteriorColorId
+      ? vehicle.colors.find((c) => c.id === input.exteriorColorId && c.kind === "EXTERIOR")
+      : null;
+    const interiorColor = input.interiorColorId
+      ? vehicle.colors.find((c) => c.id === input.interiorColorId && c.kind === "INTERIOR")
+      : null;
+    const colorDelta = (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
+
+    // 할인가: discountPrice 있으면 회수율 계산용 차량가로 사용
     const effectiveTrimPrice = trim.discountPrice ?? trim.price;
     const discountAmount = trim.discountPrice ? trim.price - trim.discountPrice : 0;
 
     // 2) 회수율 데이터 + 순위 가산 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
       prisma.capitalRateSheet.findMany({
-        where: { trimId: trim.id, isActive: true, financeCompany: { isActive: true } },
+        where: {
+          trimId: trim.id,
+          productType: input.productType,
+          isActive: true,
+          financeCompany: { isActive: true },
+        },
         include: { financeCompany: true },
       }),
       prisma.rankSurchargeConfig.findMany({ orderBy: { rank: "asc" } }),
     ]);
 
     if (rateSheets.length === 0) {
-      return NextResponse.json(
-        { error: "이 차량의 견적 데이터가 아직 준비되지 않았습니다." },
-        { status: 404 }
-      );
+      // 회수율 시트가 1건도 없으면 "별도 상담 필요" 안내로 분기.
+      return NextResponse.json({
+        success: true,
+        data: {
+          vehicleSlug: input.vehicleSlug,
+          vehicleName: vehicle.name,
+          vehicleBrand: vehicle.brand,
+          trimId: trim.id,
+          trimName: trim.name,
+          trimPrice: trim.price,
+          discountPrice: trim.discountPrice ?? null,
+          discountAmount,
+          optionsTotalPrice,
+          colorDelta,
+          totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
+          contractMonths: input.contractMonths,
+          annualMileage: input.annualMileage,
+          contractType: input.contractType,
+          customerType: input.customerType,
+          scenarios: {} as Record<string, never>,
+          requiresConsultation: true,
+        },
+      });
     }
 
     // 3) 데이터 매핑
@@ -125,6 +164,7 @@ export async function POST(request: NextRequest) {
       purchaseSurcharge: number;
       breakdown: FinanceQuoteResult["breakdown"] | null;
       surcharges: FinanceQuoteResult["surcharges"] | null;
+      rangeExceeded: boolean;
       allFinanceResults: {
         financeCompanyName: string;
         rank: number;
@@ -138,7 +178,7 @@ export async function POST(request: NextRequest) {
       const { depositRate, prepayRate } = SCENARIO_CONDITIONS[key];
 
       const calcInput: CalcInput = {
-        vehiclePrice: effectiveTrimPrice + optionsTotalPrice,
+        vehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         depositRate,
@@ -162,6 +202,7 @@ export async function POST(request: NextRequest) {
           purchaseSurcharge: 0,
           breakdown: null,
           surcharges: null,
+          rangeExceeded: false,
           allFinanceResults: [],
         };
         continue;
@@ -183,6 +224,9 @@ export async function POST(request: NextRequest) {
         purchaseSurcharge,
         breakdown: best.breakdown,
         surcharges: best.surcharges,
+        // 최저가 금융사의 회수율 시트 범위 초과 여부.
+        // 모든 금융사가 같은 차량가 입력을 받으므로 어느 best 기준이든 같다.
+        rangeExceeded: best.rangeExceeded,
         allFinanceResults: results.map((r) => {
           const rPurchase = isPurchase ? Math.round(r.monthlyPayment * 0.12) : 0;
           return {
@@ -202,13 +246,21 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get("user-agent") ?? undefined;
     const logSessionId = input.sessionId ?? `anon-${Date.now()}`;
 
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id ?? null;
+
     Promise.all(
       Object.entries(scenarios).map(([scenarioType, sc]) =>
         prisma.quoteCalcLog.create({
           data: {
             sessionId: logSessionId,
+            userId,
             vehicleId: vehicle.id,
             vehicleSlug: input.vehicleSlug,
+            vehicleName: vehicle.name,
             trimId: trim.id,
             optionIds: input.selectedOptionIds ?? [],
             contractMonths: input.contractMonths,
@@ -220,6 +272,7 @@ export async function POST(request: NextRequest) {
             resultMonthly: sc.monthlyPayment,
             bestFinanceCompany: sc.bestFinanceCompany,
             scenarioType,
+            rangeExceeded: sc.rangeExceeded,
             deviceType: /Mobile|Android|iPhone/i.test(userAgent ?? "") ? "mobile" : "desktop",
             referrer: request.headers.get("referer") ?? undefined,
             userAgent,
@@ -244,7 +297,8 @@ export async function POST(request: NextRequest) {
         discountPrice: trim.discountPrice ?? null,
         discountAmount,
         optionsTotalPrice,
-        totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice,
+        colorDelta,
+        totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         contractType: input.contractType,

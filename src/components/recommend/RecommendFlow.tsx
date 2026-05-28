@@ -6,10 +6,14 @@ import { StepIndicator, type StepId } from "./StepIndicator";
 import { StepIndustry } from "./StepIndustry";
 import { StepPurpose } from "./StepPurpose";
 import { StepBudget, type BudgetState } from "./StepBudget";
-import { StepPreference, type PreferenceState } from "./StepPreference";
+import { StepPaymentStyle } from "./StepPaymentStyle";
+import { StepMileage } from "./StepMileage";
+import { StepFuelPreference } from "./StepFuelPreference";
 import { Button } from "@/components/ui/Button";
 import { ChevronLeft } from "lucide-react";
 import type { RecommendInput } from "@/types/recommendation";
+
+const TOTAL_STEPS = 4;
 
 interface FlowState {
   industry: string;
@@ -18,7 +22,7 @@ interface FlowState {
   purposeDetail: string;
   budget: BudgetState;
   budgetDetail: string;
-  preference: PreferenceState;
+  annualMileage: number;
   fuelPreference: string;
 }
 
@@ -34,10 +38,7 @@ const INITIAL_STATE: FlowState = {
     paymentStyle: "표준형",
   },
   budgetDetail: "",
-  preference: {
-    annualMileage: 0,
-    returnType: "미정",
-  },
+  annualMileage: 0,
   fuelPreference: "",
 };
 
@@ -46,7 +47,7 @@ function isStepValid(step: StepId, state: FlowState): boolean {
     case 1: return state.industry !== "" && state.industryDetail !== "";
     case 2: return state.purpose !== "" && state.purposeDetail !== "";
     case 3: return state.budget.rangeKey !== "" && state.budgetDetail !== "";
-    case 4: return state.preference.annualMileage !== 0 && state.fuelPreference !== "";
+    case 4: return state.annualMileage !== 0 && state.fuelPreference !== "";
   }
 }
 
@@ -66,7 +67,7 @@ export function RecommendFlow() {
   const handleNext = async () => {
     if (!canProceed) return;
 
-    if (step < 4) {
+    if (step < TOTAL_STEPS) {
       setStep((s) => (s + 1) as StepId);
       return;
     }
@@ -80,8 +81,8 @@ export function RecommendFlow() {
         budgetMin: state.budget.budgetMin,
         budgetMax: state.budget.budgetMax,
         paymentStyle: state.budget.paymentStyle,
-        annualMileage: state.preference.annualMileage,
-        returnType: state.preference.returnType,
+        annualMileage: state.annualMileage,
+        returnType: "미정",
         industryDetail: state.industryDetail,
         purposeDetail: state.purposeDetail,
         budgetDetail: state.budgetDetail,
@@ -128,6 +129,7 @@ export function RecommendFlow() {
         )}
         {step === 2 && (
           <StepPurpose
+            industry={state.industry}
             value={state.purpose}
             onChange={(v) => setState((s) => ({ ...s, purpose: v, purposeDetail: "" }))}
             detail={state.purposeDetail}
@@ -135,20 +137,41 @@ export function RecommendFlow() {
           />
         )}
         {step === 3 && (
-          <StepBudget
-            value={state.budget}
-            onChange={(v) => setState((s) => ({ ...s, budget: v, budgetDetail: "" }))}
-            detail={state.budgetDetail}
-            onDetailChange={(v) => setState((s) => ({ ...s, budgetDetail: v }))}
-          />
+          <div className="space-y-10">
+            <StepBudget
+              value={state.budget}
+              onChange={(v) => setState((s) => ({ ...s, budget: v }))}
+            />
+            <div className="pt-8 border-t border-[#F0F0F0]">
+              <StepPaymentStyle
+                value={state.budget.paymentStyle}
+                onChange={(v) =>
+                  setState((s) => ({
+                    ...s,
+                    budget: { ...s.budget, paymentStyle: v },
+                    budgetDetail: "",
+                  }))
+                }
+                detail={state.budgetDetail}
+                onDetailChange={(v) => setState((s) => ({ ...s, budgetDetail: v }))}
+              />
+            </div>
+          </div>
         )}
         {step === 4 && (
-          <StepPreference
-            value={state.preference}
-            onChange={(v) => setState((s) => ({ ...s, preference: v }))}
-            fuelPreference={state.fuelPreference}
-            onFuelChange={(v) => setState((s) => ({ ...s, fuelPreference: v }))}
-          />
+          <div className="space-y-10">
+            <StepMileage
+              value={state.annualMileage}
+              onChange={(v) => setState((s) => ({ ...s, annualMileage: v }))}
+            />
+            <div className="pt-8 border-t border-[#F0F0F0]">
+              <StepFuelPreference
+                value={state.fuelPreference}
+                onChange={(v) => setState((s) => ({ ...s, fuelPreference: v }))}
+                budgetMax={state.budget.budgetMax}
+              />
+            </div>
+          </div>
         )}
       </div>
 
@@ -179,14 +202,14 @@ export function RecommendFlow() {
         >
           {loading
             ? "AI가 분석 중이에요..."
-            : step === 4
+            : step === TOTAL_STEPS
             ? "AI 추천 결과 보기"
             : "다음"}
         </Button>
       </div>
 
       <p className="text-center text-caption text-ink-caption mt-3">
-        {step} / 4 단계 · 개인정보 입력 없이 이용할 수 있어요
+        {step} / {TOTAL_STEPS} 단계 · 개인정보 입력 없이 이용할 수 있어요
       </p>
     </div>
   );

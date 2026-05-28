@@ -13,6 +13,8 @@ import {
 import { cn } from "@/lib/utils";
 import { logActivity } from "@/lib/activity-store";
 import { AdminSavedQuote } from "@/types/admin";
+import { ReviewLinkSection } from "@/components/admin/quotations/ReviewLinkSection";
+import { formatQuoteForClipboard } from "@/lib/admin/quote-clipboard";
 
 type UIQuoteStatus = "상담대기" | "상담중" | "계약완료" | "계약취소" | "연락완료";
 
@@ -61,6 +63,51 @@ function QuotationsContent() {
   const [filterPaymentMax, setFilterPaymentMax] = useState("");
 
   const [drawerQuote, setDrawerQuote] = useState<AdminSavedQuote | null>(null);
+  const [quoteCopied, setQuoteCopied] = useState(false);
+  const [pdfDownloading, setPdfDownloading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  const handleCopyQuote = async (quote: AdminSavedQuote) => {
+    try {
+      await navigator.clipboard.writeText(formatQuoteForClipboard(quote));
+      setQuoteCopied(true);
+      setTimeout(() => setQuoteCopied(false), 2000);
+    } catch (err) {
+      console.error("[handleCopyQuote] clipboard failed", err);
+    }
+  };
+
+  const handleDownloadPdf = async (quote: AdminSavedQuote) => {
+    if (pdfDownloading) return;
+    setPdfDownloading(true);
+    setPdfError(null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${quote.id}/pdf`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? "PDF 다운로드에 실패했습니다.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/)?.[1];
+      const fallback = `아임딜러_견적서_${quote.vehicleName}_${quote.id.slice(0, 6)}.pdf`;
+      const filename = encoded ? decodeURIComponent(encoded) : fallback;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "PDF 다운로드에 실패했습니다.";
+      setPdfError(message);
+      setTimeout(() => setPdfError(null), 4000);
+    } finally {
+      setPdfDownloading(false);
+    }
+  };
 
   const fetchQuotes = async () => {
     setLoading(true);
@@ -696,12 +743,55 @@ function QuotationsContent() {
                         <p className="text-[18px] font-bold mt-1 text-white">{drawerQuote.monthlyPayment.toLocaleString()} <span className="text-[12px] font-medium text-[#C0C5DC]">원 / 월</span></p>
                         <p className="text-[11px] text-[#6B7399] mt-1">{drawerQuote.vehicleBrand} · {drawerQuote.contractMonths}개월</p>
                       </div>
-                      <button className="bg-white/10 hover:bg-white/20 text-white text-[10px] font-medium px-2 py-1.5 rounded-[4px] flex items-center gap-1 transition-colors">
-                        <Copy size={10} /> 견적 복사
+                      <button
+                        type="button"
+                        onClick={() => handleCopyQuote(drawerQuote)}
+                        className={cn(
+                          "text-[10px] font-medium px-2 py-1.5 rounded-[4px] flex items-center gap-1 transition-colors",
+                          quoteCopied
+                            ? "bg-emerald-500/20 text-emerald-300"
+                            : "bg-white/10 hover:bg-white/20 text-white"
+                        )}
+                      >
+                        {quoteCopied ? (
+                          <>
+                            <CheckCircle2 size={10} /> 복사됨
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={10} /> 견적 복사
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPdf(drawerQuote)}
+                      disabled={pdfDownloading}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] text-[12px] font-medium transition-colors border",
+                        pdfDownloading
+                          ? "bg-[#F4F5F8] text-[#9BA4C0] border-[#E8EAF0] cursor-wait"
+                          : "bg-white text-[#000666] border-[#000666] hover:bg-[#000666] hover:text-white"
+                      )}
+                    >
+                      <Download size={13} />
+                      {pdfDownloading ? "PDF 생성 중…" : "견적서 PDF 다운로드"}
+                    </button>
+                    {pdfError && (
+                      <p className="text-[11px] text-red-500 flex items-center gap-1">
+                        <AlertCircle size={11} /> {pdfError}
+                      </p>
+                    )}
+                  </div>
                 </section>
+
+                <ReviewLinkSection
+                  quoteId={drawerQuote.id}
+                  status={drawerQuote.status}
+                />
 
                 <section className="flex flex-col flex-1 min-h-[150px]">
                   <h4 className="text-[13px] font-bold text-[#1A1A2E] mb-2">상담 일지 (Dealer Note)</h4>

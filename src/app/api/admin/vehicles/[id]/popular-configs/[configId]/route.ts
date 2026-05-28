@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { popularConfigUpdateSchema } from "@/lib/validations/admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
@@ -9,10 +9,8 @@ type Params = { params: Promise<{ id: string; configId: string }> };
 
 // ─── PATCH /api/admin/vehicles/[id]/popular-configs/[configId] ──
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const admin = await getAdminSession();
-  if (!admin) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
 
   try {
     const { id: vehicleId, configId } = await params;
@@ -89,10 +87,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 // ─── DELETE /api/admin/vehicles/[id]/popular-configs/[configId] ─
 export async function DELETE(request: NextRequest, { params }: Params) {
-  const admin = await getAdminSession();
-  if (!admin) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
 
   try {
     const { id: vehicleId, configId } = await params;

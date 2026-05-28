@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { inventoryCreateSchema } from "@/lib/validations/admin";
 import type { InventoryItem, InventoryStatus } from "@/types/inventory";
 import { logAdminAction } from "@/lib/audit";
@@ -52,10 +52,8 @@ function mapToInventoryItem(inv: {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getAdminSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { error } = await requireRoleAtLeast("staff");
+    if (error) return error;
 
     const url = new URL(request.url);
     const pageRaw = Number(url.searchParams.get("page") ?? "1");
@@ -103,10 +101,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getAdminSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { admin: session, error } = await requireRoleAtLeast("staff");
+    if (error) return error;
 
     const raw = await request.json();
     const parsed = inventoryCreateSchema.safeParse(raw);

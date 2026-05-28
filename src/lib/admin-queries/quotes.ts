@@ -13,6 +13,10 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,
+      include: {
+        exteriorColor: { select: { name: true, hexCode: true } },
+        interiorColor: { select: { name: true, hexCode: true } },
+      },
     }),
     prisma.savedQuote.count({ where: { deletedAt: null } }),
   ]);
@@ -61,6 +65,10 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       quoteType: q.quoteType as AdminSavedQuote["quoteType"],
       createdAt: q.createdAt.toISOString(),
       updatedAt: q.updatedAt.toISOString(),
+      exteriorColorName: q.exteriorColor?.name ?? null,
+      exteriorColorHex: q.exteriorColor?.hexCode ?? null,
+      interiorColorName: q.interiorColor?.name ?? null,
+      interiorColorHex: q.interiorColor?.hexCode ?? null,
     };
   });
 

@@ -21,50 +21,79 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const updateData: {
+    const update: {
       name?: string;
       code?: string;
       surchargeRate?: number;
       isActive?: boolean;
-      displayOrder?: number;
     } = {};
 
-    if (body.name !== undefined) {
-      const name = String(body.name).trim();
-      if (!name) return NextResponse.json({ error: "캐피탈사명은 필수입니다." }, { status: 400 });
-      updateData.name = name;
+    if (typeof body?.name === "string") {
+      const name = body.name.trim();
+      if (!name) {
+        return NextResponse.json(
+          { error: "캐피탈사명을 입력해 주세요." },
+          { status: 400 }
+        );
+      }
+      update.name = name;
     }
-    if (body.code !== undefined) {
-      const code = String(body.code).trim().toUpperCase();
-      if (!code) return NextResponse.json({ error: "코드는 필수입니다." }, { status: 400 });
-      updateData.code = code;
+    if (typeof body?.code === "string") {
+      const code = body.code.trim().toUpperCase();
+      if (!code) {
+        return NextResponse.json(
+          { error: "코드를 입력해 주세요." },
+          { status: 400 }
+        );
+      }
+      update.code = code;
     }
-    if (body.surchargeRate !== undefined) {
+    if (body?.surchargeRate !== undefined) {
       const surchargeRate = Number(body.surchargeRate);
       if (!Number.isFinite(surchargeRate)) {
-        return NextResponse.json({ error: "가산율은 숫자여야 합니다." }, { status: 400 });
+        return NextResponse.json(
+          { error: "가산율은 숫자로 입력해 주세요." },
+          { status: 400 }
+        );
       }
-      updateData.surchargeRate = surchargeRate;
+      update.surchargeRate = surchargeRate;
     }
-    if (body.isActive !== undefined) updateData.isActive = Boolean(body.isActive);
-    if (body.displayOrder !== undefined) {
-      const displayOrder = Number(body.displayOrder);
-      if (!Number.isInteger(displayOrder)) {
-        return NextResponse.json({ error: "정렬 순서는 정수여야 합니다." }, { status: 400 });
-      }
-      updateData.displayOrder = displayOrder;
+    if (typeof body?.isActive === "boolean") {
+      update.isActive = body.isActive;
     }
 
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ error: "수정할 값이 없습니다." }, { status: 400 });
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json(
+        { error: "수정할 항목이 없습니다." },
+        { status: 400 }
+      );
+    }
+
+    if (update.name || update.code) {
+      const conflictConditions: Array<{ name?: string; code?: string }> = [];
+      if (update.name) conflictConditions.push({ name: update.name });
+      if (update.code) conflictConditions.push({ code: update.code });
+      const duplicate = await prisma.financeCompany.findFirst({
+        where: { AND: [{ id: { not: id } }, { OR: conflictConditions }] },
+        select: { name: true, code: true },
+      });
+      if (duplicate) {
+        const conflictField =
+          update.name && duplicate.name === update.name ? "캐피탈사명" : "코드";
+        return NextResponse.json(
+          { error: `이미 등록된 ${conflictField}입니다.` },
+          { status: 400 }
+        );
+      }
     }
 
     const before = await prisma.financeCompany.findUnique({ where: { id } });
-    if (!before) return NextResponse.json({ error: "캐피탈사를 찾을 수 없습니다." }, { status: 404 });
-
+    if (!before) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    }
     const updated = await prisma.financeCompany.update({
       where: { id },
-      data: updateData,
+      data: update,
     });
 
     await logAdminAction({
@@ -99,11 +128,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const before = await prisma.financeCompany.findUnique({
-      where: { id },
-      include: { _count: { select: { rateSheets: true, inventories: true } } },
-    });
-    if (!before) return NextResponse.json({ error: "캐피탈사를 찾을 수 없습니다." }, { status: 404 });
+    const before = await prisma.financeCompany.findUnique({ where: { id } });
+    if (!before) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    }
 
     await prisma.financeCompany.delete({ where: { id } });
 

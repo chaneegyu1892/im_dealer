@@ -1,6 +1,56 @@
 import { prisma } from "../prisma";
-import type { AnalyticsData } from "@/types/admin";
+import type { AnalyticsData, ColorPopularityItem } from "@/types/admin";
 import { fillDailyGaps } from "./shared";
+import {
+  getCalcConditionDistribution,
+  getCalcPopularVehicles,
+} from "./quote-calc-stats";
+
+async function getTopColors(
+  kind: "EXTERIOR" | "INTERIOR",
+  since: Date,
+  limit = 5
+): Promise<ColorPopularityItem[]> {
+  const groups = await prisma.savedQuote.groupBy({
+    by: kind === "EXTERIOR" ? ["exteriorColorId"] : ["interiorColorId"],
+    where: {
+      deletedAt: null,
+      createdAt: { gte: since },
+      ...(kind === "EXTERIOR"
+        ? { exteriorColorId: { not: null } }
+        : { interiorColorId: { not: null } }),
+    },
+    _count: { _all: true },
+    orderBy: { _count: { id: "desc" } },
+    take: limit,
+  });
+
+  const ids = groups
+    .map((g) => (kind === "EXTERIOR" ? g.exteriorColorId : g.interiorColorId))
+    .filter((id): id is string => Boolean(id));
+  if (ids.length === 0) return [];
+
+  const colors = await prisma.vehicleColor.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, hexCode: true },
+  });
+  const map = new Map(colors.map((c) => [c.id, c]));
+
+  return groups
+    .map((g) => {
+      const id = kind === "EXTERIOR" ? g.exteriorColorId : g.interiorColorId;
+      if (!id) return null;
+      const c = map.get(id);
+      if (!c) return null;
+      return {
+        colorId: id,
+        name: c.name,
+        hexCode: c.hexCode,
+        count: g._count._all,
+      };
+    })
+    .filter((v): v is ColorPopularityItem => v !== null);
+}
 
 export async function getAnalyticsData(): Promise<AnalyticsData> {
   const now = new Date();
@@ -59,11 +109,27 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
     count: g._count.id,
   }));
 
+  const [
+    calcPopularVehicles,
+    calcConditionDistribution,
+    topExteriorColors,
+    topInteriorColors,
+  ] = await Promise.all([
+    getCalcPopularVehicles(thirtyDaysAgo, 10),
+    getCalcConditionDistribution(thirtyDaysAgo),
+    getTopColors("EXTERIOR", thirtyDaysAgo, 5),
+    getTopColors("INTERIOR", thirtyDaysAgo, 5),
+  ]);
+
   return {
     totalQuoteViews,
     totalVisitors,
     dailyTrend,
     vehicleLeaderboard,
     engineTypeDistribution,
+    calcPopularVehicles,
+    calcConditionDistribution,
+    topExteriorColors,
+    topInteriorColors,
   };
 }

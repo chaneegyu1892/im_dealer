@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CarCard } from "@/components/cars/CarCard";
 import type { VehicleListItem } from "@/types/api";
+import { makeBrandComparator, type BrandSignal } from "@/lib/brand-sort";
 
 // ── 상수 ──────────────────────────────────────────────────
 const VEHICLE_CATEGORIES = ["전체", "세단", "SUV", "밴", "트럭"] as const;
@@ -37,8 +38,6 @@ const BRAND_LOGO_MAP: Record<string, string> = {
   테슬라: "/images/vehicles/logos/tesla.svg",
 };
 
-const PRIORITY_BRANDS = ["현대", "기아", "제네시스"];
-const CATEGORY_ROWS: CategoryFilter[][] = [["전체", "세단", "SUV"], ["밴", "트럭"]];
 
 // ── 차종 아이콘 ────────────────────────────────────────────
 function CategoryIcon({ category }: { category: string }) {
@@ -195,7 +194,12 @@ function FeaturedCard({
 }
 
 // ── 메인 페이지 ────────────────────────────────────────────
-export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
+interface CarsClientPageProps {
+  vehicles: VehicleListItem[];
+  brandSignals: Record<string, BrandSignal>;
+}
+
+export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("전체");
   const [brandFilter, setBrandFilter] = useState<BrandFilter>("전체");
   const [sortBy, setSortBy] = useState<SortOption>("popular");
@@ -229,15 +233,14 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     filterPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
-  // 현대/기아/제네시스 우선 정렬
+  // 어드민/공개 일관 정렬: isFeatured 그룹 우선 → 차량 수 → 가나다 (SSOT)
+  const brandComparator = useMemo(
+    () => makeBrandComparator(new Map(Object.entries(brandSignals))),
+    [brandSignals]
+  );
   const brands = useMemo(() => {
-    const unique = Array.from(new Set(vehicles.map((v) => v.brand)));
-    const priority = unique
-      .filter((b) => PRIORITY_BRANDS.includes(b))
-      .sort((a, b) => PRIORITY_BRANDS.indexOf(a) - PRIORITY_BRANDS.indexOf(b));
-    const rest = unique.filter((b) => !PRIORITY_BRANDS.includes(b)).sort();
-    return [...priority, ...rest];
-  }, [vehicles]);
+    return Array.from(new Set(vehicles.map((v) => v.brand))).sort(brandComparator);
+  }, [vehicles, brandComparator]);
 
   const featured = useMemo(
     () => vehicles.filter((v) => v.isPopular).slice(0, 2),
@@ -266,14 +269,15 @@ export function CarsClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       case "price-desc":
         return [...result].sort((a, b) => b.monthlyFrom - a.monthlyFrom);
       default:
+        // 인기순: isFeatured 브랜드 차량을 먼저 보여주고, 그 외에는 displayOrder.
         return [...result].sort((a, b) => {
-          const diff =
-            (PRIORITY_BRANDS.includes(a.brand) ? 0 : 1) -
-            (PRIORITY_BRANDS.includes(b.brand) ? 0 : 1);
+          const aFeatured = brandSignals[a.brand]?.isFeatured ? 0 : 1;
+          const bFeatured = brandSignals[b.brand]?.isFeatured ? 0 : 1;
+          const diff = aFeatured - bFeatured;
           return diff !== 0 ? diff : a.displayOrder - b.displayOrder;
         });
     }
-  }, [vehicles, categoryFilter, brandFilter, sortBy, featured, searchQuery]);
+  }, [vehicles, categoryFilter, brandFilter, sortBy, featured, searchQuery, brandSignals]);
 
   const suggestedVehicles = useMemo(() => {
     if (!searchQuery.trim() || filteredVehicles.length === 0) return [];

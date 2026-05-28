@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { trimCreateSchema } from "@/lib/validations/admin";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
@@ -10,10 +10,8 @@ type Params = { params: Promise<{ id: string }> };
 
 // ─── POST /api/admin/vehicles/[id]/trims ────────────────
 export async function POST(request: NextRequest, { params }: Params) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { admin: session, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
   try {
     const { id } = await params;
     const body = await request.json();

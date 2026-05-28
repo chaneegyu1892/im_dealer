@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Car, Eye, TrendingUp, Sparkles, Users, ChevronLeft, ChevronRight,
-  CheckCircle2, BarChart2, Star, Clock,
+  CheckCircle2, BarChart2, Star, Clock, UserCheck, MousePointerClick,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LineChart } from "./charts/LineChart";
@@ -14,11 +14,13 @@ import type { DashboardData } from "@/types/admin";
 
 // ─── KPI 아이콘 매핑 ────────────────────────────────────
 const STAT_CONFIG = [
-  { key: "totalVehicles", label: "등록 차량", unit: "대", icon: Car, color: "#000666", bg: "#E5E5FA" },
-  { key: "visibleVehicles", label: "노출 중", unit: "대", icon: Eye, color: "#059669", bg: "#ECFDF5" },
-  { key: "todayQuoteViews", label: "오늘 견적 조회", unit: "회", icon: TrendingUp, color: "#D97706", bg: "#FFFBEB" },
-  { key: "todayAiSessions", label: "AI 추천 세션", unit: "회", icon: Sparkles, color: "#7C3AED", bg: "#F5F3FF" },
-  { key: "monthlyQuotes", label: "이달 저장 견적", unit: "건", icon: Users, color: "#0EA5E9", bg: "#E0F2FE" },
+  { key: "totalVehicles", label: "등록 차량", unit: "대", icon: Car, color: "#000666", bg: "#E5E5FA", isPercent: false },
+  { key: "visibleVehicles", label: "노출 중", unit: "대", icon: Eye, color: "#059669", bg: "#ECFDF5", isPercent: false },
+  { key: "todayQuoteViews", label: "오늘 견적 조회", unit: "회", icon: TrendingUp, color: "#D97706", bg: "#FFFBEB", isPercent: false },
+  { key: "todayAiSessions", label: "AI 추천 세션", unit: "회", icon: Sparkles, color: "#7C3AED", bg: "#F5F3FF", isPercent: false },
+  { key: "monthlyQuotes", label: "이달 저장 견적", unit: "건", icon: Users, color: "#0EA5E9", bg: "#E0F2FE", isPercent: false },
+  { key: "memberRatio", label: "회원 견적 비율", unit: "%", icon: UserCheck, color: "#000666", bg: "#E5E5FA", isPercent: true },
+  { key: "applyClickRate", label: "신청 전환율", unit: "%", icon: MousePointerClick, color: "#D97706", bg: "#FFFBEB", isPercent: true },
 ] as const;
 
 // ─── Props ──────────────────────────────────────────────
@@ -70,7 +72,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
   });
 
   return (
-    <div className="space-y-3 md:space-y-5">
+    <div className="p-4 md:p-5 space-y-3 md:space-y-5">
       {/* 헤더 */}
       <div className="flex items-end justify-between">
         <div>
@@ -80,20 +82,21 @@ export function DashboardClient({ data }: DashboardClientProps) {
       </div>
 
       {/* KPI 카드 */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 md:gap-3">
         {STAT_CONFIG.map((cfg) => {
           const Icon = cfg.icon;
-          const value = data.stats[cfg.key as keyof typeof data.stats];
+          const raw = data.stats[cfg.key as keyof typeof data.stats];
+          const display = cfg.isPercent ? Number(raw).toFixed(1) : raw;
           return (
             <div key={cfg.key} className="bg-white rounded-[12px] border border-[#E8EAF0] p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-[8px] flex items-center justify-center" style={{ background: cfg.bg }}>
+                <div className="w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0" style={{ background: cfg.bg }}>
                   <Icon size={16} style={{ color: cfg.color }} />
                 </div>
-                <span className="text-[11px] text-[#6B7399] font-medium">{cfg.label}</span>
+                <span className="text-[11px] text-[#6B7399] font-medium truncate">{cfg.label}</span>
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-[28px] font-bold text-[#1A1A2E] leading-none">{value}</span>
+                <span className="text-[24px] font-bold text-[#1A1A2E] leading-none">{display}</span>
                 <span className="text-[12px] text-[#9BA4C0]">{cfg.unit}</span>
               </div>
             </div>
