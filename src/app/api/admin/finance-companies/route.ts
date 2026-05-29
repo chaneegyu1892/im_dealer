@@ -2,13 +2,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 import { isAdminLike } from "@/lib/admin-roles";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
 export async function GET() {
   try {
-    const session = await getAdminSession();
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // 캐피탈사 가산율은 원가 구조 정보 — admin 이상만 조회 (PAGE_ACCESS /admin/finance 와 일치).
+    const { error } = await requireRoleAtLeast("admin");
+    if (error) return error;
 
     const financeCompanies = await prisma.financeCompany.findMany({
       orderBy: { displayOrder: "asc" },

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import {
@@ -9,6 +10,32 @@ import {
 import type { RateSheetRaw } from "@/types/admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
+
+// 회수율 시트는 모든 고객 견적 계산의 기반이 되는 금융 데이터다.
+// 잘못된 구조(배열/null/문자열)나 음수·역전 가격이 calcRateMatrix 로 유입되지 않도록 엄격히 검증.
+const rateSheet = z.record(z.string(), z.number()).transform((v) => v as RateSheetRaw);
+const capitalRatePostSchema = z
+  .object({
+    financeCompanyId: z.string().min(1),
+    trimId: z.string().min(1).optional(),
+    trimIds: z.array(z.string().min(1)).optional(),
+    productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
+    weekOf: z
+      .string()
+      .min(1)
+      .refine((s) => !Number.isNaN(new Date(s).getTime()), "weekOf 가 유효한 날짜가 아닙니다."),
+    minVehiclePrice: z.number().positive(),
+    maxVehiclePrice: z.number().positive(),
+    minBaseRates: rateSheet,
+    minDepositRates: rateSheet,
+    minPrepayRates: rateSheet,
+    maxBaseRates: rateSheet,
+    maxDepositRates: rateSheet,
+    maxPrepayRates: rateSheet,
+    memo: z.string().nullish(),
+  })
+  .refine((d) => (d.trimIds?.length ?? 0) > 0 || !!d.trimId, "트림을 1개 이상 지정하세요.")
+  .refine((d) => d.minVehiclePrice < d.maxVehiclePrice, "최소 차량가는 최대 차량가보다 작아야 합니다.");
 
 // GET /api/admin/capital-rates?financeCompanyId=...&trimId=...&history=true
 export async function GET(request: NextRequest) {
@@ -88,12 +115,18 @@ export async function POST(request: NextRequest) {
   if (error) return error;
 
   try {
-    const body = await request.json();
+    const parsed = capitalRatePostSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "입력값이 올바르지 않습니다.", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
     const {
       financeCompanyId,
       trimId,
       trimIds,
-      productType = "장기렌트",
+      productType,
       weekOf,
       minVehiclePrice,
       maxVehiclePrice,
@@ -104,28 +137,9 @@ export async function POST(request: NextRequest) {
       maxDepositRates,
       maxPrepayRates,
       memo,
-    } = body as {
-      financeCompanyId: string;
-      trimId?: string;
-      trimIds?: string[];
-      productType?: string;
-      weekOf: string;
-      minVehiclePrice: number;
-      maxVehiclePrice: number;
-      minBaseRates: RateSheetRaw;
-      minDepositRates: RateSheetRaw;
-      minPrepayRates: RateSheetRaw;
-      maxBaseRates: RateSheetRaw;
-      maxDepositRates: RateSheetRaw;
-      maxPrepayRates: RateSheetRaw;
-      memo?: string;
-    };
+    } = parsed.data;
 
-    const targetTrimIds = trimIds || (trimId ? [trimId] : []);
-
-    if (!financeCompanyId || targetTrimIds.length === 0 || !weekOf || !minVehiclePrice || !maxVehiclePrice) {
-      return NextResponse.json({ error: "필수 항목이 누락되었습니다." }, { status: 400 });
-    }
+    const targetTrimIds = trimIds && trimIds.length > 0 ? trimIds : trimId ? [trimId] : [];
 
     // 회수율 자동 계산 (모든 트림에 동일하게 적용됨)
     const minRateMatrix = calcRateMatrix(minBaseRates, minVehiclePrice);
