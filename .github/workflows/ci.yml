@@ -14,33 +14,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm 을 먼저 PATH 에 올려야 setup-node 의 cache:pnpm 이 store 경로를 계산할 수 있다.
+      # version 미지정 → package.json 의 packageManager(pnpm@11.0.8) 를 사용.
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 22
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Test
-        run: npm run test
+        run: pnpm run test
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Validate Prisma schema
-        run: npx prisma validate
+        run: pnpm exec prisma validate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -60,19 +64,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 22
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Build app
-        run: npm run build
+        run: pnpm run build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -85,7 +91,7 @@ jobs:
 
       - name: Start app & run Playwright
         run: |
-          npm run start &
+          pnpm start &
           # 서버 부팅 대기 (최대 60초)
           for i in {1..60}; do
             if curl -fs http://localhost:3000 > /dev/null 2>&1; then
@@ -93,7 +99,7 @@ jobs:
             fi
             sleep 1
           done
-          npx playwright test
+          pnpm exec playwright test
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

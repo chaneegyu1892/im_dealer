@@ -4,7 +4,7 @@
  * - 기존 트림 데이터를 모두 대체
  */
 
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import * as path from "path";
 import { PrismaClient } from "@prisma/client";
 import * as dotenv from "dotenv";
@@ -69,32 +69,49 @@ function extractEngineType(lineup: string): string {
   return "가솔린";
 }
 
-function readXlsx(filePath: string): XlsxRow[] {
-  const wb = XLSX.readFile(filePath);
-  const ws = wb.Sheets["raw data"];
-  const raw = XLSX.utils.sheet_to_json<(string | number | null)[]>(ws, {
-    header: 1,
-    defval: null,
-  });
+// exceljs 셀 값(문자열/숫자/richText/hyperlink/formula)을 평문 문자열로 추출.
+function cellText(val: ExcelJS.CellValue): string {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "object") {
+    if ("richText" in val && Array.isArray(val.richText)) {
+      return val.richText.map((r) => r.text ?? "").join("");
+    }
+    if ("text" in val && val.text != null) return String(val.text);
+    if ("result" in val && val.result != null) return String(val.result);
+    return "";
+  }
+  return String(val);
+}
+
+async function readXlsx(filePath: string): Promise<XlsxRow[]> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(filePath);
+  const ws = wb.getWorksheet("raw data");
+  if (!ws) {
+    throw new Error('"raw data" 시트를 찾을 수 없습니다');
+  }
 
   const rows: XlsxRow[] = [];
 
-  for (const row of raw) {
-    // XLSX.js는 빈 첫 컬럼(A)을 제거하므로: row[0]=브랜드, row[1]=모델, row[2]=라인업, ...
-    if (!row[0] || row[0] === "브랜드") continue;
-    const brand = String(row[0] ?? "").trim();
-    const model = String(row[1] ?? "").trim();
-    const lineup = String(row[2] ?? "").trim();
-    const trim = String(row[3] ?? "").trim();
-    const trimPrice = Number(row[4] ?? 0);
-    const option = String(row[5] ?? "").trim();
-    const optionPrice = Number(row[6] ?? 0);
-    const isAccessory = String(row[7] ?? "n").toLowerCase() === "y";
-    const hasLinkedOption = String(row[8] ?? "n").toLowerCase() === "y";
-    const linkedOptionCondition = row[9] ? String(row[9]).trim() : null;
-    const optionDesc = row[10] ? String(row[10]).trim() : null;
+  // exceljs row.values 는 1-based 희소 배열(index 0 = undefined).
+  // 원본 xlsx(sheet_to_json header:1)은 빈 첫 컬럼 A를 제거해 row[0]=브랜드(B열)였다.
+  // exceljs 는 A열을 포함하므로 values[1]=빈 A, values[2]=브랜드 … 즉 원본 row[i] === values[i+2].
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    const v = row.values as ExcelJS.CellValue[];
+    const brand = cellText(v[2]).trim();
+    if (!brand || brand === "브랜드") return;
+    const model = cellText(v[3]).trim();
+    const lineup = cellText(v[4]).trim();
+    const trim = cellText(v[5]).trim();
+    const trimPrice = Number(cellText(v[6]) || 0);
+    const option = cellText(v[7]).trim();
+    const optionPrice = Number(cellText(v[8]) || 0);
+    const isAccessory = (cellText(v[9]) || "n").toLowerCase() === "y";
+    const hasLinkedOption = (cellText(v[10]) || "n").toLowerCase() === "y";
+    const linkedOptionCondition = cellText(v[11]).trim() || null;
+    const optionDesc = cellText(v[12]).trim() || null;
 
-    if (!brand || !model || !trim || !option) continue;
+    if (!model || !trim || !option) return;
 
     rows.push({
       brand,
@@ -109,7 +126,7 @@ function readXlsx(filePath: string): XlsxRow[] {
       linkedOptionCondition,
       optionDesc,
     });
-  }
+  });
 
   return rows;
 }
@@ -117,7 +134,7 @@ function readXlsx(filePath: string): XlsxRow[] {
 async function main() {
   const xlsxPath = path.join(__dirname, "../trim_list.xlsx");
   console.log("xlsx 읽는 중...");
-  const rows = readXlsx(xlsxPath);
+  const rows = await readXlsx(xlsxPath);
   console.log(`총 ${rows.length}개 행 로드됨`);
 
   // DB 차량 목록 조회
