@@ -68,5 +68,5 @@ export function loadEnv(): Env {
   return cached;
 }
 
-// 모듈 로드 시 즉시 검증을 수행하려면 아래를 활성화:
-// loadEnv();
+// 서버 시작 시 검증은 src/instrumentation.ts 의 register() 에서 loadEnv() 호출로 수행한다.
+// (운영에서 필수 키 누락 시 throw → 컨테이너 부팅 차단)
