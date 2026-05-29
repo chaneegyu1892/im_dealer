@@ -19,6 +19,11 @@ async function send(text: string): Promise<void> {
   }
 }
 
+// 운영 경보(크론 실패 등) — 범용 Slack 텍스트 전송.
+export async function notifyOpsAlert(text: string): Promise<void> {
+  await send(text);
+}
+
 interface NewQuoteParams {
   quoteId: string;
   vehicleName: string;

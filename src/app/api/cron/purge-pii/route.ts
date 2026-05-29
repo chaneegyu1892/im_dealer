@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { timingSafeEqualString } from "@/lib/security";
+import { notifyOpsAlert } from "@/lib/notify";
 
 /**
  * 90일 경과 PII 자동 만료.
@@ -11,10 +13,11 @@ import { timingSafeEqualString } from "@/lib/security";
  *       piiPurgedAt 에 처리 시각 기록 (감사용).
  *
  * 호출 방법:
- *   curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://.../api/cron/purge-pii
+ *   - Vercel Cron: vercel.json 의 crons 에 등록(매일 03:00). Vercel 이 GET 으로 호출하며
+ *     CRON_SECRET 환경변수가 설정돼 있으면 Authorization: Bearer 헤더를 자동 주입한다.
+ *   - 수동: curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://.../api/cron/purge-pii
  *
- * 본 라우트는 엔드포인트만 제공. 실제 일정 호출은 외부 cron(Vercel Cron, GitHub
- * Actions schedule, Upstash QStash 등) 에서 매일 1회 호출.
+ * 실패 시 Sentry + Slack 으로 경보(법적 보존기간 준수 의무 — 무음 실패 방지).
  */
 
 const RETENTION_DAYS = 90;
@@ -23,7 +26,7 @@ function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePurge(request: NextRequest) {
   const auth = request.headers.get("authorization");
   if (!auth || !auth.startsWith("Bearer ")) return unauthorized();
 
@@ -65,14 +68,26 @@ export async function POST(request: NextRequest) {
       retentionDays: RETENTION_DAYS,
     });
   } catch (error) {
-    console.error("[cron/purge-pii]", {
+    const detail = {
       name: error instanceof Error ? error.name : "Unknown",
       message:
         error instanceof Error
           ? error.message.slice(0, 200)
           : String(error).slice(0, 200),
-    });
+    };
+    console.error("[cron/purge-pii]", detail);
+    // 법적 보존기간 준수 의무가 있는 작업이므로 실패를 반드시 가시화한다.
+    Sentry.captureException(error, { tags: { cron: "purge-pii" } });
+    await notifyOpsAlert(`🚨 *PII 자동 만료 cron 실패*\n• ${detail.name}: ${detail.message}`);
     return NextResponse.json({ error: "Purge failed" }, { status: 500 });
   }
 }
 
+// Vercel Cron 은 GET 으로 호출 → GET 지원. 수동 트리거를 위해 POST 도 허용.
+export async function GET(request: NextRequest) {
+  return handlePurge(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handlePurge(request);
+}
