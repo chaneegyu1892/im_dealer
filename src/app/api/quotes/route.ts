@@ -3,13 +3,42 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminNotification } from "@/lib/admin-notification";
 import { isCustomerType } from "@/constants/customer-types";
+import { z } from "zod";
+
+// CRM 리드 저장 — 클라이언트 입력의 구조/타입을 검증해 크래시(문자열 monthlyPayment 등)와
+// 이상 데이터(contractMonths 0/음수)를 차단한다.
+// (클라이언트 금액 신뢰 제거를 위한 서버 재계산 통일은 verify 플로우 전반 정리와 함께 후속 작업.)
+const quotesPostSchema = z.object({
+  sessionId: z.string().min(1),
+  vehicleId: z.string().min(1),
+  trimId: z.string().min(1),
+  contractMonths: z.number().int().positive(),
+  annualMileage: z.number().int().positive(),
+  depositRate: z.number().min(0),
+  prepayRate: z.number().min(0),
+  contractType: z.string(),
+  customerType: z.string(),
+  monthlyPayment: z.number().int().nonnegative(),
+  totalCost: z.number().int().nonnegative(),
+  breakdown: z.record(z.unknown()).optional(),
+  customerName: z.string().optional(),
+  phone: z.string().optional(),
+  exteriorColorId: z.string().nullish(),
+  interiorColorId: z.string().nullish(),
+});
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    const body = await request.json();
+    const parsed = quotesPostSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "입력값이 올바르지 않습니다.", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
     const {
       sessionId,
       vehicleId,
@@ -27,7 +56,7 @@ export async function POST(request: NextRequest) {
       phone,
       exteriorColorId,
       interiorColorId,
-    } = body;
+    } = parsed.data;
 
     // vehicleId 필드로 기존 ID 또는 slug가 들어올 수 있어 저장 전 ID로 정규화
     let targetVehicleId = vehicleId;
