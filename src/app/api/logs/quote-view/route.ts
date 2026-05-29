@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 
 // 견적 조회 이벤트 = car_click → quote_start 흐름을 한 번에 기록
 const quoteViewSchema = z.object({
@@ -56,6 +57,9 @@ export async function POST(request: NextRequest) {
 // ─── GET /api/logs/quote-view ────────────────────────────
 // 관리자용: 차량별 견적 조회 집계
 export async function GET(request: NextRequest) {
+  // 관리자용 집계 조회 — staff 이상만 접근 가능 (POST 이벤트 수집은 공개 유지).
+  const { error: authError } = await requireRoleAtLeast("staff");
+  if (authError) return authError;
   try {
     const { searchParams } = new URL(request.url);
     const from = searchParams.get("from")

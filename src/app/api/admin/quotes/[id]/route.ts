@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/require-admin";
+import { requireAdmin, requireRoleAtLeast } from "@/lib/require-admin";
 import { QuoteStatus } from "@prisma/client";
 
 const patchSchema = z.object({
@@ -15,7 +15,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { admin, error } = await requireAdmin();
+  const { admin, error } = await requireRoleAtLeast("staff");
   if (error) return error;
 
   const body = await request.json().catch(() => ({}));
@@ -93,7 +93,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { admin, error } = await requireAdmin();
+  const { admin, error } = await requireRoleAtLeast("staff");
   if (error) return error;
 
   try {

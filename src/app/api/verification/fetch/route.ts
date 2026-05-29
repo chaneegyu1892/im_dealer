@@ -116,15 +116,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // 원본(raw) Codef 응답은 PII 이므로 클라이언트에 노출하지 않는다.
+    // 원본은 위에서 AES-256-GCM 으로 암호화되어 DB 에만 저장된다(클라이언트는 검증 결과만 필요).
     return NextResponse.json({
       success: true,
       results: {
-        license: { verified: licenseVerified, raw: licenseRaw ?? {} },
+        license: { verified: licenseVerified },
         ...(insuranceResult !== null
-          ? { insurance: { verified: insuranceVerified, raw: insuranceRaw ?? {} } }
+          ? { insurance: { verified: insuranceVerified } }
           : {}),
         ...(bizResult !== null
-          ? { biz: { verified: bizVerified, raw: bizRaw ?? {} } }
+          ? { biz: { verified: bizVerified } }
           : {}),
       },
     });

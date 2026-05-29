@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/require-admin";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 
@@ -25,7 +25,8 @@ const bulkDiscountSchema = z.union([
 // PATCH /api/admin/vehicles/[id]/trims/bulk-discount
 // 선택한 트림들의 discountPrice를 일괄 적용 (null이면 할인 해제).
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const { admin, error: authError } = await requireAdmin();
+  // 트림 할인가 일괄 변경은 재무 영향 작업 — staff 이상만 (dealer 차단, PAGE_ACCESS /admin/vehicles 와 일치).
+  const { admin, error: authError } = await requireRoleAtLeast("staff");
   if (authError) return authError;
 
   try {

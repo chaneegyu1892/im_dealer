@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 
 // ─── 이벤트 타입 ────────────────────────────────────────
 const EVENT_TYPES = [
@@ -66,6 +67,9 @@ export async function POST(request: NextRequest) {
 // 관리자용 탐색 로그 조회
 // Query params: eventType, vehicleId, from, to, page, limit
 export async function GET(request: NextRequest) {
+  // 관리자용 로그 조회 — staff 이상만 접근 가능 (POST 이벤트 수집은 공개 유지).
+  const { error: authError } = await requireRoleAtLeast("staff");
+  if (authError) return authError;
   try {
     const { searchParams } = new URL(request.url);
 

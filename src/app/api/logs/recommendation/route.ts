@@ -1,10 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 
 // ─── GET /api/logs/recommendation ────────────────────────
 // 관리자용 AI 추천 로그 조회
 // Query params: page, limit, from, to, industry, purpose
 export async function GET(request: NextRequest) {
+  // 관리자용 AI 추천 로그 조회 — staff 이상만 접근 가능.
+  const { error: authError } = await requireRoleAtLeast("staff");
+  if (authError) return authError;
   try {
     const { searchParams } = new URL(request.url);
 
