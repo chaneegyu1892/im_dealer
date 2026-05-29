@@ -104,6 +104,11 @@ jobs:
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           E2E_BASE_URL: http://localhost:3000
+          # instrumentation.ts 의 loadEnv() 가 production(next start) 부팅 시 강제 검증하는 필수 키.
+          # CI E2E 전용 더미 값 — 비밀 아님(실제 운영 값은 Vercel 환경변수에 별도 보관).
+          IP_HASH_SALT: ci-e2e-ip-hash-salt-0123456789abcdef
+          PII_ENCRYPTION_KEY: aW0tZGVhbGVyLWNpLWUyZS10ZXN0LWtleS0wMDAwMDA=
+          CRON_SECRET: ci-e2e-cron-secret-0123456789abcdef0123456789
 
       - name: Upload Playwright report
         if: always()
