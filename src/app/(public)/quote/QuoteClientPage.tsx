@@ -241,9 +241,10 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const prefillSlug = searchParams.get("vehicle") ?? undefined;
   const customerTypeParam = searchParams.get("customerType");
   const initialCustomerType = isCustomerType(customerTypeParam) ? customerTypeParam : null;
-  const quoteSessionId = useRef(
+  // 세션 id 는 마운트 시 1회만 생성 (렌더 중 crypto.randomUUID()/Date.now() 직접 호출 방지).
+  const [quoteSessionId] = useState(() =>
     typeof crypto !== "undefined" ? crypto.randomUUID() : `quote-${Date.now()}`
-  ).current;
+  );
   // 추천 결과에서 넘어온 TrimOption IDs (pre-select용)
   const prefillOptionIds = searchParams.get("options")?.split(",").filter(Boolean) ?? [];
 

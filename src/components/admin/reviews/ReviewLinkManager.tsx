@@ -42,6 +42,8 @@ export function ReviewLinkManager({ initialTokens }: ReviewLinkManagerProps) {
   const [issueError, setIssueError] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
   const [copyToken, setCopyToken] = useState<string | null>(null);
+  // 만료 비교용 기준 시각 — 렌더 중 Date.now() 직접 호출을 피하기 위해 마운트 시 1회 고정.
+  const [now] = useState(() => Date.now());
 
   const tokens = useMemo(() => {
     if (filter === "all") return initialTokens;
@@ -237,7 +239,7 @@ export function ReviewLinkManager({ initialTokens }: ReviewLinkManagerProps) {
                     >
                       <ExternalLink size={11} /> 열기
                     </a>
-                    {t.status === "unused" && expiresAt.getTime() > Date.now() && (
+                    {t.status === "unused" && expiresAt.getTime() > now && (
                       <button
                         type="button"
                         onClick={() => handleRevoke(t.token)}
