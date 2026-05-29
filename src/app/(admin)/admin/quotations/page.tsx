@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import * as xlsx from "xlsx";
+import ExcelJS from "exceljs";
 import {
   FileText, Search, Download, Filter, X, Phone, User,
   Calendar, Copy, CheckCircle2, Clock, AlertCircle,
@@ -199,7 +199,7 @@ function QuotationsContent() {
     setSelectedIds(newSet);
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     const target = selectedIds.size > 0
       ? filteredQuotes.filter(q => selectedIds.has(q.id))
       : filteredQuotes;
@@ -218,17 +218,33 @@ function QuotationsContent() {
       "메모": q.internalMemo ?? "",
     }));
 
-    const worksheet = xlsx.utils.json_to_sheet(dataToExport);
-
-    // 컬럼 너비 설정
-    worksheet["!cols"] = [
-      { wch: 14 }, { wch: 8 }, { wch: 16 }, { wch: 30 }, { wch: 14 },
-      { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 30 },
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("견적데이터");
+    worksheet.columns = [
+      { header: "견적 ID", key: "견적 ID", width: 14 },
+      { header: "고객명", key: "고객명", width: 8 },
+      { header: "연락처", key: "연락처", width: 16 },
+      { header: "차량명", key: "차량명", width: 30 },
+      { header: "월 납입금 (원)", key: "월 납입금 (원)", width: 14 },
+      { header: "브랜드", key: "브랜드", width: 16 },
+      { header: "진행 상태", key: "진행 상태", width: 10 },
+      { header: "접수일", key: "접수일", width: 12 },
+      { header: "계정 유형", key: "계정 유형", width: 10 },
+      { header: "견적 방식", key: "견적 방식", width: 12 },
+      { header: "메모", key: "메모", width: 30 },
     ];
+    worksheet.addRows(dataToExport);
 
-    const workbook = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(workbook, worksheet, "견적데이터");
-    xlsx.writeFile(workbook, `아임딜러_견적데이터_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `아임딜러_견적데이터_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleBulkStatusChange = async (newStatus: UIQuoteStatus) => {
