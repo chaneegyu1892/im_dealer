@@ -22,9 +22,9 @@ export async function GET(request: NextRequest) {
     const vehicles = await prisma.vehicle.findMany({
       where,
       orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }],
-      include: { 
+      include: {
         _count: { select: { trims: true } },
-        ...(includeTrims ? { trims: { orderBy: { price: "asc" } } } : {}),
+        ...(includeTrims ? { trims: { orderBy: { price: "asc" } }, lineups: true } : {}),
       },
     });
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       createdAt: v.createdAt.toISOString(),
       updatedAt: v.updatedAt.toISOString(),
       _count: v._count,
-      ...(includeTrims ? { trims: (v as any).trims } : {}),
+      ...(includeTrims ? { trims: (v as any).trims, lineups: (v as any).lineups } : {}),
     }));
 
     return NextResponse.json({ success: true, data });
