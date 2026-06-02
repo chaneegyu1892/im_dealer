@@ -35,6 +35,24 @@ interface VehicleWithLineups {
 // 시범 적용: 트림 단위 선택 UI를 노출할 차량 (slug). 비대상 차량은 기존 라인업 단위 동작 유지.
 const TRIM_SELECT_VEHICLE_SLUGS = new Set<string>(["kia-11573"]); // 더 뉴 쏘렌토 HEV
 
+// 라인업 이름에 들어있는 구동방식/인승을 트림 표시 라벨로 내려 붙인다 (표시 전용).
+function extractWd(s: string): string {
+  const m = s.match(/\b(2WD|4WD|AWD)\b/i);
+  return m ? m[1].toUpperCase() : "";
+}
+function extractSeat(s: string): string {
+  const m = s.match(/(\d+)\s*인승/);
+  return m ? `${m[1]}인승` : "";
+}
+function trimDisplayLabel(trimName: string, lineupName: string): string {
+  const parts = [trimName];
+  const wd = extractWd(lineupName);
+  if (wd && !extractWd(trimName)) parts.push(wd);
+  const seat = extractSeat(lineupName);
+  if (seat && !extractSeat(trimName)) parts.push(seat);
+  return parts.join(" · ");
+}
+
 interface SessionSavedLineup {
   lineupId: string;
   lineupName: string;
@@ -764,7 +782,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                     )}
                                   </span>
-                                  <span className={`flex-1 ${trimSelected ? "text-[#1A1A2E] font-medium" : "text-[#9BA4C0]"}`}>{t.name}</span>
+                                  <span className={`flex-1 ${trimSelected ? "text-[#1A1A2E] font-medium" : "text-[#9BA4C0]"}`}>{trimDisplayLabel(t.name, lineup.name)}</span>
                                   <span className="text-[10px] text-[#B0B8D0]">{Math.round((t.discountPrice ?? t.price) / 10000).toLocaleString()}만</span>
                                   {trimHasSheet && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
                                 </button>
