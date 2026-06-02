@@ -52,6 +52,14 @@ function trimDisplayLabel(trimName: string, lineupName: string): string {
   if (seat && !extractSeat(trimName)) parts.push(seat);
   return parts.join(" · ");
 }
+// 구동방식·인승을 제거한 라인업 그룹 키 (연식/엔진 단위로 묶기 위함). 시범 차량 한정 사용.
+function collapseLineupKey(name: string): string {
+  return name
+    .replace(/\b(2WD|4WD|AWD)\b/gi, "")
+    .replace(/\d+\s*인승/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 interface SessionSavedLineup {
   lineupId: string;
@@ -173,6 +181,20 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   // 트림 단위 선택 UI 노출 대상 차량인지 (시범)
   const trimSelectMode = !!vehicleDetail && TRIM_SELECT_VEHICLE_SLUGS.has(vehicleDetail.slug);
 
+  // 시범 차량: 라인업을 구동방식·인승 제외한 키(연식/엔진)로 묶음. WD·인승은 트림 라벨로 내려감.
+  const collapsedGroups = useMemo(() => {
+    type Group = { key: string; lineups: VehicleLineup[] };
+    if (!vehicleDetail || !trimSelectMode) return [] as Group[];
+    const map = new Map<string, Group>();
+    for (const l of vehicleDetail.lineups) {
+      const key = collapseLineupKey(l.name);
+      const g = map.get(key) ?? { key, lineups: [] };
+      g.lineups.push(l);
+      map.set(key, g);
+    }
+    return Array.from(map.values());
+  }, [vehicleDetail, trimSelectMode]);
+
   // 선택된 라인업들에 속한 트림 ID 자동 도출 — 개별 해제한 트림은 제외 (저장 단위)
   const derivedTrimIds = useMemo<string[]>(() => {
     if (!vehicleDetail) return [];
@@ -251,6 +273,37 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       setShowHistory(false);
     },
     [vehicleDetail, isWritingSession, sessionSavedLineupIds, selectedLineupIds]
+  );
+
+  // 시범 차량: 연식 그룹(여러 라인업 묶음) 전체 선택/해제
+  const toggleGroupTrims = useCallback(
+    (groupLineupIds: string[]) => {
+      if (!vehicleDetail) return;
+      const selectable = groupLineupIds.filter(
+        (id) => !(isWritingSession && sessionSavedLineupIds.has(id))
+      );
+      if (selectable.length === 0) return;
+      const groupTrims = vehicleDetail.trims.filter((t) => t.lineupId && selectable.includes(t.lineupId));
+      const allSelected =
+        groupTrims.length > 0 &&
+        groupTrims.every((t) => selectedLineupIds.has(t.lineupId!) && !deselectedTrimIds.has(t.id));
+      const groupTrimIds = new Set(groupTrims.map((t) => t.id));
+      // 그룹 트림의 개별 해제 상태는 항상 초기화
+      setDeselectedTrimIds((prev) => {
+        if (prev.size === 0) return prev;
+        const next = new Set(prev);
+        groupTrimIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      setSelectedLineupIds((prev) => {
+        const next = new Set(prev);
+        if (allSelected) selectable.forEach((id) => next.delete(id));
+        else selectable.forEach((id) => next.add(id));
+        return next;
+      });
+      setShowHistory(false);
+    },
+    [vehicleDetail, isWritingSession, sessionSavedLineupIds, selectedLineupIds, deselectedTrimIds]
   );
 
   const selectAllLineups = () => {
@@ -716,7 +769,9 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
               <div className="bg-white rounded-xl border border-[#E8EAF2] p-4">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   <p className="text-xs font-semibold text-[#9BA4C0] uppercase tracking-wider">
-                    라인업 선택 ({selectedLineupIds.size}개 / 트림 {derivedTrimIds.length}개 자동 적용)
+                    {trimSelectMode
+                      ? `트림 선택 (${derivedTrimIds.length}개 적용)`
+                      : `라인업 선택 (${selectedLineupIds.size}개 / 트림 ${derivedTrimIds.length}개 자동 적용)`}
                   </p>
                   <div className="flex items-center gap-2 ml-auto">
                     <button onClick={selectAllLineups} className="text-[11px] text-[#6066EE] hover:underline font-medium">전체 선택</button>
@@ -726,21 +781,28 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                 {trimSelectMode ? (
                   /* 시범: 라인업 아래 트림 펼침 — 라인업 체크는 전체 선택/해제, 트림은 개별 선택 */
                   <div className="flex flex-col gap-1.5">
-                    {vehicleDetail.lineups.map((lineup) => {
-                      const lineupTrims = vehicleDetail.trims.filter((t) => t.lineupId === lineup.id);
-                      const isSessionSaved = isWritingSession && sessionSavedLineupIds.has(lineup.id);
-                      const selectedCount = lineupTrims.filter(
-                        (t) => selectedLineupIds.has(lineup.id) && !deselectedTrimIds.has(t.id)
+                    {collapsedGroups.map((group) => {
+                      const groupLineupIds = group.lineups.map((l) => l.id);
+                      const lineupNameOf = (id: string) => group.lineups.find((l) => l.id === id)?.name ?? "";
+                      const groupTrims = vehicleDetail.trims
+                        .filter((t) => t.lineupId && groupLineupIds.includes(t.lineupId))
+                        .sort((a, b) =>
+                          (lineupNameOf(a.lineupId!) + a.name).localeCompare(lineupNameOf(b.lineupId!) + b.name, "ko")
+                        );
+                      const groupAllSaved =
+                        isWritingSession && groupLineupIds.length > 0 && groupLineupIds.every((id) => sessionSavedLineupIds.has(id));
+                      const selectedCount = groupTrims.filter(
+                        (t) => selectedLineupIds.has(t.lineupId!) && !deselectedTrimIds.has(t.id)
                       ).length;
-                      const checkState = selectedCount === 0 ? "none" : selectedCount === lineupTrims.length ? "all" : "some";
+                      const checkState = selectedCount === 0 ? "none" : selectedCount === groupTrims.length ? "all" : "some";
                       return (
-                        <div key={lineup.id} className="rounded-lg border border-[#E8EAF2] overflow-hidden">
+                        <div key={group.key} className="rounded-lg border border-[#E8EAF2] overflow-hidden">
                           <button
                             type="button"
-                            onClick={() => toggleLineup(lineup.id)}
-                            disabled={isSessionSaved}
+                            onClick={() => toggleGroupTrims(groupLineupIds)}
+                            disabled={groupAllSaved}
                             className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${
-                              isSessionSaved
+                              groupAllSaved
                                 ? "bg-emerald-50 text-emerald-700 cursor-not-allowed"
                                 : checkState !== "none"
                                 ? "bg-[#F0F1FA] text-[#1A1A2E]"
@@ -750,41 +812,43 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                             <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
                               checkState === "all" ? "bg-[#6066EE] border-[#6066EE]"
                                 : checkState === "some" ? "bg-white border-[#6066EE]"
-                                : isSessionSaved ? "bg-emerald-500 border-emerald-500" : "border-[#D1D5DB] bg-white"
+                                : groupAllSaved ? "bg-emerald-500 border-emerald-500" : "border-[#D1D5DB] bg-white"
                             }`}>
                               {checkState === "all" && (
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                               )}
                               {checkState === "some" && <span className="w-2 h-0.5 rounded bg-[#6066EE]" />}
                             </span>
-                            <span className="flex-1 text-left">{lineup.name}</span>
-                            <span className="text-[10px] text-[#9BA4C0]">트림 {selectedCount}/{lineupTrims.length}</span>
-                            {isSessionSaved && <span className="text-[10px] font-bold text-emerald-600">저장됨</span>}
+                            <span className="flex-1 text-left">{group.key}</span>
+                            <span className="text-[10px] text-[#9BA4C0]">트림 {selectedCount}/{groupTrims.length}</span>
                           </button>
                           <div className="flex flex-col border-t border-[#F0F1FA] bg-[#FBFCFE]">
-                            {lineupTrims.map((t) => {
-                              const trimSelected = selectedLineupIds.has(lineup.id) && !deselectedTrimIds.has(t.id);
+                            {groupTrims.map((t) => {
+                              const ln = lineupNameOf(t.lineupId!);
+                              const trimSessionSaved = isWritingSession && sessionSavedLineupIds.has(t.lineupId!);
+                              const trimSelected = selectedLineupIds.has(t.lineupId!) && !deselectedTrimIds.has(t.id);
                               const trimHasSheet = activeSheets.some((s) => s.trimId === t.id && s.productType === selectedProductType);
                               return (
                                 <button
                                   key={t.id}
                                   type="button"
-                                  onClick={() => toggleTrim(t.id, lineup.id)}
-                                  disabled={isSessionSaved}
+                                  onClick={() => toggleTrim(t.id, t.lineupId!)}
+                                  disabled={trimSessionSaved}
                                   className={`flex items-center gap-2 pl-8 pr-3 py-1.5 text-xs text-left transition-colors ${
-                                    isSessionSaved ? "cursor-not-allowed" : "hover:bg-[#F0F1FA]"
+                                    trimSessionSaved ? "cursor-not-allowed" : "hover:bg-[#F0F1FA]"
                                   }`}
                                 >
                                   <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
-                                    trimSelected ? "bg-[#6066EE] border-[#6066EE]" : "border-[#D1D5DB] bg-white"
+                                    trimSelected ? "bg-[#6066EE] border-[#6066EE]" : trimSessionSaved ? "bg-emerald-500 border-emerald-500" : "border-[#D1D5DB] bg-white"
                                   }`}>
-                                    {trimSelected && (
+                                    {(trimSelected || trimSessionSaved) && (
                                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                     )}
                                   </span>
-                                  <span className={`flex-1 ${trimSelected ? "text-[#1A1A2E] font-medium" : "text-[#9BA4C0]"}`}>{trimDisplayLabel(t.name, lineup.name)}</span>
+                                  <span className={`flex-1 ${trimSelected ? "text-[#1A1A2E] font-medium" : "text-[#9BA4C0]"}`}>{trimDisplayLabel(t.name, ln)}</span>
                                   <span className="text-[10px] text-[#B0B8D0]">{Math.round((t.discountPrice ?? t.price) / 10000).toLocaleString()}만</span>
-                                  {trimHasSheet && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+                                  {trimSessionSaved && <span className="text-[10px] font-bold text-emerald-600 shrink-0">저장됨</span>}
+                                  {trimHasSheet && !trimSessionSaved && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
                                 </button>
                               );
                             })}
