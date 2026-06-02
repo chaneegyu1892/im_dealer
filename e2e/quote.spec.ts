@@ -46,13 +46,10 @@ test.describe("공개 견적 골든패스", () => {
 
   test("/cars/<invalid-slug> 는 not-found 처리", async ({ page }) => {
     // Next.js App Router 의 notFound() 는 not-found.tsx 콘텐츠를 200 으로 스트리밍.
-    // 페이지 본문에 '찾을 수 없' 또는 '404' 류 텍스트가 노출되어야 한다.
+    // 사용자에게 보이는 404 화면의 핵심 heading 이 노출되어야 한다.
     await page.goto("/cars/this-slug-does-not-exist-12345");
-    const notFoundVisible = await page
-      .getByText(/찾을 수 없|페이지를 찾을 수 없|404|Not Found/i)
-      .first()
-      .isVisible()
-      .catch(() => false);
-    expect(notFoundVisible).toBe(true);
+    await expect(
+      page.getByRole("heading", { name: "페이지를 찾을 수 없습니다" })
+    ).toBeVisible();
   });
 });

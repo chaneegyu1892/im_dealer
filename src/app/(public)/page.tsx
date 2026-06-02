@@ -11,8 +11,7 @@ import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 
 async function getPopularVehicles(): Promise<VehicleListItem[]> {
-  const vehicles = await prisma.vehicle.findMany({
-    where: { isVisible: true, isPopular: true },
+  const baseVehicleQuery = {
     orderBy: { displayOrder: "asc" },
     take: 6,
     include: {
@@ -31,7 +30,19 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
         select: { highlights: true },
       },
     },
+  } as const;
+
+  const popularVehicles = await prisma.vehicle.findMany({
+    where: { isVisible: true, isPopular: true },
+    ...baseVehicleQuery,
   });
+
+  const vehicles = popularVehicles.length > 0
+    ? popularVehicles
+    : await prisma.vehicle.findMany({
+        where: { isVisible: true },
+        ...baseVehicleQuery,
+      });
 
   const vehicleCodes = vehicles.map((v) => v.vehicleCode).filter(Boolean) as string[]; void vehicleCodes; // 미사용 (하위 참조 제거)
 
