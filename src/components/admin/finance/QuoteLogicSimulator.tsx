@@ -5,7 +5,6 @@ import { Loader2, TrendingUp, Search } from "lucide-react";
 import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
 import { useBrandSignals } from "@/lib/use-brand-signals";
-import { extractDrivetrain, lineupDisplayLabel } from "@/lib/drivetrain";
 
 type ProductType = "장기렌트" | "리스";
 type RegistrationFilter = "all" | "registered" | "unregistered";
@@ -29,9 +28,7 @@ export default function QuoteLogicSimulator() {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [summary, setSummary] = useState<SummarySheet[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-  // 라인업 + 구동방식 복합키 (`${lineupId}|${drivetrain ?? ""}`).
-  // 일반 차량은 한 라인업에 2WD/4WD 트림이 섞여 있어 구동방식별로 칩을 분리한다.
-  const [selectedKey, setSelectedKey] = useState<string>("");
+  const [selectedLineupId, setSelectedLineupId] = useState<string>("");
 
   const [productType, setProductType] = useState<ProductType>("장기렌트");
   const [registrationFilter, setRegistrationFilter] = useState<RegistrationFilter>("all");
@@ -135,22 +132,18 @@ export default function QuoteLogicSimulator() {
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
 
-  // 선택된 차량의 라인업 목록 (구동방식별로 분리 — HEV처럼 2WD/4WD 표기)
+  // 선택된 차량의 라인업 목록
   const lineupsOfSelected = useMemo(() => {
-    type LineupEntry = { key: string; lineupId: string; drivetrain: string | null; name: string; trims: any[] };
+    type LineupEntry = { id: string; name: string; trims: any[] };
     if (!selectedVehicle) return [] as LineupEntry[];
     const grouped = new Map<string, LineupEntry>();
     for (const t of selectedVehicle.trims ?? []) {
       if (!t.lineupId) continue;
       const lineupName = (selectedVehicle.lineups ?? []).find((l: any) => l.id === t.lineupId)?.name ?? t.lineupName ?? "";
-      // 라인업 이름에 구동방식이 있으면(HEV) 라인업 단위로, 없으면 트림 이름에서 추출해 분리.
-      const drivetrain = extractDrivetrain(lineupName) ?? extractDrivetrain(t.name);
-      const key = `${t.lineupId}|${drivetrain ?? ""}`;
-      const existing = grouped.get(key);
-      const entry: LineupEntry =
-        existing ?? { key, lineupId: t.lineupId, drivetrain, name: lineupDisplayLabel(lineupName, t.name), trims: [] };
+      const existing = grouped.get(t.lineupId);
+      const entry: LineupEntry = existing ?? { id: t.lineupId, name: lineupName, trims: [] };
       entry.trims.push(t);
-      grouped.set(key, entry);
+      grouped.set(t.lineupId, entry);
     }
     return Array.from(grouped.values());
   }, [selectedVehicle]);
@@ -158,23 +151,20 @@ export default function QuoteLogicSimulator() {
   // 차량 선택 시 첫 라인업 자동 선택
   useEffect(() => {
     if (!selectedVehicleId) {
-      setSelectedKey("");
+      setSelectedLineupId("");
       return;
     }
-    if (lineupsOfSelected.length > 0 && !lineupsOfSelected.some((l) => l.key === selectedKey)) {
-      setSelectedKey(lineupsOfSelected[0].key);
+    if (lineupsOfSelected.length > 0 && !lineupsOfSelected.some((l) => l.id === selectedLineupId)) {
+      setSelectedLineupId(lineupsOfSelected[0].id);
     }
     setResults([]);
     setCalcError("");
-  }, [selectedVehicleId, lineupsOfSelected, selectedKey]);
-
-  const selectedLineup = lineupsOfSelected.find((l) => l.key === selectedKey) ?? null;
+  }, [selectedVehicleId, lineupsOfSelected, selectedLineupId]);
 
   // 선택된 라인업의 등록 매트릭스 — 캐피탈사 × 리스/렌트 × 업데이트 일자
-  // (매트릭스는 라인업 단위 데이터이므로 같은 라인업의 2WD/4WD 칩은 동일 매트릭스를 공유)
   const selectedLineupMatrix = useMemo(() => {
-    if (!selectedLineup) return null;
-    const entry = lineupRegistrationStatus.get(selectedLineup.lineupId);
+    if (!selectedLineupId) return null;
+    const entry = lineupRegistrationStatus.get(selectedLineupId);
     if (!entry) return [];
     const byCompany = new Map<string, { financeCompanyName: string; 장기렌트: string | null; 리스: string | null }>();
     for (const [, v] of entry.financeCompanies) {
@@ -184,29 +174,30 @@ export default function QuoteLogicSimulator() {
       byCompany.set(v.name, row);
     }
     return Array.from(byCompany.values()).sort((a, b) => a.financeCompanyName.localeCompare(b.financeCompanyName, "ko"));
-  }, [selectedLineup, lineupRegistrationStatus]);
+  }, [selectedLineupId, lineupRegistrationStatus]);
 
   // 라인업 대표 가격 (할인가 우선, 라인업 내 최소 트림 기준)
   const lineupBasePrice = useMemo(() => {
-    if (!selectedLineup || selectedLineup.trims.length === 0) return 0;
-    const prices = selectedLineup.trims.map((t: any) => t.discountPrice ?? t.price);
+    const lineup = lineupsOfSelected.find((l) => l.id === selectedLineupId);
+    if (!lineup || lineup.trims.length === 0) return 0;
+    const prices = lineup.trims.map((t: any) => t.discountPrice ?? t.price);
     return Math.min(...prices);
-  }, [selectedLineup]);
+  }, [lineupsOfSelected, selectedLineupId]);
 
   const handleCalculate = async () => {
     setCalcError("");
     setResults([]);
-    if (!selectedVehicle || !selectedLineup) return;
+    if (!selectedVehicle || !selectedLineupId) return;
 
-    const lineup = selectedLineup;
-    if (lineup.trims.length === 0) {
+    const lineup = lineupsOfSelected.find((l) => l.id === selectedLineupId);
+    if (!lineup || lineup.trims.length === 0) {
       setCalcError("선택된 라인업에 트림이 없습니다.");
       return;
     }
 
     setCalculating(true);
     try {
-      // 구동방식 서브그룹의 대표 트림(첫 트림) 기준으로 회수율 조회 — 라인업 내 모든 트림이 동일 시트
+      // 라인업 내 대표 트림(첫 트림) 기준으로 회수율 조회 — B안에서는 라인업 내 모든 트림이 동일 시트
       const repTrimId = lineup.trims[0].id;
       const res = await fetch(`/api/admin/capital-rates?trimId=${repTrimId}&productType=${productType}`);
       const data = await res.json();
@@ -389,13 +380,13 @@ export default function QuoteLogicSimulator() {
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {lineupsOfSelected.map((lineup) => {
-                    const isSelected = selectedKey === lineup.key;
-                    const lineupStatus = lineupRegistrationStatus.get(lineup.lineupId);
+                    const isSelected = selectedLineupId === lineup.id;
+                    const lineupStatus = lineupRegistrationStatus.get(lineup.id);
                     const hasReg = !!lineupStatus && Array.from(lineupStatus.financeCompanies.values()).some((v) => v.productType === productType);
                     return (
                       <button
-                        key={lineup.key}
-                        onClick={() => setSelectedKey(lineup.key)}
+                        key={lineup.id}
+                        onClick={() => setSelectedLineupId(lineup.id)}
                         className={`px-4 py-1.5 rounded-full text-xs font-medium border transition-colors flex items-center gap-2 ${
                           isSelected
                             ? "bg-[#000666] text-white border-[#000666]"
@@ -417,7 +408,7 @@ export default function QuoteLogicSimulator() {
             </div>
 
             {/* 등록 캐피탈사 매트릭스 */}
-            {selectedLineup && (
+            {selectedLineupId && (
               <div className="bg-white rounded-2xl border border-[#E8EAF0] p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-bold text-[#1A1A2E]">등록 캐피탈사 매트릭스</h3>
@@ -520,7 +511,7 @@ export default function QuoteLogicSimulator() {
                 </div>
                 <button
                   onClick={handleCalculate}
-                  disabled={!selectedLineup || calculating}
+                  disabled={!selectedLineupId || calculating}
                   className="ml-auto px-6 py-2 bg-[#000666] text-white rounded-xl text-xs font-bold hover:bg-[#000888] transition-all disabled:opacity-50"
                 >
                   {calculating ? "계산 중..." : "시뮬레이션 실행"}

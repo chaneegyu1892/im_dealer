@@ -20,7 +20,6 @@ import {
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { lineupDisplayLabel } from "@/lib/drivetrain";
 import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
@@ -415,19 +414,12 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const getLineupName = (t: TrimData): string =>
     t.lineup?.name ?? (t.specs as Record<string, string> | null)?.lineup ?? "";
 
-  // 라인업 표기에 구동방식(2WD/4WD) 포함 — 일반 차량은 라인업 1개에 구동방식이
-  // 섞여 있으므로 트림 이름에서 추출해 라인업 단위로 분리한다.
-  const getLineupLabel = (t: TrimData): string => {
-    const name = getLineupName(t);
-    return name ? lineupDisplayLabel(name, t.name) : "";
-  };
-
   const hasCascade = trims.some((t) => getLineupName(t));
 
-  // 1단계: 유니크 라인업 목록 (구동방식 포함 라벨 기준)
+  // 1단계: 유니크 라인업 목록
   const availableLineups = hasCascade
     ? (() => {
-        const all = [...new Set(trims.map((t) => getLineupLabel(t)).filter(Boolean))];
+        const all = [...new Set(trims.map((t) => getLineupName(t)).filter(Boolean))];
         const getYear = (s: string) => parseInt(s.match(/\d{4}/)?.[0] ?? "0");
         const getGroup = (s: string) => s.replace(/^\d{4}년형\s*/, "");
         const groupOrder: string[] = [];
@@ -444,9 +436,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       })()
     : [];
 
-  // 2단계: 선택된 라인업에 속하는 트림들 (구동방식 포함 라벨로 필터)
+  // 2단계: 선택된 라인업에 속하는 트림들
   const trimsForLineup = selectedLineup
-    ? trims.filter((t) => getLineupLabel(t) === selectedLineup)
+    ? trims.filter((t) => getLineupName(t) === selectedLineup)
     : [];
 
   // 트림 옵션 (id 기반 — 같은 specs.trimName이 여러 개여도 정확히 식별)
