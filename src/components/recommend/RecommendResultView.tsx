@@ -133,8 +133,11 @@ export function RecommendResultView() {
         </h2>
         <p className="text-label text-ink-label mt-1">
           {LABEL_MAP[input.industry] ?? input.industry} ·{" "}
-          {LABEL_MAP[input.purpose] ?? input.purpose} ·{" "}
-          월 {(input.budgetMax / 10000).toFixed(0)}만원 이하
+          {LABEL_MAP[input.purpose] ?? input.purpose}
+          {input.annualMileage
+            ? ` · 연 ${(input.annualMileage / 10000).toFixed(0)}만km`
+            : ""}
+          {input.fuelPreference ? ` · ${input.fuelPreference}` : ""}
         </p>
       </div>
 

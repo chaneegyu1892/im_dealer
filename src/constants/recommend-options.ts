@@ -147,3 +147,10 @@ export const FUEL_PREFERENCE_OPTIONS = [
   { value: "상관없음", label: "상관없음", desc: "연료 방식에 특별한 제한이 없어요", icon: "🔄" },
 ] as const;
 
+// 전기차 선택 시 추가로 묻는 충전 환경
+export const CHARGING_OPTIONS = [
+  { value: "있음", label: "집·회사에 충전 가능해요", desc: "일상적인 충전이 가능해요", icon: "🔌" },
+  { value: "없음", label: "충전 환경이 없어요", desc: "공용 충전소만 이용 가능해요", icon: "🚫" },
+  { value: "모르겠음", label: "잘 모르겠어요", desc: "아직 확실하지 않아요", icon: "🤔" },
+] as const;
+

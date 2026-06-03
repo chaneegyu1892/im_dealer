@@ -47,6 +47,17 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
 
   const hasConfigs = detail.popularConfigs.length > 0;
 
+  // 48개월 실부담(돌려받지 못하는 실제 비용) 계산
+  // - 무보증/보증금형: 월납 × 개월수 (보증금은 계약 종료 시 환급되므로 실부담에서 제외)
+  // - 선납형: 월납 × 개월수 + 선납금(환급 안 됨)
+  const months = scenarios.standard.contractMonths || 48;
+  const standardTotalCost = scenarios.standard.monthlyPayment * months;
+  const depositTotalCost = scenarios.conservative.monthlyPayment * months;
+  const prepayTotalCost =
+    scenarios.aggressive.monthlyPayment * months + scenarios.aggressive.prepayAmount;
+  const formatMan = (won: number) =>
+    `${Math.round(won / 10000).toLocaleString("ko-KR")}만원`;
+
   function handleQuote() {
     const params = new URLSearchParams({
       vehicle: detail.slug,
@@ -215,17 +226,87 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
           </div>
         )}
 
-        {/* 월 납입금 요약 */}
-        <div className="rounded-btn bg-neutral p-4">
-          <p className="text-[11px] text-ink-caption mb-1">월 납입금 예상</p>
-          <p className="text-[26px] font-light text-ink leading-none">
-            {formatMonthly(scenarios.standard.monthlyPayment)}
-          </p>
-          <p className="text-[11px] text-ink-caption mt-1.5">
-            48개월 · 보증금·선납금 없음 (표준형 기준)
-          </p>
-          <p className="text-[10px] text-ink-caption mt-1">
-            * 실제 견적은 금융사·신용도에 따라 달라질 수 있어요
+        {/* 월 납입금 예상 — 3가지 견적 비교 */}
+        <div>
+          <div className="mb-3">
+            <p className="text-[12px] font-medium text-ink-label">
+              예상 월 납입금 ({months}개월)
+            </p>
+            <p className="text-[10px] text-ink-caption mt-0.5">
+              조건별 월 납입금과 실부담을 함께 비교해 보세요
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {/* 무보증 */}
+            <div className="rounded-btn border border-[#F0F0F0] bg-neutral p-3 flex flex-col gap-1">
+              <p className="text-[10px] text-ink-caption">무보증</p>
+              <p className="text-[18px] font-light text-ink leading-none">
+                {formatMonthly(scenarios.standard.monthlyPayment)}
+              </p>
+              <p className="text-[10px] text-ink-caption">보증금·선납금 없음</p>
+              <div className="mt-1.5 pt-1.5 border-t border-neutral-200">
+                <p className="text-[10px] text-ink-caption">{months}개월 실부담</p>
+                <p className="text-[12px] font-medium text-ink">
+                  {formatMan(standardTotalCost)}
+                </p>
+              </div>
+            </div>
+
+            {/* 보증금형 — 기본 강조 + 추천 배지 */}
+            <div className="relative rounded-btn border border-primary bg-primary-50 p-3 flex flex-col gap-1">
+              <span className="absolute -top-2 right-2 text-[9px] font-semibold text-white bg-primary rounded-pill px-2 py-0.5 shadow-sm">
+                추천
+              </span>
+              <p className="text-[10px] text-primary font-medium">보증금 20%</p>
+              <p className="text-[18px] font-medium text-primary leading-none">
+                {formatMonthly(scenarios.conservative.monthlyPayment)}
+              </p>
+              <p className="text-[10px] text-primary-700">
+                보증금 {formatCurrency(scenarios.conservative.depositAmount)}
+              </p>
+              <p className="text-[10px] text-primary-700">↳ 계약 종료 시 전액 환급</p>
+              <div className="mt-1.5 pt-1.5 border-t border-primary-200">
+                <p className="text-[10px] text-primary-700">{months}개월 실부담</p>
+                <p className="text-[12px] font-semibold text-primary">
+                  {formatMan(depositTotalCost)}
+                </p>
+              </div>
+            </div>
+
+            {/* 선납형 */}
+            <div className="rounded-btn border border-[#F0F0F0] bg-neutral p-3 flex flex-col gap-1">
+              <p className="text-[10px] text-ink-caption">선납 30%</p>
+              <p className="text-[18px] font-light text-ink leading-none">
+                {formatMonthly(scenarios.aggressive.monthlyPayment)}
+              </p>
+              <p className="text-[10px] text-ink-caption">
+                선납 {formatCurrency(scenarios.aggressive.prepayAmount)}
+              </p>
+              <p className="text-[10px] text-ink-caption">↳ 매월 나눠서 차감</p>
+              <div className="mt-1.5 pt-1.5 border-t border-neutral-200">
+                <p className="text-[10px] text-ink-caption">{months}개월 실부담</p>
+                <p className="text-[12px] font-medium text-ink">
+                  {formatMan(prepayTotalCost)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 선납금이 낮아 보이는 이유 안내 */}
+          <div className="mt-2.5 rounded-[6px] bg-neutral border border-[#F0F0F0] px-3 py-2.5">
+            <p className="text-[10px] text-ink-label leading-relaxed">
+              💡 <span className="font-medium">선납금형</span>은 미리 낸 목돈이 매월 나뉘어
+              차감되어 월 납입금이 크게 낮아 보일 뿐, 실제로 내는 총액은 무보증과 비슷해요.
+              <br />
+              <span className="font-medium text-primary">보증금형</span>은 보증금을 계약
+              종료 시 돌려받아 {months}개월 실부담이 가장 낮습니다.
+            </p>
+          </div>
+
+          <p className="text-[10px] text-ink-caption mt-2">
+            * 실부담 = 월 납입금 합계 + 환급되지 않는 선납금 (보증금 제외). 실제 견적은
+            금융사·신용도에 따라 달라질 수 있어요
           </p>
         </div>
 
