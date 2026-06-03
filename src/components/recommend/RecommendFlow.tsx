@@ -5,25 +5,26 @@ import { useRouter } from "next/navigation";
 import { StepIndicator, type StepId } from "./StepIndicator";
 import { StepIndustry } from "./StepIndustry";
 import { StepPurpose } from "./StepPurpose";
-import { StepBudget, type BudgetState } from "./StepBudget";
-import { StepPaymentStyle } from "./StepPaymentStyle";
 import { StepMileage } from "./StepMileage";
 import { StepFuelPreference } from "./StepFuelPreference";
 import { Button } from "@/components/ui/Button";
 import { ChevronLeft } from "lucide-react";
+import { CHARGING_OPTIONS } from "@/constants/recommend-options";
+import { SelectionCard } from "./SelectionCard";
 import type { RecommendInput } from "@/types/recommendation";
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 3;
+
+type ChargingEnv = "있음" | "없음" | "모르겠음" | "";
 
 interface FlowState {
   industry: string;
   industryDetail: string;
   purpose: string;
   purposeDetail: string;
-  budget: BudgetState;
-  budgetDetail: string;
   annualMileage: number;
   fuelPreference: string;
+  chargingEnvironment: ChargingEnv;
 }
 
 const INITIAL_STATE: FlowState = {
@@ -31,23 +32,23 @@ const INITIAL_STATE: FlowState = {
   industryDetail: "",
   purpose: "",
   purposeDetail: "",
-  budget: {
-    rangeKey: "",
-    budgetMin: 0,
-    budgetMax: 0,
-    paymentStyle: "표준형",
-  },
-  budgetDetail: "",
   annualMileage: 0,
   fuelPreference: "",
+  chargingEnvironment: "",
 };
 
 function isStepValid(step: StepId, state: FlowState): boolean {
   switch (step) {
-    case 1: return state.industry !== "" && state.industryDetail !== "";
-    case 2: return state.purpose !== "" && state.purposeDetail !== "";
-    case 3: return state.budget.rangeKey !== "" && state.budgetDetail !== "";
-    case 4: return state.annualMileage !== 0 && state.fuelPreference !== "";
+    case 1:
+      return state.industry !== "" && state.industryDetail !== "";
+    case 2:
+      return state.purpose !== "" && state.purposeDetail !== "";
+    case 3:
+      return (
+        state.annualMileage !== 0 &&
+        state.fuelPreference !== "" &&
+        (state.fuelPreference !== "전기차" || state.chargingEnvironment !== "")
+      );
   }
 }
 
@@ -78,15 +79,14 @@ export function RecommendFlow() {
       const input: RecommendInput = {
         industry: state.industry,
         purpose: state.purpose,
-        budgetMin: state.budget.budgetMin,
-        budgetMax: state.budget.budgetMax,
-        paymentStyle: state.budget.paymentStyle,
         annualMileage: state.annualMileage,
         returnType: "미정",
         industryDetail: state.industryDetail,
         purposeDetail: state.purposeDetail,
-        budgetDetail: state.budgetDetail,
         fuelPreference: state.fuelPreference,
+        ...(state.fuelPreference === "전기차" && state.chargingEnvironment !== ""
+          ? { chargingEnvironment: state.chargingEnvironment }
+          : {}),
       };
 
       const res = await fetch("/api/recommend", {
@@ -100,16 +100,29 @@ export function RecommendFlow() {
         throw new Error((data as { error?: string }).error ?? "추천 요청 실패");
       }
 
-      const { sessionId } = await res.json() as { sessionId: string };
+      const { sessionId } = (await res.json()) as { sessionId: string };
       router.push(`/recommend/result?session=${sessionId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "추천 요청 중 오류가 발생했습니다. 다시 시도해 주세요.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "추천 요청 중 오류가 발생했습니다. 다시 시도해 주세요."
+      );
       setLoading(false);
     }
   };
 
   const handleBack = () => {
     if (step > 1) setStep((s) => (s - 1) as StepId);
+  };
+
+  const handleFuelChange = (v: string) => {
+    setState((s) => ({
+      ...s,
+      fuelPreference: v,
+      // 전기차에서 다른 연료로 바꾸면 충전 환경 초기화
+      chargingEnvironment: v === "전기차" ? s.chargingEnvironment : "",
+    }));
   };
 
   return (
@@ -122,54 +135,69 @@ export function RecommendFlow() {
         {step === 1 && (
           <StepIndustry
             value={state.industry}
-            onChange={(v) => setState((s) => ({ ...s, industry: v, industryDetail: "" }))}
+            onChange={(v) =>
+              setState((s) => ({ ...s, industry: v, industryDetail: "" }))
+            }
             detail={state.industryDetail}
-            onDetailChange={(v) => setState((s) => ({ ...s, industryDetail: v }))}
+            onDetailChange={(v) =>
+              setState((s) => ({ ...s, industryDetail: v }))
+            }
           />
         )}
         {step === 2 && (
           <StepPurpose
             industry={state.industry}
             value={state.purpose}
-            onChange={(v) => setState((s) => ({ ...s, purpose: v, purposeDetail: "" }))}
+            onChange={(v) =>
+              setState((s) => ({ ...s, purpose: v, purposeDetail: "" }))
+            }
             detail={state.purposeDetail}
-            onDetailChange={(v) => setState((s) => ({ ...s, purposeDetail: v }))}
+            onDetailChange={(v) =>
+              setState((s) => ({ ...s, purposeDetail: v }))
+            }
           />
         )}
         {step === 3 && (
           <div className="space-y-10">
-            <StepBudget
-              value={state.budget}
-              onChange={(v) => setState((s) => ({ ...s, budget: v }))}
-            />
-            <div className="pt-8 border-t border-[#F0F0F0]">
-              <StepPaymentStyle
-                value={state.budget.paymentStyle}
-                onChange={(v) =>
-                  setState((s) => ({
-                    ...s,
-                    budget: { ...s.budget, paymentStyle: v },
-                    budgetDetail: "",
-                  }))
-                }
-                detail={state.budgetDetail}
-                onDetailChange={(v) => setState((s) => ({ ...s, budgetDetail: v }))}
-              />
-            </div>
-          </div>
-        )}
-        {step === 4 && (
-          <div className="space-y-10">
             <StepMileage
               value={state.annualMileage}
-              onChange={(v) => setState((s) => ({ ...s, annualMileage: v }))}
+              onChange={(v) =>
+                setState((s) => ({ ...s, annualMileage: v }))
+              }
             />
             <div className="pt-8 border-t border-[#F0F0F0]">
               <StepFuelPreference
                 value={state.fuelPreference}
-                onChange={(v) => setState((s) => ({ ...s, fuelPreference: v }))}
-                budgetMax={state.budget.budgetMax}
+                onChange={handleFuelChange}
               />
+              {state.fuelPreference === "전기차" && (
+                <div className="mt-6 pt-6 border-t border-primary-100 transition-all duration-200">
+                  <h3 className="text-title-sm font-medium">
+                    충전 환경이 있나요?
+                  </h3>
+                  <p className="text-label text-ink-label mt-1">
+                    집·회사·아파트 등 일상 충전이 가능한지에 따라 추천이
+                    달라져요.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+                    {CHARGING_OPTIONS.map((opt) => (
+                      <SelectionCard
+                        key={opt.value}
+                        selected={state.chargingEnvironment === opt.value}
+                        onClick={() =>
+                          setState((s) => ({
+                            ...s,
+                            chargingEnvironment: opt.value as ChargingEnv,
+                          }))
+                        }
+                        icon={opt.icon}
+                        label={opt.label}
+                        desc={opt.desc}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

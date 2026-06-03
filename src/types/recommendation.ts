@@ -1,16 +1,19 @@
 export interface RecommendInput {
   industry: string;        // 업종
   purpose: string;         // 사용 목적
-  budgetMin: number;       // 예산 하한 (월 납입금 기준)
-  budgetMax: number;       // 예산 상한
-  paymentStyle: PaymentStyle;
   annualMileage: number;
   returnType: ReturnType;
   // 조건부 추가 질문 답변 (optional)
   industryDetail?: string;
   purposeDetail?: string;
-  budgetDetail?: string;
   fuelPreference?: string;
+  // 전기차 선택 시 충전 환경
+  chargingEnvironment?: "있음" | "없음" | "모르겠음";
+  // 옛 세션 호환용 (옵셔널) — 새 입력에서는 사용하지 않음
+  budgetMin?: number;
+  budgetMax?: number;
+  paymentStyle?: PaymentStyle;
+  budgetDetail?: string;
 }
 
 export interface RecommendResult {
@@ -82,11 +85,14 @@ export interface RecommendResultResponse {
   input: {
     industry: string;
     purpose: string;
-    budgetMin: number;
-    budgetMax: number;
-    paymentStyle: PaymentStyle;
     annualMileage: number;
     returnType: ReturnType;
+    fuelPreference?: string;
+    chargingEnvironment?: "있음" | "없음" | "모르겠음";
+    // 옛 세션 호환용 (옵셔널)
+    budgetMin?: number;
+    budgetMax?: number;
+    paymentStyle?: PaymentStyle;
   };
   vehicles: RecommendedVehicle[];
 }

@@ -1,9 +1,9 @@
 /**
- * AI 추천 엔진 — 회수율 기반 견적 + 규칙 기반 스코어링
+ * AI 추천 엔진 — 회수율 기반 견적 + 규칙 기반 스코어링 (예산 제거 버전)
  *
  * 1) 노출 가능 차량 조회
- * 2) vehicleCode로 RateConfig 매핑 → 최저가 금융사 견적 산출
- * 3) 예산 적합도 + 업종·목적 스코어 → 상위 3개 추천
+ * 2) vehicleCode로 RateConfig 매핑 → 최저가 금융사 견적 산출 (결과 표시용 bestMonthly)
+ * 3) 차량 카테고리 × 업종·목적 가중치 → 상위 3개 추천 (예산 비교·필터 없음)
  * 4) 3개 시나리오(보수형/표준형/공격형) 계산
  */
 
@@ -34,6 +34,9 @@ interface ScoredVehicle {
 }
 
 export async function recommend(input: RecommendInput): Promise<RecommendedVehicle[]> {
+  // 새 입력 필드(chargingEnvironment)는 타입 정의가 갱신되기 전까지 안전하게 접근
+  const chargingEnvironment = (input as { chargingEnvironment?: "있음" | "없음" | "모르겠음" }).chargingEnvironment;
+
   // 1) 노출 가능 차량 + 추천설정 조회
   const vehicles = await prisma.vehicle.findMany({
     where: { isVisible: true },
@@ -119,22 +122,14 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     // ── 스코어링 ─────────────────────────────────
     let score = 50;
     const recConfig = v.recConfigs ?? null;
+    const cat = v.category ?? "";
+    const trimFuel = (defaultTrim as { fuelType?: string }).fuelType ?? "";
 
-    // (a) 예산 적합도
-    if (bestMonthly >= input.budgetMin && bestMonthly <= input.budgetMax) {
-      score += 30;
-    } else if (bestMonthly < input.budgetMin) {
-      score += 15;
-    } else {
-      const over = bestMonthly - input.budgetMax;
-      score -= Math.min(40, Math.round(over / 10000));
-    }
-
-    // (b) 추천 설정 점수 행렬
+    // (b) 추천 설정 점수 행렬 — 예산 제거로 변별력 확보 위해 영향력 2배(/5)
     if (recConfig?.scoreMatrix) {
       const matrix = recConfig.scoreMatrix as Record<string, Record<string, number>>;
       const purposeScore = matrix[input.industry]?.[input.purpose] ?? 0;
-      score += purposeScore / 10;
+      score += purposeScore / 5;
     }
 
     // (c) 인기 차량 가산
@@ -143,7 +138,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     // (d) 업종 추가 답변 스코어링
     if (input.industryDetail) {
       if (input.industry === "법인" && input.industryDetail === "6대 이상") {
-        if (v.category !== "SUV") score += 5;
+        if (cat !== "SUV") score += 5;
       }
       if (input.industry === "개인사업자" && input.industryDetail === "비용처리 중요") {
         score += 3;
@@ -152,11 +147,13 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
         if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 12) score += 5;
       }
       if (input.industry === "개인" && input.industryDetail === "4명 이상") {
-        if (v.category === "SUV" || v.category === "대형") score += 8;
+        // 가정 4명 이상 → 중대형 SUV 우선
+        if (cat === "SUV" || cat.includes("대형")) score += 15;
+        else if (cat.includes("경차") || cat.includes("소형")) score -= 10;
       }
     }
 
-    // (e) 목적 추가 답변 스코어링
+    // (e) 목적 추가 답변 스코어링 — 카테고리 × 용도 가중치 강화
     if (input.purposeDetail) {
       if (input.purpose === "출퇴근" && input.purposeDetail === "30km 이상") {
         if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 14) score += 5;
@@ -165,32 +162,35 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
         score += 5;
       }
       if (input.purpose === "가족" && input.purposeDetail === "영유아") {
-        if (v.category === "SUV") score += 8;
+        if (cat === "SUV") score += 12;
+        else if (cat.includes("대형")) score += 8;
+        else if (cat.includes("경차") || cat.includes("소형")) score -= 8;
       }
-      if (input.purpose === "화물·배달" && input.purposeDetail === "대형 화물") {
-        if (v.category === "밴" || v.category === "트럭") score += 10;
-        else score -= 10;
+      if (input.purpose === "화물·배달") {
+        // 화물·배달은 카테고리 강제: 트럭/밴 외에는 강하게 감점
+        if (cat === "밴" || cat === "트럭") {
+          score += 20;
+          if (input.purposeDetail === "대형 화물") score += 10;
+        } else {
+          score -= 25;
+        }
       }
       if (input.purpose === "기타" && input.purposeDetail === "평일 포함 자주") {
         if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 12) score += 3;
       }
       if (input.purpose === "의전·임원용" && input.purposeDetail === "기사 운행") {
-        if (v.category?.includes("대형") || v.category?.includes("세단")) score += 10;
+        if (cat.includes("대형") || cat.includes("세단")) score += 10;
       }
       if (input.purpose === "첫차") {
-        const cat = v.category ?? "";
         const price = defaultTrim.price;
         if (input.purposeDetail === "면허 신규") {
-          // 운전 미숙 → 작고 다루기 쉬운 차 가산, 대형/픽업 감점
           if (cat.includes("경차") || cat.includes("소형")) score += 8;
           else if (cat === "SUV" && price < 35_000_000) score += 4;
           else if (cat.includes("대형") || cat === "트럭" || cat === "밴") score -= 8;
         }
-        // 가격 진입장벽 가산: 첫차는 보통 합리적 가격대 선호
         if (price < 35_000_000) score += 3;
       }
       if (input.purpose === "레저·캠핑") {
-        const cat = v.category ?? "";
         if (input.purposeDetail === "차박·캠핑") {
           if (cat === "SUV" || cat.includes("대형") || cat === "밴") score += 10;
           else if (cat.includes("세단") || cat.includes("경차")) score -= 5;
@@ -201,21 +201,8 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       }
     }
 
-    // (f) 예산 추가 답변 스코어링
-    const effectiveBudgetMax = (input.budgetDetail === "조금 타협 가능")
-      ? input.budgetMax * 1.1
-      : input.budgetMax;
-
-    if (bestMonthly <= effectiveBudgetMax && bestMonthly > input.budgetMax) {
-      score += 10;
-    }
-    if (input.budgetDetail === "300만원 이상" && input.paymentStyle === "공격형") {
-      if (defaultTrim.price > 40_000_000) score += 5;
-    }
-
-    // (g-1) 의전·임원용 스코어링
+    // (g-1) 의전·임원용 카테고리 가중치
     if (isOfficial) {
-      const cat = v.category ?? "";
       if (cat.includes("대형") || cat.includes("세단") || cat.includes("프리미엄")) {
         score += 15;
       } else if (cat === "SUV") {
@@ -225,26 +212,32 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       }
     }
 
-    // (g) 연료 방식 스코어링
+    // (g) 연료 방식 스코어링 — 전기차 충전환경 "없음" 인 경우 EV 감점 + 보너스 무효
     if (input.fuelPreference && input.fuelPreference !== "상관없음") {
-      const trimFuel = (defaultTrim as { fuelType?: string }).fuelType ?? "";
-      if (input.fuelPreference === "전기차" && trimFuel.includes("전기")) score += 15;
-      else if (input.fuelPreference === "하이브리드" && trimFuel.includes("하이브리드")) score += 15;
-      else if (input.fuelPreference === "가솔린/디젤" &&
-        (trimFuel.includes("가솔린") || trimFuel.includes("디젤"))) score += 5;
-      else if (input.fuelPreference !== "상관없음") score -= 5;
+      const noCharging = chargingEnvironment === "없음";
+      if (input.fuelPreference === "전기차" && trimFuel.includes("전기")) {
+        if (!noCharging) score += 15;
+        // noCharging=true 인 경우 매칭 보너스 무효화
+      } else if (input.fuelPreference === "하이브리드" && trimFuel.includes("하이브리드")) {
+        score += 15;
+      } else if (input.fuelPreference === "가솔린/디젤" &&
+        (trimFuel.includes("가솔린") || trimFuel.includes("디젤"))) {
+        score += 5;
+      } else if (input.fuelPreference !== "상관없음") {
+        score -= 5;
+      }
     }
 
-    // 의전용은 예산 필터 적용 안 함, 그 외 40% 초과 시 제외
-    if (!isOfficial && bestMonthly > effectiveBudgetMax * 1.4) continue;
+    // (h) 충전환경 "없음" + EV 차량은 추가 감점 (다른 차는 영향 없음)
+    if (chargingEnvironment === "없음" && trimFuel.includes("전기")) {
+      score -= 15;
+    }
+
+    // 상한선 클램핑
+    score = Math.min(150, score);
 
     // ── 추천 이유 생성 ────────────────────────────
     const reasons: string[] = [];
-    if (bestMonthly >= input.budgetMin && bestMonthly <= input.budgetMax) {
-      reasons.push("예산 범위 안에 있는 차량이에요");
-    } else if (bestMonthly < input.budgetMin) {
-      reasons.push("예산보다 여유 있는 선택이에요");
-    }
 
     if (input.purpose === "출퇴근" && defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 14) {
       reasons.push("연비가 좋아 출퇴근 비용을 절약할 수 있어요");
@@ -358,7 +351,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       generateReason({
         industry: input.industry,
         purpose: input.purpose,
-        budgetMax: input.budgetMax,
+        budgetMax: 0,
         annualMileage: input.annualMileage,
         vehicleName: s.detail.name,
         brand: s.detail.brand,
