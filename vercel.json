@@ -1,4 +1,7 @@
 {
   "regions": ["icn1"],
-  "crons": [{ "path": "/api/cron/purge-pii", "schedule": "0 3 * * *" }]
+  "crons": [
+    { "path": "/api/cron/purge-pii", "schedule": "0 3 * * *" },
+    { "path": "/api/health", "schedule": "0 0 * * 1,4" }
+  ]
 }
