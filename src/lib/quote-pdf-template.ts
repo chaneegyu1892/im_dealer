@@ -338,15 +338,15 @@ export function generateQuotePDFHtml(data: PDFQuoteData): string {
         <tr>
           <th style="width:20%;background:var(--bg);"></th>
           <th>
-            <span class="th-label">보수형</span>
+            <span class="th-label">보증금</span>
             <span class="th-desc">보증금 20% · 월납입 절약</span>
           </th>
           <th class="th-highlight">
-            <span class="th-label">표준형 ★</span>
-            <span class="th-desc">균형 조건 · 기본 추천</span>
+            <span class="th-label">무보증 ★</span>
+            <span class="th-desc">초기비용 없음 · 기본 추천</span>
           </th>
           <th>
-            <span class="th-label">공격형</span>
+            <span class="th-label">선납금</span>
             <span class="th-desc">선납금 30% · 월납입 최소</span>
           </th>
         </tr>
@@ -368,9 +368,9 @@ export function generateQuotePDFHtml(data: PDFQuoteData): string {
     </table>
   </div>
 
-  <!-- 4. 기본 추천 견적 (표준형) -->
+  <!-- 4. 기본 추천 견적 (무보증) -->
   <div class="section">
-    <div class="sec-title">4. 기본 추천 견적 (표준형)</div>
+    <div class="sec-title">4. 기본 추천 견적 (무보증)</div>
     <div class="result-box">
       <div>
         <div class="res-label">최종 월 납입금</div>

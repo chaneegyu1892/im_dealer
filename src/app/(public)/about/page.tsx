@@ -47,7 +47,7 @@ const FLOW_STEPS = [
   {
     step: "02",
     label: "이해",
-    description: "보수형·표준형·공격형 시나리오로 실제 납입 구조를 파악하세요",
+    description: "무보증·보증금·선납금 시나리오로 실제 납입 구조를 파악하세요",
   },
   {
     step: "03",

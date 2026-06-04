@@ -495,7 +495,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               className="hidden md:block shrink-0 bg-white/10 backdrop-blur-md border border-white/15
                          rounded-card p-6 min-w-[240px]"
             >
-              <p className="text-[11px] text-white/45 mb-1">표준형 48개월 기준</p>
+              <p className="text-[11px] text-white/45 mb-1">무보증 48개월 기준</p>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentMonthly ?? "init"}
@@ -527,7 +527,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
         {/* 모바일 전용 월납입 카드 — Hero 아래 풀폭 */}
         <div className="block md:hidden mb-4">
           <div className="bg-white rounded-card border border-[#F0F0F0] p-5 shadow-card">
-            <p className="text-[11px] text-ink-caption mb-1">표준형 48개월 기준</p>
+            <p className="text-[11px] text-ink-caption mb-1">무보증 48개월 기준</p>
             <div className="flex items-baseline gap-1 mb-3">
               <span className="text-[30px] font-semibold text-ink leading-none">
                 {currentMonthly ? formatMonthlyShort(currentMonthly) : "---"}
@@ -749,7 +749,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 className="bg-white rounded-card border border-[#F0F0F0] p-5 shadow-card"
               >
                 <div className="mb-1">
-                  <p className="text-[11px] text-ink-caption">표준형 월납입</p>
+                  <p className="text-[11px] text-ink-caption">무보증 월납입</p>
                   <AnimatePresence mode="wait">
                     <motion.p
                       key={currentMonthly ?? "loading"}

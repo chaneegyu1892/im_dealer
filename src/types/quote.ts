@@ -54,11 +54,11 @@ export interface MultiFinanceQuoteResult {
   bestQuote: FinanceQuoteResult; // 1순위
 }
 
-/** 시나리오별 견적 (보수형/표준형/공격형) */
+/** 시나리오별 견적 (무보증/보증금/선납금) */
 export interface QuoteScenarios {
-  conservative: FinanceQuoteResult; // 보수형: 보증금 있음
-  standard: FinanceQuoteResult;     // 표준형: 보증금·선납금 없음
-  aggressive: FinanceQuoteResult;   // 공격형: 선납금 있음
+  conservative: FinanceQuoteResult; // 보증금: 보증금 있음
+  standard: FinanceQuoteResult;     // 무보증: 보증금·선납금 없음
+  aggressive: FinanceQuoteResult;   // 선납금: 선납금 있음
 }
 
 /** 금융사별 견적 요약 (비교 테이블용) */
@@ -95,5 +95,4 @@ export interface QuoteScenarioDetails {
 }
 
 export type ContractType = "인수형" | "반납형";
-export type QuoteScenario = "보수형" | "표준형" | "공격형";
 export type ProductType = "렌트" | "리스";

@@ -158,7 +158,7 @@ function FeaturedCard({
             )}
             <div>
               <span className="text-[10px] text-white/35 block mb-1">
-                월 납입금 (48개월·표준형)
+                월 납입금 (48개월·무보증)
               </span>
               <div className="flex items-baseline gap-1">
                 {formattedMonthly ? (
