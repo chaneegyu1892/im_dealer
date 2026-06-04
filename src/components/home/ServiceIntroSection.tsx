@@ -15,7 +15,7 @@ const STEPS = [
   {
     icon: Calculator,
     title: "실시간 견적을 확인해요",
-    desc: "보수형·표준형·공격형 3가지 시나리오를 즉시 비교할 수 있습니다.",
+    desc: "무보증·보증금·선납금 3가지 시나리오를 즉시 비교할 수 있습니다.",
     color: "#5C1800",
     bgColor: "#F5DDD5",
   },

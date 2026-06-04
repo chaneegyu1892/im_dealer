@@ -150,7 +150,7 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
           <div className="flex items-end justify-between">
             <div>
               <span className="text-[10px] text-ink-caption block mb-0.5">
-                월 납입금 (48개월·표준형)
+                월 납입금 (48개월·무보증)
               </span>
               <div className="flex items-baseline gap-1">
                 {formattedMonthly ? (

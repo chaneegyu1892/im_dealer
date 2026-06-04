@@ -19,9 +19,3 @@ export const CONTRACT_TYPES = {
   RETURN: "반납형",
   PURCHASE: "인수형",
 } as const;
-
-export const PAYMENT_STYLES = {
-  CONSERVATIVE: "보수형",
-  STANDARD: "표준형",
-  AGGRESSIVE: "공격형",
-} as const;
