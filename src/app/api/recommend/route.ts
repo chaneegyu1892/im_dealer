@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { recommend } from "@/lib/ai-recommender";
@@ -47,6 +48,8 @@ export async function POST(request: NextRequest) {
         recommendedReason: Object.fromEntries(
           vehicles.map((v) => [v.vehicleId, v.reason])
         ),
+        // 결과 전체 freeze 스냅샷 — GET 이 재계산·LLM 없이 그대로 반환한다.
+        result: vehicles as unknown as Prisma.InputJsonValue,
         industryDetail: input.industryDetail,
         purposeDetail: input.purposeDetail,
         budgetDetail: input.budgetDetail,

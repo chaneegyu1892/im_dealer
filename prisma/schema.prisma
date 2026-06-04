@@ -364,6 +364,9 @@ model RecommendationLog {
   returnType            String
   recommendedVehicleIds String[]
   recommendedReason     Json
+  // 추천 결과 전체(차량3대 + 이유 + 시나리오 가격) freeze 스냅샷.
+  // 새로고침/뒤로 시 재계산·LLM 없이 그대로 반환. null = 옛 로그(재계산 폴백).
+  result                Json?
   industryDetail        String?
   purposeDetail         String?
   budgetDetail          String?
