@@ -75,6 +75,7 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
       brand: v.brand,
       category: v.category as VehicleListItem["category"],
       basePrice: v.basePrice,
+      evSubsidy: v.evSubsidy,
       thumbnailUrl: v.thumbnailUrl,
       isPopular: v.isPopular,
       description: v.description,

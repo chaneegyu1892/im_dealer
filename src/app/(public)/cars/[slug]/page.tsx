@@ -257,6 +257,7 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     category: vehicle.category as VehicleDetail["category"],
     vehicleCode: vehicle.vehicleCode,
     basePrice: vehicle.basePrice,
+    evSubsidy: vehicle.evSubsidy,
     thumbnailUrl: vehicle.thumbnailUrl,
     imageUrls: vehicle.imageUrls,
     surchargeRate: vehicle.surchargeRate,

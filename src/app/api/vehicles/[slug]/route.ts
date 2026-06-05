@@ -89,6 +89,7 @@ export async function GET(
         category: vehicle.category,
         vehicleCode: vehicle.vehicleCode,
         basePrice: vehicle.basePrice,
+        evSubsidy: vehicle.evSubsidy,
         thumbnailUrl: vehicle.thumbnailUrl,
         imageUrls: vehicle.imageUrls,
         surchargeRate: vehicle.surchargeRate,

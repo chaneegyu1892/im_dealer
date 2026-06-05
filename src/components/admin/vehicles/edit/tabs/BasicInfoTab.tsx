@@ -24,6 +24,7 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
     brand: vehicle.brand,
     category: vehicle.category,
     basePrice: vehicle.basePrice,
+    evSubsidy: vehicle.evSubsidy,
     description: vehicle.description ?? "",
     thumbnailUrl: vehicle.thumbnailUrl,
     imageUrls: vehicle.imageUrls,
@@ -185,6 +186,24 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
               />
             </FormField>
           </div>
+          <FormField label="전기차 보조금 (만원)">
+            <input
+              type="number"
+              min="0"
+              value={data.evSubsidy != null ? data.evSubsidy / 10000 : ""}
+              onChange={(e) =>
+                setData({
+                  ...data,
+                  evSubsidy: e.target.value === "" ? null : Number(e.target.value) * 10000,
+                })
+              }
+              className={inputClass}
+              placeholder="예: 400 (비우면 미표시)"
+            />
+            <p className="text-[11px] text-[#9BA4C0] mt-1">
+              전기차만 입력. 사용자 화면에 안내용으로만 표시되며 견적 계산에는 반영되지 않습니다.
+            </p>
+          </FormField>
           <div className="flex items-center gap-6 pt-2">
             <label className="flex items-center gap-2 text-[13px] text-[#4A5270] cursor-pointer">
               <input
