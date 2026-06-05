@@ -30,6 +30,7 @@ import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { SpecDiagramModal, hasSpecDiagram, SPEC_TEXT_DESC } from "@/components/cars/SpecDiagram";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
+import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
 import type { EngineType } from "@/types/vehicle";
 import type { RecommendScenarios } from "@/types/recommendation";
 
@@ -468,6 +469,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                   <span className="text-[10px] text-white/45 uppercase tracking-wide">기본가</span>
                   <span className="text-[12px] font-semibold text-white">{formatWon(vehicle.basePrice)}~</span>
                 </div>
+                <EvSubsidyNotice amount={vehicle.evSubsidy} tone="onDark" />
                 {vehicle.defaultTrim?.engineType && (
                   <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
                     <span className="text-[10px] text-white/45 uppercase tracking-wide">연료</span>

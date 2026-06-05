@@ -9,6 +9,8 @@ export interface AdminVehicle {
   category: VehicleCategory;
   vehicleCode: string | null;
   basePrice: number;
+  /** 전기차 보조금(안내용, 견적 미반영). null = 보조금 없음 */
+  evSubsidy: number | null;
   thumbnailUrl: string;
   imageUrls: string[];
   surchargeRate: number;

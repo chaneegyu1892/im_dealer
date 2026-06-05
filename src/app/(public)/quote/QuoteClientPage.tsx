@@ -24,6 +24,7 @@ import { QuoteBreakdownTabs, type CostMode } from "@/components/quote/QuoteBreak
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { ColorSelector, type VehicleColorPublic } from "@/components/quote/ColorSelector";
+import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
 import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
@@ -1176,7 +1177,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                               </span>
                             )}
                             <span className="font-semibold text-ink">
-                              차량가 {Math.round(((selectedTrim.discountPrice ?? selectedTrim.price) + optionsTotalPrice) / 10000).toLocaleString()}만원
+                              차량가 {Math.round(((selectedTrim.discountPrice ?? selectedTrim.price) + optionsTotalPrice + colorDelta) / 10000).toLocaleString()}만원
                             </span>
                             {selectedTrim.discountPrice && (
                               <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-[4px]">
@@ -1185,6 +1186,11 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             )}
                           </div>
                         </div>
+                      )}
+
+                      {/* 전기차 보조금 안내 (견적 미반영, 표시 전용) */}
+                      {selectedTrim && (
+                        <EvSubsidyNotice amount={selectedVehicle?.evSubsidy} />
                       )}
                     </div>
                   ) : null}
@@ -1399,6 +1405,13 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     <ConditionChip label={CUSTOMER_TYPE_LABELS[customerType]} sub="고객 유형" />
                   </div>
                 </div>
+
+                {/* 전기차 보조금 안내 (견적 미반영, 표시 전용) */}
+                {selectedVehicle?.evSubsidy ? (
+                  <div className="mb-4">
+                    <EvSubsidyNotice amount={selectedVehicle.evSubsidy} />
+                  </div>
+                ) : null}
 
                 {/* 견적 결과 또는 별도 상담 안내 */}
                 {quoteResult.requiresConsultation ? (

@@ -6,6 +6,8 @@ export const vehicleCreateSchema = z.object({
   brand: z.string().min(1, "브랜드를 입력하세요"),
   category: z.enum(["세단", "SUV", "밴", "트럭"]),
   basePrice: z.number().int().positive("기준가는 양수여야 합니다"),
+  // 전기차 보조금(안내용, 견적 미반영). 0 이상 또는 null(미입력=보조금 없음).
+  evSubsidy: z.number().int().min(0, "보조금은 0 이상이어야 합니다").nullable().optional(),
   slug: z.string().min(1).optional(),
   thumbnailUrl: z.string().default(""),
   imageUrls: z.array(z.string()).default([]),
