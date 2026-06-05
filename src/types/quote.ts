@@ -86,6 +86,9 @@ export interface QuoteScenarioDetail {
   /** 차량가가 회수율 시트 범위(min~max)를 벗어났는지 여부 (1순위 금융사 기준).
    * true 면 클램프된 값으로 계산되어 정확도가 떨어질 수 있다. */
   rangeExceeded?: boolean;
+  /** 회원 전용 시나리오를 비회원에게 잠근 상태. true 면 금액 필드는 0(빈값)이며
+   * 실제 값은 서버 응답에 포함되지 않는다(보안 경계). */
+  locked?: boolean;
 }
 
 export interface QuoteScenarioDetails {

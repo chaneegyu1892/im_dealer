@@ -31,8 +31,10 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   // 비회원에게는 보증금형·선납형(낮아진 월납입금) 카드를 블러 처리한다.
+  // 서버가 비회원 응답에서 해당 시나리오를 잠그면(scenarios.*.locked) 클라이언트 인증
+  // 상태와 무관하게 잠금 유지 — 서버가 실제 값을 안 줬으므로 0 이 노출되지 않게 막는다.
   const { user } = useAuthUser();
-  const locked = !user;
+  const locked = !user || scenarios.conservative.locked === true;
 
   const toggleItem = (id: string) => {
     setSelectedItems((prev) => {

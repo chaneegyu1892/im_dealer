@@ -65,6 +65,9 @@ export interface RecommendScenario {
   contractMonths: number;
   annualMileage: number;
   contractType: string;    // 인수형 | 반납형
+  /** 회원 전용 시나리오를 비회원에게 잠근 상태. true 면 금액 필드는 0(빈값)이며
+   * 실제 값은 서버 응답에 포함되지 않는다(보안 경계). */
+  locked?: boolean;
 }
 
 export interface RecommendScenarios {
