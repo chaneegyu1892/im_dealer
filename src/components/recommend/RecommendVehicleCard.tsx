@@ -10,6 +10,8 @@ import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ChevronRight, Trophy, Check, Users } from "lucide-react";
 import { industryToCustomerType } from "@/constants/customer-types";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { MemberGate } from "@/components/auth/MemberGate";
 
 interface RecommendVehicleCardProps {
   vehicle: RecommendedVehicle;
@@ -27,6 +29,10 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
   const { vehicle: detail, scenarios, reason, highlights, rank } = vehicle;
   const router = useRouter();
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
+  // 비회원에게는 보증금형·선납형(낮아진 월납입금) 카드를 블러 처리한다.
+  const { user } = useAuthUser();
+  const locked = !user;
 
   const toggleItem = (id: string) => {
     setSelectedItems((prev) => {
@@ -253,6 +259,9 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
               </div>
             </div>
 
+            {/* 보증금형 + 선납형 — 회원 전용 (비회원은 블러 + 카카오 로그인 유도) */}
+            <MemberGate locked={locked} className="sm:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {/* 보증금형 — 기본 강조 + 추천 배지 */}
             <div className="relative rounded-btn border border-primary bg-primary-50 p-3 flex flex-col gap-1">
               <span className="absolute -top-2 right-2 text-[9px] font-semibold text-white bg-primary rounded-pill px-2 py-0.5 shadow-sm">
@@ -291,6 +300,8 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
                 </p>
               </div>
             </div>
+              </div>
+            </MemberGate>
           </div>
 
           {/* 선납금이 낮아 보이는 이유 안내 */}
