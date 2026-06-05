@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GitCompare, ChevronDown, HelpCircle } from "lucide-react";
+import { GitCompare, ChevronDown, HelpCircle, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   VehicleConfigPanel,
@@ -11,6 +11,8 @@ import {
 import { ComparisonTable } from "./ComparisonTable";
 import type { VehicleListItem, QuoteResponse } from "@/types/api";
 import type { VehicleColorPublic } from "./ColorSelector";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { MemberGate } from "@/components/auth/MemberGate";
 
 // ─── 타입 ───────────────────────────────────────────────────
 type CostMode = "none" | "initial";
@@ -45,6 +47,8 @@ interface ComparisonSectionProps {
   primary: PrimaryVehicleInfo;
   conditions: ContractConditions;
   allVehicles: VehicleListItem[];
+  /** 비회원 게이트의 로그인 CTA 클릭 시 호출 — 견적 화면 상태를 저장 후 /login 으로 이동 */
+  onMemberLogin?: () => void;
 }
 
 // ─── 초기비용 컨트롤 ─────────────────────────────────────────
@@ -295,8 +299,14 @@ export function ComparisonSection({
   primary,
   conditions,
   allVehicles,
+  onMemberLogin,
 }: ComparisonSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  // 비교 기능은 회원 전용. 비회원에게는 펼친 패널을 블러 처리하고 카카오 로그인을 유도한다.
+  // user 는 null 로 시작 → 로딩 중엔 잠금 기본값(보증/선납 게이트와 동일).
+  const { user } = useAuthUser();
+  const locked = !user;
 
   // ── 패널 1 상태 ──────────────────────────────────────────────
   const [p1TrimId, setP1TrimId] = useState<string | null>(primary.currentTrimId);
@@ -538,9 +548,14 @@ export function ComparisonSection({
           <GitCompare size={15} className="text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-medium text-ink">다른 차량과 비교하기</p>
+          <p className="flex items-center gap-1.5 text-[14px] font-medium text-ink">
+            다른 차량과 비교하기
+            {locked && <Lock size={12} className="text-ink-caption shrink-0" />}
+          </p>
           <p className="text-[12px] text-ink-caption mt-0.5">
-            트림·옵션을 각각 설정하고 나란히 비교할 수 있습니다
+            {locked
+              ? "회원 전용 기능입니다. 로그인하고 나란히 비교하세요"
+              : "트림·옵션을 각각 설정하고 나란히 비교할 수 있습니다"}
           </p>
         </div>
         <ChevronDown
@@ -549,9 +564,14 @@ export function ComparisonSection({
         />
       </button>
 
-      {/* 섹션 바디 */}
+      {/* 섹션 바디 — 비회원은 블러 + 카카오 로그인 유도 */}
       {isOpen && (
         <div className="border-t border-[#F0F0F0]">
+        <MemberGate
+          locked={locked}
+          onLogin={onMemberLogin}
+          message="비교는 회원 전용입니다. 로그인 해주세요"
+        >
           {/* 모바일 탭 */}
           <div className="md:hidden flex border-b border-[#F0F2F8]">
             {(["primary", "comparison"] as const).map((tab) => (
@@ -704,6 +724,7 @@ export function ComparisonSection({
               </motion.div>
             )}
           </AnimatePresence>
+        </MemberGate>
         </div>
       )}
     </div>

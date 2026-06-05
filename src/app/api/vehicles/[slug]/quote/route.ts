@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import {
   calculateMultiFinanceQuote,
   type RateConfigData,
@@ -9,6 +10,7 @@ import {
 import type { FinanceQuoteResult } from "@/types/quote";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import { normalizeSelectedOptions } from "@/lib/option-rules";
+import { lockQuoteScenario } from "@/lib/member-gate";
 
 const quoteSchema = z.object({
   trimId: z.string().optional(),
@@ -42,6 +44,15 @@ export async function POST(
     const { slug } = await params;
     const body = await request.json();
     const input = quoteSchema.parse(body);
+
+    // 0) 회원 여부 확인 — 보증금/선납금으로 낮아진 월납입금은 회원 전용.
+    //    비회원에게는 (1) 커스텀 보증/선납 비율을 무시하고 (2) 보증금형·선납형
+    //    시나리오를 잠가, 낮아진 금액이 응답 JSON 에 애초에 실리지 않게 한다(보안 경계).
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const isMember = !!user;
 
     // 1) 차량 + 트림 조회
     const vehicle = await prisma.vehicle.findUnique({
@@ -207,7 +218,9 @@ export async function POST(
     for (const key of scenarioKeys) {
       let depositRate: number = SCENARIO_CONDITIONS[key].depositRate;
       let prepayRate: number  = SCENARIO_CONDITIONS[key].prepayRate;
-      if (key === "standard") {
+      // 커스텀 보증/선납 비율은 회원만 적용. 비회원이 직접 customDepositRate 등을
+      // 실어 보내도 무시해 standard 가 기본(무보증) 값으로 유지되게 한다(우회 차단).
+      if (key === "standard" && isMember) {
         if (input.customDepositRate !== undefined) depositRate = input.customDepositRate;
         if (input.customPrepayRate  !== undefined) prepayRate  = input.customPrepayRate;
       }
@@ -277,6 +290,16 @@ export async function POST(
       };
     }
 
+    // 비회원: 보증금형(conservative)·선납형(aggressive)을 잠가 낮아진 금액을 응답에서 제거.
+    // standard(무보증)는 회원·비회원 모두 그대로 노출한다.
+    const gatedScenarios = isMember
+      ? scenarios
+      : {
+          ...scenarios,
+          conservative: lockQuoteScenario(scenarios.conservative),
+          aggressive: lockQuoteScenario(scenarios.aggressive),
+        };
+
     return NextResponse.json({
       success: true,
       data: {
@@ -293,7 +316,7 @@ export async function POST(
         annualMileage: input.annualMileage,
         contractType: input.contractType,
         customerType: input.customerType,
-        scenarios,
+        scenarios: gatedScenarios,
       },
     });
   } catch (error) {

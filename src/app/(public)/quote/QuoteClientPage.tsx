@@ -1490,6 +1490,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           productType: contractCategory,
                         }}
                         allVehicles={vehicles}
+                        onMemberLogin={handleGateLogin}
                       />
                     )}
                   </>
