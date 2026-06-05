@@ -20,7 +20,7 @@ import {
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { QuoteBreakdownTabs } from "@/components/quote/QuoteBreakdownTabs";
+import { QuoteBreakdownTabs, type CostMode } from "@/components/quote/QuoteBreakdownTabs";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { ColorSelector, type VehicleColorPublic } from "@/components/quote/ColorSelector";
@@ -33,7 +33,13 @@ import {
   type CustomerType,
   isCustomerType,
 } from "@/constants/customer-types";
-import { QUOTE_DRAFT_STORAGE_PREFIX, type QuoteDraft } from "@/lib/quote-draft";
+import {
+  QUOTE_DRAFT_STORAGE_PREFIX,
+  type QuoteDraft,
+  type QuotePdfRestoreState,
+  saveQuotePdfRestore,
+  readQuotePdfRestore,
+} from "@/lib/quote-draft";
 
 // ─── 상수 ────────────────────────────────────────────────
 const CONTRACT_CATEGORIES = ["장기렌트", "리스"] as const;
@@ -248,7 +254,16 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   // 추천 결과에서 넘어온 TrimOption IDs (pre-select용)
   const prefillOptionIds = searchParams.get("options")?.split(",").filter(Boolean) ?? [];
 
-  const [step, setStep] = useState<1 | 2 | 3>(() => (initialCustomerType ? 2 : 1));
+  // 카카오 로그인 후 견적 결과(step 3)로 복귀하기 위한 복원 플로우.
+  // 저장본은 sessionStorage 라 SSR 에서 읽을 수 없으므로:
+  //  - 초기 step 은 URL 마커(restore=1)로 서버·클라이언트가 동일하게 결정 → 하이드레이션 불일치 방지
+  //  - 실제 데이터(견적결과/트림/옵션 등)는 마운트 후 effect 에서 sessionStorage 를 1회 소비해 채운다.
+  const isRestoreReturn = searchParams.get("restore") === "1";
+  const restoreRef = useRef<QuotePdfRestoreState | null>(null);
+
+  const [step, setStep] = useState<1 | 2 | 3>(() =>
+    isRestoreReturn ? 3 : initialCustomerType ? 2 : 1
+  );
   const [customerType, setCustomerType] = useState<CustomerType>(
     initialCustomerType ?? "individual"
   );
@@ -292,6 +307,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
+  // 초기비용 패널(없음/있음) 펼침 상태 — 저장본에 담아 직전 화면 그대로 복원한다.
+  const [costMode, setCostMode] = useState<CostMode>("none");
   const [isRecalculating, setIsRecalculating] = useState(false);
   const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
   const recalculateRequestId = useRef(0);
@@ -369,8 +386,12 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         setColors(list);
         const defaultExt = list.find((c) => c.kind === "EXTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "EXTERIOR");
         const defaultInt = list.find((c) => c.kind === "INTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "INTERIOR");
-        setExteriorColorId(defaultExt?.id ?? null);
-        setInteriorColorId(defaultInt?.id ?? null);
+        // 로그인 복귀 시에는 저장본의 색상을 우선 복원, 없으면 기본값.
+        const restore = restoreRef.current;
+        const restoreExt = restore ? list.find((c) => c.id === restore.exteriorColorId) : undefined;
+        const restoreInt = restore ? list.find((c) => c.id === restore.interiorColorId) : undefined;
+        setExteriorColorId(restoreExt?.id ?? defaultExt?.id ?? null);
+        setInteriorColorId(restoreInt?.id ?? defaultInt?.id ?? null);
       })
       .catch(() => {});
 
@@ -381,7 +402,32 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
         const loadedTrims: TrimData[] = trimsJson.data;
         setTrims(loadedTrims);
 
-        if (shouldPrefill) {
+        const hasLineupInfo = loadedTrims.some(
+          (t) => t.lineup?.name ?? (t.specs as Record<string, string> | null)?.lineup
+        );
+
+        // 로그인 복귀(복원) 시: 저장본의 트림/옵션을 복원 — 프리필보다 우선한다.
+        const restore = restoreRef.current;
+        if (restore && !hasPrefilled.current) {
+          hasPrefilled.current = true;
+          const restoreTrim =
+            loadedTrims.find((t) => t.id === restore.quoteResult.trimId) ??
+            loadedTrims.find((t) => t.isDefault) ??
+            loadedTrims[0];
+          const specs = restoreTrim.specs as Record<string, string> | null;
+          const resolvedLineupName = restoreTrim.lineup?.name ?? specs?.lineup ?? "";
+          if (hasLineupInfo && resolvedLineupName) {
+            setSelectedLineup(resolvedLineupName);
+            setSelectedTrimId(restoreTrim.id);
+          } else {
+            setSelectedLineup(restoreTrim.id);
+          }
+          if (restore.selectedOptionIds.length > 0) {
+            const validIds = new Set(restoreTrim.options.map((o: TrimOption) => o.id));
+            const toSelect = restore.selectedOptionIds.filter((id) => validIds.has(id));
+            if (toSelect.length > 0) setSelectedOptionIds(new Set(toSelect));
+          }
+        } else if (shouldPrefill) {
           hasPrefilled.current = true;
           const defaultTrim = loadedTrims.find((t) => t.isDefault) ?? loadedTrims[0];
           const specs = defaultTrim.specs as Record<string, string> | null;
@@ -408,6 +454,34 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       .catch(() => {})
       .finally(() => setTrimsLoading(false));
   }, [selectedVehicle]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 새로고침/뒤로/로그인 복귀 복원: 마운트 후 1회 localStorage 저장본을 읽어 견적 결과(step 3)를 복원한다.
+  // (SSR 에서 접근 불가한 localStorage 를 effect 에서만 읽어 하이드레이션 불일치를 피한다.
+  //  트림/옵션/색상은 위 trims·colors fetch 의 .then 에서 restoreRef 를 읽어 채운다.)
+  useEffect(() => {
+    if (!isRestoreReturn) return;
+    const restored = readQuotePdfRestore();
+    if (restored && restored.vehicleSlug === prefillSlug) {
+      restoreRef.current = restored;
+      // 가산 전 기준 시나리오(없으면 표시 중 standard) — reset 정확도용
+      baseStandardScenario.current =
+        restored.baseStandard ?? restored.quoteResult.scenarios.standard;
+      setCustomerType(restored.customerType);
+      setContractCategory(restored.contractCategory);
+      setConditions({
+        contractMonths: restored.conditions.contractMonths as ContractMonths,
+        annualMileage: restored.conditions.annualMileage as AnnualMileage,
+      });
+      setCustomRates(restored.customRates);
+      setCostMode(restored.costMode ?? "none");
+      setQuoteResult(restored.quoteResult);
+      setStep(3);
+    } else {
+      // 저장본이 없으면(새로고침 등) 결과를 복원할 수 없으므로 조건 설정 단계로 폴백.
+      setStep(initialCustomerType ? 2 : 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── 캐스케이딩 파생 값 ──────────────────────────────────
   // 트림에 lineup 관계 또는 lineup 스펙이 있는지 확인
@@ -480,6 +554,70 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const selectedInteriorColor = interiorColorId ? colors.find((c) => c.id === interiorColorId) ?? null : null;
   const colorDelta = (selectedExteriorColor?.priceDelta ?? 0) + (selectedInteriorColor?.priceDelta ?? 0);
 
+  // 견적 결과 복원용 저장본 생성 — 새로고침 직전의 화면을 그대로 복원하기 위해
+  // 패널 펼침 상태(costMode), 보증/선납 비율(customRates), 표시 중인 견적(quoteResult)을 그대로 담고,
+  // reset 정확도를 위해 가산 전 기준 시나리오(baseStandard)도 함께 저장한다.
+  const buildRestoreState = (): QuotePdfRestoreState | null => {
+    if (!quoteResult || !selectedVehicle) return null;
+    return {
+      vehicleSlug: selectedVehicle.slug,
+      customerType,
+      selectedLineup,
+      selectedTrimName: selectedTrim?.name ?? null,
+      selectedOptionIds: Array.from(selectedOptionIds),
+      contractCategory,
+      conditions: {
+        contractMonths: conditions.contractMonths,
+        annualMileage: conditions.annualMileage,
+        contractType: "반납형",
+      },
+      customRates,
+      exteriorColorId,
+      interiorColorId,
+      costMode,
+      baseStandard: baseStandardScenario.current,
+      quoteResult,
+    };
+  };
+
+  // step 3 여부에 맞춰 URL 의 restore 마커를 동기화한다(remount 없이 history 만 갱신).
+  // 마커가 있어야 새로고침 시 SSR 이 step 3 로 결정적으로 렌더되어 저장본을 복원할 수 있다.
+  const syncRestoreMarker = (on: boolean) => {
+    if (typeof window === "undefined" || !selectedVehicle) return;
+    const params = new URLSearchParams(window.location.search);
+    if ((params.get("restore") === "1") === on) return; // 변경 없으면 skip
+    params.set("vehicle", selectedVehicle.slug);
+    if (customerType) params.set("customerType", customerType);
+    if (on) params.set("restore", "1");
+    else params.delete("restore");
+    window.history.replaceState(null, "", `/quote?${params.toString()}`);
+  };
+
+  // 비회원 게이트의 로그인 CTA: 저장본을 남긴 뒤 카카오 로그인으로 이동(restore 마커 포함).
+  const handleGateLogin = () => {
+    const state = buildRestoreState();
+    if (state) saveQuotePdfRestore(state);
+    const params = new URLSearchParams({
+      vehicle: selectedVehicle?.slug ?? "",
+      customerType,
+      restore: "1",
+    });
+    router.push(`/login?next=${encodeURIComponent(`/quote?${params.toString()}`)}`);
+  };
+
+  // 견적 결과(step 3)에 도달하면 저장본을 localStorage 에 남기고 URL 에 restore 마커를 더한다.
+  // → 새로고침/뒤로가기에도 결과가 유지된다(추천 결과 freeze 와 동일한 결).
+  useEffect(() => {
+    if (step === 3 && quoteResult && selectedVehicle) {
+      const state = buildRestoreState();
+      if (state) saveQuotePdfRestore(state);
+      syncRestoreMarker(true);
+    } else if (step !== 3) {
+      syncRestoreMarker(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, quoteResult, costMode, customRates]);
+
   const restoreBaseStandardScenario = useCallback(() => {
     recalculateRequestId.current += 1;
     setIsRecalculating(false);
@@ -531,6 +669,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       recalculateRequestId.current += 1;
       baseStandardScenario.current = nextResult.scenarios.standard;
       setCustomRates({ depositRate: 0, prepayRate: 0 });
+      setCostMode("none"); // 새 견적은 초기비용 패널 닫힘으로 시작
       setQuoteResult(nextResult);
       goToStep(3);
     } catch {
@@ -1188,6 +1327,19 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
               </motion.div>
             )}
 
+            {/* 로그인 복귀 직후, 저장본에서 견적을 복원하는 동안의 짧은 로딩 */}
+            {step === 3 && !quoteResult && isRestoreReturn && (
+              <motion.div
+                key="step3-restoring"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center py-20 gap-3"
+              >
+                <span className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-[13px] text-ink-label">견적 정보를 불러오는 중…</p>
+              </motion.div>
+            )}
+
             {/* ── STEP 3: 견적 결과 ── */}
             {step === 3 && quoteResult && (
               <motion.div
@@ -1286,6 +1438,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         customRates={customRates}
                         onCustomRatesChange={setCustomRates}
                         isRecalculating={isRecalculating}
+                        onMemberLogin={handleGateLogin}
+                        costMode={costMode}
+                        onCostModeChange={setCostMode}
                         onReset={() => {
                           setCustomRates({ depositRate: 0, prepayRate: 0 });
                           restoreBaseStandardScenario();

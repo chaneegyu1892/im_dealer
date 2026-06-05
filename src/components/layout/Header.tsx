@@ -181,6 +181,13 @@ export function Header() {
             ) : (
               <Link
                 href={`/login?next=${encodeURIComponent(pathname)}`}
+                onClick={(e) => {
+                  // 쿼리스트링까지 보존해 로그인 후 정확히 같은 화면으로 복귀
+                  // (예: /quote?vehicle=…&restore=1 — pathname 만 담으면 차량 정보가 사라져 /cars 로 튕김)
+                  e.preventDefault();
+                  const next = window.location.pathname + window.location.search;
+                  router.push(`/login?next=${encodeURIComponent(next)}`);
+                }}
                 className="text-[13px] font-medium text-primary border border-primary/30 rounded-btn px-4 py-1.5 hover:bg-primary/[0.04] transition-colors"
               >
                 로그인

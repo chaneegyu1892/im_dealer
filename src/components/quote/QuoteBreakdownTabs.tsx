@@ -8,10 +8,12 @@ import {
 } from "lucide-react";
 import { isCustomerType, type CustomerType } from "@/constants/customer-types";
 import type { QuoteScenarioDetails, QuoteScenarioDetail, FinanceCompanyQuote } from "@/types/quote";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import { MemberGate } from "@/components/auth/MemberGate";
 
 // ─── 타입 ─────────────────────────────────────────────────
 type ApprovalPreviewLevel = "high" | "medium" | "low";
-type CostMode = "none" | "initial";
+export type CostMode = "none" | "initial";
 type CostType = "deposit" | "prepay";
 
 // ─── 상수 ─────────────────────────────────────────────────
@@ -81,6 +83,12 @@ interface Props {
   customerType?: string;
   /** 초기비용 없음으로 돌아갈 때 호출 (베이스 시나리오 복원) */
   onReset?: () => void;
+  /** 비회원 게이트의 로그인 CTA 클릭 시 호출 — 견적 화면 상태를 저장 후 /login 으로 이동 */
+  onMemberLogin?: () => void;
+  /** 초기비용 패널 펼침 상태 — 부모가 제어(저장본 복원 시 직전 상태 그대로 복원) */
+  costMode?: CostMode;
+  /** 초기비용 패널 펼침 상태 변경 알림 */
+  onCostModeChange?: (mode: CostMode) => void;
   /** @deprecated 3탭 구조 제거로 사용 안 함 */
   onTabChange?: (tab: string) => void;
 }
@@ -95,13 +103,22 @@ export function QuoteBreakdownTabs({
   isRecalculating = false,
   customerType,
   onReset,
+  onMemberLogin,
+  costMode = "none",
+  onCostModeChange,
 }: Props) {
-  const [costMode, setCostMode] = useState<CostMode>("none");
-  const [costType, setCostType] = useState<CostType>("deposit");
+  // 보증/선납 탭은 저장된 비율(customRates)을 따라 초기값을 맞춘다(복원 시 직전 탭 유지).
+  const [costType, setCostType] = useState<CostType>(() =>
+    (customRates?.prepayRate ?? 0) > 0 ? "prepay" : "deposit"
+  );
   const [directMode, setDirectMode] = useState(false);
   const [directValue, setDirectValue] = useState("");
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [financeExpanded, setFinanceExpanded] = useState(false);
+
+  // 비회원에게는 초기비용(보증/선납) 설정을 블러 처리한다. user 는 null 로 시작 → 로딩 중엔 잠금 기본값.
+  const { user } = useAuthUser();
+  const locked = !user;
 
   // 항상 standard 시나리오 기반
   const data = scenarios.standard;
@@ -110,15 +127,13 @@ export function QuoteBreakdownTabs({
   const prepayRate = customRates?.prepayRate ?? 0;
   const activeRate = costType === "deposit" ? depositRate : prepayRate;
 
-  // ── 모드 전환 ──────────────────────────────────────────
+  // ── 모드 전환 (제어 상태 — 부모에 알림) ───────────────────
   const switchMode = (mode: CostMode) => {
     if (mode === "none") {
-      setCostMode("none");
       onCustomRatesChange?.({ depositRate: 0, prepayRate: 0 });
       onReset?.();
-    } else {
-      setCostMode("initial");
     }
+    onCostModeChange?.(mode);
   };
 
   const switchCostType = (type: CostType) => {
@@ -208,8 +223,9 @@ export function QuoteBreakdownTabs({
         })}
       </div>
 
-      {/* ② 초기비용 설정 */}
+      {/* ② 초기비용 설정 — 비회원은 블러 + 카카오 로그인 유도 */}
       {costMode === "initial" && onCustomRatesChange && (
+        <MemberGate locked={locked} onLogin={onMemberLogin}>
         <div className="rounded-[14px] border border-[#E0E4EE] bg-white p-4 space-y-4">
 
           {/* 헤더 */}
@@ -411,6 +427,7 @@ export function QuoteBreakdownTabs({
             </div>
           )}
         </div>
+        </MemberGate>
       )}
 
       {/* ③ 월 납입금 */}
