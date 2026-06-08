@@ -40,7 +40,6 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
-  SLACK_WEBHOOK_URL: z.string().url().optional(),
 
   // 보안 설정
   TRUST_PROXY: z.enum(["true", "false"]).default("false"),
