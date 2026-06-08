@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { AlertCircle } from "lucide-react";
+import * as Sentry from "@sentry/nextjs";
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -11,6 +12,7 @@ interface ErrorProps {
 export default function AdminError({ error, reset }: ErrorProps) {
   useEffect(() => {
     console.error("[Admin Error]", error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
