@@ -281,7 +281,10 @@ function splitCsv(s: string | undefined | null): string[] {
 async function importModel(
   brand: ExternalBrand,
   modelEntry: ExternalModelEntry,
-  dryRun: boolean
+  dryRun: boolean,
+  // 트림 단위 색상 추가요금을 모델 단위로 병합할지 여부.
+  // 국산 데이터만 true. 수입차는 트림마다 색상가가 제각각/극단값이라 per-vehicle 병합 시 과청구 → false.
+  mergeTrimColors: boolean
 ): Promise<void> {
   const modelId = modelEntry.modelId;
   const modelDetail = modelEntry.detail.model?.[modelId];
@@ -429,6 +432,11 @@ async function importModel(
   const trims = modelEntry.detail.trim ?? {};
   const trimIdMap = new Map<string, string>(); // externalId → cuid
 
+  // 트림 단위 색상 추가요금을 모델 단위(VehicleColor)로 병합하기 위한 누적 맵.
+  // VehicleColor 는 차량 단위(per-vehicle)라 트림별 차등이 있으면 최댓값으로 통일(과소청구 방지).
+  const trimColorPriceExt = new Map<string, number>(); // colorExternalId → 최댓값
+  const trimColorPriceInt = new Map<string, number>();
+
   for (const [trimExtId, trim] of Object.entries(trims)) {
     const lineupCuid = trim.lineup ? lineupIdMap.get(trim.lineup) : null;
     const engineType = pickPrimaryEngine(trim.engine ?? modelDetail.engine ?? "G");
@@ -443,6 +451,18 @@ async function importModel(
     // 트림별 색상 가격맵 (modelLevel 와 별개)
     const trimColorExt = parseColorTsv(trim.colorExt);
     const trimColorInt = parseColorTsv(trim.colorInt);
+
+    // 트림 단위 추가요금을 색상 externalId 기준 최댓값으로 누적 (아래 5) 색상 생성에서 병합)
+    for (const c of trimColorExt) {
+      if (c.priceDelta > 0) {
+        trimColorPriceExt.set(c.id, Math.max(trimColorPriceExt.get(c.id) ?? 0, c.priceDelta));
+      }
+    }
+    for (const c of trimColorInt) {
+      if (c.priceDelta > 0) {
+        trimColorPriceInt.set(c.id, Math.max(trimColorPriceInt.get(c.id) ?? 0, c.priceDelta));
+      }
+    }
 
     const trimDetailedSpecs = {
       externalRaw: {
@@ -540,6 +560,10 @@ async function importModel(
   for (const row of colorExtRows) {
     const detail = modelEntry.detail.colorExt?.[row.id];
     if (!detail) continue;
+    // 모델 단위 가격과 트림 단위 가격 중 최댓값 사용 (국산만, 트림에만 가격이 있는 경우 보강)
+    const priceDelta = mergeTrimColors
+      ? Math.max(row.priceDelta, trimColorPriceExt.get(row.id) ?? 0)
+      : row.priceDelta;
     await prisma.vehicleColor.upsert({
       where: {
         vehicleId_kind_externalId: {
@@ -553,7 +577,7 @@ async function importModel(
         kind: "EXTERIOR",
         name: detail.name ?? `color-${row.id}`,
         hexCode: normalizeHex(detail.rgb),
-        priceDelta: row.priceDelta,
+        priceDelta,
         sortOrder: sortOrder++,
         externalId: row.id,
         mfgCode: detail.code,
@@ -568,7 +592,7 @@ async function importModel(
       update: {
         name: detail.name ?? `color-${row.id}`,
         hexCode: normalizeHex(detail.rgb),
-        priceDelta: row.priceDelta,
+        priceDelta,
         mfgCode: detail.code,
       },
     });
@@ -579,6 +603,10 @@ async function importModel(
   for (const row of colorIntRows) {
     const detail = modelEntry.detail.colorInt?.[row.id];
     if (!detail) continue;
+    // 모델 단위 가격과 트림 단위 가격 중 최댓값 사용 (국산만, 트림에만 가격이 있는 경우 보강)
+    const priceDelta = mergeTrimColors
+      ? Math.max(row.priceDelta, trimColorPriceInt.get(row.id) ?? 0)
+      : row.priceDelta;
     await prisma.vehicleColor.upsert({
       where: {
         vehicleId_kind_externalId: {
@@ -592,7 +620,7 @@ async function importModel(
         kind: "INTERIOR",
         name: detail.name ?? `color-${row.id}`,
         hexCode: normalizeHex(detail.rgb),
-        priceDelta: row.priceDelta,
+        priceDelta,
         sortOrder: sortOrder++,
         externalId: row.id,
         metadata: {
@@ -606,7 +634,7 @@ async function importModel(
       update: {
         name: detail.name ?? `color-${row.id}`,
         hexCode: normalizeHex(detail.rgb),
-        priceDelta: row.priceDelta,
+        priceDelta,
       },
     });
     stats.colors++;
@@ -660,6 +688,9 @@ async function main() {
     const raw = fs.readFileSync(fullPath, "utf-8");
     const data: ExternalFileFormat = JSON.parse(raw);
 
+    // 국산 데이터(raw_data_ko_car.json)만 트림 단위 색상 추가요금을 모델 단위로 병합.
+    const mergeTrimColors = !file.includes("imported");
+
     console.log(`\n=== ${file} (${data.meta.modelCount} 모델) ===`);
 
     for (const [brandId, brand] of Object.entries(data.brands)) {
@@ -669,7 +700,7 @@ async function main() {
         if (args.modelFilter && modelId !== args.modelFilter) continue;
 
         try {
-          await importModel(brand, { ...model, modelId }, args.dryRun);
+          await importModel(brand, { ...model, modelId }, args.dryRun, mergeTrimColors);
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           console.error(`✗ ${modelId} 실패: ${msg}`);
