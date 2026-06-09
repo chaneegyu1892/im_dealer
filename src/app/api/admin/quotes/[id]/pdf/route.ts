@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/require-admin";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { generateQuotePDFHtml, type PDFQuoteData } from "@/lib/quote-pdf-template";
 import { renderHtmlToPdfBuffer } from "@/lib/pdf/render";
 import {
@@ -37,7 +37,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { admin, error } = await requireAdmin();
+  const { admin, error } = await requireRoleAtLeast("staff");
   if (error) return error;
 
   const quote = await prisma.savedQuote.findFirst({

@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
-import { isAdminLike } from "@/lib/admin-roles";
 import { z } from "zod";
 
 // 순위 가산율은 견적 계산에 직접 영향을 주는 금융 데이터다. 빈/잘못된 입력으로
@@ -15,8 +14,8 @@ const policySchema = z.object({
 
 export async function GET() {
   try {
-    const session = await getAdminSession();
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { error } = await requireRoleAtLeast("admin");
+    if (error) return error;
 
     const configs = await prisma.rankSurchargeConfig.findMany({
       orderBy: { rank: "asc" },
@@ -30,10 +29,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAdminSession();
-    if (!session || !isAdminLike(session.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { admin: session, error } = await requireRoleAtLeast("admin");
+    if (error) return error;
 
     const parsed = policySchema.safeParse(await req.json());
     if (!parsed.success) {
