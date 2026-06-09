@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/require-admin";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 
 // GET /api/admin/quote-stats/range-exceeded?days=30&limit=10
 // 최근 N일간 회수율 시트 범위(min~max)를 벗어난 견적을 트림별로 집계.
 // 어드민에게 "이 트림들은 max를 더 넓혀야 합니다" 신호로 제공.
 export async function GET(request: NextRequest) {
-  const { error } = await requireAdmin();
+  const { error } = await requireRoleAtLeast("admin");
   if (error) return error;
 
   const { searchParams } = new URL(request.url);

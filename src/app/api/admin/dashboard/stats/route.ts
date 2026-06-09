@@ -3,14 +3,14 @@
  * Updated at: 2026-04-23
  * This file does NOT use date-fns to avoid build errors.
  */
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import type { SavedQuote, Vehicle } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 
-export async function GET(request: NextRequest) {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+export async function GET() {
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
 
   try {
     const now = new Date();
@@ -69,12 +69,12 @@ export async function GET(request: NextRequest) {
       take: 5,
     });
 
-    const vehicleIds = [...new Set(recentQuotes.map(q => q.vehicleId))];
+    const vehicleIds = [...new Set(recentQuotes.map((q: SavedQuote) => q.vehicleId))];
     const vehicles = await prisma.vehicle.findMany({
       where: { id: { in: vehicleIds } },
       select: { id: true, name: true },
     });
-    const vehicleMap = new Map(vehicles.map(v => [v.id, v.name]));
+    const vehicleMap = new Map(vehicles.map((v: Pick<Vehicle, "id" | "name">) => [v.id, v.name]));
 
     // 6. 주간 데이터 (최근 7일)
     const weeklyData = [];
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
           lastMonthConsultations,
           conversionRate: conversionRate.toFixed(1),
         },
-        recentQuotes: recentQuotes.map(q => ({
+        recentQuotes: recentQuotes.map((q: SavedQuote) => ({
           id: q.id,
           name: q.customerName,
           vehicle: vehicleMap.get(q.vehicleId) || "알 수 없음",
