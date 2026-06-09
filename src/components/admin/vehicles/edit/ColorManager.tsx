@@ -90,7 +90,8 @@ export function ColorManager({ vehicleId, target, defaultKind, onClose }: ColorM
       name: fd.get("name") as string,
       hexCode: hex,
       imageUrl: imageUrl ?? null,
-      priceDelta: Number(fd.get("priceDelta") || 0),
+      // 입력은 만원 단위 → 저장은 원 단위 (예: 100 → 1,000,000원)
+      priceDelta: Math.round(Number(fd.get("priceDelta") || 0) * 10000),
       isDefault: fd.get("isDefault") === "on",
       sortOrder: Number(fd.get("sortOrder") || 0),
     };
@@ -218,13 +219,15 @@ export function ColorManager({ vehicleId, target, defaultKind, onClose }: ColorM
           </FormField>
 
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="추가요금 (원)">
+            <FormField label="추가요금 (만원)">
               <input
                 name="priceDelta"
                 type="number"
                 min={0}
-                defaultValue={target?.priceDelta ?? 0}
+                step="any"
+                defaultValue={target?.priceDelta ? target.priceDelta / 10000 : ""}
                 className={inputClass}
+                placeholder="예: 100 = 100만원"
               />
             </FormField>
             <FormField label="정렬 순서">
