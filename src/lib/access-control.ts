@@ -29,7 +29,7 @@ export const PAGE_ACCESS = {
   // 어드민
   "/admin": ["dealer", "staff", "admin", "superadmin"],
   "/admin/analytics": ["staff", "admin", "superadmin"],
-  "/admin/quotations": ["dealer", "staff", "admin", "superadmin"],
+  "/admin/quotations": ["staff", "admin", "superadmin"],
   "/admin/users": ["staff", "admin", "superadmin"],
   "/admin/vehicles": ["staff", "admin", "superadmin"],
   "/admin/inventory": ["staff", "admin", "superadmin"],
