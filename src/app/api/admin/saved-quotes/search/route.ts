@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { maskPhone, formatReviewDate } from "@/lib/review-utils";
 import type { CustomerSearchResult } from "@/types/review";
 
@@ -16,9 +16,9 @@ function quoteStatusLabel(status: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error } = await requireRoleAtLeast("staff");
+  if (error) return error;
+
   try {
     const q = (new URL(request.url).searchParams.get("q") ?? "").trim();
     if (q.length < 1 || q.length > 30) {

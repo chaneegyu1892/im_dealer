@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
-import { isAdminLike } from "@/lib/admin-roles";
 
 export async function PATCH(
   req: NextRequest,
@@ -11,10 +10,8 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const session = await getAdminSession();
-    if (!session || !isAdminLike(session.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { admin: session, error } = await requireRoleAtLeast("admin");
+    if (error) return error;
 
     const body = await req.json();
     const update: {
@@ -116,10 +113,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const session = await getAdminSession();
-    if (!session || !isAdminLike(session.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { admin: session, error } = await requireRoleAtLeast("admin");
+    if (error) return error;
 
     const before = await prisma.financeCompany.findUnique({ where: { id } });
     if (!before) {

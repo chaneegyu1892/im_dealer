@@ -1,7 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
-import { isAdminLike } from "@/lib/admin-roles";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
@@ -25,10 +23,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAdminSession();
-    if (!session || !isAdminLike(session.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { admin: session, error } = await requireRoleAtLeast("admin");
+    if (error) return error;
 
     const body = await req.json();
     const name = typeof body?.name === "string" ? body.name.trim() : "";

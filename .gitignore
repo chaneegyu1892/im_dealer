@@ -45,6 +45,7 @@ next-env.d.ts
 AGENTS.md
 CLAUDE.md
 CODEX_TASKS.md
+hermes-todo.md
 .claude/
 .claudeignore
 
