@@ -758,12 +758,14 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
 
   // 같은 차량 재계산 직후: 유지된 보증/선납 비율을 새 기준 견적에 재적용한다.
   // (customRates 가 변하지 않아 위 디바운스 effect 가 발화하지 않으므로 별도 처리)
+  // customRates 를 deps 에 포함해 항상 최신 비율로 호출 — 중복 발화는 ref 플래그가 막는다.
   useEffect(() => {
     if (!pendingRatesReapply.current || !quoteResult) return;
     pendingRatesReapply.current = false;
     recalculateStandard(customRates);
+  // recalculateStandard 는 매 렌더 재생성되는 일반 함수라 의도적으로 제외
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quoteResult]);
+  }, [quoteResult, customRates]);
 
   async function handlePdfDownload() {
     if (!quoteResult || !selectedVehicle) return;

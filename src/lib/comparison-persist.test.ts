@@ -46,4 +46,12 @@ describe("comparison-persist", () => {
     );
     expect(readSavedComparison("grandeur")).toBeNull();
   });
+
+  it("p2ProductType 이 허용값(장기렌트/리스)이 아니면 null", () => {
+    window.sessionStorage.setItem(
+      comparisonStorageKey("grandeur"),
+      JSON.stringify({ ...SAMPLE, p2ProductType: "<img onerror>" })
+    );
+    expect(readSavedComparison("grandeur")).toBeNull();
+  });
 });

@@ -33,6 +33,7 @@ export function TrimGroupSelect<T extends GroupableTrim>({
   placeholder = "트림을 선택하세요",
 }: TrimGroupSelectProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const groups = useMemo(() => groupTrimsByLineup(trims), [trims]);
@@ -46,14 +47,25 @@ export function TrimGroupSelect<T extends GroupableTrim>({
     return null;
   }, [groups, selectedTrimId]);
 
-  // Esc 로 닫기
+  // Esc · 외부 클릭으로 닫기
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setIsOpen(false);
     };
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("touchstart", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("touchstart", onPointerDown);
+    };
   }, [isOpen]);
 
   // 펼칠 때 선택된 트림이 보이도록 스크롤
@@ -67,7 +79,7 @@ export function TrimGroupSelect<T extends GroupableTrim>({
     fmtMan(g.trim.discountPrice ?? g.trim.price);
 
   return (
-    <div>
+    <div ref={rootRef}>
       {/* 트리거 */}
       <button
         type="button"

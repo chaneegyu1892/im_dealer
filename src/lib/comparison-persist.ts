@@ -29,7 +29,8 @@ export function readSavedComparison(primarySlug: string): SavedComparison | null
       parsed === null ||
       typeof (parsed as SavedComparison).p2Slug !== "string" ||
       typeof (parsed as SavedComparison).isOpen !== "boolean" ||
-      !Array.isArray((parsed as SavedComparison).p2OptionIds)
+      !Array.isArray((parsed as SavedComparison).p2OptionIds) ||
+      !["장기렌트", "리스"].includes((parsed as SavedComparison).p2ProductType)
     ) {
       return null;
     }
