@@ -356,7 +356,8 @@ export function QuoteBreakdownTabs({
                 <div
                   className="h-full rounded-full transition-all duration-300"
                   style={{
-                    width: `${(activeRate / RATE_MAX) * 100}%`,
+                    // 썸 중심 위치까지 채움 — 썸 이동 범위 보정과 동일 식
+                    width: `calc(${(activeRate / RATE_MAX)} * (100% - 20px) + 10px)`,
                     background: "linear-gradient(90deg, #000666 0%, #6066EE 100%)",
                   }}
                 />
@@ -373,11 +374,11 @@ export function QuoteBreakdownTabs({
                 }}
                 className="absolute inset-0 opacity-0 w-full cursor-pointer"
               />
-              {/* 썸 표시 */}
+              {/* 썸 표시 — 이동 범위를 (전체 폭 − 썸 지름)으로 보정해 양 끝에서 잘리지 않게 */}
               <div
                 className="absolute w-5 h-5 rounded-full -translate-x-1/2 pointer-events-none transition-all duration-300 shadow-md"
                 style={{
-                  left: `${(activeRate / RATE_MAX) * 100}%`,
+                  left: `calc(${(activeRate / RATE_MAX)} * (100% - 20px) + 10px)`,
                   background: "#fff",
                   border: "2.5px solid #000666",
                   boxShadow: activeRate > 0 ? "0 1px 8px rgba(0,6,102,0.3)" : "0 1px 4px rgba(0,0,0,0.15)",
