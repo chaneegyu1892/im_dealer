@@ -306,6 +306,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
+  // 견적 확인 화면의 옵션 세부 내역(개별 옵션·색상 금액) 펼침 상태
+  const [showOptionDetail, setShowOptionDetail] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
@@ -541,6 +543,12 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const selectedInteriorColor = interiorColorId ? colors.find((c) => c.id === interiorColorId) ?? null : null;
   const colorDelta = (selectedExteriorColor?.priceDelta ?? 0) + (selectedInteriorColor?.priceDelta ?? 0);
 
+  // 선택한 옵션의 이름·개별 금액 — 견적 확인 화면 세부 내역과 PDF 에서 공용
+  const selectedOptionDetails =
+    selectedTrim?.options
+      .filter((option) => selectedOptionIds.has(option.id))
+      .map((option) => ({ id: option.id, name: option.name, price: option.price })) ?? [];
+
   // 견적 결과 복원용 저장본 생성 — 새로고침 직전의 화면을 그대로 복원하기 위해
   // 패널 펼침 상태(costMode), 보증/선납 비율(customRates), 표시 중인 견적(quoteResult)을 그대로 담고,
   // reset 정확도를 위해 가산 전 기준 시나리오(baseStandard)도 함께 저장한다.
@@ -657,6 +665,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       baseStandardScenario.current = nextResult.scenarios.standard;
       setCustomRates({ depositRate: 0, prepayRate: 0 });
       setCostMode("none"); // 새 견적은 초기비용 패널 닫힘으로 시작
+      setShowOptionDetail(false); // 옵션 세부 내역도 접힘으로 시작
       setQuoteResult(nextResult);
       goToStep(3);
     } catch {
@@ -728,10 +737,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     setIsPdfDownloading(true);
     setPdfError(null);
 
-    const selectedOptions =
-      selectedTrim?.options
-        .filter((option) => selectedOptionIds.has(option.id))
-        .map((option) => ({ name: option.name, price: option.price })) ?? [];
+    const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({ name, price }));
 
     const payload: Partial<PDFQuoteData> = {
       vehicleName: selectedVehicle.name,
@@ -1368,6 +1374,18 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           {quoteResult.trimName}
                         </p>
                       )}
+                      <p className="mt-1 flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-[11px] text-ink-caption">기본 차량가</span>
+                        <span className="text-[13px] font-semibold text-ink tabular-nums">
+                          {(quoteResult.discountPrice ?? quoteResult.trimPrice).toLocaleString()}원
+                        </span>
+                        {quoteResult.discountPrice != null &&
+                          quoteResult.discountPrice < quoteResult.trimPrice && (
+                            <span className="text-[11px] text-ink-caption line-through tabular-nums">
+                              {quoteResult.trimPrice.toLocaleString()}원
+                            </span>
+                          )}
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -1385,11 +1403,95 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   <div className="flex flex-wrap items-center gap-2 px-4 py-3">
                     <ConditionChip label={`${quoteResult.contractMonths}개월`} sub="계약기간" />
                     <ConditionChip label={`연 ${(quoteResult.annualMileage / 10000).toFixed(0)}만km`} sub="약정거리" />
-                    {(quoteResult as QuoteResponse & { optionsTotalPrice?: number }).optionsTotalPrice
-                      ? <ConditionChip label={`옵션 +${Math.round(((quoteResult as QuoteResponse & { optionsTotalPrice?: number }).optionsTotalPrice ?? 0) / 10000).toLocaleString()}만원`} sub="추가옵션" />
-                      : null}
+                    {quoteResult.optionsTotalPrice ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowOptionDetail((v) => !v)}
+                        aria-expanded={showOptionDetail}
+                        className={cn(
+                          "inline-flex flex-col items-center rounded-[8px] px-3 py-1.5 border transition-colors duration-150",
+                          showOptionDetail
+                            ? "bg-primary-100 border-primary-200"
+                            : "bg-neutral border-[#EBEBEB] hover:border-primary/40"
+                        )}
+                      >
+                        <span className="text-[9px] text-ink-caption uppercase tracking-wider mb-0.5">
+                          추가옵션
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink leading-none">
+                          옵션 +{Math.round((quoteResult.optionsTotalPrice ?? 0) / 10000).toLocaleString()}만원
+                          <ChevronDown
+                            size={11}
+                            className={cn(
+                              "text-ink-caption transition-transform duration-200",
+                              showOptionDetail && "rotate-180"
+                            )}
+                          />
+                        </span>
+                      </button>
+                    ) : null}
                     <ConditionChip label={CUSTOMER_TYPE_LABELS[customerType]} sub="고객 유형" />
                   </div>
+
+                  {/* 옵션 세부 내역 펼침 패널 */}
+                  <AnimatePresence initial={false}>
+                    {showOptionDetail && quoteResult.optionsTotalPrice ? (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="border-t border-[#F4F4F4] px-4 py-3 space-y-1.5">
+                          {selectedOptionDetails.map((o) => (
+                            <div
+                              key={o.id}
+                              className="flex items-baseline justify-between gap-3 text-[12px]"
+                            >
+                              <span className="text-ink-label truncate">{o.name}</span>
+                              <span className="font-medium text-ink shrink-0 tabular-nums">
+                                {o.price > 0 ? `+${o.price.toLocaleString()}원` : "무상"}
+                              </span>
+                            </div>
+                          ))}
+                          {selectedExteriorColor && selectedExteriorColor.priceDelta !== 0 && (
+                            <div className="flex items-baseline justify-between gap-3 text-[12px]">
+                              <span className="text-ink-label truncate">
+                                외장 색상 · {selectedExteriorColor.name}
+                              </span>
+                              <span className="font-medium text-ink shrink-0 tabular-nums">
+                                +{selectedExteriorColor.priceDelta.toLocaleString()}원
+                              </span>
+                            </div>
+                          )}
+                          {selectedInteriorColor && selectedInteriorColor.priceDelta !== 0 && (
+                            <div className="flex items-baseline justify-between gap-3 text-[12px]">
+                              <span className="text-ink-label truncate">
+                                내장 색상 · {selectedInteriorColor.name}
+                              </span>
+                              <span className="font-medium text-ink shrink-0 tabular-nums">
+                                +{selectedInteriorColor.priceDelta.toLocaleString()}원
+                              </span>
+                            </div>
+                          )}
+                          <div className="!mt-2.5 pt-2.5 border-t border-dashed border-[#EBEBEB] flex items-baseline justify-between gap-3 text-[12px]">
+                            <span className="text-ink-caption">
+                              총 차량가 (기본 + 옵션 + 색상)
+                            </span>
+                            <span className="font-semibold text-primary tabular-nums">
+                              {(
+                                quoteResult.totalVehiclePrice ??
+                                (quoteResult.discountPrice ?? quoteResult.trimPrice) +
+                                  (quoteResult.optionsTotalPrice ?? 0) +
+                                  (quoteResult.colorDelta ?? 0)
+                              ).toLocaleString()}원
+                            </span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
 
                 {/* 전기차 보조금 안내 (견적 미반영, 표시 전용) */}

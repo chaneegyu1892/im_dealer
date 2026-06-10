@@ -90,6 +90,8 @@ export interface QuoteResponse {
   trimId: string;
   trimName: string;
   trimPrice: number;
+  /** 할인가 — 있으면 이 값이 차량가 계산 기준으로 사용된다 */
+  discountPrice?: number | null;
   optionsTotalPrice?: number;
   colorDelta?: number;
   totalVehiclePrice?: number;
