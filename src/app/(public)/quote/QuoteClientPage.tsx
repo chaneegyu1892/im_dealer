@@ -20,6 +20,7 @@ import {
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { sortLineups } from "@/lib/lineup-sort";
 import { QuoteBreakdownTabs, type CostMode } from "@/components/quote/QuoteBreakdownTabs";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
@@ -491,24 +492,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
 
   const hasCascade = trims.some((t) => getLineupName(t));
 
-  // 1단계: 유니크 라인업 목록
+  // 1단계: 유니크 라인업 목록 (일반 주력 → 기타 → 특수목적 순)
   const availableLineups = hasCascade
-    ? (() => {
-        const all = [...new Set(trims.map((t) => getLineupName(t)).filter(Boolean))];
-        const getYear = (s: string) => parseInt(s.match(/\d{4}/)?.[0] ?? "0");
-        const getGroup = (s: string) => s.replace(/^\d{4}년형\s*/, "");
-        const groupOrder: string[] = [];
-        for (const l of all) {
-          const g = getGroup(l);
-          if (!groupOrder.includes(g)) groupOrder.push(g);
-        }
-        return all.sort((a, b) => {
-          const ga = getGroup(a), gb = getGroup(b);
-          const gi = groupOrder.indexOf(ga) - groupOrder.indexOf(gb);
-          if (gi !== 0) return gi;
-          return getYear(b) - getYear(a);
-        });
-      })()
+    ? sortLineups([...new Set(trims.map((t) => getLineupName(t)).filter(Boolean))])
     : [];
 
   // 2단계: 선택된 라인업에 속하는 트림들
