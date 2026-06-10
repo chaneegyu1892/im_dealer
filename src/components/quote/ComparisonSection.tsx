@@ -13,6 +13,11 @@ import type { VehicleListItem, QuoteResponse } from "@/types/api";
 import type { VehicleColorPublic } from "./ColorSelector";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import { MemberGate } from "@/components/auth/MemberGate";
+import {
+  readSavedComparison,
+  saveComparison,
+  type SavedComparison,
+} from "@/lib/comparison-persist";
 
 // ─── 타입 ───────────────────────────────────────────────────
 type CostMode = "none" | "initial";
@@ -301,7 +306,13 @@ export function ComparisonSection({
   allVehicles,
   onMemberLogin,
 }: ComparisonSectionProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  // '이전'으로 돌아갔다 와도 비교 차량 설정이 유지되도록 sessionStorage 저장본을 1회 읽는다.
+  // (트림/옵션/색상은 비동기 로드 후 적용해야 하므로 ref 에 담아 로드 effect 에서 소비)
+  const [saved] = useState<SavedComparison | null>(() =>
+    readSavedComparison(primary.slug)
+  );
+
+  const [isOpen, setIsOpen] = useState(saved?.isOpen ?? false);
 
   // 비교 기능은 회원 전용. 비회원에게는 펼친 패널을 블러 처리하고 카카오 로그인을 유도한다.
   // user 는 null 로 시작 → 로딩 중엔 잠금 기본값(보증/선납 게이트와 동일).
@@ -317,7 +328,7 @@ export function ComparisonSection({
   const [p1ProductType, setP1ProductType] = useState<"장기렌트" | "리스">(conditions.productType);
 
   // ── 패널 2 상태 ──────────────────────────────────────────────
-  const [p2Slug, setP2Slug] = useState("");
+  const [p2Slug, setP2Slug] = useState(saved?.p2Slug ?? "");
   const [p2Trims, setP2Trims] = useState<ComparisonTrimData[]>([]);
   const [p2TrimsLoading, setP2TrimsLoading] = useState(false);
   const [p2TrimId, setP2TrimId] = useState<string | null>(null);
@@ -325,7 +336,21 @@ export function ComparisonSection({
   const [p2Colors, setP2Colors] = useState<VehicleColorPublic[]>([]);
   const [p2ExtColor, setP2ExtColor] = useState<string | null>(null);
   const [p2IntColor, setP2IntColor] = useState<string | null>(null);
-  const [p2ProductType, setP2ProductType] = useState<"장기렌트" | "리스">(conditions.productType);
+  const [p2ProductType, setP2ProductType] = useState<"장기렌트" | "리스">(
+    saved?.p2ProductType ?? conditions.productType
+  );
+
+  // 저장본의 트림/옵션/색상 — p2 트림·색상 로드 완료 후 유효성 검증을 거쳐 1회 적용
+  const restoreP2Ref = useRef(
+    saved
+      ? {
+          trimId: saved.p2TrimId,
+          optionIds: saved.p2OptionIds,
+          extColor: saved.p2ExtColor,
+          intColor: saved.p2IntColor,
+        }
+      : null
+  );
 
   // ── 비교 결과 ────────────────────────────────────────────────
   const [primaryResult, setPrimaryResult] = useState<QuoteResponse | null>(null);
@@ -391,6 +416,8 @@ export function ComparisonSection({
     ])
       .then(([trimJson, colorJson]) => {
         if (aborted) return;
+        const restore = restoreP2Ref.current;
+        restoreP2Ref.current = null; // 첫 로드에서만 1회 적용
         if (trimJson.success && Array.isArray(trimJson.data)) {
           const loadedTrims = trimJson.data as ComparisonTrimData[];
           setP2Trims(loadedTrims);
@@ -403,6 +430,16 @@ export function ComparisonSection({
               setP2OptionIds(new Set(optionIds));
             }
             copyTrimRef.current = null;
+          } else if (restore?.trimId) {
+            // 세션 저장본 복원 — 트림·옵션이 여전히 유효할 때만 적용
+            const restoredTrim = loadedTrims.find((t) => t.id === restore.trimId);
+            if (restoredTrim) {
+              setP2TrimId(restoredTrim.id);
+              const validOptionIds = new Set(restoredTrim.options.map((o) => o.id));
+              setP2OptionIds(
+                new Set(restore.optionIds.filter((id) => validOptionIds.has(id)))
+              );
+            }
           }
         }
         if (colorJson?.success && Array.isArray(colorJson.data)) {
@@ -410,8 +447,13 @@ export function ComparisonSection({
           setP2Colors(list);
           const defExt = list.find((c) => c.kind === "EXTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "EXTERIOR");
           const defInt = list.find((c) => c.kind === "INTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "INTERIOR");
-          setP2ExtColor(defExt?.id ?? null);
-          setP2IntColor(defInt?.id ?? null);
+          // 세션 저장본의 색상이 유효하면 복원, 아니면 기본 색상
+          const restoredExt = restore?.extColor && list.some((c) => c.id === restore.extColor)
+            ? restore.extColor : null;
+          const restoredInt = restore?.intColor && list.some((c) => c.id === restore.intColor)
+            ? restore.intColor : null;
+          setP2ExtColor(restoredExt ?? defExt?.id ?? null);
+          setP2IntColor(restoredInt ?? defInt?.id ?? null);
         }
       })
       .catch(() => {})
@@ -419,6 +461,19 @@ export function ComparisonSection({
 
     return () => { aborted = true; };
   }, [p2Slug]);
+
+  // 비교 차량 설정 변경 시 sessionStorage 에 저장 — '이전' 이동/새로고침 후에도 유지
+  useEffect(() => {
+    saveComparison(primary.slug, {
+      isOpen,
+      p2Slug,
+      p2TrimId,
+      p2OptionIds: [...p2OptionIds],
+      p2ExtColor,
+      p2IntColor,
+      p2ProductType,
+    });
+  }, [isOpen, p2Slug, p2TrimId, p2OptionIds, p2ExtColor, p2IntColor, p2ProductType, primary.slug]);
 
   // 섹션 열릴 때 패널 1 초기값 동기화
   const handleOpen = () => {
