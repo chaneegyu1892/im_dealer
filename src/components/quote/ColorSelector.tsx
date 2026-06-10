@@ -54,7 +54,8 @@ function ColorSection({
       <p className="text-[12px] font-medium text-ink-caption mb-2 uppercase tracking-wide">
         {title}
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+      {/* 컨테이너 폭과 무관하게 카드 최소 150px 보장 — 좁은 비교 패널에서 색상명이 잘리지 않게 */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
         {colors.map((c) => {
           const isSelected = selectedId === c.id;
           return (
@@ -83,8 +84,11 @@ function ColorSection({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p
+                    title={c.name}
                     className={cn(
-                      "text-[13px] font-bold truncate",
+                      // 색상명은 잘리면 식별 불가 — 한 줄 말줄임 대신 어절 단위 2줄 줄바꿈 허용
+                      // (어절이 너비를 넘으면 overflow-wrap 으로 글자 단위 줄바꿈 폴백)
+                      "text-[13px] font-bold leading-snug break-keep [overflow-wrap:anywhere] line-clamp-2",
                       isSelected ? "text-primary" : "text-ink"
                     )}
                   >
