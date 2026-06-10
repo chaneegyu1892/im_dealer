@@ -1403,6 +1403,14 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       <p className="text-[15px] font-semibold text-ink truncate leading-snug">
                         {selectedVehicle?.name}
                       </p>
+                      {hasCascade && selectedLineup && (
+                        <p
+                          title={selectedLineup}
+                          className="text-[11px] text-ink-caption mt-0.5 truncate"
+                        >
+                          {selectedLineup}
+                        </p>
+                      )}
                       {quoteResult.trimName && (
                         <p className="text-[12px] text-ink-label mt-0.5 truncate">
                           {quoteResult.trimName}
@@ -1437,7 +1445,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   <div className="flex flex-wrap items-center gap-2 px-4 py-3">
                     <ConditionChip label={`${quoteResult.contractMonths}개월`} sub="계약기간" />
                     <ConditionChip label={`연 ${(quoteResult.annualMileage / 10000).toFixed(0)}만km`} sub="약정거리" />
-                    {quoteResult.optionsTotalPrice ? (
+                    {quoteResult.optionsTotalPrice || selectedExteriorColor || selectedInteriorColor ? (
                       <button
                         type="button"
                         onClick={() => setShowOptionDetail((v) => !v)}
@@ -1450,10 +1458,12 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         )}
                       >
                         <span className="text-[9px] text-ink-caption uppercase tracking-wider mb-0.5">
-                          추가옵션
+                          구성 상세
                         </span>
                         <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink leading-none">
-                          옵션 +{Math.round((quoteResult.optionsTotalPrice ?? 0) / 10000).toLocaleString()}만원
+                          {quoteResult.optionsTotalPrice
+                            ? `옵션 +${Math.round((quoteResult.optionsTotalPrice ?? 0) / 10000).toLocaleString()}만원`
+                            : "옵션·색상"}
                           <ChevronDown
                             size={11}
                             className={cn(
@@ -1467,9 +1477,10 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     <ConditionChip label={CUSTOMER_TYPE_LABELS[customerType]} sub="고객 유형" />
                   </div>
 
-                  {/* 옵션 세부 내역 펼침 패널 */}
+                  {/* 옵션·색상 세부 내역 펼침 패널 */}
                   <AnimatePresence initial={false}>
-                    {showOptionDetail && quoteResult.optionsTotalPrice ? (
+                    {showOptionDetail &&
+                    (quoteResult.optionsTotalPrice || selectedExteriorColor || selectedInteriorColor) ? (
                       <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
@@ -1489,23 +1500,27 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                               </span>
                             </div>
                           ))}
-                          {selectedExteriorColor && selectedExteriorColor.priceDelta !== 0 && (
+                          {selectedExteriorColor && (
                             <div className="flex items-baseline justify-between gap-3 text-[12px]">
                               <span className="text-ink-label truncate">
                                 외장 색상 · {selectedExteriorColor.name}
                               </span>
                               <span className="font-medium text-ink shrink-0 tabular-nums">
-                                +{selectedExteriorColor.priceDelta.toLocaleString()}원
+                                {selectedExteriorColor.priceDelta > 0
+                                  ? `+${selectedExteriorColor.priceDelta.toLocaleString()}원`
+                                  : "기본"}
                               </span>
                             </div>
                           )}
-                          {selectedInteriorColor && selectedInteriorColor.priceDelta !== 0 && (
+                          {selectedInteriorColor && (
                             <div className="flex items-baseline justify-between gap-3 text-[12px]">
                               <span className="text-ink-label truncate">
                                 내장 색상 · {selectedInteriorColor.name}
                               </span>
                               <span className="font-medium text-ink shrink-0 tabular-nums">
-                                +{selectedInteriorColor.priceDelta.toLocaleString()}원
+                                {selectedInteriorColor.priceDelta > 0
+                                  ? `+${selectedInteriorColor.priceDelta.toLocaleString()}원`
+                                  : "기본"}
                               </span>
                             </div>
                           )}
