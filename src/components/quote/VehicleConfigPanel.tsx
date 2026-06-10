@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, X, Check, Search, Car, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { groupTrimsByLineup } from "@/lib/trim-groups";
 import type { VehicleListItem } from "@/types/api";
 import type { VehicleColorPublic } from "./ColorSelector";
 import { ColorSelector } from "./ColorSelector";
@@ -383,14 +384,19 @@ export function VehicleConfigPanel({
     [trims, selectedTrimId]
   );
 
-  const trimOptions = useMemo(
-    () =>
-      trims.map((t) => ({
-        value: t.id,
-        label: `${t.name} — ${fmtMan(t.discountPrice ?? t.price)}${t.discountPrice ? ` (원가 ${fmtMan(t.price)})` : ""}`,
+  // 라인업별 그룹핑 — 동명 트림(프리미엄 등)이 가격만 다르게 섞여 보이지 않도록
+  // optgroup 헤더(라인업명) + 그룹 내 보조 라벨로 구분한다.
+  const trimGroups = useMemo(() => {
+    const priceLabel = (t: ComparisonTrimData) =>
+      `${fmtMan(t.discountPrice ?? t.price)}${t.discountPrice ? ` (원가 ${fmtMan(t.price)})` : ""}`;
+    return groupTrimsByLineup(trims).map((group) => ({
+      lineup: group.lineup,
+      options: group.trims.map((g) => ({
+        value: g.id,
+        label: `${g.extra ? `${g.displayName} (${g.extra})` : g.displayName} — ${priceLabel(g.trim)}`,
       })),
-    [trims]
-  );
+    }));
+  }, [trims]);
 
   const optionsTotalPrice = useMemo(
     () =>
@@ -558,9 +564,19 @@ export function VehicleConfigPanel({
                   className="w-full px-3 py-2 pr-8 text-[13px] text-[#1A1A2E] bg-[#F8F9FC] border border-[#E8EAF0] rounded-[8px] outline-none focus:border-primary focus:bg-white appearance-none cursor-pointer transition-colors"
                 >
                   <option value="">트림을 선택하세요</option>
-                  {trimOptions.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
+                  {trimGroups.map((group, i) =>
+                    group.lineup === null ? (
+                      group.options.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))
+                    ) : (
+                      <optgroup key={group.lineup || `group-${i}`} label={group.lineup || "기타"}>
+                        {group.options.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </optgroup>
+                    )
+                  )}
                 </select>
                 <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9BA4C0] pointer-events-none" />
               </div>
