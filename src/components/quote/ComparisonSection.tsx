@@ -8,7 +8,7 @@ import {
   VehicleConfigPanel,
   type ComparisonTrimData,
 } from "./VehicleConfigPanel";
-import { ComparisonTable } from "./ComparisonTable";
+import { ComparisonTable, type ComparisonColumnConfig } from "./ComparisonTable";
 import type { VehicleListItem, QuoteResponse } from "@/types/api";
 import type { VehicleColorPublic } from "./ColorSelector";
 import { useAuthUser } from "@/hooks/useAuthUser";
@@ -22,6 +22,29 @@ import {
 // ─── 타입 ───────────────────────────────────────────────────
 type CostMode = "none" | "initial";
 type CostType = "deposit" | "prepay";
+
+/** 비교 테이블에 표시할 견적 구성(라인업/옵션/색상)을 패널 상태에서 추출 */
+function buildColumnConfig(
+  trims: ComparisonTrimData[],
+  trimId: string | null,
+  optionIds: Set<string>,
+  colors: VehicleColorPublic[],
+  extColorId: string | null,
+  intColorId: string | null
+): ComparisonColumnConfig | undefined {
+  const trim = trims.find((t) => t.id === trimId);
+  if (!trim) return undefined;
+  const toColor = (id: string | null) => {
+    const c = id ? colors.find((color) => color.id === id) : null;
+    return c ? { name: c.name, priceDelta: c.priceDelta } : null;
+  };
+  return {
+    lineupName: trim.lineup?.name ?? trim.specs?.lineup ?? null,
+    optionNames: trim.options.filter((o) => optionIds.has(o.id)).map((o) => o.name),
+    exteriorColor: toColor(extColorId),
+    interiorColor: toColor(intColorId),
+  };
+}
 
 const PRESET_RATES = [10, 20, 30] as const;
 const SLIDER_MAX = 30;
@@ -773,8 +796,18 @@ export function ComparisonSection({
 
                 {/* ── 비교 테이블 ── */}
                 <ComparisonTable
-                  primary={{ brand: primary.brand, name: primary.name, result: primaryResult }}
-                  comparison={{ brand: p2Meta.brand, name: p2Meta.name, result: compResult }}
+                  primary={{
+                    brand: primary.brand,
+                    name: primary.name,
+                    result: primaryResult,
+                    config: buildColumnConfig(primary.trims, p1TrimId, p1OptionIds, p1Colors, p1ExtColor, p1IntColor),
+                  }}
+                  comparison={{
+                    brand: p2Meta.brand,
+                    name: p2Meta.name,
+                    result: compResult,
+                    config: buildColumnConfig(p2Trims, p2TrimId, p2OptionIds, p2Colors, p2ExtColor, p2IntColor),
+                  }}
                 />
               </motion.div>
             )}

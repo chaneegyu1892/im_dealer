@@ -5,19 +5,33 @@ import { cn } from "@/lib/utils";
 import type { QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
 
+/** 견적 구성(라인업/옵션/색상) — "같은 기준의 비교인지" 드러내기 위한 정보 */
+export interface ComparisonColumnConfig {
+  lineupName: string | null;
+  optionNames: string[];
+  exteriorColor: { name: string; priceDelta: number } | null;
+  interiorColor: { name: string; priceDelta: number } | null;
+}
+
 interface ComparisonColumn {
   label: string;
   brand?: string;
   vehicleName: string;
   trimName: string;
+  /** 기본 차량가 (할인 적용가) */
+  basePrice: number;
+  /** 할인 전 정가 — 할인이 있을 때만 존재 */
+  originalPrice: number | null;
+  /** 총 차량가 = 기본 + 옵션 + 색상 */
   totalVehiclePrice: number;
   scenario: QuoteScenarioDetail;
+  config?: ComparisonColumnConfig;
   isPrimary?: boolean;
 }
 
 interface ComparisonTableProps {
-  primary: { brand: string; name: string; result: QuoteResponse };
-  comparison: { brand: string; name: string; result: QuoteResponse };
+  primary: { brand: string; name: string; result: QuoteResponse; config?: ComparisonColumnConfig };
+  comparison: { brand: string; name: string; result: QuoteResponse; config?: ComparisonColumnConfig };
 }
 
 function formatWon(v: number): string {
@@ -65,28 +79,35 @@ export function ComparisonTable({ primary, comparison }: ComparisonTableProps) {
 
   const columns: ComparisonColumn[] = useMemo(() => {
     if (!primaryScenario || !compScenario) return [];
+    // 총 차량가는 월 납입금 계산과 같은 기준(할인가 + 옵션 + 색상)으로 표기한다
+    const toColumn = (
+      label: string,
+      src: { brand: string; name: string; result: QuoteResponse; config?: ComparisonColumnConfig },
+      scenario: QuoteScenarioDetail,
+      isPrimary: boolean
+    ): ComparisonColumn => {
+      const basePrice = src.result.discountPrice ?? src.result.trimPrice;
+      return {
+        label,
+        brand: src.brand,
+        vehicleName: src.name,
+        trimName: src.result.trimName,
+        basePrice,
+        originalPrice:
+          src.result.discountPrice != null && src.result.discountPrice < src.result.trimPrice
+            ? src.result.trimPrice
+            : null,
+        totalVehiclePrice:
+          src.result.totalVehiclePrice ??
+          basePrice + (src.result.optionsTotalPrice ?? 0) + (src.result.colorDelta ?? 0),
+        scenario,
+        config: src.config,
+        isPrimary,
+      };
+    };
     return [
-      {
-        label: "현재 견적",
-        brand: primary.brand,
-        vehicleName: primary.name,
-        trimName: primary.result.trimName,
-        totalVehiclePrice:
-          primary.result.trimPrice +
-          ((primary.result as QuoteResponse & { optionsTotalPrice?: number }).optionsTotalPrice ?? 0),
-        scenario: primaryScenario,
-        isPrimary: true,
-      },
-      {
-        label: "비교 차량",
-        brand: comparison.brand,
-        vehicleName: comparison.name,
-        trimName: comparison.result.trimName,
-        totalVehiclePrice:
-          comparison.result.trimPrice +
-          ((comparison.result as QuoteResponse & { optionsTotalPrice?: number }).optionsTotalPrice ?? 0),
-        scenario: compScenario,
-      },
+      toColumn("현재 견적", primary, primaryScenario, true),
+      toColumn("비교 차량", comparison, compScenario, false),
     ];
   }, [primary, comparison, primaryScenario, compScenario]);
 
@@ -127,10 +148,22 @@ interface RowProps {
   totalCosts: number[];
 }
 
+/** 선택 옵션 요약: "2개 · 컨비니언스, 스마트센스Ⅰ" / 없으면 "없음" */
+function optionSummary(names: string[]): string {
+  if (names.length === 0) return "없음";
+  return `${names.length}개 · ${names.join(", ")}`;
+}
+
+function colorLine(label: string, color: { name: string; priceDelta: number } | null): string {
+  if (!color) return `${label} —`;
+  return `${label} ${color.name}${color.priceDelta > 0 ? ` (+${formatManWon(color.priceDelta)})` : ""}`;
+}
+
 function DesktopTable({ columns, totalCosts }: RowProps) {
   const baseMonthly = columns[0].scenario.monthlyPayment;
   const baseTotal = totalCosts[0];
   const baseVehiclePrice = columns[0].totalVehiclePrice;
+  const hasConfig = columns.some((c) => c.config);
 
   return (
     <div className="grid grid-cols-[minmax(130px,max-content)_1fr_1fr] divide-x divide-[#F0F0F0]">
@@ -145,8 +178,54 @@ function DesktopTable({ columns, totalCosts }: RowProps) {
         </div>
       ))}
 
-      {/* 차량가 */}
-      <LabelCell>차량가 (옵션 포함)</LabelCell>
+      {/* 구성: 라인업 / 기본 차량가 / 옵션 / 색상 — 같은 기준의 비교인지 드러내는 정보 */}
+      {hasConfig && (
+        <>
+          <LabelCell>라인업 (연식/엔진)</LabelCell>
+          {columns.map((col, i) => (
+            <ValueCell key={i}>
+              <span className="text-[12px] text-ink-body leading-snug">
+                {col.config?.lineupName ?? "—"}
+              </span>
+            </ValueCell>
+          ))}
+
+          <LabelCell>기본 차량가</LabelCell>
+          {columns.map((col, i) => (
+            <ValueCell key={i}>
+              <span className="text-[13px] text-ink tabular-nums">{formatWon(col.basePrice)}</span>
+              {col.originalPrice != null && (
+                <span className="text-[11px] text-ink-caption line-through tabular-nums">
+                  {formatWon(col.originalPrice)}
+                </span>
+              )}
+            </ValueCell>
+          ))}
+
+          <LabelCell>선택 옵션</LabelCell>
+          {columns.map((col, i) => (
+            <ValueCell key={i}>
+              <span className="text-[12px] text-ink-body leading-snug line-clamp-2" title={col.config ? optionSummary(col.config.optionNames) : undefined}>
+                {col.config ? optionSummary(col.config.optionNames) : "—"}
+              </span>
+            </ValueCell>
+          ))}
+
+          <LabelCell>색상</LabelCell>
+          {columns.map((col, i) => (
+            <ValueCell key={i}>
+              <span className="text-[12px] text-ink-body leading-snug">
+                {col.config
+                  ? `${colorLine("외장", col.config.exteriorColor)} · ${colorLine("내장", col.config.interiorColor)}`
+                  : "—"}
+              </span>
+            </ValueCell>
+          ))}
+        </>
+      )}
+
+      {/* 총 차량가 */}
+      <LabelCell>총 차량가 (기본+옵션+색상)</LabelCell>
       {columns.map((col, i) => (
         <ValueCell key={i}>
           <span className="text-[14px] text-ink">{formatManWon(col.totalVehiclePrice)}</span>
@@ -230,10 +309,34 @@ function MobileStack({ columns, totalCosts }: RowProps) {
               <p className="text-[12px] text-ink-label mt-0.5 truncate">{col.trimName}</p>
             </div>
             <div className="text-right shrink-0">
-              <p className="text-[11px] text-ink-caption">차량가</p>
+              <p className="text-[11px] text-ink-caption">총 차량가</p>
               <p className="text-[13px] font-medium text-ink">{formatManWon(col.totalVehiclePrice)}</p>
             </div>
           </div>
+
+          {/* 구성 요약 — 라인업/기본 차량가/옵션/색상 */}
+          {col.config && (
+            <div className="bg-neutral rounded-[8px] p-3 mb-2 space-y-1 text-[11px] leading-relaxed">
+              <p className="text-ink-body">
+                <span className="text-ink-caption">라인업</span>{" "}
+                {col.config.lineupName ?? "—"}
+              </p>
+              <p className="text-ink-body tabular-nums">
+                <span className="text-ink-caption">기본 차량가</span> {formatWon(col.basePrice)}
+                {col.originalPrice != null && (
+                  <span className="text-ink-caption line-through ml-1">{formatWon(col.originalPrice)}</span>
+                )}
+              </p>
+              <p className="text-ink-body line-clamp-2">
+                <span className="text-ink-caption">옵션</span>{" "}
+                {optionSummary(col.config.optionNames)}
+              </p>
+              <p className="text-ink-body">
+                <span className="text-ink-caption">색상</span>{" "}
+                {colorLine("외장", col.config.exteriorColor)} · {colorLine("내장", col.config.interiorColor)}
+              </p>
+            </div>
+          )}
 
           {/* 월 납입금 */}
           <div className="bg-white rounded-[8px] border border-[#F0F0F0] p-3 mb-2">
