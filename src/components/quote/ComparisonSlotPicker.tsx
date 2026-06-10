@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { SelectRow, type SelectOption } from "./primitives";
 import type { VehicleListItem } from "@/types/api";
 import { useBrandSignals } from "@/lib/use-brand-signals";
+import { sortLineups } from "@/lib/lineup-sort";
 
 export interface TrimOption {
   id: string;
@@ -112,23 +113,9 @@ export function ComparisonSlotPicker({
 
   const availableLineups = useMemo(() => {
     if (!hasCascade) return [];
-    const all = [
+    return sortLineups([
       ...new Set(trims.map((t) => t.specs?.lineup ?? "").filter(Boolean)),
-    ];
-    const getYear = (s: string) => parseInt(s.match(/\d{4}/)?.[0] ?? "0");
-    const getGroup = (s: string) => s.replace(/^\d{4}년형\s*/, "");
-    const groupOrder: string[] = [];
-    for (const l of all) {
-      const g = getGroup(l);
-      if (!groupOrder.includes(g)) groupOrder.push(g);
-    }
-    return all.sort((a, b) => {
-      const ga = getGroup(a);
-      const gb = getGroup(b);
-      const gi = groupOrder.indexOf(ga) - groupOrder.indexOf(gb);
-      if (gi !== 0) return gi;
-      return getYear(b) - getYear(a);
-    });
+    ]);
   }, [trims, hasCascade]);
 
   const trimsForLineup = useMemo(
