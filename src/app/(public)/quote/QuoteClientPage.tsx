@@ -437,13 +437,22 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
           }
         } else if (shouldPrefill) {
           hasPrefilled.current = true;
-          const defaultTrim = loadedTrims.find((t) => t.isDefault) ?? loadedTrims[0];
-          const specs = defaultTrim.specs as Record<string, string> | null;
-          const resolvedLineupName =
-            defaultTrim.lineup?.name ?? specs?.lineup ?? "";
-          const hasLineup = loadedTrims.some(
-            (t) => t.lineup?.name ?? (t.specs as Record<string, string> | null)?.lineup
-          );
+          // 초기 선택도 일반 고객 주력 라인업 우선 — DB 기본 트림이 특수목적(택시 등)
+          // 라인업이어도 첫 화면에는 정렬 최상단 라인업의 트림이 선택되게 한다.
+          const lineupNameOf = (t: TrimData): string =>
+            t.lineup?.name ?? (t.specs as Record<string, string> | null)?.lineup ?? "";
+          const hasLineup = loadedTrims.some((t) => lineupNameOf(t));
+          let defaultTrim = loadedTrims.find((t) => t.isDefault) ?? loadedTrims[0];
+          if (hasLineup) {
+            const topLineup = sortLineups([
+              ...new Set(loadedTrims.map(lineupNameOf).filter(Boolean)),
+            ])[0];
+            const topLineupTrims = loadedTrims.filter((t) => lineupNameOf(t) === topLineup);
+            if (topLineupTrims.length > 0) {
+              defaultTrim = topLineupTrims.find((t) => t.isDefault) ?? topLineupTrims[0];
+            }
+          }
+          const resolvedLineupName = lineupNameOf(defaultTrim);
           if (hasLineup && resolvedLineupName) {
             setSelectedLineup(resolvedLineupName);
             setSelectedTrimId(defaultTrim.id);
