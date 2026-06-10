@@ -316,6 +316,10 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const [isRecalculating, setIsRecalculating] = useState(false);
   const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
   const recalculateRequestId = useRef(0);
+  // 직전 견적의 차량 slug — 같은 차량 재계산이면 초기비용 설정을 유지하기 위한 기준
+  const lastQuotedSlug = useRef<string | null>(null);
+  // 견적 재계산 직후 보존된 보증/선납 비율을 새 견적에 재적용해야 함을 표시
+  const pendingRatesReapply = useRef(false);
 
   const handleContractApply = useCallback(async () => {
     const supabase = createClient();
@@ -478,6 +482,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       });
       setCustomRates(restored.customRates);
       setCostMode(restored.costMode ?? "none");
+      lastQuotedSlug.current = restored.vehicleSlug;
       setQuoteResult(restored.quoteResult);
       setStep(3);
     } else {
@@ -663,9 +668,20 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       const nextResult = json.data as QuoteResponse;
       recalculateRequestId.current += 1;
       baseStandardScenario.current = nextResult.scenarios.standard;
-      setCustomRates({ depositRate: 0, prepayRate: 0 });
-      setCostMode("none"); // 새 견적은 초기비용 패널 닫힘으로 시작
-      setShowOptionDetail(false); // 옵션 세부 내역도 접힘으로 시작
+
+      // 같은 차량의 재계산('이전'으로 돌아갔다 다시 계산)이면 초기비용 설정을 유지하고
+      // 새 기준 견적 위에 재적용한다. 다른 차량이면 닫힘 상태로 초기화.
+      const preserveRates =
+        lastQuotedSlug.current === selectedVehicle.slug &&
+        (customRates.depositRate !== 0 || customRates.prepayRate !== 0);
+      if (preserveRates) {
+        pendingRatesReapply.current = true;
+      } else {
+        setCustomRates({ depositRate: 0, prepayRate: 0 });
+        setCostMode("none"); // 새 견적은 초기비용 패널 닫힘으로 시작
+      }
+      lastQuotedSlug.current = selectedVehicle.slug;
+      setShowOptionDetail(false); // 옵션 세부 내역은 접힘으로 시작
       setQuoteResult(nextResult);
       goToStep(3);
     } catch {
@@ -730,6 +746,15 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   // recalculateStandard는 같은 값 deps를 쓰므로 의도적으로 제외
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customRates.depositRate, customRates.prepayRate]);
+
+  // 같은 차량 재계산 직후: 유지된 보증/선납 비율을 새 기준 견적에 재적용한다.
+  // (customRates 가 변하지 않아 위 디바운스 effect 가 발화하지 않으므로 별도 처리)
+  useEffect(() => {
+    if (!pendingRatesReapply.current || !quoteResult) return;
+    pendingRatesReapply.current = false;
+    recalculateStandard(customRates);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteResult]);
 
   async function handlePdfDownload() {
     if (!quoteResult || !selectedVehicle) return;
