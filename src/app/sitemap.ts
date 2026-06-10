@@ -18,18 +18,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
 
-  // 동적: 노출 가능한 모든 차량
-  const vehicles = await prisma.vehicle.findMany({
-    where: { isVisible: true },
-    select: { slug: true, updatedAt: true },
-  });
-
-  const vehicleEntries: MetadataRoute.Sitemap = vehicles.map((v) => ({
-    url: `${SITE_URL}/cars/${v.slug}`,
-    lastModified: v.updatedAt,
-    changeFrequency: "weekly",
-    priority: 0.8,
-  }));
+  // 동적: 노출 가능한 모든 차량.
+  // 빌드 타임 DB 장애로 전체 빌드가 죽지 않도록 실패 시 정적 페이지만 반환한다
+  // (revalidate 주기에 다음 재생성 때 차량 목록이 다시 채워진다).
+  let vehicleEntries: MetadataRoute.Sitemap = [];
+  try {
+    const vehicles = await prisma.vehicle.findMany({
+      where: { isVisible: true },
+      select: { slug: true, updatedAt: true },
+    });
+    vehicleEntries = vehicles.map((v) => ({
+      url: `${SITE_URL}/cars/${v.slug}`,
+      lastModified: v.updatedAt,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    }));
+  } catch (error) {
+    console.error("[sitemap] 차량 목록 조회 실패 — 정적 항목만 반환:", error);
+  }
 
   return [...staticEntries, ...vehicleEntries];
 }
