@@ -18,7 +18,24 @@ model FinanceCompany {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   rateSheets    CapitalRateSheet[]
+  rateGroups    CapitalRateGroup[]
   inventories   Inventory[]
+}
+
+// 동일한 회수율 값을 가진 CapitalRateSheet 묶음. 기존 회수율 값은 건드리지 않고 groupId만 연결한다.
+model CapitalRateGroup {
+  id               String             @id @default(cuid())
+  financeCompanyId String
+  productType      String             @default("장기렌트")
+  fingerprint      String             @unique
+  name             String
+  color            String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  financeCompany   FinanceCompany     @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
+  rateSheets       CapitalRateSheet[]
+
+  @@index([financeCompanyId, productType])
 }
 
 // 주별 캐피탈사 견적 입력 및 계산된 회수율 보관
@@ -26,6 +43,7 @@ model CapitalRateSheet {
   id                  String         @id @default(cuid())
   financeCompanyId    String
   trimId              String
+  groupId             String?
   productType         String         @default("장기렌트") // "장기렌트" | "리스"
   weekOf              DateTime       // 해당 주 시작일 (월요일 기준)
   // 가격 범위
@@ -49,10 +67,12 @@ model CapitalRateSheet {
   createdAt           DateTime       @default(now())
   financeCompany      FinanceCompany @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
   trim                Trim           @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  group               CapitalRateGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   @@unique([financeCompanyId, trimId, weekOf, productType])
   @@index([financeCompanyId, trimId])
   @@index([financeCompanyId, weekOf])
+  @@index([groupId])
   @@index([isActive])
 }
 

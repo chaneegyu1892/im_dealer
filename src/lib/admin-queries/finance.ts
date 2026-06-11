@@ -27,6 +27,7 @@ interface RateSheetRow {
   memo: string | null;
   createdAt: Date;
   financeCompany: { name: string };
+  group: { id: string; name: string; color: string; fingerprint: string } | null;
   trim: { name: string; lineup: { name: string } | null; vehicle: { name: string } };
 }
 
@@ -36,6 +37,10 @@ function mapRateSheet(r: RateSheetRow): CapitalRateSheet {
     financeCompanyId: r.financeCompanyId,
     financeCompanyName: r.financeCompany.name,
     trimId: r.trimId,
+    groupId: r.group?.id ?? null,
+    group: r.group
+      ? { id: r.group.id, name: r.group.name, color: r.group.color, fingerprint: r.group.fingerprint }
+      : null,
     trimName: r.trim.name,
     vehicleName: r.trim.vehicle.name,
     lineupName: r.trim.lineup?.name ?? null,
@@ -83,6 +88,7 @@ export async function getActiveRateSheets(
     orderBy: { createdAt: "desc" },
     include: {
       financeCompany: { select: { name: true } },
+      group: { select: { id: true, name: true, color: true, fingerprint: true } },
       trim: {
         include: {
           vehicle: { select: { name: true } },
@@ -105,6 +111,7 @@ export async function getRateSheetHistory(
     orderBy: { weekOf: "desc" },
     include: {
       financeCompany: { select: { name: true } },
+      group: { select: { id: true, name: true, color: true, fingerprint: true } },
       trim: {
         include: {
           vehicle: { select: { name: true } },

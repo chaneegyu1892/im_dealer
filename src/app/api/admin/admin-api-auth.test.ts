@@ -230,6 +230,33 @@ describe("admin API role guards", () => {
     expect(count).not.toHaveBeenCalled();
   });
 
+  it("blocks dealers from moving capital-rate groups before querying rate data", async () => {
+    const findUnique = vi.fn();
+
+    vi.doMock("@/lib/admin-auth", () => ({
+      getAdminSession: vi.fn().mockResolvedValue(dealerUser),
+    }));
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        capitalRateGroup: { findUnique },
+      },
+    }));
+    vi.doMock("@/lib/audit", () => ({ logAdminAction: vi.fn() }));
+    vi.doMock("@/lib/revalidate", () => ({ revalidatePublicVehicleSurfaces: vi.fn() }));
+
+    const { POST } = await import("@/app/api/admin/capital-rates/groups/move/route");
+    const request = new NextRequest("https://example.com/api/admin/capital-rates/groups/move", {
+      method: "POST",
+      body: JSON.stringify({ targetGroupId: "group-b", trimIds: ["trim-1"] }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "권한이 없습니다." });
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
   it("allows admins to query range-exceeded quote stats", async () => {
     const queryRaw = vi.fn().mockResolvedValue([]);
     const count = vi.fn().mockResolvedValue(0);

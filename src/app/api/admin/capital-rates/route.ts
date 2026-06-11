@@ -10,6 +10,11 @@ import {
 import type { RateSheetRaw } from "@/types/admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
+import {
+  buildCapitalRateFingerprint,
+  buildCapitalRateGroupName,
+  getCapitalRateGroupColor,
+} from "@/lib/capital-rate-groups";
 
 // 회수율 시트는 모든 고객 견적 계산의 기반이 되는 금융 데이터다.
 // 잘못된 구조(배열/null/문자열)나 음수·역전 가격이 calcRateMatrix 로 유입되지 않도록 엄격히 검증.
@@ -36,6 +41,47 @@ const capitalRatePostSchema = z
   })
   .refine((d) => (d.trimIds?.length ?? 0) > 0 || !!d.trimId, "트림을 1개 이상 지정하세요.")
   .refine((d) => d.minVehiclePrice < d.maxVehiclePrice, "최소 차량가는 최대 차량가보다 작아야 합니다.");
+
+async function getOrCreateCapitalRateGroup(db: any, sheet: {
+  financeCompanyId: string;
+  productType: string;
+  minVehiclePrice: number;
+  maxVehiclePrice: number;
+  minBaseRates: RateSheetRaw;
+  minDepositRates: RateSheetRaw;
+  minPrepayRates: RateSheetRaw;
+  maxBaseRates: RateSheetRaw;
+  maxDepositRates: RateSheetRaw;
+  maxPrepayRates: RateSheetRaw;
+  minRateMatrix: RateSheetRaw;
+  maxRateMatrix: RateSheetRaw;
+  depositDiscountRate: number;
+  prepayAdjustRate: number;
+}) {
+  const fingerprint = buildCapitalRateFingerprint(sheet);
+  const existing = await db.capitalRateGroup.findUnique({ where: { fingerprint } });
+  if (existing) return existing;
+
+  const groupCount = await db.capitalRateGroup.count({
+    where: { financeCompanyId: sheet.financeCompanyId, productType: sheet.productType },
+  });
+
+  return db.capitalRateGroup.create({
+    data: {
+      financeCompanyId: sheet.financeCompanyId,
+      productType: sheet.productType,
+      fingerprint,
+      name: buildCapitalRateGroupName(groupCount),
+      color: getCapitalRateGroupColor(groupCount),
+    },
+  });
+}
+
+function mapGroup(group: any) {
+  return group
+    ? { id: group.id, name: group.name, color: group.color, fingerprint: group.fingerprint }
+    : null;
+}
 
 // GET /api/admin/capital-rates?financeCompanyId=...&trimId=...&history=true
 export async function GET(request: NextRequest) {
@@ -65,6 +111,7 @@ export async function GET(request: NextRequest) {
       orderBy: { weekOf: "desc" },
       include: {
         financeCompany: { select: { name: true, surchargeRate: true } },
+        group: { select: { id: true, name: true, color: true, fingerprint: true } },
         trim: {
           include: {
             vehicle: { select: { name: true, brand: true } },
@@ -79,6 +126,8 @@ export async function GET(request: NextRequest) {
       financeCompanyId: r.financeCompanyId,
       financeCompany: { name: r.financeCompany.name, surchargeRate: r.financeCompany.surchargeRate },
       trimId: r.trimId,
+      groupId: r.group?.id ?? null,
+      group: mapGroup(r.group),
       trimName: r.trim.name,
       vehicleName: r.trim.vehicle.name,
       vehicleBrand: r.trim.vehicle.brand,
@@ -160,7 +209,6 @@ export async function POST(request: NextRequest) {
     }
 
     const weekDate = new Date(weekOf);
-    const db = prisma as any;
 
     const sheetData = {
       minVehiclePrice,
@@ -181,6 +229,12 @@ export async function POST(request: NextRequest) {
 
     const results = await prisma.$transaction(async (tx) => {
       const saved: string[] = [];
+      const group = await getOrCreateCapitalRateGroup(tx as any, {
+        financeCompanyId,
+        productType,
+        ...sheetData,
+      });
+      const groupedSheetData = { ...sheetData, groupId: group.id };
 
       for (const tid of targetTrimIds) {
         const existing = await (tx as any).capitalRateSheet.findUnique({
@@ -197,7 +251,7 @@ export async function POST(request: NextRequest) {
         if (existing) {
           const updated = await (tx as any).capitalRateSheet.update({
             where: { id: existing.id },
-            data: sheetData,
+            data: groupedSheetData,
           });
           saved.push(updated.id);
         } else {
@@ -206,7 +260,7 @@ export async function POST(request: NextRequest) {
             data: { isActive: false },
           });
           const created = await (tx as any).capitalRateSheet.create({
-            data: { financeCompanyId, trimId: tid, productType, weekOf: weekDate, ...sheetData },
+            data: { financeCompanyId, trimId: tid, productType, weekOf: weekDate, ...groupedSheetData },
           });
           saved.push(created.id);
         }

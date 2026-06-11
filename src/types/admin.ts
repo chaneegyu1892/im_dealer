@@ -257,11 +257,20 @@ export type RateSheetKey =
 
 export type RateSheetRaw = Record<RateSheetKey, number>;
 
+export interface CapitalRateGroupSummary {
+  id: string;
+  name: string;
+  color: string;
+  fingerprint: string;
+}
+
 export interface CapitalRateSheet {
   id: string;
   financeCompanyId: string;
   financeCompanyName: string;
   trimId: string;
+  groupId: string | null;
+  group: CapitalRateGroupSummary | null;
   trimName: string;
   vehicleName: string;
   lineupName: string | null;

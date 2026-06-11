@@ -121,6 +121,8 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [isWritingSession, setIsWritingSession] = useState(false);
   const [sessionSavedTrims, setSessionSavedTrims] = useState<SessionSavedTrim[]>([]);
+  const [moveTargetGroupId, setMoveTargetGroupId] = useState("");
+  const [movingGroup, setMovingGroup] = useState(false);
 
   const selectedFc = localFinanceCompanies.find((f) => f.id === selectedFcId);
 
@@ -307,19 +309,62 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       .catch(console.error);
   }, [selectedFcId, firstDerivedTrimId, showHistory, singleTrimSelected]);
 
+  const productActiveSheets = useMemo(() => {
+    return activeSheets.filter((s) => s.productType === selectedProductType);
+  }, [activeSheets, selectedProductType]);
+
+  const activeSheetByTrimId = useMemo(() => {
+    return new Map(productActiveSheets.map((s) => [s.trimId, s]));
+  }, [productActiveSheets]);
+
+  const visibleRateGroups = useMemo(() => {
+    if (!vehicleDetail) return [];
+    const visibleTrimIds = new Set(vehicleDetail.trims.map((t) => t.id));
+    const byGroup = new Map<string, {
+      id: string;
+      name: string;
+      color: string;
+      fingerprint: string;
+      count: number;
+      minPrice: number;
+      maxPrice: number;
+    }>();
+
+    for (const sheet of productActiveSheets) {
+      if (!visibleTrimIds.has(sheet.trimId) || !sheet.group) continue;
+      const trim = vehicleDetail.trims.find((t) => t.id === sheet.trimId);
+      const price = trim ? trim.discountPrice ?? trim.price : 0;
+      const current = byGroup.get(sheet.group.id) ?? {
+        ...sheet.group,
+        count: 0,
+        minPrice: Number.POSITIVE_INFINITY,
+        maxPrice: 0,
+      };
+      current.count += 1;
+      if (price > 0) {
+        current.minPrice = Math.min(current.minPrice, price);
+        current.maxPrice = Math.max(current.maxPrice, price);
+      }
+      byGroup.set(sheet.group.id, current);
+    }
+
+    return Array.from(byGroup.values()).map((g) => ({
+      ...g,
+      minPrice: Number.isFinite(g.minPrice) ? g.minPrice : 0,
+    }));
+  }, [productActiveSheets, vehicleDetail]);
+
   // 현재 라인업 대표 시트 — 라인업 내 첫 트림의 시트 (B안: 모든 트림이 동일값이라는 전제)
   const currentSheet = useMemo(() => {
     if (!firstDerivedTrimId) return undefined;
-    return activeSheets.find(
-      (s) => s.trimId === firstDerivedTrimId && s.productType === selectedProductType
-    );
-  }, [activeSheets, firstDerivedTrimId, selectedProductType]);
+    return activeSheetByTrimId.get(firstDerivedTrimId);
+  }, [activeSheetByTrimId, firstDerivedTrimId]);
 
   // 라인업 내 트림들의 시트값이 서로 다른 경우 안내용 플래그
   const hasMixedSheetsInLineup = useMemo(() => {
     if (derivedTrimIds.length <= 1) return false;
     const sheets = derivedTrimIds
-      .map((tid) => activeSheets.find((s) => s.trimId === tid && s.productType === selectedProductType))
+      .map((tid) => activeSheetByTrimId.get(tid))
       .filter((s) => s !== undefined) as CapitalRateSheet[];
     if (sheets.length <= 1) return false;
     const first = sheets[0];
@@ -330,7 +375,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
         JSON.stringify(s.minBaseRates) !== JSON.stringify(first.minBaseRates) ||
         JSON.stringify(s.maxBaseRates) !== JSON.stringify(first.maxBaseRates)
     );
-  }, [selectedLineupIds, derivedTrimIds, activeSheets, selectedProductType]);
+  }, [selectedLineupIds, derivedTrimIds, activeSheetByTrimId, selectedProductType]);
 
   const handleSaved = (savedTrimIds: string[] = []) => {
     fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
@@ -401,6 +446,36 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     if (!confirm("이 시트를 삭제하시겠습니까?")) return;
     await fetch(`/api/admin/capital-rates/${sheetId}`, { method: "DELETE" });
     handleSaved();
+  };
+
+  const moveSelectedTrimsToGroup = async () => {
+    if (derivedTrimIds.length === 0 || !moveTargetGroupId) return;
+    const target = visibleRateGroups.find((g) => g.id === moveTargetGroupId);
+    if (!target) return;
+
+    if (!confirm(`선택한 ${derivedTrimIds.length}개 트림의 회수율을 ${target.name} 값으로 변경합니다. 기존 활성 시트는 비활성화되고 이력으로 남습니다. 진행할까요?`)) {
+      return;
+    }
+
+    setMovingGroup(true);
+    try {
+      const res = await fetch("/api/admin/capital-rates/groups/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetGroupId: moveTargetGroupId, trimIds: derivedTrimIds }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error ?? "그룹 이동에 실패했습니다.");
+      if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+        alert(`그룹 이동 완료. 단, ${data.warnings.length}개 트림은 대상 그룹 가격 범위를 벗어납니다.`);
+      }
+      handleSaved();
+      setMoveTargetGroupId("");
+    } catch (error) {
+      alert("그룹 이동 실패: " + error);
+    } finally {
+      setMovingGroup(false);
+    }
   };
 
   const resetCompanyForm = () => {
@@ -733,6 +808,35 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
 
         {selectedVehicleId && vehicleDetail ? (
           <>
+            {visibleRateGroups.length > 0 && (
+              <div className="bg-white rounded-xl border border-[#E8EAF2] p-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <p className="text-xs font-semibold text-[#9BA4C0] uppercase tracking-wider">
+                    회수율 그룹 ({visibleRateGroups.length}개)
+                  </p>
+                  <p className="text-[11px] text-[#9BA4C0]">같은 회수율 값을 가진 트림끼리 같은 색으로 표시됩니다.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {visibleRateGroups.map((group) => (
+                    <span
+                      key={group.id}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#E8EAF2] bg-[#FBFCFE] px-3 py-1 text-[11px] font-semibold text-[#1A1A2E]"
+                      title={group.fingerprint}
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: group.color }} />
+                      {group.name}
+                      <span className="font-medium text-[#9BA4C0]">{group.count}개</span>
+                      {group.minPrice > 0 && group.maxPrice > 0 && (
+                        <span className="font-medium text-[#B0B8D0]">
+                          {Math.round(group.minPrice / 10000).toLocaleString()}~{Math.round(group.maxPrice / 10000).toLocaleString()}만
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* 라인업 멀티 체크박스 */}
             {vehicleDetail.lineups.length > 0 && (
               <div className="bg-white rounded-xl border border-[#E8EAF2] p-4">
@@ -741,6 +845,28 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                     트림 선택 ({derivedTrimIds.length}개 적용)
                   </p>
                   <div className="flex items-center gap-2 ml-auto">
+                    {derivedTrimIds.length > 0 && visibleRateGroups.length > 0 && (
+                      <div className="flex items-center gap-1.5 rounded-lg border border-[#E8EAF2] bg-[#FBFCFE] px-2 py-1">
+                        <select
+                          value={moveTargetGroupId}
+                          onChange={(e) => setMoveTargetGroupId(e.target.value)}
+                          className="bg-transparent text-[11px] font-semibold text-[#5A6080] outline-none"
+                        >
+                          <option value="">그룹 이동</option>
+                          {visibleRateGroups.map((group) => (
+                            <option key={group.id} value={group.id}>{group.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={moveSelectedTrimsToGroup}
+                          disabled={!moveTargetGroupId || movingGroup}
+                          className="rounded-md bg-[#000666] px-2 py-1 text-[11px] font-bold text-white disabled:opacity-40"
+                        >
+                          {movingGroup ? "이동 중" : "이동"}
+                        </button>
+                      </div>
+                    )}
                     <button onClick={selectAllLineups} className="text-[11px] text-[#6066EE] hover:underline font-medium">전체 선택</button>
                     <button onClick={deselectAllLineups} className="text-[11px] text-[#9BA4C0] hover:underline font-medium">선택 해제</button>
                   </div>
@@ -788,7 +914,9 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                           {lineupTrims.map((t) => {
                             const trimSaved = isSaved(t);
                             const trimSelected = !trimSaved && selectedLineupIds.has(lineup.id) && !deselectedTrimIds.has(t.id);
-                            const trimHasSheet = activeSheets.some((s) => s.trimId === t.id && s.productType === selectedProductType);
+                            const trimSheet = activeSheetByTrimId.get(t.id);
+                            const trimGroup = trimSheet?.group;
+                            const trimHasSheet = !!trimSheet;
                             return (
                               <button
                                 key={t.id}
@@ -809,7 +937,16 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                                 <span className={`flex-1 ${trimSelected ? "text-[#1A1A2E] font-medium" : trimSaved ? "text-emerald-600" : "text-[#9BA4C0]"}`}>{trimDisplayLabel(t.name, lineup.name)}</span>
                                 <span className="text-[10px] text-[#B0B8D0]">{Math.round((t.discountPrice ?? t.price) / 10000).toLocaleString()}만</span>
                                 {trimSaved && <span className="text-[10px] font-bold text-emerald-600 shrink-0">저장됨</span>}
-                                {trimHasSheet && !trimSaved && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+                                {trimHasSheet && !trimSaved && (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white shrink-0"
+                                    style={{ backgroundColor: trimGroup?.color ?? "#34D399" }}
+                                    title={trimGroup ? `${trimGroup.name} · ${trimGroup.fingerprint}` : "회수율 등록됨"}
+                                  >
+                                    <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+                                    {trimGroup?.name.replace("그룹 ", "") ?? "등록"}
+                                  </span>
+                                )}
                               </button>
                             );
                           })}
