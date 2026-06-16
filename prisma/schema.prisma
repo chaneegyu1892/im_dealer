@@ -149,6 +149,9 @@ model VehicleLineup {
   id        String   @id @default(cuid())
   vehicleId String
   name      String
+  // 고객 노출 여부. 같은 차량군은 기본적으로 최신 연식만 노출되며,
+  // 운영자가 예외적으로 특정 연식을 숨기거나 노출하려면 이 값을 제어한다.
+  isVisible Boolean  @default(true)
   // 외부 차량 데이터 소스 식별자 및 연식/엔진/가격대/연비 메타
   externalId String?  @unique
   metadata   Json?
@@ -170,16 +173,32 @@ model TrimOption {
   createdAt   DateTime @default(now())
   description String?
   isAccessory Boolean  @default(false)
+  // 고객 노출 순서(낮을수록 상단). 운영자가 어드민에서 드래그로 지정.
+  displayOrder Int     @default(0)
+  // 추천 배지(추천/인기/베스트 등). 관리되는 OptionBadge 목록 참조, 미지정 시 null.
+  badgeId     String?
   // 외부 차량 데이터 소스 옵션 ID (트림별로 같은 옵션이 반복되므로 trimId 와 함께 unique)
   externalId  String?
   metadata    Json?    // kind/apply/guide/package/conditionFlag 등
   trim                Trim                @relation(fields: [trimId], references: [id], onDelete: Cascade)
+  badge               OptionBadge?        @relation(fields: [badgeId], references: [id], onDelete: SetNull)
   popularConfigItems  PopularConfigItem[]
   rulesSource         OptionRule[]        @relation("SourceRule")
   rulesTarget         OptionRule[]        @relation("TargetRule")
 
   @@unique([trimId, externalId])
   @@index([trimId])
+  @@index([badgeId])
+}
+
+// 옵션 추천 배지 — 운영자가 추가/수정/삭제하는 전역 라벨 목록(추천/인기/베스트 등)
+model OptionBadge {
+  id           String       @id @default(cuid())
+  label        String       @unique
+  displayOrder Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  options      TrimOption[]
 }
 
 model OptionRule {

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { latestYearLineupNames } from "@/lib/lineup-sort";
 
 // GET /api/vehicles/:slug/trims
 // 차량의 전체 트림 + 옵션 목록 반환
@@ -27,7 +28,7 @@ export async function GET(
       orderBy: [{ isDefault: "desc" }, { price: "asc" }],
       include: {
         options: {
-          orderBy: [{ isAccessory: "asc" }, { price: "asc" }],
+          orderBy: [{ displayOrder: "asc" }, { isAccessory: "asc" }, { price: "asc" }],
           select: {
             id: true,
             name: true,
@@ -36,10 +37,11 @@ export async function GET(
             description: true,
             isAccessory: true,
             isDefault: true,
+            badge: { select: { label: true } },
           },
         },
         lineup: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, isVisible: true },
         },
         rules: {
           select: {
@@ -52,9 +54,21 @@ export async function GET(
       },
     });
 
+    // 고객 노출 규칙:
+    // 1) 운영자가 숨긴(isVisible=false) 라인업의 트림은 제외.
+    // 2) 같은 차량군은 노출 라인업 중 최신 연식만 노출(이전 연식 완전 비노출).
+    // 라인업이 없는 트림은 연식 그룹핑 대상이 아니므로 그대로 유지한다.
+    const visibleTrims = trims.filter((t) => t.lineup?.isVisible !== false);
+    const latestNames = latestYearLineupNames(
+      visibleTrims.map((t) => t.lineup?.name).filter((n): n is string => Boolean(n))
+    );
+    const filteredTrims = visibleTrims.filter(
+      (t) => !t.lineup || latestNames.has(t.lineup.name)
+    );
+
     return NextResponse.json({
       success: true,
-      data: trims.map((t) => ({
+      data: filteredTrims.map((t) => ({
         id: t.id,
         name: t.name,
         price: t.price,
@@ -63,7 +77,10 @@ export async function GET(
         fuelEfficiency: t.fuelEfficiency,
         isDefault: t.isDefault,
         specs: t.specs,
-        options: t.options,
+        options: t.options.map(({ badge, ...o }) => ({
+          ...o,
+          badge: badge?.label ?? null,
+        })),
         rules: t.rules,
         lineupId: t.lineupId,
         lineup: t.lineup ? { id: t.lineup.id, name: t.lineup.name } : null,

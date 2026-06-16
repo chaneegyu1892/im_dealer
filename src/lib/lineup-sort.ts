@@ -33,9 +33,36 @@ export function getLineupTier(name: string): LineupTier {
  * 같은 티어 안에서는 기존 규칙(그룹 등장 순서 + 연식 내림차순)을 유지한다.
  * 입력 배열은 변경하지 않고 새 배열을 반환한다.
  */
+/** 연식 프리픽스("2024년형 ")를 제거한 차량군 그룹명. */
+export function getLineupGroup(name: string): string {
+  return name.replace(/^\d{4}년형\s*/, "");
+}
+
+/** 라인업 이름에서 연식(4자리)을 추출. 없으면 0. */
+export function getLineupYear(name: string): number {
+  return parseInt(name.match(/\d{4}/)?.[0] ?? "0", 10);
+}
+
+/**
+ * 같은 차량군(연식 프리픽스 제거 기준)에서 최신 연식 라인업 이름만 추린다.
+ * 고객 노출용: 동일 차량군은 최신 연식 1개만 보여주기 위함.
+ * 연식 표기가 없는 라인업(연식 0)은 그 그룹의 유일/최신으로 간주되어 그대로 유지된다.
+ */
+export function latestYearLineupNames(names: readonly string[]): Set<string> {
+  const maxYearByGroup = new Map<string, number>();
+  for (const n of names) {
+    const g = getLineupGroup(n);
+    const y = getLineupYear(n);
+    maxYearByGroup.set(g, Math.max(maxYearByGroup.get(g) ?? -1, y));
+  }
+  return new Set(
+    names.filter((n) => getLineupYear(n) === maxYearByGroup.get(getLineupGroup(n)))
+  );
+}
+
 export function sortLineups(lineups: readonly string[]): string[] {
-  const getYear = (s: string) => parseInt(s.match(/\d{4}/)?.[0] ?? "0", 10);
-  const getGroup = (s: string) => s.replace(/^\d{4}년형\s*/, "");
+  const getYear = getLineupYear;
+  const getGroup = getLineupGroup;
 
   const groupOrder: string[] = [];
   for (const l of lineups) {

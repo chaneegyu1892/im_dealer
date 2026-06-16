@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import type { AdminTrimOption } from "@/types/admin";
+import type { AdminTrimOption, AdminOptionBadge } from "@/types/admin";
 
 const inputClass =
   "w-full px-3 py-2 text-[13px] text-[#1A1A2E] bg-[#F8F9FC] border border-[#E8EAF0] rounded-[6px] outline-none focus:border-[#000666] focus:bg-white transition-colors placeholder:text-[#B0B8D0]";
@@ -32,10 +32,14 @@ interface OptionManagerProps {
   trimId: string;
   /** 수정 시 기존 옵션, 추가 시 null */
   target: AdminTrimOption | null;
+  /** 추천 배지 선택 목록 */
+  badges: AdminOptionBadge[];
+  /** 신규 옵션을 목록 맨 뒤에 배치하기 위한 displayOrder */
+  nextDisplayOrder: number;
   onClose: () => void;
 }
 
-export function OptionManager({ trimId, target, onClose }: OptionManagerProps) {
+export function OptionManager({ trimId, target, badges, nextDisplayOrder, onClose }: OptionManagerProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
@@ -50,6 +54,9 @@ export function OptionManager({ trimId, target, onClose }: OptionManagerProps) {
       isDefault: fd.get("isDefault") === "on",
       isAccessory: fd.get("isAccessory") === "on",
       description: (fd.get("description") as string) || null,
+      badgeId: (fd.get("badgeId") as string) || null,
+      // 신규 옵션만 맨 뒤 순서로 지정(수정 시에는 기존 순서 유지를 위해 생략)
+      ...(target ? {} : { displayOrder: nextDisplayOrder }),
     };
 
     try {
@@ -119,6 +126,20 @@ export function OptionManager({ trimId, target, onClose }: OptionManagerProps) {
               className={inputClass}
               placeholder="옵션 설명 (선택)"
             />
+          </FormField>
+          <FormField label="추천 배지">
+            <select
+              name="badgeId"
+              defaultValue={target?.badgeId ?? ""}
+              className={inputClass}
+            >
+              <option value="">배지 없음</option>
+              {badges.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
           </FormField>
           <div className="flex items-center gap-5">
             <label className="flex items-center gap-2 text-[13px] text-[#4A5270] cursor-pointer">

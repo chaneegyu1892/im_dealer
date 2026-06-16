@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Save, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Save, X, Eye, EyeOff, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AdminVehicleDetail, AdminVehicleLineup } from "@/types/admin";
 
@@ -59,6 +59,24 @@ export function LineupTab({ vehicle }: LineupTabProps) {
     }
   };
 
+  const handleToggleVisible = async (lineup: AdminVehicleLineup) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const resp = await fetch(`/api/admin/vehicles/${vehicle.id}/lineups/${lineup.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isVisible: !lineup.isVisible }),
+      });
+      const result = await resp.json();
+      if (result.success) {
+        setLineups(lineups.map((l) => (l.id === lineup.id ? { ...l, isVisible: result.data.isVisible } : l)));
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("이 라인업을 삭제하시겠습니까? 관련 트림도 모두 삭제될 수 있습니다.")) return;
     setSaving(true);
@@ -77,6 +95,14 @@ export function LineupTab({ vehicle }: LineupTabProps) {
 
   return (
     <div className="max-w-[800px] space-y-6">
+      <div className="flex items-start gap-2 p-3 rounded-[10px] bg-[#F0F2FB] border border-[#E0E4F4] text-[#4A5270]">
+        <Info size={15} className="mt-0.5 shrink-0 text-[#000666]" />
+        <p className="text-[12px] leading-relaxed">
+          같은 차량군은 고객 화면에 <b className="text-[#000666]">최신 연식만</b> 자동 노출됩니다.
+          특정 연식을 숨기거나 이전 연식을 대신 노출하려면 해당 라인업의 <b>노출</b> 토글을 끄세요.
+        </p>
+      </div>
+
       <div className="bg-white rounded-[12px] border border-[#E8EAF0] shadow-sm overflow-hidden">
         <div className="p-4 bg-[#F8F9FC] border-b border-[#E8EAF0] flex justify-between items-center">
           <h3 className="text-[14px] font-bold text-[#1A1A2E]">차량 라인업 구성 ({lineups.length})</h3>
@@ -143,25 +169,44 @@ export function LineupTab({ vehicle }: LineupTabProps) {
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-3">
+                      <div className={`flex items-center gap-3 ${lineup.isVisible ? "" : "opacity-50"}`}>
                         <div className="w-8 h-8 rounded-full bg-[#E5E5FA] flex items-center justify-center text-[#000666] text-[12px] font-bold">
                           L
                         </div>
                         <span className="text-[14px] font-medium text-[#1A1A2E]">{lineup.name}</span>
+                        {!lineup.isVisible && (
+                          <span className="text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded-[4px]">
+                            비노출
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1">
                         <button
-                          onClick={() => { setEditingId(lineup.id); setEditName(lineup.name); setIsAdding(false); }}
-                          className="p-1.5 text-[#9BA4C0] hover:text-[#000666] hover:bg-[#F0F2F8] rounded-[6px]"
+                          onClick={() => handleToggleVisible(lineup)}
+                          disabled={saving}
+                          title={lineup.isVisible ? "고객 노출 중 — 클릭 시 숨김" : "숨김 상태 — 클릭 시 노출"}
+                          className={`p-1.5 rounded-[6px] disabled:opacity-40 ${
+                            lineup.isVisible
+                              ? "text-[#000666] hover:bg-[#F0F2F8]"
+                              : "text-[#9BA4C0] hover:bg-[#F0F2F8]"
+                          }`}
                         >
-                          <Pencil size={14} />
+                          {lineup.isVisible ? <Eye size={15} /> : <EyeOff size={15} />}
                         </button>
-                        <button
-                          onClick={() => handleDelete(lineup.id)}
-                          className="p-1.5 text-[#9BA4C0] hover:text-red-500 hover:bg-red-50 rounded-[6px]"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => { setEditingId(lineup.id); setEditName(lineup.name); setIsAdding(false); }}
+                            className="p-1.5 text-[#9BA4C0] hover:text-[#000666] hover:bg-[#F0F2F8] rounded-[6px]"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(lineup.id)}
+                            className="p-1.5 text-[#9BA4C0] hover:text-red-500 hover:bg-red-50 rounded-[6px]"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     </>
                   )}

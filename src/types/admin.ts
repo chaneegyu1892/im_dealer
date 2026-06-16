@@ -73,6 +73,7 @@ export interface AdminVehicleLineup {
   id: string;
   vehicleId: string;
   name: string;
+  isVisible: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -111,6 +112,16 @@ export interface AdminTrimOption {
   isDefault: boolean;
   isAccessory: boolean;
   description: string | null;
+  displayOrder: number;
+  badgeId: string | null;
+  badge: { id: string; label: string } | null;
+}
+
+// ─── OptionBadge (추천 배지 라벨) ────────────────────────
+export interface AdminOptionBadge {
+  id: string;
+  label: string;
+  displayOrder: number;
 }
 
 // ─── Brand ──────────────────────────────────────────────
