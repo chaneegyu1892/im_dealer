@@ -21,6 +21,11 @@ export const vehicleCreateSchema = z.object({
 
 export const vehicleUpdateSchema = vehicleCreateSchema.partial();
 
+// 차량 노출 순서 일괄 저장: 전달된 id 배열 순서대로 displayOrder(0,1,2…) 부여
+export const vehicleReorderSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, "정렬할 차량이 없습니다").max(500),
+});
+
 // ─── Brand ──────────────────────────────────────────────
 export const brandCreateSchema = z.object({
   name: z.string().min(1, "브랜드명을 입력하세요").max(40),
@@ -45,7 +50,12 @@ export const lineupCreateSchema = z.object({
   name: z.string().min(1, "라인업명을 입력하세요"),
 });
 
-export const lineupUpdateSchema = lineupCreateSchema.partial();
+export const lineupUpdateSchema = z
+  .object({
+    name: z.string().min(1, "라인업명을 입력하세요").optional(),
+    isVisible: z.boolean().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "수정할 항목이 없습니다." });
 
 // ─── Trim ───────────────────────────────────────────────
 export const trimCreateSchema = z.object({
@@ -70,9 +80,29 @@ export const optionCreateSchema = z.object({
   isDefault: z.boolean().default(false),
   isAccessory: z.boolean().default(false),
   description: z.string().nullable().optional(),
+  displayOrder: z.number().int().default(0),
+  badgeId: z.string().nullable().optional(),
 });
 
 export const optionUpdateSchema = optionCreateSchema.partial();
+
+// 옵션 노출 순서 일괄 저장: id 배열 순서대로 displayOrder(0,1,2…) 부여
+export const optionReorderSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, "정렬할 옵션이 없습니다").max(500),
+});
+
+// ─── OptionBadge (추천 배지 라벨 관리) ──────────────────
+export const optionBadgeCreateSchema = z.object({
+  label: z.string().min(1, "배지 문구를 입력하세요").max(20, "배지 문구는 20자 이하여야 합니다"),
+  displayOrder: z.number().int().default(0),
+});
+
+export const optionBadgeUpdateSchema = z
+  .object({
+    label: z.string().min(1, "배지 문구를 입력하세요").max(20).optional(),
+    displayOrder: z.number().int().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "수정할 항목이 없습니다." });
 
 // ─── VehicleColor ───────────────────────────────────────
 const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;

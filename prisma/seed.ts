@@ -1330,6 +1330,16 @@ async function main() {
     console.log(`👤 어드민 계정 이미 존재: ${adminEmail}`);
   }
 
+  console.log("🏷️  옵션 추천 배지 기본값 생성...");
+  for (const [i, label] of ["추천", "인기", "베스트"].entries()) {
+    await prisma.optionBadge.upsert({
+      where: { label },
+      update: {},
+      create: { label, displayOrder: i },
+    });
+  }
+  console.log("   ✅ 추천/인기/베스트\n");
+
   console.log("✨ 시드 데이터 삽입 완료!");
 }
 

@@ -51,7 +51,10 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
       trims: {
         orderBy: [{ isDefault: "desc" }, { price: "asc" }],
         include: {
-          options: { orderBy: { price: "asc" } },
+          options: {
+            orderBy: [{ displayOrder: "asc" }, { price: "asc" }],
+            include: { badge: { select: { id: true, label: true } } },
+          },
           rules: true,
         },
       },
@@ -85,6 +88,7 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
       id: l.id,
       vehicleId: l.vehicleId,
       name: l.name,
+      isVisible: l.isVisible,
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),
     })),
@@ -109,6 +113,9 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
         isDefault: o.isDefault,
         isAccessory: o.isAccessory,
         description: o.description,
+        displayOrder: o.displayOrder,
+        badgeId: o.badgeId,
+        badge: o.badge ? { id: o.badge.id, label: o.badge.label } : null,
       })),
       rules: t.rules.map((r) => ({
         id: r.id,

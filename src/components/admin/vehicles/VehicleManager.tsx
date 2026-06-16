@@ -101,6 +101,15 @@ export function VehicleManager({ initialVehicles, initialBrands, initialSelected
     }
   };
 
+  const handleReorder = async (orderedIds: string[]) => {
+    await fetch("/api/admin/vehicles/reorder", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: orderedIds }),
+    });
+    router.refresh();
+  };
+
   const handleToggleVisibility = async (vehicle: AdminVehicle) => {
     const toggled = { ...vehicle, isVisible: !vehicle.isVisible };
     setSelectedVehicle(toggled);
@@ -179,6 +188,7 @@ export function VehicleManager({ initialVehicles, initialBrands, initialSelected
               onAdd={() => setVehicleModal({ isOpen: true, target: null })}
               onEdit={(v) => setVehicleModal({ isOpen: true, target: v })}
               onDelete={(v) => setDeleteModal({ id: v.id, name: v.name })}
+              onReorder={handleReorder}
             />
           </div>
 

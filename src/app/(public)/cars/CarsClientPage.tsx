@@ -269,15 +269,14 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
       case "price-desc":
         return [...result].sort((a, b) => b.monthlyFrom - a.monthlyFrom);
       default:
-        // 인기순: isFeatured 브랜드 차량을 먼저 보여주고, 그 외에는 displayOrder.
+        // 인기순(계층형): 브랜드 우선순위(SSOT 브랜드 비교자) → 같은 브랜드 내에서는
+        // 운영자가 어드민에서 지정한 차량 노출 순서(displayOrder) 오름차순.
         return [...result].sort((a, b) => {
-          const aFeatured = brandSignals[a.brand]?.isFeatured ? 0 : 1;
-          const bFeatured = brandSignals[b.brand]?.isFeatured ? 0 : 1;
-          const diff = aFeatured - bFeatured;
-          return diff !== 0 ? diff : a.displayOrder - b.displayOrder;
+          if (a.brand !== b.brand) return brandComparator(a.brand, b.brand);
+          return a.displayOrder - b.displayOrder;
         });
     }
-  }, [vehicles, categoryFilter, brandFilter, sortBy, featured, searchQuery, brandSignals]);
+  }, [vehicles, categoryFilter, brandFilter, sortBy, featured, searchQuery, brandComparator]);
 
   const suggestedVehicles = useMemo(() => {
     if (!searchQuery.trim() || filteredVehicles.length === 0) return [];

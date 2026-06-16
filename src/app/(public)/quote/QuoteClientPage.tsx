@@ -66,6 +66,7 @@ interface TrimOption {
   description: string | null;
   isAccessory: boolean;
   isDefault: boolean;
+  badge: string | null;
 }
 
 interface TrimRule {
@@ -1106,16 +1107,21 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                                       </div>
                                     </button>
 
-                                    {/* 옵션명 (클릭 시 선택) */}
+                                    {/* 옵션명 (클릭 시 선택) + 추천 배지 */}
                                     <button
                                       type="button"
                                       onClick={toggleSelect}
                                       className={cn(
-                                        "flex-1 text-[13px] text-left",
+                                        "flex-1 text-[13px] text-left flex items-center gap-1.5 flex-wrap",
                                         isOptSelected ? "text-primary font-medium" : "text-ink"
                                       )}
                                     >
-                                      {opt.name}
+                                      <span>{opt.name}</span>
+                                      {opt.badge && (
+                                        <span className="inline-flex items-center shrink-0 text-[10px] font-semibold text-primary bg-primary-100 px-1.5 py-0.5 rounded-[4px] leading-none">
+                                          {opt.badge}
+                                        </span>
+                                      )}
                                     </button>
 
                                     {/* 가격 */}
