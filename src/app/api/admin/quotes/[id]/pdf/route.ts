@@ -1,13 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
-import { generateQuotePDFHtml, type PDFQuoteData } from "@/lib/quote-pdf-template";
-import { renderHtmlToPdfBuffer } from "@/lib/pdf/render";
+import type { PDFQuoteData } from "@/lib/quote-pdf-template";
+import { renderQuotePdfBuffer } from "@/lib/pdf/render-quote";
 import {
   buildVehicleScenarios,
   type ContractTypeKor,
   type SelectedOptionSnapshot,
 } from "@/lib/quote-scenarios";
+
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 function isContractTypeKor(value: unknown): value is ContractTypeKor {
   return value === "인수형" || value === "반납형";
@@ -128,8 +131,7 @@ export async function GET(
   };
 
   try {
-    const html = generateQuotePDFHtml(pdfData);
-    const pdfBuffer = await renderHtmlToPdfBuffer(html);
+    const pdfBuffer = await renderQuotePdfBuffer(pdfData);
 
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const vehicleNameSafe = pdfData.vehicleName.replace(/[^\wㄱ-힣]/g, "_");

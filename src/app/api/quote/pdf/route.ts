@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generateQuotePDFHtml, type PDFQuoteData } from "@/lib/quote-pdf-template";
-import { renderHtmlToPdfBuffer } from "@/lib/pdf/render";
+import type { PDFQuoteData } from "@/lib/quote-pdf-template";
+import { renderQuotePdfBuffer } from "@/lib/pdf/render-quote";
+
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -42,8 +45,7 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    const html = generateQuotePDFHtml(pdfData);
-    const pdfBuffer = await renderHtmlToPdfBuffer(html);
+    const pdfBuffer = await renderQuotePdfBuffer(pdfData);
 
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const vehicleNameSafe = pdfData.vehicleName.replace(/[^\wㄱ-힣]/g, "_");
