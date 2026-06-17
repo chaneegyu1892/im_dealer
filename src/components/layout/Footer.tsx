@@ -84,10 +84,10 @@ export function Footer() {
             </h3>
             <ul className="space-y-2.5">
               <li className="text-[13px] text-white/60">
-                이메일: contact@imdealers.com
+                이메일: contact@metakium.co.kr
               </li>
               <li className="text-[13px] text-white/60">
-                영업시간: 평일 09:00 - 18:00
+                영업시간: 평일 08:30 - 17:30
               </li>
             </ul>
           </div>
@@ -98,13 +98,19 @@ export function Footer() {
       <div className="border-t border-white/10">
         <div className="max-w-content mx-auto px-6 lg:px-8 py-2">
           <Accordion>
-            <AccordionItem title="금융사별 주요 약관">
+            <AccordionItem title="금융사 주요 약관 및 법적 고지">
               <p>
-                ※ 본 약관은 추후 업데이트 예정입니다.
+                (주)아임메타솔루션은 「금융소비자 보호에 관한 법률」에 따라 등록된
+                금융상품판매대리·중개업자입니다. 제휴 금융사별 상품 조건(중도해지·초과운행·연체이자
+                등)과 법적 고지 전문은 아래에서 확인하실 수 있습니다.
               </p>
-              <p className="mt-1">
-                금융사별 상세 약관은 계약 진행 시 별도 안내드립니다. 장기렌트·리스 상품은
-                금융사에 따라 보증금·선납금·중도해지 조건이 상이할 수 있습니다.
+              <p className="mt-2">
+                <Link
+                  href="/finance-terms"
+                  className="text-white underline underline-offset-2 hover:text-white/80"
+                >
+                  서비스 법적 고지 및 금융상품 안내 전문 보기 →
+                </Link>
               </p>
             </AccordionItem>
             <AccordionItem title="모집인 정보">
@@ -116,15 +122,6 @@ export function Footer() {
                 ※ 모집인 등록번호 및 자세한 정보는 차후 명시됩니다.
               </p>
             </AccordionItem>
-            <AccordionItem title="중도해지 수수료 등 법적 고지">
-              <p>
-                장기렌트 및 리스 상품은 계약 기간 중 중도해지 시 위약금이 발생할 수 있습니다.
-              </p>
-              <p className="mt-1 text-white/40">
-                ※ 자세한 법적 고지 및 위약금 산정 기준은 추후 업데이트 예정입니다. 계약 진행
-                시 금융사별 상세 고지사항을 안내드립니다.
-              </p>
-            </AccordionItem>
           </Accordion>
         </div>
       </div>
@@ -134,11 +131,10 @@ export function Footer() {
         <div className="max-w-content mx-auto px-6 lg:px-8 py-6">
           <div className="text-[11px] text-white/30 leading-relaxed space-y-1">
             <p>
-              상호: 아임딜러 | 대표: 홍길동 | 사업자등록번호: 000-00-00000
+              상호: (주)메타키움 | 대표: 조수형 | 사업자등록번호: 781-87-01147
             </p>
             <p>
-              주소: 서울특별시 강남구 테헤란로 000, 00층 | 통신판매업신고:
-              제2026-서울강남-00000호
+              주소: 서울시 금천구 디지털로 178 퍼블릭가산 B동 1322호 메타키움
             </p>
             <p className="mt-3">
               © {new Date().getFullYear()} 아임딜러. All rights reserved.
