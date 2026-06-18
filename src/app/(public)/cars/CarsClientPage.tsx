@@ -153,18 +153,31 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
     if (!query && brandFilter !== "전체")
       result = result.filter((v) => v.brand === brandFilter);
 
+    // 견적 데이터가 없는("견적준비중", monthlyFrom<=0) 차량은 정렬 종류와 무관하게 항상 맨 뒤로.
+    const hasQuote = (v: VehicleListItem) => (v.monthlyFrom ?? 0) > 0;
+    const quoteLast =
+      (secondary: (a: VehicleListItem, b: VehicleListItem) => number) =>
+      (a: VehicleListItem, b: VehicleListItem) => {
+        const qa = hasQuote(a);
+        const qb = hasQuote(b);
+        if (qa !== qb) return qa ? -1 : 1;
+        return secondary(a, b);
+      };
+
     switch (sortBy) {
       case "price-asc":
-        return [...result].sort((a, b) => a.monthlyFrom - b.monthlyFrom);
+        return [...result].sort(quoteLast((a, b) => a.monthlyFrom - b.monthlyFrom));
       case "price-desc":
-        return [...result].sort((a, b) => b.monthlyFrom - a.monthlyFrom);
+        return [...result].sort(quoteLast((a, b) => b.monthlyFrom - a.monthlyFrom));
       default:
         // 인기순(계층형): 브랜드 우선순위(SSOT 브랜드 비교자) → 같은 브랜드 내에서는
         // 운영자가 어드민에서 지정한 차량 노출 순서(displayOrder) 오름차순.
-        return [...result].sort((a, b) => {
-          if (a.brand !== b.brand) return brandComparator(a.brand, b.brand);
-          return a.displayOrder - b.displayOrder;
-        });
+        return [...result].sort(
+          quoteLast((a, b) => {
+            if (a.brand !== b.brand) return brandComparator(a.brand, b.brand);
+            return a.displayOrder - b.displayOrder;
+          }),
+        );
     }
   }, [vehicles, categoryFilter, brandFilter, sortBy, featured, searchQuery, brandComparator]);
 
