@@ -117,6 +117,28 @@ export function calcRepresentativeQuotes(params: CalcParams): RepresentativeQuot
   );
 }
 
+/**
+ * 여러 트림에서 나온 대표 견적가를 productType별 최저값으로 병합.
+ *
+ * 한 차량에 가격이 다른 트림이 여러 개 있고 일부 트림에만 회수율 시트가 붙은 경우,
+ * 시트가 있는 트림들 중 productType별 가장 낮은 견적("~부터")을 차량 대표값으로 삼는다.
+ * (트림 선택 차이로 목록·상세 견적가가 달라지거나 견적이 사라지는 문제 방지)
+ */
+export function mergeLowestByProductType(
+  quotes: RepresentativeQuote[]
+): RepresentativeQuote[] {
+  const byType = new Map<string, RepresentativeQuote>();
+  for (const q of quotes) {
+    const current = byType.get(q.productType);
+    if (!current || q.monthlyPayment < current.monthlyPayment) {
+      byType.set(q.productType, q);
+    }
+  }
+  return [...byType.values()].sort(
+    (a, b) => productTypeOrder(a.productType) - productTypeOrder(b.productType)
+  );
+}
+
 /** 대표 견적가 목록에서 가장 낮은 월 납입금(정렬·요약용). 없으면 0. */
 export function lowestMonthly(quotes: RepresentativeQuote[]): number {
   if (quotes.length === 0) return 0;

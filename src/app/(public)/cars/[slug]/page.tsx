@@ -9,12 +9,8 @@ export const revalidate = 600;
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 
-import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
-import {
-  calcRepresentativeQuotes,
-  type RepRateSheet,
-  type RepresentativeQuote,
-} from "@/lib/representative-quote";
+import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
+import type { RepresentativeQuote } from "@/lib/representative-quote";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { notFound } from "next/navigation";
@@ -167,48 +163,20 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
 
   const defaultTrim = vehicle.trims.find((t) => t.isDefault) ?? vehicle.trims[0];
 
-  let representativeQuotes: RepresentativeQuote[] = [];
-  let bestFinanceName: string | null = null;
-  let rateSheets: any[] = [];
-
-  if (defaultTrim) {
-    rateSheets = await (prisma as any).capitalRateSheet.findMany({
-      where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
-      include: { financeCompany: true },
-    });
-  }
-
-  if (defaultTrim && rateSheets.length > 0) {
-    const repSheets: RepRateSheet[] = rateSheets.map((rs: any) => ({
-      productType: rs.productType,
-      financeCompanyId: rs.financeCompanyId,
-      financeCompanyName: rs.financeCompany.name,
-      financeSurchargeRate: rs.financeCompany.surchargeRate,
-      minVehiclePrice: rs.minVehiclePrice,
-      maxVehiclePrice: rs.maxVehiclePrice,
-      minRateMatrix: rs.minRateMatrix,
-      maxRateMatrix: rs.maxRateMatrix,
-      depositDiscountRate: rs.depositDiscountRate,
-      prepayAdjustRate: rs.prepayAdjustRate,
-    }));
-
-    // 순위 가산율: DB 조회 → fallback 상수
-    const rankSurcharges = await prisma.rankSurchargeConfig.findMany({
-      orderBy: { rank: "asc" },
-    });
-    const rankRates = rankSurcharges.length > 0
-      ? rankSurcharges.map((r) => r.rate)
-      : [...RANK_SURCHARGE_RATES];
-
-    // 60개월·무보증·2만km 기준 productType(장기렌트/리스)별 대표 견적가 (목록 페이지와 동일 로직)
-    representativeQuotes = calcRepresentativeQuotes({
-      vehiclePrice: defaultTrim.price,
+  // 60개월·무보증·2만km 기준 productType(장기렌트/리스)별 대표 견적가.
+  // 목록 페이지와 동일하게 "모든 노출 트림" 기준 최저값으로 산출 — 트림 선택 차이로
+  // 목록과 상세 견적가가 달라지거나 "견적 준비중"이 뜨던 문제 방지.
+  const quotesByVehicle = await getRepresentativeQuotesByVehicle([
+    {
+      vehicleId: vehicle.id,
       vehicleSurchargeRate: vehicle.surchargeRate,
-      rankSurchargeRates: rankRates,
-      rateSheets: repSheets,
-    });
-    bestFinanceName = representativeQuotes[0]?.financeCompanyName ?? null;
-  }
+      trims: vehicle.trims.map((t) => ({ trimId: t.id, vehiclePrice: t.price })),
+    },
+  ]);
+  const representativeQuotes: RepresentativeQuote[] =
+    quotesByVehicle.get(vehicle.id) ?? [];
+  const bestFinanceName: string | null =
+    representativeQuotes[0]?.financeCompanyName ?? null;
 
   const recConfig = vehicle.recConfigs ?? null;
 
@@ -257,7 +225,7 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     representativeQuotes,
     highlights: recConfig?.highlights ?? [],
     aiCaption: recConfig?.aiCaption ?? null,
-    hasRateConfig: rateSheets.length > 0,
+    hasRateConfig: representativeQuotes.length > 0,
     detailedSpecs: (vehicle.detailedSpecs as VehicleDetailedSpecs | null) ?? null,
   };
 }

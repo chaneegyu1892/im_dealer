@@ -5,7 +5,7 @@ import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { getBrandSignals } from "@/lib/brand-signals";
 import type { BrandSignal } from "@/lib/brand-sort";
-import { getRepresentativeQuotesByTrim } from "@/lib/representative-quote-query";
+import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
 import { lowestMonthly } from "@/lib/representative-quote";
 import { CarsClientPage } from "./CarsClientPage";
 
@@ -34,22 +34,18 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     },
   });
 
-  // 대표 견적가 산출 — defaultTrim 기준, 60개월·무보증·2만km (목록·상세 공통 로직)
-  const quotesByTrim = await getRepresentativeQuotesByTrim(
-    vehicles
-      .filter((v) => v.trims[0])
-      .map((v) => ({
-        trimId: v.trims[0].id,
-        vehiclePrice: v.trims[0].price,
-        vehicleSurchargeRate: v.surchargeRate,
-      }))
+  // 대표 견적가 산출 — 모든 노출 트림 기준 60개월·무보증·2만km productType별 최저 (목록·상세 공통)
+  const quotesByVehicle = await getRepresentativeQuotesByVehicle(
+    vehicles.map((v) => ({
+      vehicleId: v.id,
+      vehicleSurchargeRate: v.surchargeRate,
+      trims: v.trims.map((t) => ({ trimId: t.id, vehiclePrice: t.price })),
+    }))
   );
 
   return vehicles.map((v) => {
     const defaultTrim = v.trims[0];
-    const representativeQuotes = defaultTrim
-      ? quotesByTrim.get(defaultTrim.id) ?? []
-      : [];
+    const representativeQuotes = quotesByVehicle.get(v.id) ?? [];
     const monthlyFrom = lowestMonthly(representativeQuotes);
     const hasAvailableInventory = v.trims.some((trim) => trim.inventory.length > 0);
 
