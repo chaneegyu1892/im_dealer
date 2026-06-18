@@ -14,6 +14,7 @@ export const vehicleCreateSchema = z.object({
   description: z.string().optional(),
   isVisible: z.boolean().default(true),
   isPopular: z.boolean().default(false),
+  isSpotlight: z.boolean().default(false),
   displayOrder: z.number().int().default(0),
   surchargeRate: z.number().default(0),
   vehicleCode: z.string().optional(),

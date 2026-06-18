@@ -16,6 +16,7 @@ export interface AdminVehicle {
   surchargeRate: number;
   isVisible: boolean;
   isPopular: boolean;
+  isSpotlight: boolean;
   displayOrder: number;
   description: string | null;
   createdAt: string;

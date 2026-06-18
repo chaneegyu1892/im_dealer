@@ -15,6 +15,8 @@ export interface VehicleListItem {
   evSubsidy: number | null;
   thumbnailUrl: string;
   isPopular: boolean;
+  /** 차량 탐색(/cars) "주목할 차량" 슬라이더 노출 플래그. isPopular와 별개. */
+  isSpotlight?: boolean;
   description: string | null;
   displayOrder: number;
   defaultTrim: {

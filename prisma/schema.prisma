@@ -94,6 +94,8 @@ model Vehicle {
   surchargeRate Float                 @default(0)
   isVisible     Boolean               @default(true)
   isPopular     Boolean               @default(false)
+  // 차량 탐색(/cars) 상단 "주목할 차량" 슬라이더 노출 플래그. isPopular(홈 인기차량)와 별개.
+  isSpotlight   Boolean               @default(false)
   displayOrder  Int                   @default(0)
   description   String?
   tags          String[]
@@ -113,6 +115,7 @@ model Vehicle {
   colors         VehicleColor[]
 
   @@index([isVisible, isPopular])
+  @@index([isVisible, isSpotlight])
   @@index([category])
   @@index([vehicleCode])
   @@index([externalSource])
