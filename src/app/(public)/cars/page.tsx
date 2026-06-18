@@ -5,6 +5,8 @@ import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { getBrandSignals } from "@/lib/brand-signals";
 import type { BrandSignal } from "@/lib/brand-sort";
+import { getRepresentativeQuotesByTrim } from "@/lib/representative-quote-query";
+import { lowestMonthly } from "@/lib/representative-quote";
 import { CarsClientPage } from "./CarsClientPage";
 
 async function getVehicles(): Promise<VehicleListItem[]> {
@@ -32,28 +34,23 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     },
   });
 
-  // 최저가 견적 산출 — defaultTrim 기준 capitalRateSheet
-  const defaultTrimIds = vehicles.map((v) => v.trims[0]?.id).filter(Boolean) as string[];
-  const rateSheets = defaultTrimIds.length > 0
-    ? await (prisma as any).capitalRateSheet.findMany({
-        where: { trimId: { in: defaultTrimIds }, isActive: true },
-        select: { trimId: true, minRateMatrix: true },
-      })
-    : [];
-
-  const lowestRateByTrimId = new Map<string, number>();
-  for (const rs of rateSheets) {
-    const rate48 = (rs.minRateMatrix as Record<string, number>)?.["48_20000"] ?? 0;
-    if (rate48 <= 0) continue;
-    const existing = lowestRateByTrimId.get(rs.trimId) ?? Infinity;
-    if (rate48 < existing) lowestRateByTrimId.set(rs.trimId, rate48);
-  }
+  // 대표 견적가 산출 — defaultTrim 기준, 60개월·무보증·2만km (목록·상세 공통 로직)
+  const quotesByTrim = await getRepresentativeQuotesByTrim(
+    vehicles
+      .filter((v) => v.trims[0])
+      .map((v) => ({
+        trimId: v.trims[0].id,
+        vehiclePrice: v.trims[0].price,
+        vehicleSurchargeRate: v.surchargeRate,
+      }))
+  );
 
   return vehicles.map((v) => {
     const defaultTrim = v.trims[0];
-    const rate = defaultTrim ? lowestRateByTrimId.get(defaultTrim.id) : undefined;
-    const trimPrice = defaultTrim?.price ?? v.basePrice;
-    const monthlyFrom = rate ? Math.round(trimPrice * rate) : 0;
+    const representativeQuotes = defaultTrim
+      ? quotesByTrim.get(defaultTrim.id) ?? []
+      : [];
+    const monthlyFrom = lowestMonthly(representativeQuotes);
     const hasAvailableInventory = v.trims.some((trim) => trim.inventory.length > 0);
 
     return {
@@ -78,6 +75,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
           }
         : null,
       monthlyFrom,
+      representativeQuotes,
       highlights: v.recConfigs?.highlights ?? [],
       tags: v.tags,
       hasAvailableInventory,

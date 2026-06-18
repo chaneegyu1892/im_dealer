@@ -7,6 +7,7 @@ import { ArrowRight, Zap, Leaf, Fuel, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
+import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 
 interface CarCardProps {
   vehicle: VehicleListItem;
@@ -50,9 +51,6 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
   const engineType = (rawEngineType in ENGINE_BADGE ? rawEngineType : "가솔린") as EngineType;
   const engine = ENGINE_BADGE[engineType];
   const EngineIcon = engine.icon;
-  const formattedMonthly = vehicle.monthlyFrom > 0
-    ? Math.round(vehicle.monthlyFrom / 10000)
-    : null;
   const brandColor = BRAND_COLORS[vehicle.brand] ?? BRAND_COLORS["현대"];
 
   return (
@@ -156,25 +154,11 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
 
           <div className="h-px bg-[#F0F0F0] mb-3" />
 
-          <div className="flex items-end justify-between">
-            <div>
-              <span className="text-[10px] text-ink-caption block mb-0.5">
-                월 납입금 (48개월·무보증)
-              </span>
-              <div className="flex items-baseline gap-1">
-                {formattedMonthly ? (
-                  <>
-                    <span className="text-[22px] font-semibold text-ink leading-none">
-                      {formattedMonthly}
-                    </span>
-                    <span className="text-[13px] font-medium text-ink-label">만원~</span>
-                  </>
-                ) : (
-                  <span className="text-[14px] text-ink-label">견적 준비중</span>
-                )}
-              </div>
-            </div>
-          </div>
+          <RepresentativeQuotePrice
+            quotes={vehicle.representativeQuotes}
+            tone="light"
+            size="md"
+          />
         </div>
       </Link>
 

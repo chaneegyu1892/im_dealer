@@ -29,10 +29,10 @@ import { cn } from "@/lib/utils";
 import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { SpecDiagramModal, hasSpecDiagram, SPEC_TEXT_DESC } from "@/components/cars/SpecDiagram";
+import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
 import type { EngineType } from "@/types/vehicle";
-import type { RecommendScenarios } from "@/types/recommendation";
 
 // ── 상수 ───────────────────────────────────────────────────
 const TRUST_ITEMS = [
@@ -112,10 +112,6 @@ function formatWon(n: number) {
   if (n >= 10_000) return `${Math.round(n / 10_000)}만원`;
   return `${n.toLocaleString("ko-KR")}원`;
 }
-function formatMonthlyShort(n: number) {
-  return `${Math.round(n / 10_000)}만원`;
-}
-
 // ── 스펙 카드 ──────────────────────────────────────────────
 function SpecCard({
   specKey,
@@ -325,16 +321,13 @@ function DetailedSpecsSection({ specs }: { specs: VehicleDetailedSpecs }) {
 // CarDetailClient
 // ══════════════════════════════════════════════════════════
 export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
-  // 사이드바용 초기 시나리오 (서버에서 받은 간단 버전)
-  const [simpleScenarios] = useState<RecommendScenarios | null>(vehicle.scenarios);
-
   // 이미지 갤러리 선택
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
   const engineType = (vehicle.defaultTrim?.engineType ?? "가솔린") as EngineType;
 
-  // ── 현재 월납입 (사이드바 표시용) ────────────────────────
-  const currentMonthly = simpleScenarios?.standard?.monthlyPayment;
+  // 대표 견적가 (60개월·무보증·2만km, productType별 — 장기렌트/리스 둘 다 노출)
+  const representativeQuotes = vehicle.representativeQuotes;
 
   const aiReason =
     vehicle.aiCaption ?? `${vehicle.name}은(는) 이 조건에 적합한 차량입니다.`;
@@ -497,22 +490,14 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               className="hidden md:block shrink-0 bg-white/10 backdrop-blur-md border border-white/15
                          rounded-card p-6 min-w-[240px]"
             >
-              <p className="text-[11px] text-white/45 mb-1">무보증 48개월 기준</p>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentMonthly ?? "init"}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-baseline gap-1 mb-4"
-                >
-                  <span className="text-[36px] font-semibold text-white leading-none">
-                    {currentMonthly ? formatMonthlyShort(currentMonthly) : "---"}
-                  </span>
-                  <span className="text-[15px] text-white/55">~</span>
-                </motion.div>
-              </AnimatePresence>
+              <RepresentativeQuotePrice
+                quotes={representativeQuotes}
+                tone="dark"
+                size="xl"
+                captionText="60개월 · 초기 비용 0원 · 2만km 기준"
+                emptyText="견적 준비중"
+                className="mb-4"
+              />
               <div className="flex items-center gap-1.5 text-[11px] text-white/45">
                 <Check size={11} strokeWidth={2.5} />
                 개인정보 없이 견적 확인 가능
@@ -529,13 +514,13 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
         {/* 모바일 전용 월납입 카드 — Hero 아래 풀폭 */}
         <div className="block md:hidden mb-4">
           <div className="bg-white rounded-card border border-[#F0F0F0] p-5 shadow-card">
-            <p className="text-[11px] text-ink-caption mb-1">무보증 48개월 기준</p>
-            <div className="flex items-baseline gap-1 mb-3">
-              <span className="text-[30px] font-semibold text-ink leading-none">
-                {currentMonthly ? formatMonthlyShort(currentMonthly) : "---"}
-              </span>
-              <span className="text-[14px] text-ink-caption">~</span>
-            </div>
+            <RepresentativeQuotePrice
+              quotes={representativeQuotes}
+              tone="light"
+              size="lg"
+              captionText="60개월 · 초기 비용 0원 · 2만km 기준"
+              className="mb-3"
+            />
             <Link
               href={`/quote?vehicle=${vehicle.slug}`}
               className="flex items-center justify-center gap-2 w-full py-3 rounded-btn
@@ -751,21 +736,14 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 className="bg-white rounded-card border border-[#F0F0F0] p-5 shadow-card"
               >
                 <div className="mb-1">
-                  <p className="text-[11px] text-ink-caption">무보증 월납입</p>
-                  <AnimatePresence mode="wait">
-                    <motion.p
-                      key={currentMonthly ?? "loading"}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.18 }}
-                      className="text-[28px] font-semibold text-ink leading-tight"
-                    >
-                      {currentMonthly ? formatMonthlyShort(currentMonthly) : "---"}
-                    </motion.p>
-                  </AnimatePresence>
+                  <RepresentativeQuotePrice
+                    quotes={representativeQuotes}
+                    tone="light"
+                    size="lg"
+                    captionText="월 납입금 (초기 비용 0원)"
+                  />
                   <p className="text-[11px] text-ink-caption mt-0.5">
-                    48개월 · 연2만km · 반납형 기준
+                    60개월 · 연 2만km · 반납형 기준
                   </p>
                 </div>
                 <div className="h-px bg-[#F0F0F0] my-4" />
