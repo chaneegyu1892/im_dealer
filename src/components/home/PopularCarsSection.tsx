@@ -5,14 +5,11 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import type { VehicleListItem } from "@/types/api";
+import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 
 const INITIAL_VISIBLE = 3;
 
 function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: number }) {
-  const monthly = vehicle.monthlyFrom > 0
-    ? Math.round(vehicle.monthlyFrom / 10000)
-    : null;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -69,16 +66,11 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
           )}
 
           <div className="mt-4 pt-4 border-t border-[#F0F0F0] flex items-end justify-between">
-            <div>
-              <p className="text-[10px] text-ink-caption">월 납입금</p>
-              {monthly ? (
-                <p className="text-[20px] font-display font-semibold text-primary leading-none mt-0.5">
-                  {monthly}<span className="text-[13px] font-normal text-ink-label ml-0.5">만원~</span>
-                </p>
-              ) : (
-                <p className="text-[13px] text-ink-caption mt-0.5">견적 준비중</p>
-              )}
-            </div>
+            <RepresentativeQuotePrice
+              quotes={vehicle.representativeQuotes}
+              tone="brand"
+              size="sm"
+            />
             <span className="text-[12px] text-primary font-medium flex items-center gap-1
                              opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               상세 보기 <ArrowRight size={12} />

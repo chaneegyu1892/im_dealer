@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CarCard } from "@/components/cars/CarCard";
+import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 import type { VehicleListItem } from "@/types/api";
 import { makeBrandComparator, type BrandSignal } from "@/lib/brand-sort";
 
@@ -84,8 +85,6 @@ function FeaturedCard({
   vehicle: VehicleListItem;
   size?: "large" | "small";
 }) {
-  const formattedMonthly =
-    vehicle.monthlyFrom > 0 ? Math.round(vehicle.monthlyFrom / 10000) : null;
   const specs = vehicle.defaultTrim?.specs ?? {};
 
   return (
@@ -156,23 +155,11 @@ function FeaturedCard({
                   ))}
               </div>
             )}
-            <div>
-              <span className="text-[10px] text-white/35 block mb-1">
-                월 납입금 (48개월·무보증)
-              </span>
-              <div className="flex items-baseline gap-1">
-                {formattedMonthly ? (
-                  <>
-                    <span className="font-display text-[28px] md:text-[34px] font-semibold text-white leading-none">
-                      {formattedMonthly}
-                    </span>
-                    <span className="text-[13px] text-white/60 font-medium">만원~</span>
-                  </>
-                ) : (
-                  <span className="text-[14px] text-white/60">견적 준비중</span>
-                )}
-              </div>
-            </div>
+            <RepresentativeQuotePrice
+              quotes={vehicle.representativeQuotes}
+              tone="dark"
+              size="xl"
+            />
           </div>
         </div>
       </Link>

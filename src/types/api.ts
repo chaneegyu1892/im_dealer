@@ -1,6 +1,7 @@
 import type { EngineType, VehicleCategory } from "./vehicle";
 import type { RecommendScenarios } from "./recommendation";
 import type { QuoteScenarioDetails } from "./quote";
+import type { RepresentativeQuote } from "@/lib/representative-quote";
 
 /** GET /api/vehicles 응답의 개별 차량 */
 export interface VehicleListItem {
@@ -23,7 +24,10 @@ export interface VehicleListItem {
     fuelEfficiency: number | null;
     specs: Record<string, string> | null;
   } | null;
+  /** 대표 견적가 산출의 최저 월납입(정렬·요약용). 견적 없으면 0. */
   monthlyFrom: number;
+  /** 60개월·무보증·2만km 기준 productType(장기렌트/리스)별 대표 견적가. */
+  representativeQuotes?: RepresentativeQuote[];
   highlights: string[];
   tags: string[];
   hasAvailableInventory?: boolean;
@@ -67,6 +71,8 @@ export interface VehicleDetail {
   } | null;
   scenarios: RecommendScenarios | null;
   bestFinanceName: string | null;
+  /** 60개월·무보증·2만km 기준 productType(장기렌트/리스)별 대표 견적가. */
+  representativeQuotes: RepresentativeQuote[];
   highlights: string[];
   aiCaption: string | null;
   hasRateConfig: boolean;
