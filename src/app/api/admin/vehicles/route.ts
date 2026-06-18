@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
       surchargeRate: v.surchargeRate,
       isVisible: v.isVisible,
       isPopular: v.isPopular,
+      isSpotlight: v.isSpotlight,
       displayOrder: v.displayOrder,
       description: v.description,
       createdAt: v.createdAt.toISOString(),

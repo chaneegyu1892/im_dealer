@@ -59,6 +59,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       evSubsidy: v.evSubsidy,
       thumbnailUrl: v.thumbnailUrl,
       isPopular: v.isPopular,
+      isSpotlight: v.isSpotlight,
       description: v.description,
       displayOrder: v.displayOrder,
       defaultTrim: defaultTrim

@@ -31,6 +31,7 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
     surchargeRate: vehicle.surchargeRate,
     isVisible: vehicle.isVisible,
     isPopular: vehicle.isPopular,
+    isSpotlight: vehicle.isSpotlight,
     displayOrder: vehicle.displayOrder,
     vehicleCode: vehicle.vehicleCode ?? "",
     slug: vehicle.slug,
@@ -222,6 +223,15 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
                 className="accent-[#000666]"
               />
               인기 차량
+            </label>
+            <label className="flex items-center gap-2 text-[13px] text-[#4A5270] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={data.isSpotlight}
+                onChange={(e) => setData({ ...data, isSpotlight: e.target.checked })}
+                className="accent-[#000666]"
+              />
+              주목 차량 (탐색 슬라이더)
             </label>
           </div>
         </div>

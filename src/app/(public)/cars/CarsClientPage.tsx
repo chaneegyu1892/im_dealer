@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CarCard } from "@/components/cars/CarCard";
-import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
+import { FeaturedCarsSlider } from "@/components/cars/FeaturedCarsSlider";
 import type { VehicleListItem } from "@/types/api";
 import { makeBrandComparator, type BrandSignal } from "@/lib/brand-sort";
 
@@ -77,108 +77,7 @@ function CategoryIcon({ category }: { category: string }) {
   return null;
 }
 
-// ── 피처드 카드 ────────────────────────────────────────────
-function FeaturedCard({
-  vehicle,
-  size = "large",
-}: {
-  vehicle: VehicleListItem;
-  size?: "large" | "small";
-}) {
-  const specs = vehicle.defaultTrim?.specs ?? {};
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative overflow-hidden rounded-card cursor-pointer h-full bg-neutral-900"
-    >
-      <Link href={`/cars/${vehicle.slug}`} className="block h-full">
-        {vehicle.thumbnailUrl && (
-          <div
-            className="absolute inset-0 bg-cover bg-center scale-105 group-hover:scale-110 transition-transform duration-700"
-            style={{ backgroundImage: `url(${vehicle.thumbnailUrl})` }}
-          />
-        )}
-        <div className="absolute inset-0 bg-black/55" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-        <div
-          className={cn(
-            "relative z-10 flex flex-col justify-between h-full",
-            size === "large"
-              ? "p-5 md:p-10 min-h-[220px] md:min-h-[340px]"
-              : "p-5 md:p-8 min-h-[220px] md:min-h-[340px]",
-          )}
-        >
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[11px] font-semibold bg-white/15 text-white/90 px-2.5 py-1 rounded-[4px] border border-white/20 uppercase tracking-wider">
-                {vehicle.brand}
-              </span>
-              {vehicle.isPopular && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-[4px]">
-                  <Sparkles size={9} />
-                  인기
-                </span>
-              )}
-              {vehicle.hasAvailableInventory && (
-                <span className="text-[11px] font-semibold bg-primary text-white px-2.5 py-1 rounded-[4px]">
-                  즉시출고
-                </span>
-              )}
-            </div>
-            <h2
-              className={cn(
-                "font-display font-light text-white leading-tight mb-2 tracking-tight",
-                size === "large"
-                  ? "text-[22px] md:text-[40px]"
-                  : "text-[20px] md:text-[32px]",
-              )}
-            >
-              {vehicle.name}
-            </h2>
-            <p className="text-white/50 text-[13px] leading-relaxed max-w-sm line-clamp-2 md:line-clamp-none">
-              {vehicle.description}
-            </p>
-          </div>
-          <div>
-            {size === "large" && Object.entries(specs).length > 0 && (
-              <div className="hidden md:flex gap-5 mb-6">
-                {Object.entries(specs)
-                  .slice(0, 3)
-                  .map(([label, value]) => (
-                    <div key={label}>
-                      <div className="text-[10px] text-white/35 mb-0.5">{label}</div>
-                      <div className="text-[13px] font-medium text-white/85">{value}</div>
-                    </div>
-                  ))}
-              </div>
-            )}
-            <RepresentativeQuotePrice
-              quotes={vehicle.representativeQuotes}
-              tone="dark"
-              size="xl"
-            />
-          </div>
-        </div>
-      </Link>
-      <Link
-        href={`/quote?vehicle=${vehicle.slug}`}
-        className={cn(
-          "absolute z-20 flex items-center gap-1.5 bg-white text-primary text-[12px] md:text-[13px] font-semibold",
-          "px-4 md:px-5 py-2 md:py-2.5 rounded-btn transition-all duration-200 group-hover:gap-2.5 group-hover:shadow-lg",
-          size === "large"
-            ? "bottom-5 right-5 md:bottom-10 md:right-10"
-            : "bottom-5 right-5 md:bottom-8 md:right-8",
-        )}
-      >
-        견적 보기
-        <ArrowRight size={13} strokeWidth={2.5} />
-      </Link>
-    </motion.div>
-  );
-}
+// FeaturedCard 는 @/components/cars/FeaturedCard 로 분리(슬라이더와 공용).
 
 // ── 메인 페이지 ────────────────────────────────────────────
 interface CarsClientPageProps {
@@ -229,8 +128,12 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
     return Array.from(new Set(vehicles.map((v) => v.brand))).sort(brandComparator);
   }, [vehicles, brandComparator]);
 
+  // 주목할 차량(어드민 isSpotlight 지정) — 탐색 페이지 상단 슬라이더. displayOrder 순.
   const featured = useMemo(
-    () => vehicles.filter((v) => v.isPopular).slice(0, 2),
+    () =>
+      vehicles
+        .filter((v) => v.isSpotlight)
+        .sort((a, b) => a.displayOrder - b.displayOrder),
     [vehicles],
   );
 
@@ -277,6 +180,8 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
 
   const totalCount = vehicles.length;
   const hasActiveFilters = categoryFilter !== "전체" || brandFilter !== "전체";
+  // 검색·필터가 활성일 때만 차량 목록을 노출(기본 화면은 주목 차량 슬라이더만, 전체 나열 X)
+  const isBrowsing = searchQuery.trim().length > 0 || hasActiveFilters;
   const activeFilterCount =
     (categoryFilter !== "전체" ? 1 : 0) + (brandFilter !== "전체" ? 1 : 0);
   const resetFilters = () => {
@@ -616,99 +521,106 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
       {/* ── 컨텐츠 영역 ── */}
       <div className="page-container py-6 md:py-10">
 
-        {/* 피처드 섹션 */}
-        {!searchQuery && categoryFilter === "전체" && brandFilter === "전체" && featured.length > 0 && (
+        {/* 주목할 차량 슬라이더 (어드민 isSpotlight 지정) — 검색/필터와 무관하게 항상 노출 */}
+        {featured.length > 0 && (
           <section className="mb-8 md:mb-10">
             <p className="text-[10px] font-semibold text-ink-caption uppercase tracking-wider mb-4">
               주목할 차량
             </p>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
-              {featured[0] && (
-                <div className="lg:col-span-2">
-                  <FeaturedCard vehicle={featured[0]} size="large" />
-                </div>
-              )}
-              {featured[1] && (
-                <div className="lg:col-span-1">
-                  <FeaturedCard vehicle={featured[1]} size="small" />
-                </div>
-              )}
-            </div>
+            <FeaturedCarsSlider vehicles={featured} />
           </section>
         )}
 
-        {/* 차량 그리드 */}
-        <section>
-          <div className="flex items-center justify-between mb-4 md:mb-5">
-            <div className="flex items-center gap-2">
-              <p className="text-[10px] md:text-[11px] font-semibold text-ink-caption uppercase tracking-wider">
-                {hasActiveFilters || searchQuery ? "검색 결과" : "전체 차량"}
-              </p>
-              <span className="text-[11px] text-ink-caption">{filteredVehicles.length}개</span>
+        {/* 차량 목록 — 검색/필터가 활성일 때만 노출 (기본 화면은 전체 나열하지 않음) */}
+        {isBrowsing ? (
+          <section>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] md:text-[11px] font-semibold text-ink-caption uppercase tracking-wider">
+                  검색 결과
+                </p>
+                <span className="text-[11px] text-ink-caption">{filteredVehicles.length}개</span>
+              </div>
+
+              {/* 활성 필터 칩 */}
+              {hasActiveFilters && (
+                <div className="flex items-center gap-1.5">
+                  {brandFilter !== "전체" && (
+                    <span className="flex items-center gap-1 h-6 px-2.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium">
+                      {brandFilter}
+                      <button onClick={() => setBrandFilter("전체")}>
+                        <X size={9} />
+                      </button>
+                    </span>
+                  )}
+                  {categoryFilter !== "전체" && (
+                    <span className="flex items-center gap-1 h-6 px-2.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium">
+                      {categoryFilter}
+                      <button onClick={() => setCategoryFilter("전체")}>
+                        <X size={9} />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* 활성 필터 칩 */}
-            {hasActiveFilters && (
-              <div className="flex items-center gap-1.5">
-                {brandFilter !== "전체" && (
-                  <span className="flex items-center gap-1 h-6 px-2.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium">
-                    {brandFilter}
-                    <button onClick={() => setBrandFilter("전체")}>
-                      <X size={9} />
-                    </button>
-                  </span>
-                )}
-                {categoryFilter !== "전체" && (
-                  <span className="flex items-center gap-1 h-6 px-2.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium">
-                    {categoryFilter}
-                    <button onClick={() => setCategoryFilter("전체")}>
-                      <X size={9} />
-                    </button>
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <AnimatePresence mode="wait">
-            {filteredVehicles.length > 0 ? (
-              <motion.div
-                key={`${categoryFilter}-${brandFilter}-${sortBy}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5"
-              >
-                {filteredVehicles.map((vehicle, idx) => (
-                  <CarCard key={vehicle.id} vehicle={vehicle} index={idx} />
-                ))}
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center py-20 text-center"
-              >
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary-100 flex items-center justify-center mb-4">
-                  <Search size={20} className="text-primary" />
-                </div>
-                <p className="text-[15px] md:text-[16px] font-display font-medium text-ink mb-1.5">
-                  해당 조건의 차량이 없어요
-                </p>
-                <p className="text-[12px] md:text-[13px] text-ink-label mb-5">
-                  조건을 조금 바꿔보면 더 많은 차량을 찾을 수 있어요
-                </p>
-                <button
-                  onClick={resetFilters}
-                  className="text-[13px] font-medium text-primary hover:underline"
+            <AnimatePresence mode="wait">
+              {filteredVehicles.length > 0 ? (
+                <motion.div
+                  key={`${categoryFilter}-${brandFilter}-${sortBy}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5"
                 >
-                  전체 차량 보기
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </section>
+                  {filteredVehicles.map((vehicle, idx) => (
+                    <CarCard key={vehicle.id} vehicle={vehicle} index={idx} />
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center py-20 text-center"
+                >
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary-100 flex items-center justify-center mb-4">
+                    <Search size={20} className="text-primary" />
+                  </div>
+                  <p className="text-[15px] md:text-[16px] font-display font-medium text-ink mb-1.5">
+                    해당 조건의 차량이 없어요
+                  </p>
+                  <p className="text-[12px] md:text-[13px] text-ink-label mb-5">
+                    조건을 조금 바꿔보면 더 많은 차량을 찾을 수 있어요
+                  </p>
+                  <button
+                    onClick={() => {
+                      resetFilters();
+                      setSearchQuery("");
+                    }}
+                    className="text-[13px] font-medium text-primary hover:underline"
+                  >
+                    검색·필터 초기화
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+        ) : (
+          /* 기본 화면 안내 — 검색·필터 사용 유도 */
+          <section className="flex flex-col items-center justify-center py-12 md:py-16 text-center">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary-100 flex items-center justify-center mb-4">
+              <Search size={20} className="text-primary" />
+            </div>
+            <p className="text-[15px] md:text-[16px] font-display font-medium text-ink mb-1.5">
+              찾으시는 차량이 있나요?
+            </p>
+            <p className="text-[12px] md:text-[13px] text-ink-label">
+              위에서 브랜드·차종을 선택하거나 검색하면 차량을 보여드려요
+            </p>
+          </section>
+        )}
 
         {/* 이런 차량은 어떠세요? */}
         {searchQuery && suggestedVehicles.length > 0 && (
