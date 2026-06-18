@@ -31,12 +31,15 @@ export function TrimTab({ vehicle }: TrimTabProps) {
     { isOpen: false, target: null }
   );
 
-  // 다중 선택 모드
+  // 다중 선택 모드 — 일괄 할인 / 일괄 보조금 공용
   const [multiSelectMode, setMultiSelectMode] = useState(false);
+  // 현재 일괄 작업 대상: 할인 or 보조금(견적 미반영)
+  const [bulkTarget, setBulkTarget] = useState<"discount" | "subsidy">("discount");
   const [selectedTrimIds, setSelectedTrimIds] = useState<Set<string>>(new Set());
   const [bulkDiscountInput, setBulkDiscountInput] = useState("");
   const [bulkRateInput, setBulkRateInput] = useState("");
   const [bulkDiscountMode, setBulkDiscountMode] = useState<"amount" | "rate">("amount");
+  const [bulkSubsidyInput, setBulkSubsidyInput] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
 
   // 개별 트림 모달 할인 입력
@@ -180,6 +183,18 @@ export function TrimTab({ vehicle }: TrimTabProps) {
     setBulkDiscountInput("");
     setBulkRateInput("");
     setBulkDiscountMode("amount");
+    setBulkSubsidyInput("");
+  };
+
+  /** 다중 선택 모드 진입/토글 — target(할인/보조금)별로 동작 */
+  const toggleMultiSelect = (target: "discount" | "subsidy") => {
+    if (multiSelectMode && bulkTarget === target) {
+      exitMultiSelectMode();
+    } else {
+      exitMultiSelectMode();
+      setBulkTarget(target);
+      setMultiSelectMode(true);
+    }
   };
 
   /** 일괄 할인 입력 모드 전환 — 기존 값을 자동 변환 */
@@ -222,6 +237,32 @@ export function TrimTab({ vehicle }: TrimTabProps) {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(bulkPayload),
+        }
+      );
+      if (resp.ok) {
+        exitMultiSelectMode();
+        window.location.reload();
+      }
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
+  const handleBulkSubsidy = async () => {
+    if (bulkSaving || selectedTrimIds.size === 0) return;
+    setBulkSaving(true);
+
+    // 빈칸 = 보조금 해제(null), 값 입력 시 만원 → 원 변환
+    const raw = bulkSubsidyInput.trim();
+    const evSubsidy = raw === "" ? null : Math.round(Number(raw) * 10000);
+
+    try {
+      const resp = await fetch(
+        `/api/admin/vehicles/${vehicle.id}/trims/bulk-subsidy`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trimIds: Array.from(selectedTrimIds), evSubsidy }),
         }
       );
       if (resp.ok) {
@@ -317,24 +358,32 @@ export function TrimTab({ vehicle }: TrimTabProps) {
             </h3>
             <div className="flex items-center gap-2">
               {filteredTrims.length > 0 && (
-                <button
-                  onClick={() => {
-                    if (multiSelectMode) {
-                      exitMultiSelectMode();
-                    } else {
-                      setMultiSelectMode(true);
-                    }
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[13px] font-medium border transition-colors",
-                    multiSelectMode
-                      ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
-                      : "bg-white border-[#E8EAF0] text-[#6B7399] hover:bg-[#F0F2F8]"
-                  )}
-                >
-                  <Tag size={14} />
-                  {multiSelectMode ? "선택 취소" : "일괄 할인"}
-                </button>
+                <>
+                  <button
+                    onClick={() => toggleMultiSelect("discount")}
+                    className={cn(
+                      "flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[13px] font-medium border transition-colors",
+                      multiSelectMode && bulkTarget === "discount"
+                        ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
+                        : "bg-white border-[#E8EAF0] text-[#6B7399] hover:bg-[#F0F2F8]"
+                    )}
+                  >
+                    <Tag size={14} />
+                    {multiSelectMode && bulkTarget === "discount" ? "선택 취소" : "일괄 할인"}
+                  </button>
+                  <button
+                    onClick={() => toggleMultiSelect("subsidy")}
+                    className={cn(
+                      "flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-[13px] font-medium border transition-colors",
+                      multiSelectMode && bulkTarget === "subsidy"
+                        ? "bg-[#EEF0FF] border-[#000666]/30 text-[#000666] hover:bg-[#E5E8FF]"
+                        : "bg-white border-[#E8EAF0] text-[#6B7399] hover:bg-[#F0F2F8]"
+                    )}
+                  >
+                    <Zap size={14} />
+                    {multiSelectMode && bulkTarget === "subsidy" ? "선택 취소" : "일괄 보조금"}
+                  </button>
+                </>
               )}
               <button
                 onClick={() => openModal(null)}
@@ -347,7 +396,7 @@ export function TrimTab({ vehicle }: TrimTabProps) {
 
           {/* 일괄 할인 패널 */}
           <AnimatePresence>
-            {multiSelectMode && (
+            {multiSelectMode && bulkTarget === "discount" && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
@@ -490,6 +539,67 @@ export function TrimTab({ vehicle }: TrimTabProps) {
                 </div>
               </motion.div>
             )}
+
+            {/* 일괄 보조금 패널 — 견적 미반영, 안내 표기 전용 */}
+            {multiSelectMode && bulkTarget === "subsidy" && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="bg-[#EEF0FF] border border-[#000666]/15 rounded-[12px] p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={toggleAllTrims}
+                        className="flex items-center gap-1.5 text-[13px] text-[#000666] font-medium hover:text-[#1A1A6E]"
+                      >
+                        {selectedTrimIds.size === filteredTrims.length && filteredTrims.length > 0
+                          ? <CheckSquare size={16} />
+                          : <Square size={16} />
+                        }
+                        전체 선택
+                      </button>
+                      <span className="text-[12px] text-[#6066EE]">
+                        {selectedTrimIds.size}개 선택됨
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-end gap-3">
+                    <div className="flex-1 space-y-1">
+                      <label className="text-[11px] font-bold text-[#000666] uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                        <Zap size={11} />
+                        일괄 전기차 보조금 (만원)
+                        <span className="text-[10px] font-normal text-[#9BA4C0] normal-case tracking-normal">· 견적 미반영 · 빈칸 = 해제</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={bulkSubsidyInput}
+                        onChange={e => setBulkSubsidyInput(e.target.value)}
+                        placeholder="예: 400 (빈칸 적용 시 보조금 해제)"
+                        className="w-full px-3 py-2 text-[13px] text-[#1A1A2E] bg-white border border-[#000666]/20 rounded-[6px] outline-none focus:border-[#000666] transition-colors placeholder:text-[#B0B8D0]"
+                      />
+                      {selectedTrims.length === 0 ? (
+                        <p className="text-[11px] text-[#6066EE]">트림을 선택하세요</p>
+                      ) : bulkSubsidyInput.trim() === "" ? (
+                        <p className="text-[11px] text-[#6066EE]">선택한 {selectedTrims.length}개 트림의 보조금을 해제합니다</p>
+                      ) : (
+                        <p className="text-[11px] text-[#000666]">선택한 {selectedTrims.length}개 트림에 보조금 {Number(bulkSubsidyInput).toLocaleString()}만원 적용</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleBulkSubsidy}
+                      disabled={bulkSaving || selectedTrimIds.size === 0}
+                      className="px-5 py-2 bg-[#000666] text-white rounded-[8px] text-[13px] font-bold hover:bg-[#1A1A6E] disabled:opacity-40 transition-colors shrink-0"
+                    >
+                      {bulkSaving ? "적용 중..." : "선택 트림에 적용"}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -508,7 +618,9 @@ export function TrimTab({ vehicle }: TrimTabProps) {
                       ? "cursor-pointer select-none"
                       : "hover:border-[#000666]/30",
                     isSelected
-                      ? "border-amber-400 bg-amber-50/50 shadow-amber-100"
+                      ? bulkTarget === "subsidy"
+                        ? "border-[#000666]/40 bg-[#EEF0FF]/60 shadow-indigo-100"
+                        : "border-amber-400 bg-amber-50/50 shadow-amber-100"
                       : "border-[#E8EAF0]"
                   )}
                 >
@@ -516,7 +628,7 @@ export function TrimTab({ vehicle }: TrimTabProps) {
                   {multiSelectMode && (
                     <div className="absolute top-3 right-3">
                       {isSelected
-                        ? <CheckSquare size={18} className="text-amber-500" />
+                        ? <CheckSquare size={18} className={bulkTarget === "subsidy" ? "text-[#000666]" : "text-amber-500"} />
                         : <Square size={18} className="text-[#C0C8E0]" />
                       }
                     </div>
@@ -565,6 +677,14 @@ export function TrimTab({ vehicle }: TrimTabProps) {
                         {formatKRWMan(trim.price)}
                       </span>
                     )}
+                    {trim.evSubsidy && trim.evSubsidy > 0 ? (
+                      <div className="mt-2 inline-flex items-center gap-1 rounded-[5px] bg-[#000666]/[0.06] border border-[#000666]/10 px-2 py-0.5">
+                        <Zap size={10} strokeWidth={2.5} className="text-[#000666]" />
+                        <span className="text-[11px] font-semibold text-[#000666]">
+                          보조금 {Math.round(trim.evSubsidy / 10000).toLocaleString()}만원
+                        </span>
+                      </div>
+                    ) : null}
                     {trim.isDefault && (
                       <span className="absolute bottom-4 right-4 text-[10px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded-[4px] font-bold uppercase tracking-wider">
                         Default
