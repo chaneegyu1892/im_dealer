@@ -19,6 +19,7 @@ export async function PATCH(
       code?: string;
       surchargeRate?: number;
       isActive?: boolean;
+      logoUrl?: string | null;
     } = {};
 
     if (typeof body?.name === "string") {
@@ -53,6 +54,12 @@ export async function PATCH(
     }
     if (typeof body?.isActive === "boolean") {
       update.isActive = body.isActive;
+    }
+    // logoUrl: 문자열이면 설정, null 이면 제거. (undefined 면 변경 안 함)
+    if (body?.logoUrl === null) {
+      update.logoUrl = null;
+    } else if (typeof body?.logoUrl === "string") {
+      update.logoUrl = body.logoUrl.trim() || null;
     }
 
     if (Object.keys(update).length === 0) {

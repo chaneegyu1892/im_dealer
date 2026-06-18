@@ -1,7 +1,18 @@
 import React from "react";
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import type { QuoteScenarioDetail } from "@/types/quote";
 import type { PDFQuoteData, PDFQuoteColor } from "@/lib/quote-pdf-template";
+
+// ── 보험 조건 기본값 (장기렌트 기준 고정값) ─────────────────
+// 데이터 소스가 없는 표준 약관 기준값이므로 상수로 관리한다.
+const INSURANCE_TERMS: ReadonlyArray<{ label: string; value: string }> = [
+  { label: "운전 연령/범위", value: "만 26세 이상 / 누구나 운전 가능" },
+  { label: "대인 배상", value: "무한" },
+  { label: "대물 배상", value: "1억 원" },
+  { label: "자손/자상", value: "자기신체사고 1억 원" },
+  { label: "자차 면책금", value: "건당 30만 / 50만 원" },
+  { label: "무보험차 상해", value: "2억 원" },
+];
 
 // ── 포맷 헬퍼 ─────────────────────────────────────────────
 const fmt = (n: number) => n.toLocaleString("ko-KR") + "원";
@@ -166,6 +177,10 @@ const s = StyleSheet.create({
   footerR: { alignItems: "flex-end" },
   footerBrand: { fontSize: 9.5, fontWeight: 700, color: C.primary },
   footerNote: { fontSize: 8, color: C.muted, marginTop: 1 },
+  // 금융사 로고 + 이름
+  financeNameRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
+  financeLogo: { width: 16, height: 11, objectFit: "contain" },
+  financeNameHi: { fontWeight: 600, color: C.primary },
   // 색상 칩
   colorRowInner: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4 },
   chip: { width: 8, height: 8, borderRadius: 4, borderWidth: 1, borderColor: "#D8DAE6", marginRight: 4 },
@@ -188,6 +203,24 @@ function ScenarioCell({ sc, hi }: { sc: QuoteScenarioDetail; hi: boolean }) {
   );
 }
 
+function FinanceName({
+  name,
+  logos,
+  hi,
+}: {
+  name: string;
+  logos: Record<string, string>;
+  hi?: boolean;
+}) {
+  const logo = logos[name];
+  return (
+    <View style={s.financeNameRow}>
+      {logo ? <Image src={logo} style={s.financeLogo} /> : null}
+      <Text style={hi ? s.financeNameHi : undefined}>{name}</Text>
+    </View>
+  );
+}
+
 function ColorLine({ label, c }: { label: string; c: PDFQuoteColor | null | undefined }) {
   if (!c) return null;
   return (
@@ -200,7 +233,13 @@ function ColorLine({ label, c }: { label: string; c: PDFQuoteColor | null | unde
   );
 }
 
-export function QuoteDocument({ data }: { data: PDFQuoteData }) {
+export function QuoteDocument({
+  data,
+  financeLogos = {},
+}: {
+  data: PDFQuoteData;
+  financeLogos?: Record<string, string>;
+}) {
   const quoteNumber = generateQuoteNumber();
   const today = formatDate();
   const expiry = formatExpiryDate();
@@ -208,6 +247,16 @@ export function QuoteDocument({ data }: { data: PDFQuoteData }) {
   const { conservative, standard, aggressive } = data.scenarios;
   const isProductRent = data.productType === "장기렌트";
   const hasColor = !!(data.exteriorColor || data.interiorColor);
+
+  // 선택 옵션 소계 (옵션이 있을 때만 노출).
+  const hasOptions = data.selectedOptions.length > 0;
+  const optionSubtotal = data.selectedOptions.reduce((sum, o) => sum + o.price, 0);
+
+  // 보험 조건표는 장기렌트에만 노출 → 섹션 번호를 동적으로 부여한다.
+  const showInsurance = isProductRent;
+  const nInsurance = showInsurance ? 3 : null;
+  const nScenario = showInsurance ? 4 : 3;
+  const nResult = showInsurance ? 5 : 4;
 
   return (
     <Document>
@@ -238,7 +287,7 @@ export function QuoteDocument({ data }: { data: PDFQuoteData }) {
             <View style={s.row}>
               <Text style={[s.th, { width: "22%" }]}>선택 옵션</Text>
               <View style={[s.td, { width: "78%" }]}>
-                {data.selectedOptions.length > 0 ? (
+                {hasOptions ? (
                   <Text>
                     {data.selectedOptions.map((o, i) => (
                       <Text key={i}>
@@ -252,6 +301,12 @@ export function QuoteDocument({ data }: { data: PDFQuoteData }) {
                 )}
               </View>
             </View>
+            {hasOptions && (
+              <View style={s.row}>
+                <Text style={[s.th, { width: "22%" }]}>옵션 소계</Text>
+                <Text style={[s.td, s.tdBold, { width: "78%" }]}>{fmt(optionSubtotal)}</Text>
+              </View>
+            )}
             {hasColor && (
               <View style={s.row}>
                 <Text style={[s.th, { width: "22%" }]}>색상 선택</Text>
@@ -289,9 +344,26 @@ export function QuoteDocument({ data }: { data: PDFQuoteData }) {
           </View>
         </View>
 
-        {/* 3. 시나리오별 견적 비교 */}
+        {/* 3. 보험 조건 (장기렌트 전용) */}
+        {showInsurance && (
+          <View style={s.section}>
+            <Text style={s.secTitle}>{nInsurance}. 보험 조건</Text>
+            <View style={s.table}>
+              {[0, 2, 4].map((start) => (
+                <View style={s.row} key={start}>
+                  <Text style={[s.th, { width: "22%" }]}>{INSURANCE_TERMS[start].label}</Text>
+                  <Text style={[s.td, { width: "28%" }]}>{INSURANCE_TERMS[start].value}</Text>
+                  <Text style={[s.th, { width: "22%" }]}>{INSURANCE_TERMS[start + 1].label}</Text>
+                  <Text style={[s.td, { width: "28%" }]}>{INSURANCE_TERMS[start + 1].value}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 시나리오별 견적 비교 */}
         <View style={s.section}>
-          <Text style={s.secTitle}>3. 시나리오별 견적 비교</Text>
+          <Text style={s.secTitle}>{nScenario}. 시나리오별 견적 비교</Text>
           <View style={s.table}>
             {/* thead */}
             <View style={s.row}>
@@ -319,16 +391,22 @@ export function QuoteDocument({ data }: { data: PDFQuoteData }) {
             {/* 최우선 금융사 */}
             <View style={s.row}>
               <Text style={[s.th, { width: "20%" }]}>최우선 금융사</Text>
-              <Text style={[s.td, { width: "26.66%", textAlign: "center" }]}>{conservative.bestFinanceCompany}</Text>
-              <Text style={[s.td, s.scCellHi, { width: "26.66%", textAlign: "center", fontWeight: 600, color: C.primary }]}>{standard.bestFinanceCompany}</Text>
-              <Text style={[s.td, { width: "26.68%", textAlign: "center" }]}>{aggressive.bestFinanceCompany}</Text>
+              <View style={[s.td, { width: "26.66%" }]}>
+                <FinanceName name={conservative.bestFinanceCompany} logos={financeLogos} />
+              </View>
+              <View style={[s.td, s.scCellHi, { width: "26.66%" }]}>
+                <FinanceName name={standard.bestFinanceCompany} logos={financeLogos} hi />
+              </View>
+              <View style={[s.td, { width: "26.68%" }]}>
+                <FinanceName name={aggressive.bestFinanceCompany} logos={financeLogos} />
+              </View>
             </View>
           </View>
         </View>
 
-        {/* 4. 기본 추천 견적 (무보증) */}
+        {/* 기본 추천 견적 (무보증) */}
         <View style={s.section}>
-          <Text style={s.secTitle}>4. 기본 추천 견적 (무보증)</Text>
+          <Text style={s.secTitle}>{nResult}. 기본 추천 견적 (무보증)</Text>
           <View style={s.resultBox}>
             <View>
               <Text style={s.resLabel}>최종 월 납입금</Text>
@@ -353,7 +431,10 @@ export function QuoteDocument({ data }: { data: PDFQuoteData }) {
             `유효기간(${expiry}) 경과 후에는 새로운 견적 산출이 필요합니다.`,
             ...(isProductRent
               ? ["장기렌트의 경우 취득세, 자동차세, 의무보험료가 월 납입금에 포함되어 있습니다."]
-              : []),
+              : [
+                  "자동차리스의 경우 금융사 및 상품 종류(운용/금융리스)에 따라 자동차세 및 보험료가 월 납입금 외에 별도 청구될 수 있으므로 본 계약 전 반드시 확인하시기 바랍니다.",
+                ]),
+            "중도 해지 시 금융사별 규정에 따른 중도해지위약금(위약률)이 발생합니다.",
           ].map((t, i) => (
             <View key={i} style={s.noticeItem}>
               <Text style={s.bullet}>•</Text>

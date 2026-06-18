@@ -316,6 +316,7 @@ export interface AdminFinanceCompany {
   name: string;
   code: string;
   surchargeRate: number;
+  logoUrl: string | null;
   isActive: boolean;
   displayOrder: number;
 }

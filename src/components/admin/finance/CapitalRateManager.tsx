@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import Image from "next/image";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import type {
   AdminFinanceCompany,
   AdminVehicle,
@@ -70,6 +72,7 @@ interface FinanceCompanyFormState {
   name: string;
   code: string;
   surchargeRate: string;
+  logoUrl: string | null;
   isActive: boolean;
 }
 
@@ -77,6 +80,7 @@ const emptyFinanceCompanyForm: FinanceCompanyFormState = {
   name: "",
   code: "",
   surchargeRate: "0",
+  logoUrl: null,
   isActive: true,
 };
 
@@ -87,6 +91,8 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
   const [savingCompany, setSavingCompany] = useState(false);
   const [companyError, setCompanyError] = useState("");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
   const { comparator: brandComparator } = useBrandSignals();
@@ -415,9 +421,31 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       name: company.name,
       code: company.code,
       surchargeRate: String(company.surchargeRate ?? 0),
+      logoUrl: company.logoUrl,
       isActive: company.isActive,
     });
     setCompanyError("");
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCompanyError("");
+    setUploadingLogo(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("category", "finance");
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "업로드 실패");
+      setCompanyForm((prev) => ({ ...prev, logoUrl: data.url }));
+    } catch (err) {
+      setCompanyError(err instanceof Error ? err.message : "로고 업로드 중 오류");
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
   };
 
   const saveFinanceCompany = async () => {
@@ -442,7 +470,13 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
         {
           method: editingCompanyId ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, code, surchargeRate, isActive: companyForm.isActive }),
+          body: JSON.stringify({
+            name,
+            code,
+            surchargeRate,
+            isActive: companyForm.isActive,
+            logoUrl: companyForm.logoUrl,
+          }),
         }
       );
       const data = await res.json();
@@ -577,6 +611,52 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                 className="w-full rounded-lg border border-[#E8EAF2] px-3 py-2 text-xs focus:border-[#6066EE] focus:outline-none"
               />
             </div>
+            {/* 로고 (견적서 PDF 노출용) */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E8EAF2] bg-[#F8F9FC]">
+                {companyForm.logoUrl ? (
+                  <>
+                    <Image
+                      src={companyForm.logoUrl}
+                      alt="로고 미리보기"
+                      width={48}
+                      height={48}
+                      className="h-full w-full object-contain p-1"
+                      unoptimized
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCompanyForm((prev) => ({ ...prev, logoUrl: null }))}
+                      className="absolute right-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black"
+                      aria-label="로고 제거"
+                    >
+                      <X size={9} />
+                    </button>
+                  </>
+                ) : (
+                  <ImagePlus size={16} className="text-[#9BA4C0]" />
+                )}
+              </div>
+              <div className="flex-1">
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={uploadingLogo}
+                  className="flex items-center gap-1.5 rounded-lg bg-[#F0F1FA] px-3 py-1.5 text-[11px] font-semibold text-[#000666] transition-colors hover:bg-[#E4E7F2] disabled:opacity-50"
+                >
+                  {uploadingLogo && <Loader2 size={11} className="animate-spin" />}
+                  {companyForm.logoUrl ? "로고 변경" : "로고 업로드"}
+                </button>
+                <p className="mt-1 text-[10px] text-[#9BA4C0]">견적서 표시용 · PNG 권장 · 최대 5MB</p>
+              </div>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
+            </div>
             <label className="flex items-center gap-2 text-xs font-medium text-[#6B7399]">
               <input
                 type="checkbox"
@@ -591,7 +671,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
               <button
                 type="button"
                 onClick={saveFinanceCompany}
-                disabled={savingCompany}
+                disabled={savingCompany || uploadingLogo}
                 className="flex-1 rounded-lg bg-[#000666] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
               >
                 {savingCompany ? "저장 중..." : editingCompanyId ? "수정 저장" : "추가"}

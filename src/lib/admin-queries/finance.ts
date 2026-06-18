@@ -68,6 +68,7 @@ export async function getAdminFinanceCompanies(): Promise<AdminFinanceCompany[]>
     name: r.name,
     code: r.code,
     surchargeRate: r.surchargeRate,
+    logoUrl: r.logoUrl,
     isActive: r.isActive,
     displayOrder: r.displayOrder,
   }));
