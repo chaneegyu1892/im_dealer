@@ -36,7 +36,6 @@ export async function GET(request: NextRequest) {
       category: v.category,
       vehicleCode: v.vehicleCode,
       basePrice: v.basePrice,
-      evSubsidy: v.evSubsidy,
       thumbnailUrl: v.thumbnailUrl,
       imageUrls: v.imageUrls,
       surchargeRate: v.surchargeRate,

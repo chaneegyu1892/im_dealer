@@ -87,8 +87,6 @@ model Vehicle {
   externalId     String?              @unique
   externalSource String?              // "external" 등 출처 식별 태그
   basePrice     Int
-  // 전기차 보조금(안내용). 견적 계산에는 반영하지 않으며 화면 표기 전용. null=보조금 없음.
-  evSubsidy     Int?
   thumbnailUrl  String
   imageUrls     String[]
   surchargeRate Float                 @default(0)
@@ -127,6 +125,8 @@ model Trim {
   name           String
   price          Int
   discountPrice  Int?
+  // 전기차 보조금(안내용). 견적 계산에는 반영하지 않으며 화면 표기 전용. null=보조금 없음.
+  evSubsidy      Int?
   engineType     String
   fuelEfficiency Float?
   isDefault      Boolean         @default(false)

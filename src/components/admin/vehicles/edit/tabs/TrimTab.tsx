@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, Pencil, Trash2, Check, X, Tag, CheckSquare, Square } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, Tag, Zap, CheckSquare, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatKRWMan } from "@/lib/format";
 import type { AdminVehicleDetail, AdminTrim } from "@/types/admin";
@@ -44,6 +44,8 @@ export function TrimTab({ vehicle }: TrimTabProps) {
   const [modalRateInput, setModalRateInput] = useState("");
   const [modalDiscountMode, setModalDiscountMode] = useState<"amount" | "rate">("amount");
   const [modalPriceInput, setModalPriceInput] = useState("");
+  // 전기차 보조금(만원) — 견적 미반영, 안내 표기 전용
+  const [modalSubsidyInput, setModalSubsidyInput] = useState("");
 
   const filteredTrims = useMemo(() => {
     return vehicle.trims.filter((t) => t.lineupId === selectedLineupId);
@@ -64,6 +66,9 @@ export function TrimTab({ vehicle }: TrimTabProps) {
     setModalPriceInput(
       trim?.price ? String(trim.price / 10000) : ""
     );
+    setModalSubsidyInput(
+      trim?.evSubsidy != null ? String(trim.evSubsidy / 10000) : ""
+    );
   };
 
   const closeModal = () => {
@@ -72,6 +77,7 @@ export function TrimTab({ vehicle }: TrimTabProps) {
     setModalRateInput("");
     setModalDiscountMode("amount");
     setModalPriceInput("");
+    setModalSubsidyInput("");
   };
 
   /** 모달 입력 모드 전환 — 기존 값을 자동 변환 */
@@ -115,6 +121,10 @@ export function TrimTab({ vehicle }: TrimTabProps) {
       name: fd.get("name") as string,
       price: priceWon,
       discountPrice,
+      evSubsidy:
+        modalSubsidyInput.trim() === ""
+          ? null
+          : Math.round(Number(modalSubsidyInput) * 10000),
       engineType: fd.get("engineType") as string,
       isDefault: fd.get("isDefault") === "on",
       lineupId: selectedLineupId,
@@ -741,6 +751,26 @@ export function TrimTab({ vehicle }: TrimTabProps) {
                   {modalDiscountMode === "rate" && Number(modalRateInput) >= 100 && (
                     <p className="text-[11px] text-red-500">할인율은 0~99% 사이여야 합니다.</p>
                   )}
+                </div>
+
+                {/* 전기차 보조금 — 견적 미반영, 안내 표기 전용 */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-[#6B7399] uppercase tracking-wider flex items-center gap-1.5">
+                    <Zap size={11} />
+                    전기차 보조금 (만원)
+                    <span className="text-[10px] font-normal text-[#B0B8D0] normal-case tracking-normal">· 견적 미반영 · 빈칸 = 미표시</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={modalSubsidyInput}
+                    onChange={e => setModalSubsidyInput(e.target.value)}
+                    placeholder="예: 400 (전기차만 입력)"
+                    className={inputClass}
+                  />
+                  <p className="text-[11px] text-[#9BA4C0]">
+                    사용자 화면에 안내용으로만 표시되며 견적 계산에는 반영되지 않습니다.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">

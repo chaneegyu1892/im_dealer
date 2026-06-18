@@ -7,6 +7,7 @@ import { ArrowRight, Zap, Leaf, Fuel, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
+import { formatSubsidyManwon } from "@/lib/ev-subsidy";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 
 interface CarCardProps {
@@ -143,11 +144,11 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
             {vehicle.description}
           </p>
 
-          {vehicle.evSubsidy && vehicle.evSubsidy > 0 ? (
+          {vehicle.evSubsidyRange ? (
             <div className="inline-flex items-center gap-1 mb-3 rounded-[5px] bg-primary/[0.06] border border-primary/10 px-2 py-1">
               <Zap size={11} strokeWidth={2.5} className="text-primary" />
               <span className="text-[11px] font-semibold text-primary">
-                전기차 보조금 {Math.round(vehicle.evSubsidy / 10000).toLocaleString()}만원
+                전기차 보조금 {formatSubsidyManwon(vehicle.evSubsidyRange)}
               </span>
             </div>
           ) : null}
