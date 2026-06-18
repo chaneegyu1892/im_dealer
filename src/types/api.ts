@@ -2,6 +2,7 @@ import type { EngineType, VehicleCategory } from "./vehicle";
 import type { RecommendScenarios } from "./recommendation";
 import type { QuoteScenarioDetails } from "./quote";
 import type { RepresentativeQuote } from "@/lib/representative-quote";
+import type { SubsidyRange } from "@/lib/ev-subsidy";
 
 /** GET /api/vehicles 응답의 개별 차량 */
 export interface VehicleListItem {
@@ -11,8 +12,8 @@ export interface VehicleListItem {
   brand: string;
   category: VehicleCategory;
   basePrice: number;
-  /** 전기차 보조금(안내용, 견적 미반영). null = 보조금 없음 */
-  evSubsidy: number | null;
+  /** 노출 트림들의 전기차 보조금(안내용, 견적 미반영) 최소~최대 범위. null = 보조금 없음 */
+  evSubsidyRange: SubsidyRange | null;
   thumbnailUrl: string;
   isPopular: boolean;
   /** 차량 탐색(/cars) "주목할 차량" 슬라이더 노출 플래그. isPopular와 별개. */
@@ -55,8 +56,8 @@ export interface VehicleDetail {
   category: VehicleCategory;
   vehicleCode: string | null;
   basePrice: number;
-  /** 전기차 보조금(안내용, 견적 미반영). null = 보조금 없음 */
-  evSubsidy: number | null;
+  /** 노출 트림들의 전기차 보조금(안내용, 견적 미반영) 최소~최대 범위. null = 보조금 없음 */
+  evSubsidyRange: SubsidyRange | null;
   thumbnailUrl: string;
   imageUrls: string[];
   surchargeRate: number;

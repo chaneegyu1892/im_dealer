@@ -15,6 +15,7 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
+import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import { QuoteClientPage } from "./QuoteClientPage";
 
 async function getVehicles(): Promise<VehicleListItem[]> {
@@ -25,7 +26,6 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       trims: {
         where: { isVisible: true },
         orderBy: { isDefault: "desc" },
-        take: 1,
       },
       recConfigs: {
         where: { isActive: true },
@@ -41,7 +41,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     brand: v.brand,
     category: v.category as VehicleListItem["category"],
     basePrice: v.basePrice,
-    evSubsidy: v.evSubsidy,
+    evSubsidyRange: subsidyRangeFromTrims(v.trims),
     thumbnailUrl: v.thumbnailUrl,
     isPopular: v.isPopular,
     description: v.description,

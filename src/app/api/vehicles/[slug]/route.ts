@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import {
   calculateScenarios,
   estimateMonthly,
@@ -89,7 +90,7 @@ export async function GET(
         category: vehicle.category,
         vehicleCode: vehicle.vehicleCode,
         basePrice: vehicle.basePrice,
-        evSubsidy: vehicle.evSubsidy,
+        evSubsidyRange: subsidyRangeFromTrims(vehicle.trims),
         thumbnailUrl: vehicle.thumbnailUrl,
         imageUrls: vehicle.imageUrls,
         surchargeRate: vehicle.surchargeRate,

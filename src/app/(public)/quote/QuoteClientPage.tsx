@@ -81,6 +81,8 @@ interface TrimData {
   name: string;
   price: number;
   discountPrice: number | null;
+  /** 전기차 보조금(안내용, 견적 미반영). null = 보조금 없음 */
+  evSubsidy: number | null;
   engineType: string;
   fuelEfficiency: number | null;
   isDefault: boolean;
@@ -1224,7 +1226,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
 
                       {/* 전기차 보조금 안내 (견적 미반영, 표시 전용) */}
                       {selectedTrim && (
-                        <EvSubsidyNotice amount={selectedVehicle?.evSubsidy} />
+                        <EvSubsidyNotice amount={selectedTrim.evSubsidy} />
                       )}
                     </div>
                   ) : null}
@@ -1552,9 +1554,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 </div>
 
                 {/* 전기차 보조금 안내 (견적 미반영, 표시 전용) */}
-                {selectedVehicle?.evSubsidy ? (
+                {selectedTrim?.evSubsidy ? (
                   <div className="mb-4">
-                    <EvSubsidyNotice amount={selectedVehicle.evSubsidy} />
+                    <EvSubsidyNotice amount={selectedTrim.evSubsidy} />
                   </div>
                 ) : null}
 

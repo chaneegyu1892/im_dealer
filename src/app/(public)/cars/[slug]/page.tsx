@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 
 import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
 import type { RepresentativeQuote } from "@/lib/representative-quote";
+import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { notFound } from "next/navigation";
@@ -188,7 +189,7 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     category: vehicle.category as VehicleDetail["category"],
     vehicleCode: vehicle.vehicleCode,
     basePrice: vehicle.basePrice,
-    evSubsidy: vehicle.evSubsidy,
+    evSubsidyRange: subsidyRangeFromTrims(vehicle.trims),
     thumbnailUrl: vehicle.thumbnailUrl,
     imageUrls: vehicle.imageUrls,
     surchargeRate: vehicle.surchargeRate,

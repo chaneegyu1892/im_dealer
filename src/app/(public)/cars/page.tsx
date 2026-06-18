@@ -7,6 +7,7 @@ import { getBrandSignals } from "@/lib/brand-signals";
 import type { BrandSignal } from "@/lib/brand-sort";
 import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
 import { lowestMonthly } from "@/lib/representative-quote";
+import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import { CarsClientPage } from "./CarsClientPage";
 
 async function getVehicles(): Promise<VehicleListItem[]> {
@@ -56,7 +57,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       brand: v.brand,
       category: v.category as VehicleListItem["category"],
       basePrice: v.basePrice,
-      evSubsidy: v.evSubsidy,
+      evSubsidyRange: subsidyRangeFromTrims(v.trims),
       thumbnailUrl: v.thumbnailUrl,
       isPopular: v.isPopular,
       isSpotlight: v.isSpotlight,

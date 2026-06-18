@@ -11,6 +11,7 @@ import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
 import { lowestMonthly } from "@/lib/representative-quote";
+import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 
 async function getPopularVehicles(): Promise<VehicleListItem[]> {
   const baseVehicleQuery = {
@@ -69,7 +70,7 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
       brand: v.brand,
       category: v.category as VehicleListItem["category"],
       basePrice: v.basePrice,
-      evSubsidy: v.evSubsidy,
+      evSubsidyRange: subsidyRangeFromTrims(v.trims),
       thumbnailUrl: v.thumbnailUrl,
       isPopular: v.isPopular,
       description: v.description,
