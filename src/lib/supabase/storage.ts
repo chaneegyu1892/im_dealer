@@ -22,6 +22,7 @@ export const ADMIN_UPLOAD_CATEGORIES = [
   "brands",
   "trims",
   "colors",
+  "finance",
   "misc",
 ] as const;
 export type AdminUploadCategory = (typeof ADMIN_UPLOAD_CATEGORIES)[number];

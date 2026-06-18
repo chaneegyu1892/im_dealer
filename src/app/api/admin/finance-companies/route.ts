@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
     const code = typeof body?.code === "string" ? body.code.trim().toUpperCase() : "";
     const surchargeRate = Number(body?.surchargeRate ?? 0);
     const isActive = typeof body?.isActive === "boolean" ? body.isActive : true;
+    const logoUrl =
+      typeof body?.logoUrl === "string" && body.logoUrl.trim() ? body.logoUrl.trim() : null;
 
     if (!name || !code) {
       return NextResponse.json(
@@ -63,7 +65,7 @@ export async function POST(req: NextRequest) {
     const displayOrder = (maxOrder._max.displayOrder ?? 0) + 1;
 
     const created = await prisma.financeCompany.create({
-      data: { name, code, surchargeRate, isActive, displayOrder },
+      data: { name, code, surchargeRate, isActive, displayOrder, logoUrl },
     });
 
     await logAdminAction({

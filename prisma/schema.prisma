@@ -13,6 +13,8 @@ model FinanceCompany {
   name          String             @unique
   code          String             @unique
   surchargeRate Float              @default(0)
+  // 견적서 PDF의 "시나리오별 견적 비교" 테이블에 금융사명 옆 로고로 노출. 어드민 업로드 URL.
+  logoUrl       String?
   isActive      Boolean            @default(true)
   displayOrder  Int                @default(0)
   createdAt     DateTime           @default(now())
