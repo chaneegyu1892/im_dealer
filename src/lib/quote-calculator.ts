@@ -66,6 +66,10 @@ function getInterpolatedRate(
   const minRate = getRateFromMatrix(config.minRateMatrix, contractMonths, annualMileage);
   const maxRate = getRateFromMatrix(config.maxRateMatrix, contractMonths, annualMileage);
   if (minRate <= 0 && maxRate <= 0) return 0;
+  // 한쪽 끝값이 누락(0)이면 0을 향해 보간하지 않고 유효한 쪽 회수율을 사용.
+  // (예: maxRateMatrix 의 특정 셀만 비어 있을 때 0으로 보간되어 비정상 저가가 나오는 것 방지)
+  if (minRate <= 0) return maxRate;
+  if (maxRate <= 0) return minRate;
   if (config.maxVehiclePrice <= config.minVehiclePrice) return minRate;
   const t = Math.max(0, Math.min(1, (vehiclePrice - config.minVehiclePrice) / (config.maxVehiclePrice - config.minVehiclePrice)));
   return minRate + t * (maxRate - minRate);
