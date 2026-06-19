@@ -48,6 +48,7 @@ export interface ScoreRule {
 // 헬퍼
 // ─────────────────────────────────────────────
 
+// null 폴백은 0. 보상 규칙(>= 12, >= 15)은 null 안전(0은 기준 미달). 패널티 규칙(< N)은 반드시 별도 `c.fuelEfficiency !== null` 가드와 함께 사용할 것.
 const eff = (c: RuleContext) => c.fuelEfficiency ?? 0;
 
 // ─────────────────────────────────────────────
@@ -170,7 +171,7 @@ export const PURPOSE_RULES: Record<string, ScoreRule[]> = {
       reason: "임원 의전용으로 품격과 승차감이 검증된 차량이에요",
     },
     {
-      match: (_a, c) => isLargeOrPremium(c.price),
+      match: (_a, c) => (c.category === "세단" || c.category === "SUV") && isLargeOrPremium(c.price),
       pts: 18,
     },
     {
@@ -394,12 +395,13 @@ export const FUEL_PREFERENCE_POINTS = { match: 10, mismatch: -5 } as const;
 // 거주지역 규칙 (문서 6-2)
 // ─────────────────────────────────────────────
 
-export const REGION_RULES: {
+export interface RegionRule {
   region: string;
   match: (a: VehicleAttrs) => boolean;
   pts: number;
   reason?: string;
-}[] = [
+}
+export const REGION_RULES: RegionRule[] = [
   {
     region: "강원·산간",
     match: (a) => a.isAwd,
