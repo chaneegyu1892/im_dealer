@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "이용약관 | 아임딜러",
-  description: "(주)아임메타솔루션 아임딜러(IM DEALER) 서비스 이용약관",
+  description: "(주)메타키움 아임딜러(IM DEALER) 서비스 이용약관",
 };
 
 export default function TermsPage() {
   return (
     <main className="max-w-3xl mx-auto px-6 py-16">
       <h1 className="text-2xl font-bold text-[#1A1A2E] mb-2">
-        (주)아임메타솔루션 서비스 이용약관
+        (주)메타키움 서비스 이용약관
       </h1>
       <p className="text-sm text-[#9BA4C0] mb-10">시행일: 2026년 6월 17일</p>
 
@@ -17,7 +17,7 @@ export default function TermsPage() {
         <div>
           <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제1조 (목적)</h2>
           <p>
-            이 약관은 (주)아임메타솔루션(이하 &ldquo;회사&rdquo;라 함)이 운영하는
+            이 약관은 (주)메타키움(이하 &ldquo;회사&rdquo;라 함)이 운영하는
             아임딜러(IM DEALER) 서비스를 이용하는 고객(이하 &ldquo;이용자&rdquo;라 함)
             사이에서 서비스의 이용 및 제공에 관한 기본적인 사항을 규정함을 목적으로 합니다.
           </p>
