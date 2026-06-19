@@ -16,6 +16,8 @@ export const vehicleCreateSchema = z.object({
   displayOrder: z.number().int().default(0),
   surchargeRate: z.number().default(0),
   vehicleCode: z.string().optional(),
+  slidingDoorOverride: z.boolean().nullable().optional(),
+  advancedSafetyOverride: z.boolean().nullable().optional(),
 });
 
 export const vehicleUpdateSchema = vehicleCreateSchema.partial();
