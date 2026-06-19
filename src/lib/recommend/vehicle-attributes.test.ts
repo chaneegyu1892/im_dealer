@@ -58,16 +58,20 @@ describe("extractCargoKg", () => {
 });
 
 describe("detectRefrigerated", () => {
-  it("냉동탑차 포함 → true", () => {
-    expect(detectRefrigerated("전기 특장차 냉동탑차 1.4t")).toBe(true);
+  it("냉동탑차 포함 → true (냉동 키워드)", () => {
+    expect(detectRefrigerated("전기 특장차 냉동탑차 로우 킹캡")).toBe(true);
   });
 
-  it("내장탑차(탑차) 포함 → true", () => {
-    expect(detectRefrigerated("하이 내장탑차")).toBe(true);
+  it("냉동 포함 → true", () => {
+    expect(detectRefrigerated("냉동탑차 7.5톤 슈퍼캡")).toBe(true);
   });
 
-  it("윙바디 포함 → true", () => {
-    expect(detectRefrigerated("17톤 윙바디 차량")).toBe(true);
+  it("내장탑차(평범한 탑차) → false (냉장·냉동·보냉 없음)", () => {
+    expect(detectRefrigerated("하이 내장탑차")).toBe(false);
+  });
+
+  it("윙바디 → false (냉장·냉동·보냉 없음)", () => {
+    expect(detectRefrigerated("17톤 윙바디 초장축")).toBe(false);
   });
 
   it("일반 트림명 → false", () => {
@@ -86,6 +90,10 @@ describe("extractSeating", () => {
 
   it("externalRaw 없음 → null", () => {
     expect(extractSeating({})).toBeNull();
+  });
+
+  it("null → null", () => {
+    expect(extractSeating(null)).toBeNull();
   });
 });
 
@@ -129,6 +137,12 @@ describe("resolveSlidingDoor", () => {
     expect(
       resolveSlidingDoor({ name: "G80", override: null, optionNames: ["선루프"] }),
     ).toBe(false);
+  });
+
+  it("override=true이면 화이트리스트·옵션 없어도 true", () => {
+    expect(
+      resolveSlidingDoor({ name: "G80", override: true, optionNames: [] }),
+    ).toBe(true);
   });
 });
 
@@ -182,7 +196,6 @@ describe("resolveAdvancedSafety", () => {
 describe("buildVehicleAttrs", () => {
   const vehicle: AttrVehicleInput = {
     name: "기아 카니발",
-    category: "밴",
     isPopular: true,
     slidingDoorOverride: null,
     advancedSafetyOverride: null,
@@ -191,8 +204,6 @@ describe("buildVehicleAttrs", () => {
   const trim: AttrTrimInput = {
     name: "9인승 디젤 4WD",
     engineType: "디젤",
-    fuelEfficiency: 12.5,
-    price: 45_000_000,
     detailedSpecs: {
       externalRaw: {
         person: "9",
@@ -212,6 +223,7 @@ describe("buildVehicleAttrs", () => {
     expect(attrs.hasAdvancedSafety).toBe(true);
     expect(attrs.isRefrigerated).toBe(false);
     expect(attrs.cargoKg).toBeNull();
+    expect(attrs.isPopular).toBe(true);
   });
 
   it("알 수 없는 engineType → '기타'", () => {

@@ -8,15 +8,12 @@
 export interface AttrTrimInput {
   name: string;
   engineType: string; // EV | 하이브리드 | 디젤 | 가솔린 | LPG | 수소
-  fuelEfficiency: number | null;
-  price: number;
   detailedSpecs: unknown; // externalRaw.{carry, person, documents[].content}
   options: { name: string }[]; // TrimOption.name 목록
 }
 
 export interface AttrVehicleInput {
   name: string;
-  category: string; // SUV | 세단 | 밴 | 트럭
   isPopular: boolean;
   slidingDoorOverride: boolean | null;
   advancedSafetyOverride: boolean | null;
@@ -34,6 +31,7 @@ export interface VehicleAttrs {
   fuel: "EV" | "하이브리드" | "디젤" | "가솔린" | "LPG" | "수소" | "기타";
   hasSlidingDoor: boolean;
   hasAdvancedSafety: boolean;
+  isPopular: boolean;
 }
 
 // ─────────────────────────────────────────────
@@ -50,7 +48,7 @@ function rawOf(detailedSpecs: unknown): Record<string, unknown> | null {
 // 1.1 AWD / 4WD 감지
 // ─────────────────────────────────────────────
 
-const AWD_RE = /\bAWD\b|\b4WD\b|4MATIC|4motion|사륜|x[Dd]rive|quattro|콰트로/i;
+const AWD_RE = /\bAWD\b|\b4WD\b|\b4MATIC\b|\b4motion\b|사륜|x[Dd]rive|quattro|콰트로/i;
 
 export function detectAwd(trimName: string): boolean {
   return AWD_RE.test(trimName);
@@ -70,7 +68,7 @@ export function extractCargoKg(detailedSpecs: unknown): number | null {
 // 1.2 냉장·냉동·특장차 감지
 // ─────────────────────────────────────────────
 
-const COLD_RE = /냉장|냉동|탑차|윙바디|보냉/;
+const COLD_RE = /냉장|냉동|보냉/;
 
 export function detectRefrigerated(trimName: string): boolean {
   return COLD_RE.test(trimName);
@@ -91,7 +89,7 @@ export function extractSeating(detailedSpecs: unknown): number | null {
 // ─────────────────────────────────────────────
 
 const SLIDING_DOOR_MODELS = ["카니발", "스타리아", "스타렉스", "쏠라티"];
-const SLIDING_OPT_RE = /슬라이딩\s*도어|파워\s*슬라이딩|사이드\s*슬라이딩|양측\s*도어/;
+const SLIDING_OPT_RE = /슬라이딩\s*도어|파워\s*슬라이딩|사이드\s*슬라이딩|양측\s*슬라이딩\s*도어/;
 
 export function resolveSlidingDoor(p: {
   name: string;
@@ -107,7 +105,7 @@ export function resolveSlidingDoor(p: {
 // 1.3 고급 안전사양 판별 (override 우선)
 // ─────────────────────────────────────────────
 
-const SAFETY_RE = /전방\s*충돌방지\s*보조|차로\s*이탈|후측방\s*충돌|지능형\s*안전|긴급제동|FCA|BCW/;
+const SAFETY_RE = /전방\s*충돌방지\s*보조|차로\s*이탈|후측방\s*충돌|지능형\s*안전|긴급제동|\bFCA\b|\bBCW\b/;
 
 export function resolveAdvancedSafety(p: {
   override: boolean | null;
@@ -173,5 +171,6 @@ export function buildVehicleAttrs(
       optionNames,
       specText: specTextOf(t.detailedSpecs),
     }),
+    isPopular: v.isPopular,
   };
 }
