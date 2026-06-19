@@ -357,6 +357,63 @@ describe("연료 선호 일치/불일치", () => {
 });
 
 // ─────────────────────────────────────────────
+// Fix 5 케이스: 게이팅 브랜치 테스트
+// ─────────────────────────────────────────────
+
+describe("임원용·의전 + compact 차량 이중 패널티", () => {
+  it("price 20M compact 세단은 -15와 -25 모두 적용되어 score가 5이어야 한다", () => {
+    // base(50) + price<OFFICIAL_MIN(-15) + isCompact(-25) + mileage20k연비패널티(-5) = 5
+    const input: ScoreInput = {
+      industry: "개인",
+      purpose: "임원용·의전",
+      annualMileage: 20000,
+    };
+    const attrs: VehicleAttrs = { ...BASE_ATTRS };
+    const ctx: ScoreCtx = { category: "세단", price: 20_000_000, fuelEfficiency: 10 };
+
+    const { score } = scoreVehicle(input, attrs, ctx);
+
+    expect(score).toBe(5);
+  });
+});
+
+describe("가정용 purposeDetail 없으면 CHILD_RULES 미적용", () => {
+  it("SUV 가정용 purposeDetail 없으면 PURPOSE_RULES 가정용 SUV+15만 반영하여 score=65", () => {
+    // base(50) + 가정용SUV(+15) + mileage10k compact아님(0) = 65
+    const input: ScoreInput = {
+      industry: "개인",
+      purpose: "가정용",
+      annualMileage: 10000,
+      // purposeDetail 없음 → CHILD_RULES 미적용
+    };
+    const attrs: VehicleAttrs = { ...BASE_ATTRS };
+    const ctx: ScoreCtx = { category: "SUV", price: 35_000_000, fuelEfficiency: null };
+
+    const { score } = scoreVehicle(input, attrs, ctx);
+
+    expect(score).toBe(65);
+  });
+});
+
+describe("화물·배달 + isRefrigerated, purposeDetail 없음", () => {
+  it("냉장 차량은 purposeDetail 없어도 +25 냉장 가점이 적용된다 (score=70)", () => {
+    // base(50) + PURPOSE_RULES["화물·배달"]=[] + mileage20k연비패널티(-5) + 냉장(+25) = 70
+    const input: ScoreInput = {
+      industry: "개인",
+      purpose: "화물·배달",
+      annualMileage: 20000,
+      // purposeDetail 없음
+    };
+    const attrs: VehicleAttrs = { ...BASE_ATTRS, isRefrigerated: true };
+    const ctx: ScoreCtx = { category: "밴", price: 30_000_000, fuelEfficiency: 10 };
+
+    const { score } = scoreVehicle(input, attrs, ctx);
+
+    expect(score).toBe(70);
+  });
+});
+
+// ─────────────────────────────────────────────
 // 추가 케이스: 거주지역 가점
 // ─────────────────────────────────────────────
 
