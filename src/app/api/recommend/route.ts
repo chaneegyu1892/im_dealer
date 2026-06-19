@@ -13,7 +13,8 @@ const recommendSchema = z.object({
   industryDetail: z.string().optional(),
   purposeDetail: z.string().optional(),
   fuelPreference: z.string().optional(),
-  chargingEnvironment: z.enum(["있음", "없음", "모르겠음"]).optional(),
+  chargingEnvironment: z.enum(["자택", "직장", "외부", "없음"]).optional(),
+  residenceRegion: z.enum(["일반", "강원·산간", "제주"]).optional(),
   // 옛 세션 호환 — 새 추천 흐름에서는 사용 안 함. 받으면 DB 저장만.
   budgetMin: z.number().int().min(0).optional(),
   budgetMax: z.number().int().min(0).optional(),
