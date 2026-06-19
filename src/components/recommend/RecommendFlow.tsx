@@ -7,6 +7,7 @@ import { StepIndustry } from "./StepIndustry";
 import { StepPurpose } from "./StepPurpose";
 import { StepMileage } from "./StepMileage";
 import { StepFuelPreference } from "./StepFuelPreference";
+import { StepRegion } from "./StepRegion";
 import { Button } from "@/components/ui/Button";
 import { ChevronLeft } from "lucide-react";
 import { CHARGING_OPTIONS } from "@/constants/recommend-options";
@@ -15,7 +16,7 @@ import type { RecommendInput } from "@/types/recommendation";
 
 const TOTAL_STEPS = 3;
 
-type ChargingEnv = "있음" | "없음" | "모르겠음" | "";
+type ChargingEnv = "자택" | "직장" | "외부" | "없음" | "";
 
 interface FlowState {
   industry: string;
@@ -25,6 +26,7 @@ interface FlowState {
   annualMileage: number;
   fuelPreference: string;
   chargingEnvironment: ChargingEnv;
+  residenceRegion: string;
 }
 
 const INITIAL_STATE: FlowState = {
@@ -35,6 +37,7 @@ const INITIAL_STATE: FlowState = {
   annualMileage: 0,
   fuelPreference: "",
   chargingEnvironment: "",
+  residenceRegion: "일반",
 };
 
 function isStepValid(step: StepId, state: FlowState): boolean {
@@ -87,6 +90,7 @@ export function RecommendFlow() {
         ...(state.fuelPreference === "전기차" && state.chargingEnvironment !== ""
           ? { chargingEnvironment: state.chargingEnvironment }
           : {}),
+        residenceRegion: state.residenceRegion as "일반" | "강원·산간" | "제주",
       };
 
       const res = await fetch("/api/recommend", {
@@ -179,7 +183,7 @@ export function RecommendFlow() {
                     집·회사·아파트 등 일상 충전이 가능한지에 따라 추천이
                     달라져요.
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                     {CHARGING_OPTIONS.map((opt) => (
                       <SelectionCard
                         key={opt.value}
@@ -198,6 +202,12 @@ export function RecommendFlow() {
                   </div>
                 </div>
               )}
+            </div>
+            <div className="pt-8 border-t border-[#F0F0F0]">
+              <StepRegion
+                value={state.residenceRegion}
+                onChange={(v) => setState((s) => ({ ...s, residenceRegion: v }))}
+              />
             </div>
           </div>
         )}
