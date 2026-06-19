@@ -1650,7 +1650,15 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   상담을 통해 확정 견적을 받으시길 권장합니다.
                 </div>
 
-                {/* PDF 다운로드 */}
+                {/* 카카오톡 받기 안내 말풍선 — "영업 전화 없음" 안심 메시지 */}
+                <div className="flex justify-center mb-2">
+                  <div className="relative bg-[#FEE500] text-[#3A1D1D] text-[12px] font-semibold px-3.5 py-1.5 rounded-full shadow-sm">
+                    별도의 영업 전화는 가지 않아요~!!
+                    <span className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2.5 h-2.5 bg-[#FEE500] rotate-45" />
+                  </div>
+                </div>
+
+                {/* 견적서 카카오톡으로 받기 */}
                 <button
                   type="button"
                   onClick={handlePdfDownload}
@@ -1665,12 +1673,12 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   {isPdfDownloading ? (
                     <>
                       <span className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                      PDF 생성 중...
+                      준비 중...
                     </>
                   ) : (
                     <>
                       <Download size={15} strokeWidth={2} />
-                      견적서 PDF 다운로드
+                      견적서 카카오톡으로 받기
                     </>
                   )}
                 </button>
@@ -1692,11 +1700,14 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                              transition-all duration-150 mb-2"
                 >
                   <ClipboardCheck size={15} strokeWidth={2} />
-                  이 견적으로 계약 신청하기
+                  이 견적으로 심사 요청하기
                 </button>
 
                 {/* 상담 버튼 */}
-                <ChannelTalkButton vehicleName={selectedVehicle?.name} />
+                <ChannelTalkButton
+                  vehicleName={selectedVehicle?.name}
+                  label="전문 딜러와 상담하기"
+                />
 
                 {/* 하단 링크 */}
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#F0F0F0]">
