@@ -184,6 +184,19 @@ export function QuoteBreakdownTabs({
   return (
     <div className="space-y-4">
 
+      {/* 비회원 유도 말풍선 — "있음" 칸(오른쪽) 위에 정렬, 누르면 로그인 → 월 납입금 절감 */}
+      {locked && costMode === "none" && (
+        <div className="grid grid-cols-2 gap-2.5 -mb-2">
+          <div aria-hidden />
+          <div className="flex justify-center">
+            <div className="relative animate-nudge bg-[#FEE500] text-[#3A1D1D] text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap">
+              월 납입금 더 낮추기 👀
+              <span className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2.5 h-2.5 bg-[#FEE500] rotate-45" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ① 납입 방식 토글 */}
       <div className="grid grid-cols-2 gap-2.5">
         {[
