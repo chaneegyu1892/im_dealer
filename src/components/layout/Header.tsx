@@ -95,13 +95,16 @@ export function Header() {
       <div className="page-container">
         <div className="relative flex items-center h-[72px]">
           {/* 로고 */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="font-display text-primary font-semibold text-[20px] tracking-tight">
-              아임딜러
-            </span>
-            <span className="text-[10px] font-semibold text-white bg-primary px-1.5 py-0.5 rounded-[4px] leading-none">
-              AI
-            </span>
+          <Link href="/" className="flex items-center" aria-label="아임딜러 홈">
+            <Image
+              src="/images/brand/main-logo.svg"
+              alt="아임딜러"
+              width={137}
+              height={28}
+              priority
+              unoptimized
+              className="h-7 w-auto"
+            />
           </Link>
 
           {/* 데스크톱 네비게이션 — md 이상에서만 표시 */}

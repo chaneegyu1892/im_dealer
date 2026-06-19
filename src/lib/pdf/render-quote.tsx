@@ -2,6 +2,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { QuoteDocument } from "./QuoteDocument";
 import { ensureFontsRegistered } from "./fonts";
 import { resolveFinanceLogos } from "./finance-logos";
+import { getBrandLogoDataUri } from "./brand-logo";
 import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 
 /**
@@ -21,7 +22,11 @@ export async function renderQuotePdfBuffer(
   ]);
 
   const buffer = await renderToBuffer(
-    <QuoteDocument data={data} financeLogos={financeLogos} />
+    <QuoteDocument
+      data={data}
+      financeLogos={financeLogos}
+      brandLogo={getBrandLogoDataUri()}
+    />
   );
 
   // NextResponse Blob(BlobPart) 호환을 위해 일반 ArrayBuffer 기반으로 복사해 반환.
