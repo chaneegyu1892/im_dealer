@@ -9,6 +9,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { generateReason } from "@/lib/llm-reason";
+import { buildVehicleAttrs } from "@/lib/recommend/vehicle-attributes";
+import { scoreVehicle } from "@/lib/recommend/scoring";
 import {
   estimateMonthly,
   calculateMultiFinanceQuote,
@@ -23,9 +25,6 @@ import type {
   RecommendScenarios,
 } from "@/types/recommendation";
 
-const BASE_SCORE = 50;
-const MAX_SCORE = 250;
-
 interface ScoredVehicle {
   vehicleId: string;
   score: number;
@@ -37,13 +36,15 @@ interface ScoredVehicle {
 }
 
 export async function recommend(input: RecommendInput): Promise<RecommendedVehicle[]> {
-  const chargingEnvironment = input.chargingEnvironment;
-
   // 1) 노출 가능 차량 + 추천설정 조회
   const vehicles = await prisma.vehicle.findMany({
     where: { isVisible: true },
     include: {
-      trims: { where: { isVisible: true }, orderBy: { isDefault: "desc" } },
+      trims: {
+        where: { isVisible: true },
+        orderBy: { isDefault: "desc" },
+        include: { options: { select: { name: true } } },
+      },
       recConfigs: { where: { isActive: true } },
       popularConfigs: {
         where: { isActive: true },
@@ -92,7 +93,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
   // 3) 차량별 점수 계산
   const scored: ScoredVehicle[] = [];
 
-  const isOfficial = input.purpose === "의전·임원용";
+  const isOfficial = input.purpose === "임원용·의전";
 
   for (const v of vehicles) {
     let defaultTrim = v.trims.find((t) => t.isDefault) ?? v.trims[0];
@@ -121,153 +122,46 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
 
     if (bestMonthly === Infinity || bestMonthly <= 0) continue;
 
-    // ── 스코어링 ─────────────────────────────────
-    let score = BASE_SCORE;
+    // ── 스코어링 (속성 추출 + 규칙 기반) ─────────────
     const recConfig = v.recConfigs ?? null;
-    const cat = v.category ?? "";
-    const trimFuel = defaultTrim.engineType ?? "";
+    const attrs = buildVehicleAttrs(
+      {
+        name: v.name,
+        isPopular: v.isPopular,
+        slidingDoorOverride: v.slidingDoorOverride,
+        advancedSafetyOverride: v.advancedSafetyOverride,
+      },
+      {
+        name: defaultTrim.name,
+        engineType: defaultTrim.engineType,
+        detailedSpecs: defaultTrim.detailedSpecs,
+        options: defaultTrim.options,
+      },
+    );
+    const { score, reasons } = scoreVehicle(
+      {
+        industry: input.industry,
+        purpose: input.purpose,
+        purposeDetail: input.purposeDetail,
+        annualMileage: input.annualMileage,
+        residenceRegion: input.residenceRegion,
+        fuelPreference: input.fuelPreference,
+        chargingEnvironment: input.chargingEnvironment,
+      },
+      attrs,
+      {
+        category: v.category ?? "",
+        price: defaultTrim.price,
+        fuelEfficiency: defaultTrim.fuelEfficiency,
+      },
+    );
 
-    // (b) 추천 설정 점수 행렬 — 예산 제거로 변별력 확보 위해 영향력 2배(/5)
-    if (recConfig?.scoreMatrix) {
-      const matrix = recConfig.scoreMatrix as Record<string, Record<string, number>>;
-      const purposeScore = matrix[input.industry]?.[input.purpose] ?? 0;
-      score += purposeScore / 5;
-    }
+    // ── 추천 이유 / 배지 ─────────────────────────────
+    const reason =
+      reasons.length > 0
+        ? reasons.slice(0, 3).join(". ") + "."
+        : recConfig?.aiCaption ?? `${v.name}은(는) 이 조건에 적합한 차량이에요.`;
 
-    // (c) 인기 차량 가산
-    if (v.isPopular) score += 5;
-
-    // (d) 업종 추가 답변 스코어링
-    if (input.industryDetail) {
-      if (input.industry === "법인" && input.industryDetail === "6대 이상") {
-        if (cat !== "SUV") score += 5;
-      }
-      if (input.industry === "개인사업자" && input.industryDetail === "비용처리 중요") {
-        score += 3;
-      }
-      if (input.industry === "직장인" && input.industryDetail === "자가용 주요") {
-        if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 12) score += 5;
-      }
-      if (input.industry === "개인" && input.industryDetail === "4명 이상") {
-        // 가정 4명 이상 → 중대형 SUV 우선
-        if (cat === "SUV" || cat.includes("대형")) score += 15;
-        else if (cat.includes("경차") || cat.includes("소형")) score -= 10;
-      }
-    }
-
-    // (e) 목적 추가 답변 스코어링 — 카테고리 × 용도 가중치 강화
-    if (input.purposeDetail) {
-      if (input.purpose === "출퇴근" && input.purposeDetail === "30km 이상") {
-        if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 14) score += 5;
-      }
-      if (input.purpose === "영업·외근" && input.purposeDetail === "매일") {
-        score += 5;
-      }
-      if (input.purpose === "가족" && input.purposeDetail === "영유아") {
-        if (cat === "SUV") score += 12;
-        else if (cat.includes("대형")) score += 8;
-        else if (cat.includes("경차") || cat.includes("소형")) score -= 8;
-      }
-      if (input.purpose === "화물·배달") {
-        // 화물·배달은 카테고리 강제: 트럭/밴 외에는 강하게 감점
-        if (cat === "밴" || cat === "트럭") {
-          score += 20;
-          if (input.purposeDetail === "대형 화물") score += 10;
-        } else {
-          score -= 25;
-        }
-      }
-      if (input.purpose === "기타" && input.purposeDetail === "평일 포함 자주") {
-        if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 12) score += 3;
-      }
-      if (input.purpose === "의전·임원용" && input.purposeDetail === "기사 운행") {
-        if (cat.includes("대형") || cat.includes("세단")) score += 10;
-      }
-      if (input.purpose === "첫차") {
-        const price = defaultTrim.price;
-        if (input.purposeDetail === "면허 신규") {
-          if (cat.includes("경차") || cat.includes("소형")) score += 8;
-          else if (cat === "SUV" && price < 35_000_000) score += 4;
-          else if (cat.includes("대형") || cat === "트럭" || cat === "밴") score -= 8;
-        }
-        if (price < 35_000_000) score += 3;
-      }
-      if (input.purpose === "레저·캠핑") {
-        if (input.purposeDetail === "차박·캠핑") {
-          if (cat === "SUV" || cat.includes("대형") || cat === "밴") score += 10;
-          else if (cat.includes("세단") || cat.includes("경차")) score -= 5;
-        }
-        if (input.purposeDetail === "스포츠·레저장비") {
-          if (cat === "SUV" || cat.includes("해치백")) score += 6;
-        }
-      }
-    }
-
-    // (g-1) 의전·임원용 카테고리 가중치
-    if (isOfficial) {
-      if (cat.includes("대형") || cat.includes("세단") || cat.includes("프리미엄")) {
-        score += 15;
-      } else if (cat === "SUV") {
-        score += 8;
-      } else if (cat.includes("경차") || cat.includes("소형") || cat === "밴" || cat === "트럭") {
-        score -= 15;
-      }
-    }
-
-    // (g) 연료 방식 스코어링 — 전기차 충전환경 "없음" 인 경우 EV 감점 + 보너스 무효
-    if (input.fuelPreference && input.fuelPreference !== "상관없음") {
-      const noCharging = chargingEnvironment === "없음";
-      if (input.fuelPreference === "전기차" && trimFuel.includes("전기")) {
-        if (!noCharging) score += 15;
-        // noCharging=true 인 경우 매칭 보너스 무효화
-      } else if (input.fuelPreference === "하이브리드" && trimFuel.includes("하이브리드")) {
-        score += 15;
-      } else if (input.fuelPreference === "가솔린/디젤" &&
-        (trimFuel.includes("가솔린") || trimFuel.includes("디젤"))) {
-        score += 5;
-      } else if (input.fuelPreference !== "상관없음") {
-        score -= 5;
-      }
-    }
-
-    // (h) 충전환경 "없음" + EV 차량은 추가 감점 (다른 차는 영향 없음)
-    if (chargingEnvironment === "없음" && trimFuel.includes("전기")) {
-      score -= 15;
-    }
-
-    // 상한선 클램핑
-    score = Math.min(MAX_SCORE, score);
-
-    // ── 추천 이유 생성 ────────────────────────────
-    const reasons: string[] = [];
-
-    if (input.purpose === "출퇴근" && defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 14) {
-      reasons.push("연비가 좋아 출퇴근 비용을 절약할 수 있어요");
-      score += 3;
-    }
-    if (input.purpose === "가족" && v.category === "SUV") {
-      reasons.push("가족 이동에 넉넉한 SUV예요");
-      score += 5;
-    }
-    if (input.purpose === "화물·배달" && (v.category === "밴" || v.category === "트럭")) {
-      reasons.push("화물 적재에 적합한 차량이에요");
-      score += 5;
-    }
-    if (input.purpose === "첫차" && defaultTrim.price < 35_000_000) {
-      reasons.push("합리적인 가격대로 첫차에 부담 없어요");
-    }
-    if (input.purpose === "레저·캠핑" && (v.category === "SUV" || v.category?.includes("대형") || v.category === "밴")) {
-      reasons.push("넓은 적재공간으로 레저·캠핑에 적합해요");
-    }
-    if (input.industry === "법인" || input.industry === "개인사업자") {
-      reasons.push("비용처리에 유리한 조건이에요");
-    }
-
-    const reason = reasons.length > 0
-      ? reasons.join(". ") + "."
-      : recConfig?.aiCaption ?? `${v.name}은(는) 이 조건에 적합한 차량이에요.`;
-
-    // 특징 배지
     const highlights: string[] = [...(recConfig?.highlights ?? [])];
     if (defaultTrim.fuelEfficiency && defaultTrim.fuelEfficiency > 15) {
       highlights.push("고연비");
