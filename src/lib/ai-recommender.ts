@@ -102,6 +102,8 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       defaultTrim = mostExpensive;
     }
     if (!defaultTrim) continue;
+    // 임원용·의전은 6천만원 미만 차량을 추천 후보에서 하드 제외(노출 안 함).
+    // scoring-rules의 의전 가격 패널티(-15/-25)는 이 게이트가 제거될 경우의 방어선.
     if (isOfficial && defaultTrim.price < 60_000_000) continue;
 
     // trimId로 RateConfigData 찾기
