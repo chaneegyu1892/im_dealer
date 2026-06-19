@@ -1,2 +1,2 @@
-ALTER TABLE "Vehicle" ADD COLUMN "slidingDoorOverride" BOOLEAN;
-ALTER TABLE "Vehicle" ADD COLUMN "advancedSafetyOverride" BOOLEAN;
+ALTER TABLE "Vehicle" ADD COLUMN IF NOT EXISTS "slidingDoorOverride" BOOLEAN;
+ALTER TABLE "Vehicle" ADD COLUMN IF NOT EXISTS "advancedSafetyOverride" BOOLEAN;
