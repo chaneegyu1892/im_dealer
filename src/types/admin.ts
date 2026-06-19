@@ -15,6 +15,8 @@ export interface AdminVehicle {
   isVisible: boolean;
   isPopular: boolean;
   isSpotlight: boolean;
+  slidingDoorOverride: boolean | null;
+  advancedSafetyOverride: boolean | null;
   displayOrder: number;
   description: string | null;
   createdAt: string;
