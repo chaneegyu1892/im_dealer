@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildVehicleAttrs,
   detectAwd,
   detectRefrigerated,
   extractCargoKg,
   extractSeating,
   resolveAdvancedSafety,
   resolveSlidingDoor,
+  type AttrTrimInput,
+  type AttrVehicleInput,
 } from "./vehicle-attributes";
 
 // ─────────────────────────────────────────────
@@ -170,5 +173,54 @@ describe("resolveAdvancedSafety", () => {
     expect(
       resolveAdvancedSafety({ override: null, optionNames: [], specText: "선루프" }),
     ).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────
+// 1.4 연료 정규화 + 통합 빌더
+// ─────────────────────────────────────────────
+describe("buildVehicleAttrs", () => {
+  const vehicle: AttrVehicleInput = {
+    name: "기아 카니발",
+    category: "밴",
+    isPopular: true,
+    slidingDoorOverride: null,
+    advancedSafetyOverride: null,
+  };
+
+  const trim: AttrTrimInput = {
+    name: "9인승 디젤 4WD",
+    engineType: "디젤",
+    fuelEfficiency: 12.5,
+    price: 45_000_000,
+    detailedSpecs: {
+      externalRaw: {
+        person: "9",
+        carry: "0",
+        documents: [{ content: "전방 충돌방지 보조" }],
+      },
+    },
+    options: [{ name: "2열 파워 슬라이딩 도어" }],
+  };
+
+  it("카니발 9인승 4WD 디젤 통합 결과", () => {
+    const attrs = buildVehicleAttrs(vehicle, trim);
+    expect(attrs.isAwd).toBe(true);
+    expect(attrs.seating).toBe(9);
+    expect(attrs.fuel).toBe("디젤");
+    expect(attrs.hasSlidingDoor).toBe(true);
+    expect(attrs.hasAdvancedSafety).toBe(true);
+    expect(attrs.isRefrigerated).toBe(false);
+    expect(attrs.cargoKg).toBeNull();
+  });
+
+  it("알 수 없는 engineType → '기타'", () => {
+    const attrs = buildVehicleAttrs(vehicle, { ...trim, engineType: "CNG" });
+    expect(attrs.fuel).toBe("기타");
+  });
+
+  it("EV engineType → 'EV'", () => {
+    const attrs = buildVehicleAttrs(vehicle, { ...trim, engineType: "EV" });
+    expect(attrs.fuel).toBe("EV");
   });
 });
