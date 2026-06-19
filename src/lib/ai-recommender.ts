@@ -23,6 +23,9 @@ import type {
   RecommendScenarios,
 } from "@/types/recommendation";
 
+const BASE_SCORE = 50;
+const MAX_SCORE = 250;
+
 interface ScoredVehicle {
   vehicleId: string;
   score: number;
@@ -120,10 +123,10 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     if (bestMonthly === Infinity || bestMonthly <= 0) continue;
 
     // ── 스코어링 ─────────────────────────────────
-    let score = 50;
+    let score = BASE_SCORE;
     const recConfig = v.recConfigs ?? null;
     const cat = v.category ?? "";
-    const trimFuel = (defaultTrim as { fuelType?: string }).fuelType ?? "";
+    const trimFuel = defaultTrim.engineType ?? "";
 
     // (b) 추천 설정 점수 행렬 — 예산 제거로 변별력 확보 위해 영향력 2배(/5)
     if (recConfig?.scoreMatrix) {
@@ -234,7 +237,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     }
 
     // 상한선 클램핑
-    score = Math.min(150, score);
+    score = Math.min(MAX_SCORE, score);
 
     // ── 추천 이유 생성 ────────────────────────────
     const reasons: string[] = [];
