@@ -320,7 +320,7 @@ export default function PrivacyPage() {
             소량의 정보로, 이용자의 단말 기기에 저장됩니다.
           </p>
           <p className="mt-2">
-            회사는 이용자가 아임딜러 웹사이트(https://im-dealer.vercel.app)에 접속할 때 저장된
+            회사는 이용자가 아임딜러 웹사이트(https://www.imdealer.co.kr)에 접속할 때 저장된
             쿠키 정보를 확인하여 이용 형태 및 보안 접속 여부 등을 파악하고, 이를 바탕으로 최적의
             서비스를 제공합니다.
           </p>
@@ -414,7 +414,7 @@ export default function PrivacyPage() {
           </h2>
           <p>
             본 개인정보처리방침은 (주)메타키움이 운영하는 아임딜러
-            웹사이트(https://im-dealer.vercel.app) 및 관련 서비스 전반에 적용됩니다. 회사의
+            웹사이트(https://www.imdealer.co.kr) 및 관련 서비스 전반에 적용됩니다. 회사의
             서비스와 연결된 제3자의 웹사이트 또는 서비스에서 수집되는 개인정보에 대해서는 본
             방침이 적용되지 않으므로, 해당 사이트의 개인정보처리방침을 별도로 확인하시기 바랍니다.
           </p>
