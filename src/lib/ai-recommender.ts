@@ -109,14 +109,12 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     if (!configs || configs.length === 0) continue;
 
     // 최저가 금융사 찾기 (표준형, 48개월 기준)
-    let bestConfig = configs[0];
     let bestMonthly = Infinity;
 
     for (const cfg of configs) {
       const monthly = estimateMonthly(defaultTrim.price, cfg, 48, mileageKey);
       if (monthly > 0 && monthly < bestMonthly) {
         bestMonthly = monthly;
-        bestConfig = cfg;
       }
     }
 
