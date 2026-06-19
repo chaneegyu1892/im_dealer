@@ -118,3 +118,60 @@ export function resolveAdvancedSafety(p: {
   if (SAFETY_RE.test(p.specText)) return true;
   return p.optionNames.some((o) => SAFETY_RE.test(o));
 }
+
+// ─────────────────────────────────────────────
+// 1.4 연료 정규화
+// ─────────────────────────────────────────────
+
+const FUELS = ["EV", "하이브리드", "디젤", "가솔린", "LPG", "수소"] as const;
+
+function normalizeFuel(engineType: string): VehicleAttrs["fuel"] {
+  return (FUELS as readonly string[]).includes(engineType)
+    ? (engineType as VehicleAttrs["fuel"])
+    : "기타";
+}
+
+// ─────────────────────────────────────────────
+// 1.4 externalRaw.documents 텍스트 합성
+// ─────────────────────────────────────────────
+
+function specTextOf(detailedSpecs: unknown): string {
+  const raw = rawOf(detailedSpecs);
+  const docs = raw?.documents;
+  if (!Array.isArray(docs)) return "";
+  return docs
+    .map((d) =>
+      d && typeof d === "object"
+        ? String((d as { content?: unknown }).content ?? "")
+        : "",
+    )
+    .join(" ");
+}
+
+// ─────────────────────────────────────────────
+// 1.4 VehicleAttrs 통합 빌더
+// ─────────────────────────────────────────────
+
+export function buildVehicleAttrs(
+  v: AttrVehicleInput,
+  t: AttrTrimInput,
+): VehicleAttrs {
+  const optionNames = t.options.map((o) => o.name);
+  return {
+    isAwd: detectAwd(t.name),
+    cargoKg: extractCargoKg(t.detailedSpecs),
+    isRefrigerated: detectRefrigerated(t.name),
+    seating: extractSeating(t.detailedSpecs),
+    fuel: normalizeFuel(t.engineType),
+    hasSlidingDoor: resolveSlidingDoor({
+      name: v.name,
+      override: v.slidingDoorOverride,
+      optionNames,
+    }),
+    hasAdvancedSafety: resolveAdvancedSafety({
+      override: v.advancedSafetyOverride,
+      optionNames,
+      specText: specTextOf(t.detailedSpecs),
+    }),
+  };
+}
