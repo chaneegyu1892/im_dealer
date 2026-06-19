@@ -26,7 +26,7 @@ interface FlowState {
   annualMileage: number;
   fuelPreference: string;
   chargingEnvironment: ChargingEnv;
-  residenceRegion: string;
+  residenceRegion: "일반" | "강원·산간" | "제주";
 }
 
 const INITIAL_STATE: FlowState = {
@@ -90,7 +90,7 @@ export function RecommendFlow() {
         ...(state.fuelPreference === "전기차" && state.chargingEnvironment !== ""
           ? { chargingEnvironment: state.chargingEnvironment }
           : {}),
-        residenceRegion: state.residenceRegion as "일반" | "강원·산간" | "제주",
+        residenceRegion: state.residenceRegion,
       };
 
       const res = await fetch("/api/recommend", {
