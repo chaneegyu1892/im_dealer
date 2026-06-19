@@ -34,6 +34,8 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
     displayOrder: vehicle.displayOrder,
     vehicleCode: vehicle.vehicleCode ?? "",
     slug: vehicle.slug,
+    slidingDoorOverride: vehicle.slidingDoorOverride ?? null,
+    advancedSafetyOverride: vehicle.advancedSafetyOverride ?? null,
   });
 
   const handleSave = async () => {
@@ -215,6 +217,22 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
               주목 차량 (탐색 슬라이더)
             </label>
           </div>
+
+          <div className="pt-3 border-t border-[#E8EAF0] space-y-3">
+            <p className="text-[12px] font-semibold text-[#4A5270]">추천 속성 보정 (자동검출 override)</p>
+            <div className="flex gap-6">
+              <TriToggle
+                label="슬라이딩 도어"
+                value={data.slidingDoorOverride}
+                onChange={(v) => setData({ ...data, slidingDoorOverride: v })}
+              />
+              <TriToggle
+                label="고급 안전사양"
+                value={data.advancedSafetyOverride}
+                onChange={(v) => setData({ ...data, advancedSafetyOverride: v })}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -332,6 +350,44 @@ function FormField({ label, children, required }: { label: string; children: Rea
         {required && <span className="text-red-500">*</span>}
       </label>
       {children}
+    </div>
+  );
+}
+
+const TRI_OPTS: { k: string; v: boolean | null }[] = [
+  { k: "자동", v: null },
+  { k: "있음", v: true },
+  { k: "없음", v: false },
+];
+
+function TriToggle({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean | null;
+  onChange: (v: boolean | null) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <span className="text-[12px] font-medium text-[#1A1A2E]">{label}</span>
+      <div className="flex gap-1">
+        {TRI_OPTS.map((o) => (
+          <button
+            key={o.k}
+            type="button"
+            onClick={() => onChange(o.v)}
+            className={
+              value === o.v
+                ? "px-3 py-1.5 rounded-md text-[12px] font-medium bg-[#000666] text-white"
+                : "px-3 py-1.5 rounded-md text-[12px] font-medium bg-white text-[#9BA4C0] border border-[#E5E8F0] hover:border-[#000666] transition-colors"
+            }
+          >
+            {o.k}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
