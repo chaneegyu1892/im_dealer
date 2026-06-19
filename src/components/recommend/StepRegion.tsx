@@ -1,9 +1,11 @@
 import { REGION_OPTIONS } from "@/constants/recommend-options";
 import { SelectionCard } from "./SelectionCard";
 
+type Region = typeof REGION_OPTIONS[number]["value"];
+
 interface StepRegionProps {
-  value: string;
-  onChange: (value: string) => void;
+  value: Region;
+  onChange: (value: Region) => void;
 }
 
 export function StepRegion({ value, onChange }: StepRegionProps) {

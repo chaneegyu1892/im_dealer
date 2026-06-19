@@ -17,7 +17,7 @@ export const PURPOSE_OPTIONS = [
 ] as const;
 
 // value 기반 안전 조회 헬퍼
-const P = (v: string): typeof PURPOSE_OPTIONS[number] =>
+const P = (v: typeof PURPOSE_OPTIONS[number]["value"]): typeof PURPOSE_OPTIONS[number] =>
   PURPOSE_OPTIONS.find((o) => o.value === v)!;
 
 // 1단계 업종 선택값에 따라 2단계에서 노출할 목적.
