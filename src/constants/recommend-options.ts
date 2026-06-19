@@ -10,29 +10,22 @@ export const INDUSTRY_OPTIONS = [
 // 어드민 분석 등에서 라벨 lookup 용도로 import 가능.
 export const PURPOSE_OPTIONS = [
   { value: "출퇴근·업무용", label: "출퇴근·업무용", desc: "출퇴근·영업·외근 통합", icon: "🚗" },
+  { value: "영업·외근", label: "영업·외근", desc: "외근·미팅 잦은 영업", icon: "🧳" },
   { value: "화물·배달", label: "화물·배달", desc: "물건 운반·배달 업무", icon: "📦" },
   { value: "임원용·의전", label: "임원용·의전", desc: "임원·VIP 의전 차량", icon: "🎖️" },
   { value: "가정용", label: "가정용", desc: "가족 이동·장거리 여행", icon: "👨‍👩‍👧" },
 ] as const;
 
+// value 기반 안전 조회 헬퍼
+const P = (v: string): typeof PURPOSE_OPTIONS[number] =>
+  PURPOSE_OPTIONS.find((o) => o.value === v)!;
+
 // 1단계 업종 선택값에 따라 2단계에서 노출할 목적.
 // 매핑에 없는 업종이거나 industry가 빈 값일 때는 PURPOSE_OPTIONS 전체로 fallback.
 export const PURPOSE_OPTIONS_BY_INDUSTRY: Record<string, ReadonlyArray<typeof PURPOSE_OPTIONS[number]>> = {
-  법인: [
-    PURPOSE_OPTIONS[0], // 출퇴근·업무용
-    PURPOSE_OPTIONS[1], // 화물·배달
-    PURPOSE_OPTIONS[2], // 임원용·의전
-  ],
-  개인사업자: [
-    PURPOSE_OPTIONS[0], // 출퇴근·업무용
-    PURPOSE_OPTIONS[1], // 화물·배달
-    PURPOSE_OPTIONS[3], // 가정용
-  ],
-  개인: [
-    PURPOSE_OPTIONS[0], // 출퇴근·업무용
-    PURPOSE_OPTIONS[1], // 화물·배달
-    PURPOSE_OPTIONS[3], // 가정용
-  ],
+  법인:       [P("출퇴근·업무용"), P("영업·외근"), P("화물·배달"), P("임원용·의전")],
+  개인사업자: [P("출퇴근·업무용"), P("영업·외근"), P("화물·배달"), P("가정용")],
+  개인:       [P("출퇴근·업무용"), P("화물·배달"), P("가정용")],
 };
 
 export function getPurposeOptionsForIndustry(
@@ -101,6 +94,10 @@ export const PURPOSE_DETAIL_OPTIONS: Record<string, Array<{ value: string; label
     { value: "10~30km", label: "10~30km", desc: "평균적인 출퇴근 거리", icon: "🛣️" },
     { value: "30km 이상", label: "30km 이상", desc: "장거리, 연비가 중요해요", icon: "🛤️" },
   ],
+  "영업·외근": [
+    { value: "매일 외근", label: "매일 외근해요", desc: "하루 대부분 이동", icon: "🛣️" },
+    { value: "가끔 외근", label: "가끔 외근해요", desc: "주 1~2회", icon: "📅" },
+  ],
   "화물·배달": [
     { value: "소형 박스", label: "소형 박스·소화물", desc: "택배, 소형 물품 위주예요", icon: "📦" },
     { value: "대형 화물", label: "대형 화물·자재", desc: "적재 용량이 정말 중요해요", icon: "🏗️" },
@@ -110,14 +107,16 @@ export const PURPOSE_DETAIL_OPTIONS: Record<string, Array<{ value: string; label
     { value: "기사 운행", label: "기사가 운전해요", desc: "후석 편의·공간이 중요해요", icon: "🤵" },
   ],
   가정용: [
-    { value: "영유아", label: "영유아가 있어요", desc: "카시트, 안전 기능이 중요해요", icon: "👶" },
-    { value: "초등 이상", label: "초등 이상이에요", desc: "실내 공간·편의사양을 중시해요", icon: "🧒" },
-    { value: "자녀 없음", label: "자녀가 없어요", desc: "부부 또는 성인 위주로 이용해요", icon: "💑" },
+    { value: "영유아", label: "영유아 (0~3세)", desc: "유모차·카시트 환경", icon: "👶" },
+    { value: "미취학", label: "미취학 (4~7세)", desc: "카시트 환경", icon: "🧒" },
+    { value: "초등", label: "초등학생 (8~13세)", desc: "넉넉한 실내 공간", icon: "🎒" },
+    { value: "중학생+", label: "중학생 이상 (14세~)", desc: "성인 위주 이용", icon: "🧑" },
   ],
 };
 
 export const PURPOSE_DETAIL_QUESTION: Record<string, { title: string; subtitle: string }> = {
   "출퇴근·업무용": { title: "하루 편도 이동 거리는요?", subtitle: "거리가 멀수록 연비 좋은 차량이 더 유리해요." },
+  "영업·외근": { title: "외근 빈도는요?", subtitle: "이동량에 맞는 차량을 추천해 드려요." },
   "화물·배달": { title: "주로 어떤 물량을 운반하시나요?", subtitle: "적재 용량에 맞는 차종을 추천해 드려요." },
   "임원용·의전": { title: "운전은 어떻게 하시나요?", subtitle: "운전 방식에 따라 최적 사양을 달리 추천해 드려요." },
   가정용: { title: "자녀 연령대는 어떻게 되나요?", subtitle: "연령에 맞는 안전·편의 기능을 우선으로 추천해요." },
@@ -147,10 +146,17 @@ export const FUEL_PREFERENCE_OPTIONS = [
   { value: "상관없음", label: "상관없음", desc: "연료 방식에 특별한 제한이 없어요", icon: "🔄" },
 ] as const;
 
-// 전기차 선택 시 추가로 묻는 충전 환경
+// 전기차 선택 시 추가로 묻는 충전 환경 (3단계+없음)
 export const CHARGING_OPTIONS = [
-  { value: "있음", label: "집·회사에 충전 가능해요", desc: "일상적인 충전이 가능해요", icon: "🔌" },
-  { value: "없음", label: "충전 환경이 없어요", desc: "공용 충전소만 이용 가능해요", icon: "🚫" },
-  { value: "모르겠음", label: "잘 모르겠어요", desc: "아직 확실하지 않아요", icon: "🤔" },
+  { value: "자택", label: "자택 충전 가능", desc: "집에서 충전돼요", icon: "🏠" },
+  { value: "직장", label: "직장 충전 가능", desc: "회사에서 충전돼요", icon: "🏢" },
+  { value: "외부", label: "외부 충전만", desc: "공용 충전소 이용", icon: "🔌" },
+  { value: "없음", label: "충전 환경 없어요", desc: "충전이 어려워요", icon: "🚫" },
+] as const;
+
+export const REGION_OPTIONS = [
+  { value: "일반", label: "일반 지역", desc: "수도권·도심 등", icon: "🏙️" },
+  { value: "강원·산간", label: "강원·산간", desc: "눈길·비포장 잦음", icon: "🏔️" },
+  { value: "제주", label: "제주", desc: "전기차 인프라 우수", icon: "🌴" },
 ] as const;
 
