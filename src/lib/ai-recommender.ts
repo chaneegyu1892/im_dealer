@@ -37,8 +37,7 @@ interface ScoredVehicle {
 }
 
 export async function recommend(input: RecommendInput): Promise<RecommendedVehicle[]> {
-  // 새 입력 필드(chargingEnvironment)는 타입 정의가 갱신되기 전까지 안전하게 접근
-  const chargingEnvironment = (input as { chargingEnvironment?: "있음" | "없음" | "모르겠음" }).chargingEnvironment;
+  const chargingEnvironment = input.chargingEnvironment;
 
   // 1) 노출 가능 차량 + 추천설정 조회
   const vehicles = await prisma.vehicle.findMany({

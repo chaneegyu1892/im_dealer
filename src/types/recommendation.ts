@@ -7,8 +7,10 @@ export interface RecommendInput {
   industryDetail?: string;
   purposeDetail?: string;
   fuelPreference?: string;
-  // 전기차 선택 시 충전 환경
-  chargingEnvironment?: "있음" | "없음" | "모르겠음";
+  // 전기차 선택 시 충전 환경 (3단계+없음)
+  chargingEnvironment?: "자택" | "직장" | "외부" | "없음";
+  // 거주지역 (선택, 기본 일반)
+  residenceRegion?: "일반" | "강원·산간" | "제주";
   // 옛 세션 호환용 (옵셔널) — 새 입력에서는 사용하지 않음
   budgetMin?: number;
   budgetMax?: number;
@@ -91,7 +93,8 @@ export interface RecommendResultResponse {
     annualMileage: number;
     returnType: ReturnType;
     fuelPreference?: string;
-    chargingEnvironment?: "있음" | "없음" | "모르겠음";
+    chargingEnvironment?: "자택" | "직장" | "외부" | "없음";
+    residenceRegion?: "일반" | "강원·산간" | "제주";
     // 옛 세션 호환용 (옵셔널)
     budgetMin?: number;
     budgetMax?: number;
