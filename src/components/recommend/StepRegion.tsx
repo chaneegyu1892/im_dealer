@@ -1,0 +1,31 @@
+import { REGION_OPTIONS } from "@/constants/recommend-options";
+import { SelectionCard } from "./SelectionCard";
+
+interface StepRegionProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export function StepRegion({ value, onChange }: StepRegionProps) {
+  return (
+    <div className="space-y-3">
+      <div className="mb-6">
+        <h2 className="text-title-sm text-ink font-medium">주로 어느 지역에서 운행하시나요?</h2>
+        <p className="text-label text-ink-label mt-1">지역 특성에 맞는 차량을 추천해 드려요.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {REGION_OPTIONS.map((opt) => (
+          <SelectionCard
+            key={opt.value}
+            label={opt.label}
+            desc={opt.desc}
+            icon={opt.icon}
+            selected={value === opt.value}
+            onClick={() => onChange(opt.value)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
