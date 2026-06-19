@@ -68,6 +68,7 @@ const s = StyleSheet.create({
     marginBottom: 11,
   },
   brand: { fontSize: 18, fontWeight: 700, color: C.primary, letterSpacing: -0.5, lineHeight: 1.2 },
+  brandLogo: { width: 94, height: 23, objectFit: "contain" },
   brandSub: { fontSize: 8.5, color: C.muted, marginTop: 6 },
   quoteMeta: { alignItems: "flex-end" },
   quoteNo: { fontSize: 9.5, fontWeight: 600, color: C.primary, marginBottom: 2 },
@@ -176,6 +177,7 @@ const s = StyleSheet.create({
   footerL: { fontSize: 8, color: C.muted, lineHeight: 1.7 },
   footerR: { alignItems: "flex-end" },
   footerBrand: { fontSize: 9.5, fontWeight: 700, color: C.primary },
+  footerLogo: { width: 53, height: 13, objectFit: "contain" },
   footerNote: { fontSize: 8, color: C.muted, marginTop: 1 },
   // 금융사 로고 + 이름
   financeNameRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
@@ -236,9 +238,11 @@ function ColorLine({ label, c }: { label: string; c: PDFQuoteColor | null | unde
 export function QuoteDocument({
   data,
   financeLogos = {},
+  brandLogo = null,
 }: {
   data: PDFQuoteData;
   financeLogos?: Record<string, string>;
+  brandLogo?: string | null;
 }) {
   const quoteNumber = generateQuoteNumber();
   const today = formatDate();
@@ -264,7 +268,11 @@ export function QuoteDocument({
         {/* 헤더 */}
         <View style={s.header}>
           <View>
-            <Text style={s.brand}>IM DEALER</Text>
+            {brandLogo ? (
+              <Image src={brandLogo} style={s.brandLogo} />
+            ) : (
+              <Text style={s.brand}>IM DEALER</Text>
+            )}
             <Text style={s.brandSub}>아임딜러 장기렌트/리스 공식 견적서</Text>
           </View>
           <View style={s.quoteMeta}>
@@ -450,7 +458,11 @@ export function QuoteDocument({
             <Text>산출일: {today}  |  유효기간: {expiry} 까지</Text>
           </View>
           <View style={s.footerR}>
-            <Text style={s.footerBrand}>IM DEALER</Text>
+            {brandLogo ? (
+              <Image src={brandLogo} style={s.footerLogo} />
+            ) : (
+              <Text style={s.footerBrand}>IM DEALER</Text>
+            )}
             <Text style={s.footerNote}>본 견적서는 아임딜러 시스템에 의해 자동 생성되었습니다.</Text>
           </View>
         </View>

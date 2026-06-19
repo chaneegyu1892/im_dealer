@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 
 export function Footer() {
@@ -9,9 +10,14 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* 브랜드 */}
           <div className="col-span-2 md:col-span-1">
-            <p className="text-[20px] font-bold text-white tracking-tight mb-3">
-              아임딜러
-            </p>
+            <Image
+              src="/images/brand/main-logo.svg"
+              alt="아임딜러"
+              width={137}
+              height={28}
+              unoptimized
+              className="h-7 w-auto mb-3 brightness-0 invert"
+            />
             <p className="text-[13px] leading-relaxed text-white/50">
               허위견적 없는 AI 기반
               <br />

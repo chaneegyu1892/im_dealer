@@ -9,11 +9,11 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
-  // 견적서 PDF(react-pdf)가 런타임에 process.cwd()로 읽는 한글 TTF를
+  // 견적서 PDF(react-pdf)가 런타임에 process.cwd()로 읽는 한글 TTF와 브랜드 로고(PNG)를
   // 서버리스 함수 번들에 포함시킨다(정적 분석으로는 추적 불가하므로 명시).
   outputFileTracingIncludes: {
-    "/api/quote/pdf": ["./src/lib/pdf/fonts/**"],
-    "/api/admin/quotes/[id]/pdf": ["./src/lib/pdf/fonts/**"],
+    "/api/quote/pdf": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/brand/**"],
+    "/api/admin/quotes/[id]/pdf": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/brand/**"],
   },
   async headers() {
     // CSP 정책. Next.js 16 + Sentry + Supabase + Upstash + 외부 차량 이미지 도메인을 모두 허용.

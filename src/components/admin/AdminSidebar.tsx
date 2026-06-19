@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -121,9 +122,14 @@ export function AdminSidebar({ admin, mobileOpen = false, onClose }: AdminSideba
         {/* 로고 */}
         <div className="px-5 py-5 border-b border-white/[0.06]">
           <Link href="/admin" className="flex items-center gap-2 group">
-            <span className="text-white font-semibold text-[16px] tracking-tight group-hover:opacity-90 transition-opacity">
-              아임딜러
-            </span>
+            <Image
+              src="/images/brand/main-logo.svg"
+              alt="아임딜러"
+              width={117}
+              height={24}
+              unoptimized
+              className="h-6 w-auto brightness-0 invert group-hover:opacity-90 transition-opacity"
+            />
             <span className="text-[9px] font-semibold text-[#000666] bg-[#6066EE] px-1.5 py-0.5 rounded-[3px] leading-none">
               ADMIN
             </span>

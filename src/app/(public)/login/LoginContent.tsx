@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -36,9 +37,17 @@ export default function LoginContent() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FC] px-4">
       {/* 로고 */}
-      <div className="mb-8 text-center">
-        <p className="text-[28px] font-bold text-[#000666] tracking-tight">아임딜러</p>
-        <p className="text-[14px] text-[#9BA4C0] mt-1">장기렌트 · 리스 전문 플랫폼</p>
+      <div className="mb-8 flex flex-col items-center text-center">
+        <Image
+          src="/images/brand/main-logo.svg"
+          alt="아임딜러"
+          width={195}
+          height={40}
+          priority
+          unoptimized
+          className="h-10 w-auto"
+        />
+        <p className="text-[14px] text-[#9BA4C0] mt-2">장기렌트 · 리스 전문 플랫폼</p>
       </div>
 
       {/* 카드 */}
