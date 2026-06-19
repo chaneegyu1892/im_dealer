@@ -400,6 +400,8 @@ model RecommendationLog {
   purposeDetail         String?
   budgetDetail          String?
   fuelPreference        String?
+  chargingEnvironment   String?
+  residenceRegion       String?
   clickedVehicleId      String?
   clickedAt             DateTime?
   proceedToQuote        Boolean   @default(false)

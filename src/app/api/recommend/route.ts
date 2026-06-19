@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
         purposeDetail: input.purposeDetail,
         budgetDetail: input.budgetDetail,
         fuelPreference: input.fuelPreference,
+        chargingEnvironment: input.chargingEnvironment,
+        residenceRegion: input.residenceRegion,
         userAgent: request.headers.get("user-agent") ?? undefined,
       },
     });
