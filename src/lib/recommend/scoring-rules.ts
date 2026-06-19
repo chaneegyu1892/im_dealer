@@ -164,6 +164,8 @@ export const PURPOSE_RULES: Record<string, ScoreRule[]> = {
       reason: "소규모 영업에 경제적이에요",
     },
   ],
+  // 임원용·의전: 대형 세단은 세단+20과 프리미엄+18을 모두 받아 +38(의도된 누적, 세단 > SUV).
+  // 가격 하한 패널티(-15/-25)는 ai-recommender의 6천만 하드 게이트와 중복되는 방어 규칙.
   "임원용·의전": [
     {
       match: (_a, c) => c.category === "세단" && isLargeOrPremium(c.price),
