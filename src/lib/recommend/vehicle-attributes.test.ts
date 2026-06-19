@@ -4,6 +4,8 @@ import {
   detectRefrigerated,
   extractCargoKg,
   extractSeating,
+  resolveAdvancedSafety,
+  resolveSlidingDoor,
 } from "./vehicle-attributes";
 
 // ─────────────────────────────────────────────
@@ -81,5 +83,92 @@ describe("extractSeating", () => {
 
   it("externalRaw 없음 → null", () => {
     expect(extractSeating({})).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────
+// 1.3 슬라이딩 도어·안전사양 판별
+// ─────────────────────────────────────────────
+describe("resolveSlidingDoor", () => {
+  it("override=false이면 화이트리스트·옵션 무관하게 false", () => {
+    expect(
+      resolveSlidingDoor({
+        name: "기아 카니발",
+        override: false,
+        optionNames: ["파워 슬라이딩 도어"],
+      }),
+    ).toBe(false);
+  });
+
+  it("차량명에 카니발 포함, override=null → true", () => {
+    expect(
+      resolveSlidingDoor({ name: "기아 카니발", override: null, optionNames: [] }),
+    ).toBe(true);
+  });
+
+  it("차량명에 스타리아 포함, override=null → true", () => {
+    expect(
+      resolveSlidingDoor({ name: "스타리아 라운지", override: null, optionNames: [] }),
+    ).toBe(true);
+  });
+
+  it("옵션명에 파워 슬라이딩 도어 포함 → true", () => {
+    expect(
+      resolveSlidingDoor({
+        name: "쏘렌토",
+        override: null,
+        optionNames: ["2열 파워 슬라이딩 도어"],
+      }),
+    ).toBe(true);
+  });
+
+  it("화이트리스트·옵션 없음 → false", () => {
+    expect(
+      resolveSlidingDoor({ name: "G80", override: null, optionNames: ["선루프"] }),
+    ).toBe(false);
+  });
+});
+
+describe("resolveAdvancedSafety", () => {
+  it("override=true → true", () => {
+    expect(
+      resolveAdvancedSafety({ override: true, optionNames: [], specText: "" }),
+    ).toBe(true);
+  });
+
+  it("specText에 전방 충돌방지 보조·차로 이탈방지 보조 → true", () => {
+    expect(
+      resolveAdvancedSafety({
+        override: null,
+        optionNames: [],
+        specText: "전방 충돌방지 보조, 차로 이탈방지 보조",
+      }),
+    ).toBe(true);
+  });
+
+  it("optionNames에 후측방 충돌방지 보조 포함 → true", () => {
+    expect(
+      resolveAdvancedSafety({
+        override: null,
+        optionNames: ["후측방 충돌방지 보조"],
+        specText: "",
+      }),
+    ).toBe(true);
+  });
+
+  it("override=false → false (specText·옵션 무관)", () => {
+    expect(
+      resolveAdvancedSafety({
+        override: false,
+        optionNames: ["전방 충돌방지 보조"],
+        specText: "차로 이탈방지 보조",
+      }),
+    ).toBe(false);
+  });
+
+  it("override=null, 매칭 없음 → false", () => {
+    expect(
+      resolveAdvancedSafety({ override: null, optionNames: [], specText: "선루프" }),
+    ).toBe(false);
   });
 });

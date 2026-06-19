@@ -85,3 +85,36 @@ export function extractSeating(detailedSpecs: unknown): number | null {
   const n = raw ? Number(raw.person) : NaN;
   return Number.isFinite(n) && n > 0 ? n : null;
 }
+
+// ─────────────────────────────────────────────
+// 1.3 슬라이딩 도어 판별 (override 우선)
+// ─────────────────────────────────────────────
+
+const SLIDING_DOOR_MODELS = ["카니발", "스타리아", "스타렉스", "쏠라티"];
+const SLIDING_OPT_RE = /슬라이딩\s*도어|파워\s*슬라이딩|사이드\s*슬라이딩|양측\s*도어/;
+
+export function resolveSlidingDoor(p: {
+  name: string;
+  override: boolean | null;
+  optionNames: string[];
+}): boolean {
+  if (p.override !== null) return p.override;
+  if (SLIDING_DOOR_MODELS.some((m) => p.name.includes(m))) return true;
+  return p.optionNames.some((o) => SLIDING_OPT_RE.test(o));
+}
+
+// ─────────────────────────────────────────────
+// 1.3 고급 안전사양 판별 (override 우선)
+// ─────────────────────────────────────────────
+
+const SAFETY_RE = /전방\s*충돌방지\s*보조|차로\s*이탈|후측방\s*충돌|지능형\s*안전|긴급제동|FCA|BCW/;
+
+export function resolveAdvancedSafety(p: {
+  override: boolean | null;
+  optionNames: string[];
+  specText: string;
+}): boolean {
+  if (p.override !== null) return p.override;
+  if (SAFETY_RE.test(p.specText)) return true;
+  return p.optionNames.some((o) => SAFETY_RE.test(o));
+}
