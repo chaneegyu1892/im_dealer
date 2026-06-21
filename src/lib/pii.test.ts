@@ -6,6 +6,7 @@ import {
   encryptString,
   decryptString,
   decryptVerificationRow,
+  decryptDocumentContent,
   isEncryptedBlob,
   _resetKeyCacheForTesting,
 } from "./pii";
@@ -21,6 +22,19 @@ beforeAll(() => {
 afterEach(() => {
   process.env.PII_ENCRYPTION_KEY = TEST_KEY;
   _resetKeyCacheForTesting();
+});
+
+describe("decryptDocumentContent", () => {
+  it("문서 base64 를 암호화/복호화 왕복한다", () => {
+    const b64 = "JVBERi0xLjQK"; // "%PDF-1.4\n" base64
+    const enc = encryptPII(b64);
+    expect(decryptDocumentContent(enc)).toBe(b64);
+  });
+
+  it("null/undefined 문서는 null 을 반환한다", () => {
+    expect(decryptDocumentContent(null)).toBeNull();
+    expect(decryptDocumentContent(undefined)).toBeNull();
+  });
 });
 
 describe("encryptPII / decryptPII", () => {

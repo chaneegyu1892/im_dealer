@@ -147,3 +147,11 @@ export function decryptVerificationRow<T extends VerificationLikeRow>(row: T): T
     bizData: decryptPII(row.bizData),
   };
 }
+
+/**
+ * VerificationDocument.contentEnc(암호화된 base64 PDF) → 평문 base64 문자열.
+ * null/undefined(파기됨·미발급)는 null 반환. 레거시 평문도 그대로 통과.
+ */
+export function decryptDocumentContent(blob: unknown): string | null {
+  return decryptPII<string>(blob);
+}
