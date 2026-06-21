@@ -579,7 +579,30 @@ model CustomerVerification {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  documents         VerificationDocument[]
+
   @@index([sessionId])
+}
+
+// 간편인증으로 발급받은 공문서(PDF) 원본 저장. contentEnc 는 AES-256-GCM 암호화.
+// 90일 만료 cron 이 contentEnc/docVerifyNo 를 비우고 piiPurgedAt 을 기록한다.
+model VerificationDocument {
+  id             String               @id @default(cuid())
+  verificationId String
+  verification   CustomerVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  docType        String // DocType enum 문자열 (resident_register 등)
+  status         String               @default("pending") // pending | issued | failed
+  fileName       String?
+  mimeType       String?              @default("application/pdf")
+  contentEnc     Json? // AES-256-GCM EncryptedBlob (base64 PDF)
+  docVerifyNo    String? // 문서확인번호 (암호화 문자열) — 제3자 진위확인용
+  failReason     String?
+  issuedAt       DateTime?
+  piiPurgedAt    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([verificationId])
 }
 
 model Review {
