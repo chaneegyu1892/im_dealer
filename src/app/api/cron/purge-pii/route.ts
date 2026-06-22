@@ -60,9 +60,24 @@ async function handlePurge(request: NextRequest) {
       },
     });
 
+    // 간편인증 발급 문서(원본 PDF·문서확인번호)도 동일 보존기간 후 파기.
+    const docResult = await prisma.verificationDocument.updateMany({
+      where: {
+        issuedAt: { lt: cutoff },
+        piiPurgedAt: null,
+        OR: [{ contentEnc: { not: Prisma.JsonNull } }, { docVerifyNo: { not: null } }],
+      },
+      data: {
+        contentEnc: Prisma.JsonNull,
+        docVerifyNo: null,
+        piiPurgedAt: new Date(),
+      },
+    });
+
     return NextResponse.json({
       success: true,
       purged: result.count,
+      purgedDocuments: docResult.count,
       cutoff: cutoff.toISOString(),
       retentionDays: RETENTION_DAYS,
     });
