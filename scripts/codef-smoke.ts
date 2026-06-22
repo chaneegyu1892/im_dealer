@@ -82,8 +82,12 @@ async function main(): Promise<void> {
   // 등본(정부24)=주민번호 13자리, 홈택스=생년월일 8자리
   let identity: string | undefined;
   let birthDate = "";
+  let addrSido: string | undefined;
+  let addrSiGunGu: string | undefined;
   if (isResident) {
     identity = await field("CODEF_SMOKE_IDENTITY", "주민번호 13자리 (- 없이)");
+    addrSido = await field("CODEF_SMOKE_ADDR_SIDO", "주소 시/도 공식지명 (예: 서울특별시)");
+    addrSiGunGu = await field("CODEF_SMOKE_ADDR_SIGUNGU", "주소 시/군/구 공식지명 (예: 영등포구)");
   } else {
     birthDate = await field("CODEF_SMOKE_BIRTH", "생년월일 YYYYMMDD");
   }
@@ -115,6 +119,8 @@ async function main(): Promise<void> {
     userName,
     birthDate,
     identity,
+    addrSido,
+    addrSiGunGu,
     phoneNo,
     loginTypeLevel,
     telecom,
