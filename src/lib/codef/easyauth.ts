@@ -24,6 +24,10 @@ export interface EasyAuthInput {
   birthDate: string;
   /** 주민번호 13자리('-' 없이) — 등본(정부24) identity. 홈택스는 생년월일 사용. */
   identity?: string;
+  /** 등본(정부24) 주소 시/도 — 공식 지명(예: "서울특별시"). 회원정보에 주소 없으면 필수. */
+  addrSido?: string;
+  /** 등본(정부24) 주소 시/군/구 — 공식 지명(예: "영등포구"). */
+  addrSiGunGu?: string;
   phoneNo: string;
   /** 간편인증 제공자: 1 카카오톡, 5 통신사(PASS), 6 네이버, 8 toss … */
   loginTypeLevel: string;
@@ -77,7 +81,10 @@ export function buildBaseParams(input: EasyAuthInput): Record<string, unknown> {
         base.identity = input.identity;
         base.identityEncYn = "N";
       }
-      // 주소 미입력 시 회원정보 주소로 발급. 등본 옵션은 모두 Required(O).
+      // 주소: 공식 지명. 회원정보에 주소 없으면 필수(CF-13160).
+      if (input.addrSido) base.addrSido = input.addrSido;
+      if (input.addrSiGunGu) base.addrSiGunGu = input.addrSiGunGu;
+      // 등본 옵션은 모두 Required(O).
       base.pastAddrChangeYN = "0"; // 과거 주소이력 미포함
       base.inmateYN = "0"; // 동거인 미포함
       base.relationWithHHYN = "1"; // 세대주와의 관계 포함
