@@ -17,33 +17,64 @@ import {
   parseLegacyQuoteDraft,
   parseQuoteDraft,
 } from "@/lib/quote-draft";
-import { validateBizNumber } from "@/lib/validators/korean";
+import { EasyAuthStep, type EasyAuthInfo } from "./EasyAuthStep";
 
 // ─── 타입 ────────────────────────────────────────────────
-type Step = 1 | 2 | 3 | "done";
+type Step = 1 | 2 | 3 | "easyauth" | "done";
 
 interface FormState {
   name: string;
-  birthDate: string;
-  licenseNo: string;
-  bizNo: string;
+  rrn: string; // 주민번호 13자리 ('-' 없이)
+  phone: string;
+  addrSido: string;
+  addrSiGunGu: string;
 }
 
-// ─── 3단계 커스텀 StepIndicator ───────────────────────────
+// 주민번호 → 생년월일 YYYYMMDD (홈택스 loginIdentity 용)
+function rrnToBirthDate(rrn: string): string {
+  if (rrn.length < 7) return "";
+  const yy = rrn.slice(0, 2);
+  const mmdd = rrn.slice(2, 6);
+  const g = rrn[6];
+  const century =
+    g === "1" || g === "2" || g === "5" || g === "6"
+      ? "19"
+      : g === "3" || g === "4" || g === "7" || g === "8"
+      ? "20"
+      : "19";
+  return `${century}${yy}${mmdd}`;
+}
+
+// 등본(정부24) 주소 시/도 — 공식 지명
+const SIDO_OPTIONS = [
+  "서울특별시", "부산광역시", "대구광역시", "인천광역시", "광주광역시",
+  "대전광역시", "울산광역시", "세종특별자치시", "경기도", "강원특별자치도",
+  "충청북도", "충청남도", "전북특별자치도", "전라남도", "경상북도",
+  "경상남도", "제주특별자치도",
+];
+
+// ─── StepIndicator ────────────────────────────────────────
 const VERIFY_STEPS = [
   { id: 1 as const, label: "동의" },
   { id: 2 as const, label: "유형" },
   { id: 3 as const, label: "정보입력" },
+  { id: 4 as const, label: "간편인증" },
 ];
 
+function stepToNum(step: Step): number {
+  if (step === "done") return VERIFY_STEPS.length + 1;
+  if (step === "easyauth") return 4;
+  return step;
+}
+
 function VerifyStepIndicator({ currentStep }: { currentStep: Step }) {
-  const activeNum = currentStep === "done" ? 4 : currentStep;
+  const activeNum = stepToNum(currentStep);
   return (
     <div className="w-full">
       <div className="mb-3 flex items-center justify-between">
         <span className="public-quiet-label">심사 진행</span>
         <span className="text-[12px] font-semibold text-primary">
-          {currentStep === "done" ? "완료" : `${currentStep} / ${VERIFY_STEPS.length}`}
+          {currentStep === "done" ? "완료" : `${stepToNum(currentStep)} / ${VERIFY_STEPS.length}`}
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -100,18 +131,18 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
   const items = [
     {
       icon: <FileText size={18} className="text-primary" />,
-      title: "운전면허 진위확인",
-      desc: "도로교통공단을 통해 면허 유효 여부를 확인합니다.",
-    },
-    {
-      icon: <HeartPulse size={18} className="text-primary" />,
-      title: "건강보험 자격득실 확인",
-      desc: "국민건강보험공단을 통해 직장인·개인사업자 가입 이력을 확인합니다.",
+      title: "주민등록등본",
+      desc: "정부24에서 등본을 발급받습니다. (개인·개인사업자)",
     },
     {
       icon: <Building2 size={18} className="text-primary" />,
-      title: "사업자등록 상태조회",
-      desc: "국세청을 통해 사업자 등록 상태를 확인합니다.",
+      title: "사업자등록증명",
+      desc: "국세청 홈택스에서 발급받습니다. (개인사업자·법인)",
+    },
+    {
+      icon: <HeartPulse size={18} className="text-primary" />,
+      title: "소득금액증명원",
+      desc: "국세청 홈택스에서 발급받습니다. (개인·개인사업자)",
     },
   ];
 
@@ -150,7 +181,7 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
             {
               key: "privacy" as const,
               label: "[필수] 개인정보 수집·이용에 동의합니다",
-              sub: "이름, 생년월일, 운전면허번호 등을 서류 확인 목적으로 수집합니다.",
+              sub: "이름, 주민등록번호, 주소 등을 서류 발급 목적으로 수집합니다.",
             },
             {
               key: "codef" as const,
@@ -321,16 +352,13 @@ function Step3Form({
   loading,
   error,
 }: Step3Props) {
-  const needsBiz =
-    customerType === "self_employed" ||
-    customerType === "corporate" ||
-    false;
+  const needsResident = customerType !== "corporate"; // 등본 필요 = 주소 입력 필요
 
   const isValid =
     form.name.trim() !== "" &&
-    form.birthDate.trim().length === 8 &&
-    form.licenseNo.trim() !== "" &&
-    (!needsBiz || form.bizNo.trim() !== "");
+    form.rrn.trim().length === 13 &&
+    form.phone.trim() !== "" &&
+    (!needsResident || (form.addrSido !== "" && form.addrSiGunGu.trim() !== ""));
 
   return (
     <div className="space-y-5">
@@ -350,32 +378,54 @@ function Step3Form({
           placeholder="홍길동"
         />
         <InputField
-          label="생년월일"
-          id="birthDate"
-          value={form.birthDate}
-          onChange={(v) => onChange("birthDate", v)}
-          placeholder="19900101"
-          hint="YYYYMMDD 형식으로 입력하세요"
+          label="주민등록번호"
+          id="rrn"
+          type="password"
+          value={form.rrn}
+          onChange={(v) => onChange("rrn", v.replace(/\D/g, "").slice(0, 13))}
+          placeholder="13자리 ( - 없이 )"
+          hint="공공기관 본인확인용. 암호화되어 처리됩니다."
         />
         <InputField
-          label="운전면허번호"
-          id="licenseNo"
-          type="password"
-          value={form.licenseNo}
-          onChange={(v) => onChange("licenseNo", v)}
-          placeholder="운전면허번호 입력"
-          hint="보안을 위해 마스킹 처리됩니다"
+          label="휴대폰 번호"
+          id="phone"
+          value={form.phone}
+          onChange={(v) => onChange("phone", v.replace(/\D/g, "").slice(0, 11))}
+          placeholder="01012345678"
+          hint="간편인증 푸시를 받을 번호"
         />
-        {needsBiz && (
-          <InputField
-            label="사업자등록번호"
-            id="bizNo"
-            type="password"
-            value={form.bizNo}
-            onChange={(v) => onChange("bizNo", v)}
-            placeholder="사업자등록번호 10자리"
-            hint="'-' 없이 숫자만 입력하세요"
-          />
+        {needsResident && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label htmlFor="addrSido" className="block text-[13px] font-semibold text-ink">
+                주소 (시/도)
+              </label>
+              <select
+                id="addrSido"
+                value={form.addrSido}
+                onChange={(e) => onChange("addrSido", e.target.value)}
+                className={cn(
+                  "w-full rounded-[12px] border border-public-border bg-white px-3 py-3.5",
+                  "text-[14px] text-ink focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                )}
+              >
+                <option value="">선택</option>
+                {SIDO_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <InputField
+              label="시/군/구"
+              id="addrSiGunGu"
+              value={form.addrSiGunGu}
+              onChange={(v) => onChange("addrSiGunGu", v)}
+              placeholder="예: 영등포구"
+              hint="등본 발급용"
+            />
+          </div>
         )}
       </div>
 
@@ -407,10 +457,10 @@ function Step3Form({
           {loading ? (
             <span className="flex items-center justify-center gap-2">
               <Loader2 size={16} className="animate-spin" />
-              확인 중...
+              준비 중...
             </span>
           ) : (
-            "서류 확인 요청"
+            "간편인증으로 진행"
           )}
         </Button>
       </div>
@@ -472,10 +522,12 @@ export function VerifyClient() {
   );
   const [form, setForm] = useState<FormState>({
     name: "",
-    birthDate: "",
-    licenseNo: "",
-    bizNo: "",
+    rrn: "",
+    phone: "",
+    addrSido: "",
+    addrSiGunGu: "",
   });
+  const [verificationId, setVerificationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -496,22 +548,10 @@ export function VerifyClient() {
 
   const handleSubmit = async () => {
     if (!sessionId) return;
-
-    // 사업자등록번호 체크섬 검증 — 잘못된 번호로 Codef 호출 시 비용 낭비.
-    const needsBiz =
-      customerType === "self_employed" ||
-      customerType === "corporate" ||
-      false;
-    if (needsBiz && !validateBizNumber(form.bizNo)) {
-      setError("사업자등록번호가 올바르지 않습니다. 10자리 숫자를 다시 확인해주세요.");
-      return;
-    }
-
     setLoading(true);
     setError(null);
-
     try {
-      // 1. 동의 저장
+      // 동의 저장 → verificationId 발급 후 간편인증 단계로 진입
       const consentRes = await fetch("/api/verification/consent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -521,36 +561,31 @@ export function VerifyClient() {
           consentedAt: new Date().toISOString(),
         }),
       });
-
       if (!consentRes.ok) {
-        const data = await consentRes.json().catch(() => ({})) as { error?: string };
+        const data = (await consentRes.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error ?? "동의 저장에 실패했습니다.");
       }
-
-      const { data: consentData } = await consentRes.json() as {
+      const { data: consentData } = (await consentRes.json()) as {
         data: { verificationId: string };
       };
+      setVerificationId(consentData.verificationId);
+      setStep("easyauth");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "요청 중 오류가 발생했습니다. 다시 시도해 주세요."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // 2. Codef 서류 조회
-      const fetchRes = await fetch("/api/verification/fetch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          verificationId: consentData.verificationId,
-          connectedId: sessionId, // sessionId를 connectedId 대용으로 사용 (실제 연동 시 교체)
-          name: form.name,
-          birthDate: form.birthDate,
-          licenseNo: form.licenseNo,
-          bizNo: form.bizNo || undefined,
-        }),
-      });
-
-      if (!fetchRes.ok) {
-        const data = await fetchRes.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? "서류 조회에 실패했습니다.");
-      }
-
-      // 3. 저장된 견적 초안이 있으면 DB에 저장
+  // 간편인증 문서수집 완료 → 견적 초안 저장 후 완료 화면
+  const handleEasyAuthDone = async () => {
+    if (!sessionId) {
+      setStep("done");
+      return;
+    }
+    try {
       const draftKey = `${QUOTE_DRAFT_STORAGE_PREFIX}${sessionId}`;
       const legacyKey = `${LEGACY_QUOTE_STORAGE_PREFIX}${sessionId}`;
       const draftQuote = parseQuoteDraft(localStorage.getItem(draftKey), sessionId);
@@ -560,10 +595,8 @@ export function VerifyClient() {
       const quoteDraft = draftQuote ?? legacyQuote;
 
       if (quoteDraft) {
-        // 시나리오 중 표준형을 기본으로 저장한다. 없으면 보수형을 사용한다.
         const scenario = quoteDraft.scenarios.standard ?? quoteDraft.scenarios.conservative;
-
-        const saveRes = await fetch("/api/quotes", {
+        await fetch("/api/quotes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -572,7 +605,7 @@ export function VerifyClient() {
             trimId: quoteDraft.trimId,
             contractMonths: quoteDraft.contractMonths,
             annualMileage: quoteDraft.annualMileage,
-            depositRate: scenario?.depositAmount ? 20 : 0, // 대략적인 값
+            depositRate: scenario?.depositAmount ? 20 : 0,
             prepayRate: scenario?.prepayAmount ? 30 : 0,
             contractType: quoteDraft.contractType,
             customerType: quoteDraft.customerType ?? customerType,
@@ -587,28 +620,16 @@ export function VerifyClient() {
               surcharges: scenario?.surcharges || {},
             },
             customerName: form.name,
-            phone: "연락처 미입력", // 폰 번호 입력 필드가 없으므로 일단 고정
+            phone: form.phone || "연락처 미입력",
           }),
         });
-
-        if (!saveRes.ok) {
-          const data = await saveRes.json().catch(() => ({})) as { error?: string };
-          throw new Error(data.error ?? "견적 저장에 실패했습니다.");
-        }
-
         localStorage.removeItem(draftKey);
         sessionStorage.removeItem(legacyKey);
       }
-
-      setStep("done");
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "요청 중 오류가 발생했습니다. 다시 시도해 주세요."
-      );
+    } catch {
+      // 견적 저장 실패는 치명적이지 않다 — 서류는 이미 수집됨. 완료로 진행.
     } finally {
-      setLoading(false);
+      setStep("done");
     }
   };
 
@@ -671,13 +692,32 @@ export function VerifyClient() {
           />
         )}
 
+        {step === "easyauth" && verificationId && (
+          <EasyAuthStep
+            verificationId={verificationId}
+            customerType={customerType}
+            info={{
+              userName: form.name,
+              identity: form.rrn,
+              birthDate: rrnToBirthDate(form.rrn),
+              phoneNo: form.phone,
+              addrSido: form.addrSido || undefined,
+              addrSiGunGu: form.addrSiGunGu || undefined,
+              startYear: String(new Date().getFullYear() - 2),
+              endYear: String(new Date().getFullYear() - 1),
+            }}
+            onDone={handleEasyAuthDone}
+            onBack={() => setStep(3)}
+          />
+        )}
+
         {step === "done" && <DoneScreen />}
       </div>
 
       {/* 진행 텍스트 */}
       {step !== "done" && (
         <p className="text-center text-[12px] text-public-muted mt-4">
-          {typeof step === "number" ? `${step} / 3 단계` : ""} · 입력 정보는 암호화되어 전송됩니다
+          {`${stepToNum(step)} / ${VERIFY_STEPS.length} 단계`} · 입력 정보는 암호화되어 전송됩니다
         </p>
       )}
     </div>
