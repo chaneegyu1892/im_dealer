@@ -78,7 +78,15 @@ async function main(): Promise<void> {
     "resident_register"
   )) as DocType;
   const userName = await field("CODEF_SMOKE_NAME", "이름");
-  const birthDate = await field("CODEF_SMOKE_BIRTH", "생년월일 YYYYMMDD");
+  const isResident = docType === "resident_register";
+  // 등본(정부24)=주민번호 13자리, 홈택스=생년월일 8자리
+  let identity: string | undefined;
+  let birthDate = "";
+  if (isResident) {
+    identity = await field("CODEF_SMOKE_IDENTITY", "주민번호 13자리 (- 없이)");
+  } else {
+    birthDate = await field("CODEF_SMOKE_BIRTH", "생년월일 YYYYMMDD");
+  }
   const phoneNo = await field("CODEF_SMOKE_PHONE", "휴대폰 (- 없이)");
   const loginTypeLevel = await field(
     "CODEF_SMOKE_PROVIDER",
@@ -97,8 +105,8 @@ async function main(): Promise<void> {
     endYear = await field("CODEF_SMOKE_END_YEAR", "과세 종료년도", "2024");
   }
 
-  if (!userName || !birthDate || !phoneNo) {
-    console.error("✗ 이름·생년월일·휴대폰은 필수입니다.");
+  if (!userName || !phoneNo || (isResident ? !identity : !birthDate)) {
+    console.error("✗ 이름·휴대폰·(등본:주민번호 / 홈택스:생년월일)은 필수입니다.");
     process.exit(1);
   }
 
@@ -106,6 +114,7 @@ async function main(): Promise<void> {
     docType,
     userName,
     birthDate,
+    identity,
     phoneNo,
     loginTypeLevel,
     telecom,
