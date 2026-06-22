@@ -68,8 +68,23 @@
 - **사업자증명**: `usePurposes`(예 "07":금융기관제출용), `submitTargets`(예 "01":금융기관), 개인 발급 불가
 - **소득금액증명원**: `startYear`/`endYear`(과세기간, 1983~작년/재작년), `usePurposes`, `submitTargets`
 
-## 계정/운영 전환 선결 조건 (사용자 직접 — 콘솔 로그인 필요)
+## 계정/운영 전환 선결 조건
 
-- [ ] 위 3종 상품이 Codef 계정에 **사용 신청·승인** 됐는지 확인 (developer.codef.io는 공개 가이드일 뿐, 호출 권한은 계정별)
-- [ ] 보유 키가 **운영 키**인지 (현재 코드 baseURL = `https://development.codef.io`)
-- [ ] 운영 전환 시 `CODEF_SANDBOX=false` + baseURL `https://api.codef.io`
+- [x] 3종 상품 사용 신청·보유 확인 (2026-06-22)
+- [x] 운영 키 확인 — 현재는 **데모버전(`https://development.codef.io`, Developer 등급, 100회/일)**으로 시작
+- [ ] 운영 전환 시 baseURL `https://api.codef.io` + `CODEF_SANDBOX=false`
+
+> 데모버전 = 실제 기관 호출 + 추가인증(2-way) 지원 (테스트 전용 "샌드박스"만 2-way 미지원).
+> 따라서 데모 단계에서 실제 간편인증 2-way 흐름을 검증 가능. `CODEF_SANDBOX=true`(mock)는 단위테스트용으로만.
+
+## 스모크 테스트 검증 결과 (2026-06-22, 등본/정부24)
+
+데모버전 실호출로 2-way 흐름 **검증 완료**: 토큰 → 1차(CF-03002) → 폰 간편인증 → 2차 도달까지 정상.
+실호출로 확인한 회원 간편인증(loginType=5) 전제조건·필수값:
+
+1. **고객의 기관 간편인증 "최초 1회 등록" 필요** (CF-12876). 미등록 시 실패 → 고객이 정부24/홈택스에서 해당 간편인증 1회 등록해야 함. **= "회원" 전제조건의 실체.** (UX에서 안내 필요)
+2. **등본 본인확인:** `identity`(주민번호 13자리) + `identityEncYn:"N"` 전송 (회원도 필요, CF-13000 방지).
+3. **등본 필수 옵션(전부 Required):** pastAddrChangeYN/inmateYN/relationWithHHYN/changeDateYN/compositionReasonYN/isIdentityViewYn/isNameViewYn (누락 시 CF-12411).
+4. **등본 주소:** 이 계정은 회원주소 자동발급이 안 돼 `addrSido`/`addrSiGunGu` 필수였음(CF-13160). 단, **공식 시군구 표기와 정확히 일치**해야 함(CF-13002).
+   - 시/도=광역단위(예 "경기도"), 시/군/구는 Codef 공식 목록 표기(구 있는 시는 "고양시 일산서구" 형태). 정확 표기는 등본 가이드의 "파라미터 상세보기"(구글시트) 참조.
+   - → **구현 시 주소는 자유입력 금지. 공식 시군구 드롭다운(또는 회원주소 활용)으로 처리.**
