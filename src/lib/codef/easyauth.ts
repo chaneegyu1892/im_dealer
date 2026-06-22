@@ -77,11 +77,14 @@ export function buildBaseParams(input: EasyAuthInput): Record<string, unknown> {
         base.identity = input.identity;
         base.identityEncYn = "N";
       }
-      // 주소 미입력 시 회원정보 주소로 발급. 등본 기본 옵션.
+      // 주소 미입력 시 회원정보 주소로 발급. 등본 옵션은 모두 Required(O).
       base.pastAddrChangeYN = "0"; // 과거 주소이력 미포함
       base.inmateYN = "0"; // 동거인 미포함
       base.relationWithHHYN = "1"; // 세대주와의 관계 포함
+      base.changeDateYN = "0"; // 전입일/변동일 사유 미포함
+      base.compositionReasonYN = "0"; // 세대구성사유 미포함
       base.isIdentityViewYn = "0"; // 주민번호 뒷자리 미공개
+      base.isNameViewYn = "0"; // 다른 세대원 이름 미포함
       break;
     case "biz_registration_proof":
       base.loginIdentity = input.birthDate; // 회원(5) = 생년월일 8자리
