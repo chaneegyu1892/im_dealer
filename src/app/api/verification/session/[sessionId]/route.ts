@@ -19,6 +19,21 @@ export async function GET(
     const record = await prisma.customerVerification.findFirst({
       where: { sessionId },
       orderBy: { createdAt: "desc" },
+      include: {
+        // 원본(contentEnc)·문서확인번호는 목록에 포함하지 않는다(다운로드 시점에만 복호화).
+        documents: {
+          select: {
+            id: true,
+            docType: true,
+            status: true,
+            fileName: true,
+            failReason: true,
+            issuedAt: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
     });
 
     if (!record) {

@@ -1,10 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileSearch, CheckCircle2, XCircle, Clock, AlertCircle } from "lucide-react";
+import { FileSearch, CheckCircle2, XCircle, Clock, AlertCircle, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── 타입 ────────────────────────────────────────────────
+interface VerificationDocumentSummary {
+  id: string;
+  docType: string;
+  status: string; // pending | issued | failed
+  fileName: string | null;
+  failReason: string | null;
+  issuedAt: string | null;
+  createdAt: string;
+}
+
 interface VerificationRecord {
   id: string;
   sessionId: string;
@@ -19,7 +29,14 @@ interface VerificationRecord {
   consentedAt: string;
   verifiedAt: string | null;
   createdAt: string;
+  documents?: VerificationDocumentSummary[];
 }
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  resident_register: "주민등록등본",
+  biz_registration_proof: "사업자등록증명",
+  income_proof: "소득금액증명원",
+};
 
 interface Props {
   sessionId: string;
@@ -257,6 +274,34 @@ export function VerificationResult({ sessionId }: Props) {
                     : undefined
                 }
               />
+            )}
+
+            {/* 수집 문서 (간편인증 발급) */}
+            {state.data.documents && state.data.documents.length > 0 && (
+              <div className="pt-2 mt-1 border-t border-[#F0F2F8]">
+                <p className="text-[11px] font-semibold text-[#6B7399] mb-1.5">수집 문서</p>
+                <div className="space-y-1.5">
+                  {state.data.documents.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between">
+                      <span className="text-[12px] text-[#1A1A2E]">
+                        {DOC_TYPE_LABELS[doc.docType] ?? doc.docType}
+                      </span>
+                      {doc.status === "issued" ? (
+                        <a
+                          href={`/api/verification/documents/${doc.id}`}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium text-[#000666] hover:underline"
+                        >
+                          <Download size={12} /> 다운로드
+                        </a>
+                      ) : (
+                        <span className="text-[11px] text-[#9BA4C0]">
+                          {doc.status === "failed" ? "발급 실패" : "대기"}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* 동의 일시 */}
