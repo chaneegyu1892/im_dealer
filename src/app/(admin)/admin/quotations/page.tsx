@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { logActivity } from "@/lib/activity-store";
 import { AdminSavedQuote } from "@/types/admin";
 import { ReviewLinkSection } from "@/components/admin/quotations/ReviewLinkSection";
+import { VerificationResult } from "@/components/admin/VerificationResult";
 import { formatQuoteForClipboard } from "@/lib/admin/quote-clipboard";
 
 type UIQuoteStatus = "상담대기" | "상담중" | "계약완료" | "계약취소" | "연락완료";
@@ -787,6 +788,8 @@ function QuotationsContent() {
                   quoteId={drawerQuote.id}
                   status={drawerQuote.status}
                 />
+
+                <VerificationResult sessionId={drawerQuote.sessionId} />
 
                 <section className="flex flex-col flex-1 min-h-[150px]">
                   <h4 className="text-[13px] font-bold text-[#1A1A2E] mb-2">상담 일지 (Dealer Note)</h4>
