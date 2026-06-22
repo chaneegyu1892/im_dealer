@@ -36,21 +36,22 @@ test.describe("/verify 폼 검증", () => {
 
     // preset customerType=self_employed → 유형 단계 건너뛰고 정보입력 직행
     await expect(page.getByLabel("이름")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByLabel("주민등록번호")).toBeVisible();
+    await expect(page.getByPlaceholder("앞 6자리")).toBeVisible();
     await expect(page.getByLabel("휴대폰 번호")).toBeVisible();
-    // 개인사업자 → 등본 필요 → 주소 필드 노출
-    await expect(page.getByLabel("시/군/구")).toBeVisible();
+    // 개인사업자 → 등본 필요 → 주소 드롭다운 노출
+    await expect(page.getByLabel("주소 시군구")).toBeVisible();
 
     // 미입력 상태에서는 진행 버튼 비활성
     const submitBtn = page.getByRole("button", { name: /간편인증으로 진행/ });
     await expect(submitBtn).toBeDisabled();
 
-    // 필수값 채우면 활성화
+    // 필수값 채우면 활성화 (주민번호 앞6/뒤7, 주소 드롭다운)
     await page.getByLabel("이름").fill("홍길동");
-    await page.getByLabel("주민등록번호").fill("9001011234567");
+    await page.getByPlaceholder("앞 6자리").fill("900101");
+    await page.getByPlaceholder("뒤 7자리").fill("1234567");
     await page.getByLabel("휴대폰 번호").fill("01012345678");
-    await page.getByLabel("주소 (시/도)").selectOption("서울특별시");
-    await page.getByLabel("시/군/구").fill("영등포구");
+    await page.getByLabel("주소 시도").selectOption("서울특별시");
+    await page.getByLabel("주소 시군구").selectOption("영등포구");
 
     await expect(submitBtn).toBeEnabled();
   });

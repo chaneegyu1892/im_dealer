@@ -18,13 +18,15 @@ import {
   parseQuoteDraft,
 } from "@/lib/quote-draft";
 import { EasyAuthStep, type EasyAuthInfo } from "./EasyAuthStep";
+import { CODEF_ADDRESS, CODEF_SIDO } from "./codef-address";
 
 // ─── 타입 ────────────────────────────────────────────────
 type Step = 1 | 2 | 3 | "easyauth" | "done";
 
 interface FormState {
   name: string;
-  rrn: string; // 주민번호 13자리 ('-' 없이)
+  rrnFront: string; // 주민번호 앞 6자리
+  rrnBack: string; // 주민번호 뒤 7자리
   phone: string;
   addrSido: string;
   addrSiGunGu: string;
@@ -52,14 +54,6 @@ function incomeTaxYears(): { startYear: string; endYear: string } {
   const latest = now.getMonth() + 1 >= 7 ? now.getFullYear() - 1 : now.getFullYear() - 2;
   return { startYear: String(latest - 1), endYear: String(latest) };
 }
-
-// 등본(정부24) 주소 시/도 — 공식 지명
-const SIDO_OPTIONS = [
-  "서울특별시", "부산광역시", "대구광역시", "인천광역시", "광주광역시",
-  "대전광역시", "울산광역시", "세종특별자치시", "경기도", "강원특별자치도",
-  "충청북도", "충청남도", "전북특별자치도", "전라남도", "경상북도",
-  "경상남도", "제주특별자치도",
-];
 
 // ─── StepIndicator ────────────────────────────────────────
 const VERIFY_STEPS = [
@@ -364,7 +358,8 @@ function Step3Form({
 
   const isValid =
     form.name.trim() !== "" &&
-    form.rrn.trim().length === 13 &&
+    form.rrnFront.length === 6 &&
+    form.rrnBack.length === 7 &&
     form.phone.trim() !== "" &&
     (!needsResident || (form.addrSido !== "" && form.addrSiGunGu.trim() !== ""));
 
@@ -385,15 +380,37 @@ function Step3Form({
           onChange={(v) => onChange("name", v)}
           placeholder="홍길동"
         />
-        <InputField
-          label="주민등록번호"
-          id="rrn"
-          type="password"
-          value={form.rrn}
-          onChange={(v) => onChange("rrn", v.replace(/\D/g, "").slice(0, 13))}
-          placeholder="13자리 ( - 없이 )"
-          hint="공공기관 본인확인용. 암호화되어 처리됩니다."
-        />
+        <div className="space-y-1.5">
+          <label className="block text-[13px] font-semibold text-ink">주민등록번호</label>
+          <div className="flex items-center gap-2">
+            <input
+              inputMode="numeric"
+              value={form.rrnFront}
+              onChange={(e) => onChange("rrnFront", e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="앞 6자리"
+              className={cn(
+                "w-full rounded-[12px] border border-public-border bg-white px-4 py-3.5",
+                "text-[14px] text-ink placeholder:text-ink-caption tracking-wider",
+                "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+              )}
+            />
+            <span className="font-semibold text-ink-caption">-</span>
+            <input
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              value={form.rrnBack}
+              onChange={(e) => onChange("rrnBack", e.target.value.replace(/\D/g, "").slice(0, 7))}
+              placeholder="뒤 7자리"
+              className={cn(
+                "w-full rounded-[12px] border border-public-border bg-white px-4 py-3.5",
+                "text-[14px] text-ink placeholder:text-ink-caption tracking-wider",
+                "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+              )}
+            />
+          </div>
+          <p className="text-[11px] text-public-muted">공공기관 본인확인용. 뒷자리는 가려지고 암호화 처리됩니다.</p>
+        </div>
         <InputField
           label="휴대폰 번호"
           id="phone"
@@ -403,36 +420,44 @@ function Step3Form({
           hint="간편인증 푸시를 받을 번호"
         />
         {needsResident && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="addrSido" className="block text-[13px] font-semibold text-ink">
-                주소 (시/도)
-              </label>
+          <div className="space-y-1.5">
+            <label className="block text-[13px] font-semibold text-ink">주소 (등본 발급용)</label>
+            <div className="grid grid-cols-2 gap-3">
               <select
-                id="addrSido"
+                aria-label="주소 시도"
                 value={form.addrSido}
-                onChange={(e) => onChange("addrSido", e.target.value)}
+                onChange={(e) => {
+                  onChange("addrSido", e.target.value);
+                  onChange("addrSiGunGu", "");
+                }}
                 className={cn(
                   "w-full rounded-[12px] border border-public-border bg-white px-3 py-3.5",
                   "text-[14px] text-ink focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
                 )}
               >
-                <option value="">선택</option>
-                {SIDO_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
+                <option value="">시/도 선택</option>
+                {CODEF_SIDO.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <select
+                aria-label="주소 시군구"
+                value={form.addrSiGunGu}
+                disabled={!form.addrSido}
+                onChange={(e) => onChange("addrSiGunGu", e.target.value)}
+                className={cn(
+                  "w-full rounded-[12px] border border-public-border bg-white px-3 py-3.5",
+                  "text-[14px] text-ink focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15",
+                  "disabled:bg-[#F4F5F8] disabled:text-ink-caption"
+                )}
+              >
+                <option value="">{form.addrSido ? "시/군/구 선택" : "시/도 먼저"}</option>
+                {(CODEF_ADDRESS[form.addrSido] ?? []).map((g) => (
+                  <option key={g} value={g}>{g}</option>
                 ))}
               </select>
             </div>
-            <InputField
-              label="시/군/구"
-              id="addrSiGunGu"
-              value={form.addrSiGunGu}
-              onChange={(v) => onChange("addrSiGunGu", v)}
-              placeholder="예: 영등포구"
-              hint="등본 발급용"
-            />
+            <p className="text-[11px] text-public-muted">주민등록상 주소의 시/도·시/군/구를 선택하세요.</p>
           </div>
         )}
       </div>
@@ -530,7 +555,8 @@ export function VerifyClient() {
   );
   const [form, setForm] = useState<FormState>({
     name: "",
-    rrn: "",
+    rrnFront: "",
+    rrnBack: "",
     phone: "",
     addrSido: "",
     addrSiGunGu: "",
@@ -706,8 +732,8 @@ export function VerifyClient() {
             customerType={customerType}
             info={{
               userName: form.name,
-              identity: form.rrn,
-              birthDate: rrnToBirthDate(form.rrn),
+              identity: form.rrnFront + form.rrnBack,
+              birthDate: rrnToBirthDate(form.rrnFront + form.rrnBack),
               phoneNo: form.phone,
               addrSido: form.addrSido || undefined,
               addrSiGunGu: form.addrSiGunGu || undefined,
