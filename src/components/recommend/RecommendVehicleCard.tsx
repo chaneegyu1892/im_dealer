@@ -86,15 +86,15 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
   return (
     <div
       className={cn(
-        "bg-white rounded-card shadow-card overflow-hidden",
-        isTop ? "border-2 border-primary" : "border border-[#F0F0F0]"
+        "overflow-hidden rounded-[18px] bg-white shadow-[0_8px_24px_rgba(18,24,40,0.05)]",
+        isTop ? "border border-primary" : "border border-public-border"
       )}
     >
       {/* 순위 배지 */}
       <div
         className={cn(
           "flex items-center gap-2 px-4 py-2.5",
-          isTop ? "bg-primary" : "bg-neutral"
+          isTop ? "bg-primary" : "bg-public-bg"
         )}
       >
         {isTop && <Trophy size={14} className="text-white" />}
@@ -108,11 +108,11 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
         </span>
       </div>
 
-      <div className="p-6 space-y-5">
+      <div className="space-y-5 p-4 md:p-6">
         {/* 차량 정보 헤더 */}
         <div className="flex items-center gap-4">
           {/* 썸네일 */}
-          <div className="relative w-28 h-20 flex-shrink-0 rounded-[8px] overflow-hidden bg-neutral">
+          <div className="relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-[10px] bg-neutral">
             {(() => {
               const imageSrc = detail.thumbnailUrl || detail.imageUrls?.[0];
               return imageSrc ? (
@@ -133,7 +133,7 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
           {/* 이름·트림 */}
           <div className="flex-1 min-w-0">
             <p className="text-[12px] text-ink-label">{detail.brand}</p>
-            <h3 className="text-title-sm text-ink font-medium leading-tight truncate">
+            <h3 className="truncate text-[18px] font-semibold leading-tight text-ink md:text-title-sm md:font-medium">
               {detail.name}
             </h3>
             <p className="text-[12px] text-ink-caption mt-0.5">{detail.defaultTrimName}</p>
@@ -162,8 +162,8 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
                 인기
               </span>
             </div>
-            <p className="text-[11px] text-ink-caption mb-3">
-              👇 원하는 옵션을 눌러서 추가해보세요. 금액이 실시간으로 반영돼요.
+            <p className="text-[11px] text-public-muted mb-3">
+              필요한 옵션을 선택하면 견적 조건에 함께 반영됩니다.
             </p>
 
             <div className="space-y-3">
@@ -188,11 +188,11 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
                           onClick={() => toggleItem(item.id)}
                           aria-pressed={isSelected}
                           className={cn(
-                            "inline-flex items-center gap-1.5 rounded-btn px-3 py-2 text-[12px] font-medium transition-all duration-150",
-                            "active:scale-[0.97]",
-                            isSelected
-                              ? "bg-primary-100 border border-primary text-primary shadow-sm"
-                              : "bg-white border border-dashed border-neutral-300 text-ink-label hover:border-solid hover:border-primary-400 hover:text-ink hover:bg-primary-50"
+                "inline-flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-[12px] font-medium transition-all duration-150",
+                "active:scale-[0.97]",
+                isSelected
+                  ? "bg-primary/[0.06] border border-primary text-primary shadow-sm"
+                  : "bg-white border border-dashed border-public-border text-ink-label hover:border-solid hover:border-primary/30 hover:text-ink hover:bg-primary/[0.03]"
                           )}
                         >
                           <span
@@ -224,7 +224,7 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
 
             {/* 선택 총액 */}
             {selectedTotal > 0 && (
-              <div className="mt-3 flex items-center justify-between rounded-[6px] bg-primary-100 border border-primary-200 px-3 py-2">
+              <div className="mt-3 flex items-center justify-between rounded-[12px] bg-primary/[0.06] border border-primary/15 px-3 py-2">
                 <p className="text-[12px] text-primary font-medium">선택 구성 추가금</p>
                 <p className="text-[13px] font-semibold text-primary">
                   +{formatCurrency(selectedTotal)}
@@ -240,16 +240,16 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
             <p className="text-[12px] font-medium text-ink-label">
               예상 월 납입금 ({months}개월)
             </p>
-            <p className="text-[10px] text-ink-caption mt-0.5">
+            <p className="text-[10px] text-public-muted mt-0.5">
               조건별 월 납입금과 실부담을 함께 비교해 보세요
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {/* 무보증 */}
-            <div className="rounded-btn border border-[#F0F0F0] bg-neutral p-3 flex flex-col gap-1">
+            <div className="rounded-[14px] border border-public-border bg-public-bg p-3 flex flex-col gap-1">
               <p className="text-[10px] text-ink-caption">무보증</p>
-              <p className="text-[18px] font-light text-ink leading-none">
+              <p className="public-finance-number text-[20px] leading-none text-ink">
                 {formatMonthly(scenarios.standard.monthlyPayment)}
               </p>
               <p className="text-[10px] text-ink-caption">보증금·선납금 없음</p>
@@ -265,12 +265,12 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
             <MemberGate locked={locked} className="sm:col-span-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {/* 보증금형 — 기본 강조 + 추천 배지 */}
-            <div className="relative rounded-btn border border-primary bg-primary-50 p-3 flex flex-col gap-1">
+            <div className="relative rounded-[14px] border border-primary bg-primary/[0.06] p-3 flex flex-col gap-1">
               <span className="absolute -top-2 right-2 text-[9px] font-semibold text-white bg-primary rounded-pill px-2 py-0.5 shadow-sm">
                 추천
               </span>
               <p className="text-[10px] text-primary font-medium">보증금 20%</p>
-              <p className="text-[18px] font-medium text-primary leading-none">
+              <p className="public-finance-number text-[20px] leading-none">
                 {formatMonthly(scenarios.conservative.monthlyPayment)}
               </p>
               <p className="text-[10px] text-primary-700">
@@ -286,9 +286,9 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
             </div>
 
             {/* 선납형 */}
-            <div className="rounded-btn border border-[#F0F0F0] bg-neutral p-3 flex flex-col gap-1">
+            <div className="rounded-[14px] border border-public-border bg-public-bg p-3 flex flex-col gap-1">
               <p className="text-[10px] text-ink-caption">선납 30%</p>
-              <p className="text-[18px] font-light text-ink leading-none">
+              <p className="public-finance-number text-[20px] leading-none text-ink">
                 {formatMonthly(scenarios.aggressive.monthlyPayment)}
               </p>
               <p className="text-[10px] text-ink-caption">
@@ -307,9 +307,9 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
           </div>
 
           {/* 선납금이 낮아 보이는 이유 안내 */}
-          <div className="mt-2.5 rounded-[6px] bg-neutral border border-[#F0F0F0] px-3 py-2.5">
+          <div className="mt-2.5 rounded-[12px] bg-public-bg border border-public-border px-3 py-2.5">
             <p className="text-[10px] text-ink-label leading-relaxed">
-              💡 <span className="font-medium">선납금형</span>은 미리 낸 목돈이 매월 나뉘어
+              <span className="font-medium">선납금형</span>은 미리 낸 목돈이 매월 나뉘어
               차감되어 월 납입금이 크게 낮아 보일 뿐, 실제로 내는 총액은 무보증과 비슷해요.
               <br />
               <span className="font-medium text-primary">보증금형</span>은 보증금을 계약
@@ -329,16 +329,17 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
           <button
             type="button"
             onClick={handleQuote}
-            className="w-full py-3.5 rounded-btn bg-primary text-white text-[14px] font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 shadow-sm"
+            className="public-touch-button w-full bg-primary text-white shadow-[0_10px_22px_rgba(0,6,102,0.18)]"
           >
-            견적내기
+            월 납입금 확인하기
           </button>
 
           {/* 상담하기 — 보조 (테두리) */}
           <ChannelTalkButton
             vehicleName={detail.name}
             size="sm"
-            className="w-full !bg-transparent !text-ink-label border border-neutral-300 hover:!bg-neutral-50"
+            label="상담하기"
+            className="min-h-[44px] w-full !rounded-[12px] !bg-white !text-ink-label border border-public-border hover:!bg-public-bg"
           />
         </div>
       </div>

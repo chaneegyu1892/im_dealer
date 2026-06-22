@@ -8,12 +8,19 @@ export const metadata: Metadata = {
 
 export default function RecommendPage() {
   return (
-    <div>
-      <div className="bg-white border-b border-[#F0F0F0] py-8">
-        <div className="page-container max-w-2xl mx-auto text-center">
-          <h1 className="font-display text-headline-sm text-ink">AI 차량 추천</h1>
-          <p className="text-[14px] text-ink-label mt-2">
-            4가지 질문으로 딱 맞는 차량과 견적을 찾아드려요
+    <div className="public-app-page min-h-screen pb-24 md:pb-0">
+      <div className="border-b border-public-border bg-white">
+        <div className="page-container max-w-2xl mx-auto py-3.5 md:py-8">
+          <div className="mb-1 flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-public-muted">
+              AI 추천
+            </span>
+          </div>
+          <h1 className="text-[20px] font-semibold leading-tight text-ink md:font-display md:text-headline-sm md:font-light">
+            내 조건에 맞는 차량 찾기
+          </h1>
+          <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-[14px]">
+            등록 형태와 사용 목적을 바탕으로 실제 견적 가능한 차량을 좁혀드립니다.
           </p>
         </div>
       </div>

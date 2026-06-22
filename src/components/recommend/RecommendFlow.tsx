@@ -130,12 +130,12 @@ export function RecommendFlow() {
   };
 
   return (
-    <div className="page-container py-10 max-w-2xl mx-auto">
-      <div className="flex justify-center mb-10">
+    <div className="page-container max-w-2xl mx-auto py-4 md:py-8">
+      <div className="mb-5">
         <StepIndicator currentStep={step} />
       </div>
 
-      <div className="min-h-[360px]">
+      <div className="public-mobile-section min-h-[360px] p-4 md:p-6">
         {step === 1 && (
           <StepIndustry
             value={state.industry}
@@ -162,24 +162,24 @@ export function RecommendFlow() {
           />
         )}
         {step === 3 && (
-          <div className="space-y-10">
+          <div className="space-y-8">
             <StepMileage
               value={state.annualMileage}
               onChange={(v) =>
                 setState((s) => ({ ...s, annualMileage: v }))
               }
             />
-            <div className="pt-8 border-t border-[#F0F0F0]">
+            <div className="pt-6 border-t border-public-border">
               <StepFuelPreference
                 value={state.fuelPreference}
                 onChange={handleFuelChange}
               />
               {state.fuelPreference === "전기차" && (
-                <div className="mt-6 pt-6 border-t border-primary-100 transition-all duration-200">
-                  <h3 className="text-title-sm font-medium">
+                <div className="mt-5 rounded-[16px] border border-primary/15 bg-primary/[0.04] p-4 transition-all duration-200">
+                  <h3 className="text-[16px] font-semibold text-ink">
                     충전 환경이 있나요?
                   </h3>
-                  <p className="text-label text-ink-label mt-1">
+                  <p className="mt-1 text-[12px] leading-relaxed text-public-muted">
                     집·회사·아파트 등 일상 충전이 가능한지에 따라 추천이
                     달라져요.
                   </p>
@@ -203,7 +203,7 @@ export function RecommendFlow() {
                 </div>
               )}
             </div>
-            <div className="pt-8 border-t border-[#F0F0F0]">
+            <div className="pt-6 border-t border-public-border">
               <StepRegion
                 value={state.residenceRegion}
                 onChange={(v) => setState((s) => ({ ...s, residenceRegion: v }))}
@@ -214,18 +214,18 @@ export function RecommendFlow() {
       </div>
 
       {error && (
-        <div className="mt-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-[13px] text-red-700">
+        <div className="mt-4 rounded-[12px] border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-700">
           {error}
         </div>
       )}
 
-      <div className="flex items-center gap-3 mt-8 pt-6 border-t border-[#F0F0F0]">
+      <div className="mt-4 flex items-center gap-2">
         {step > 1 && (
           <Button
             variant="secondary"
             size="md"
             onClick={handleBack}
-            className="flex items-center gap-1"
+            className="min-h-[48px] shrink-0 rounded-[12px] border-public-border bg-white px-4 text-ink-label"
           >
             <ChevronLeft size={16} />
             이전
@@ -237,17 +237,18 @@ export function RecommendFlow() {
           fullWidth
           disabled={!canProceed || loading}
           onClick={handleNext}
+          className="min-h-[48px] rounded-[12px] font-semibold"
         >
           {loading
-            ? "AI가 분석 중이에요..."
+            ? "조건을 분석 중입니다"
             : step === TOTAL_STEPS
-            ? "AI 추천 결과 보기"
+            ? "추천 결과 확인하기"
             : "다음"}
         </Button>
       </div>
 
-      <p className="text-center text-caption text-ink-caption mt-3">
-        {step} / {TOTAL_STEPS} 단계 · 개인정보 입력 없이 이용할 수 있어요
+      <p className="mt-3 text-center text-[12px] text-public-muted">
+        개인정보 입력 없이 추천 결과를 확인할 수 있습니다
       </p>
     </div>
   );

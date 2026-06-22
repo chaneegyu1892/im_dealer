@@ -190,7 +190,7 @@ export function QuoteBreakdownTabs({
           <div aria-hidden />
           <div className="flex justify-center">
             <div className="relative animate-nudge bg-[#FEE500] text-[#3A1D1D] text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap">
-              월 납입금 더 낮추기 👀
+              초기비용으로 월 납입금 조정
               <span className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2.5 h-2.5 bg-[#FEE500] rotate-45" />
             </div>
           </div>
@@ -198,7 +198,7 @@ export function QuoteBreakdownTabs({
       )}
 
       {/* ① 납입 방식 토글 */}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-2">
         {[
           {
             mode: "none" as CostMode,
@@ -218,10 +218,10 @@ export function QuoteBreakdownTabs({
               type="button"
               onClick={() => switchMode(mode)}
               className={cn(
-                "py-3.5 px-4 rounded-[14px] border-2 text-left transition-all duration-200",
+                "min-h-[92px] py-3.5 px-3.5 rounded-[16px] border text-left transition-all duration-200",
                 isActive
-                  ? "border-primary bg-primary-100"
-                  : "border-[#E8E8E8] bg-white hover:border-primary/30"
+                  ? "border-primary bg-primary-100 shadow-[0_8px_18px_rgba(0,6,102,0.08)]"
+                  : "border-[#E8EAF2] bg-white hover:border-primary/30"
               )}
             >
               <span className="block text-[10px] font-medium uppercase tracking-wider text-ink-caption mb-0.5">
@@ -239,7 +239,7 @@ export function QuoteBreakdownTabs({
       {/* ② 초기비용 설정 — 비회원은 블러 + 카카오 로그인 유도 */}
       {costMode === "initial" && onCustomRatesChange && (
         <MemberGate locked={locked} onLogin={onMemberLogin}>
-        <div className="rounded-[14px] border border-[#E0E4EE] bg-white p-4 space-y-4">
+        <div className="rounded-[18px] border border-[#E0E4EE] bg-white p-4 space-y-4 shadow-[0_8px_18px_rgba(18,24,40,0.04)]">
 
           {/* 헤더 */}
           <div className="flex items-center justify-between">
@@ -264,8 +264,8 @@ export function QuoteBreakdownTabs({
                   type="button"
                   onClick={() => switchCostType(type)}
                   className={cn(
-                    "flex-1 py-2.5 px-3 rounded-[10px] border text-left transition-all duration-150",
-                    isActive ? "border-primary bg-primary/5" : "border-[#E8E8E8] bg-neutral hover:border-primary/30"
+                    "flex-1 py-2.5 px-3 rounded-[12px] border text-left transition-all duration-150",
+                    isActive ? "border-primary bg-primary/5" : "border-[#E8EAF2] bg-neutral hover:border-primary/30"
                   )}
                 >
                   <span className={cn("block text-[13px] font-semibold", isActive ? "text-primary" : "text-ink")}>
@@ -445,16 +445,23 @@ export function QuoteBreakdownTabs({
       )}
 
       {/* ③ 월 납입금 */}
-      <div className={cn("transition-opacity duration-200", isRecalculating && "opacity-60")}>
-        <div className="flex items-end justify-between mb-3">
+      <div
+        className={cn(
+          "rounded-[18px] border border-primary/15 bg-[linear-gradient(180deg,#F7F8FF_0%,#FFFFFF_86%)] p-4 transition-opacity duration-200 shadow-[0_10px_24px_rgba(0,6,102,0.07)]",
+          isRecalculating && "opacity-60"
+        )}
+      >
+        <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[11px] text-ink-caption mb-0.5">월 납입금</p>
-            <p className="text-[36px] md:text-[40px] font-light text-ink leading-none tabular-nums">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/65 mb-1">
+              월 납입금
+            </p>
+            <p className="whitespace-nowrap text-[34px] min-[390px]:text-[36px] md:text-[40px] font-semibold text-primary leading-none tabular-nums tracking-normal">
               {formatMonthly(data.monthlyPayment)}
             </p>
           </div>
           {data.bestFinanceCompany && (
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-label bg-secondary-100 border border-secondary-200 rounded-full px-2.5 py-1 mb-1">
+            <span className="inline-flex w-fit items-center gap-1.5 text-[11px] font-semibold text-primary bg-white border border-primary/15 rounded-full px-2.5 py-1 shadow-sm sm:mb-1">
               <Building2 size={10} className="text-secondary" />
               {data.bestFinanceCompany}
             </span>
@@ -466,7 +473,7 @@ export function QuoteBreakdownTabs({
       </div>
 
       {/* ④ 계약 조건 그리드 */}
-      <div className="rounded-[10px] bg-neutral p-4 grid grid-cols-2 gap-y-3 gap-x-4">
+      <div className="rounded-[14px] bg-public-bg p-4 grid grid-cols-2 gap-y-3 gap-x-4 border border-[#EEF0F5]">
         <ConditionRow label="계약기간" value={`${data.contractMonths}개월`} />
         <ConditionRow label="약정거리" value={`연 ${(data.annualMileage / 10000).toFixed(0)}만km`} />
         {data.depositAmount > 0 && (
@@ -522,7 +529,7 @@ function MonthlyBar({ data }: { data: QuoteScenarioDetail }) {
   ];
 
   return (
-    <div className="rounded-[10px] bg-neutral px-4 py-3 space-y-3">
+    <div className="rounded-[14px] bg-white px-3.5 py-3 space-y-3 border border-[#EEF0F5]">
       <p className="text-[11px] font-semibold text-ink-label uppercase tracking-wider">월 납입금 구성</p>
       {/* 수평 바 */}
       <div className="flex h-2.5 rounded-full overflow-hidden gap-[2px]">
@@ -566,7 +573,7 @@ function FinanceSection({
   const best = sorted[0];
 
   return (
-    <div className="rounded-[10px] border border-[#E8EAF2] overflow-hidden">
+    <div className="rounded-[16px] border border-[#E8EAF2] overflow-hidden bg-white">
       {/* 헤더 */}
       <div className="flex items-center gap-2 px-4 py-3 bg-neutral border-b border-[#F0F2F8]">
         <Trophy size={12} className="text-primary" />
@@ -631,7 +638,7 @@ function FinanceRow({
   const style = RANK_STYLE[rank] ?? RANK_STYLE[3];
 
   return (
-    <div className={cn("flex items-center gap-3 px-4 py-3", isBest && "bg-primary-100")}>
+      <div className={cn("flex items-center gap-3 px-4 py-3", isBest && "bg-primary-100")}>
       <span
         className="text-[10px] font-bold px-2 py-0.5 rounded-[4px] shrink-0 w-[46px] text-center"
         style={{ color: style.color, background: style.bg }}
@@ -667,7 +674,7 @@ function BreakdownSection({
   if (!bd) return null;
 
   return (
-    <div className="rounded-[10px] border border-[#E8EAF2] overflow-hidden">
+    <div className="rounded-[16px] border border-[#E8EAF2] overflow-hidden bg-white">
       {/* 요약 (항상 표시) */}
       <div className="px-4 py-3 bg-secondary-100 space-y-2.5">
         <p className="text-[11px] font-semibold text-ink-label uppercase tracking-wider">견적 산출 내역</p>
@@ -748,7 +755,7 @@ function ApprovalPreview({ data }: { data: QuoteScenarioDetail }) {
   const copy = APPROVAL_COPY[level];
 
   return (
-    <div className={cn("rounded-[10px] border px-4 py-3", copy.containerClass)}>
+    <div className={cn("rounded-[16px] border px-4 py-3.5", copy.containerClass)}>
       <div className="flex items-start gap-3">
         <ShieldCheck size={16} className={cn("mt-0.5 shrink-0", copy.iconClass)} />
         <div className="min-w-0 flex-1">
@@ -810,7 +817,7 @@ function CostCheckpoint({ contractType, customerType }: { contractType: string; 
     : [];
 
   return (
-    <div className="rounded-[8px] bg-neutral p-3 space-y-1.5">
+    <div className="rounded-[14px] bg-public-bg p-3.5 space-y-1.5 border border-[#EEF0F5]">
       <p className="text-[11px] font-semibold text-ink-label">체크포인트</p>
       {points.map((p) => (
         <p key={p} className="text-[12px] text-ink-caption flex items-start gap-1.5">

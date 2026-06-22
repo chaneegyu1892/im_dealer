@@ -8,6 +8,13 @@
     --color-secondary: #71749A;
     --color-tertiary: #5C1800;
     --color-bg: #F8F9FA;
+    --public-app-bg: #F5F6FA;
+    --public-surface: #FFFFFF;
+    --public-surface-raised: #FFFFFF;
+    --public-border: #E7EAF2;
+    --public-muted: #6F7590;
+    --public-trust-bg: #EEF2FF;
+    --mobile-fixed-action-height: 88px;
   }
 
   body {
@@ -109,6 +116,51 @@
   /* ── 섹션 ─────────────────────────────── */
   .section-label {
     @apply text-[11px] font-semibold text-ink-caption uppercase tracking-[0.15em];
+  }
+
+  /* ── Public mobile app surfaces ───────────────── */
+  .public-app-page {
+    background:
+      linear-gradient(180deg, #FFFFFF 0%, var(--public-app-bg) 280px),
+      var(--public-app-bg);
+  }
+
+  .public-mobile-section {
+    @apply rounded-[18px] border bg-white shadow-[0_8px_24px_rgba(18,24,40,0.05)];
+    border-color: var(--public-border);
+  }
+
+  .public-mobile-card {
+    @apply rounded-[16px] border bg-white shadow-[0_6px_18px_rgba(18,24,40,0.04)];
+    border-color: var(--public-border);
+  }
+
+  .public-quiet-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em];
+    color: var(--public-muted);
+  }
+
+  .public-finance-number {
+    @apply font-display font-semibold tracking-normal text-primary;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .public-fixed-action {
+    @apply fixed left-0 right-0 z-40 border-t bg-white/95 px-4 pt-3 backdrop-blur-md md:hidden;
+    bottom: 0;
+    padding-bottom: max(14px, env(safe-area-inset-bottom, 14px));
+    border-color: var(--public-border);
+    box-shadow: 0 -12px 30px rgba(18, 24, 40, 0.08);
+  }
+
+  .public-floating-action-shell {
+    @apply mx-auto flex w-full max-w-[480px] items-center rounded-[18px] border bg-white/95 p-2 backdrop-blur-md;
+    border-color: var(--public-border);
+    box-shadow: 0 14px 34px rgba(18, 24, 40, 0.16), 0 2px 8px rgba(18, 24, 40, 0.08);
+  }
+
+  .public-touch-button {
+    @apply inline-flex min-h-[48px] items-center justify-center rounded-[12px] px-4 text-[15px] font-semibold transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
   }
 }
 

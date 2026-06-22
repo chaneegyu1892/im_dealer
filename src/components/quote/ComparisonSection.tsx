@@ -615,23 +615,23 @@ export function ComparisonSection({
   const p2Meta = allVehicles.find((v) => v.slug === p2Slug);
 
   return (
-    <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card overflow-hidden mb-4">
+    <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card overflow-hidden mb-4 max-w-full">
       {/* 섹션 헤더 */}
       <button
         type="button"
         onClick={handleOpen}
-        className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral transition-colors text-left"
+        className="w-full max-w-full box-border flex items-center gap-2.5 px-4 py-4 text-left transition-colors hover:bg-neutral sm:gap-3 sm:px-5"
         aria-expanded={isOpen}
       >
         <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
           <GitCompare size={15} className="text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="flex items-center gap-1.5 text-[14px] font-medium text-ink">
-            다른 차량과 비교하기
+          <p className="flex min-w-0 items-center gap-1.5 text-[14px] font-medium text-ink">
+            <span className="min-w-0 truncate">다른 차량과 비교하기</span>
             {locked && <Lock size={12} className="text-ink-caption shrink-0" />}
           </p>
-          <p className="text-[12px] text-ink-caption mt-0.5">
+          <p className="mt-0.5 text-[12px] text-ink-caption break-keep">
             {locked
               ? "회원 전용 기능입니다. 로그인하고 나란히 비교하세요"
               : "트림·옵션을 각각 설정하고 나란히 비교할 수 있습니다"}

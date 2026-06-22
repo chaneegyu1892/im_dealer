@@ -17,41 +17,36 @@ interface StepIndicatorProps {
 
 export function StepIndicator({ currentStep, className }: StepIndicatorProps) {
   return (
-    <div className={cn("flex items-center", className)}>
-      {STEPS.map((step, idx) => {
+    <div className={cn("w-full", className)}>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="public-quiet-label">추천 진행</span>
+        <span className="text-[12px] font-semibold text-primary">{currentStep} / {STEPS.length}</span>
+      </div>
+      <div className="flex items-center gap-2">
+      {STEPS.map((step) => {
         const isDone = step.id < currentStep;
         const isActive = step.id === currentStep;
 
         return (
-          <div key={step.id} className="flex items-center">
-            {/* 연결선 (첫 번째 제외) */}
-            {idx > 0 && (
+          <div key={step.id} className="min-w-0 flex-1">
+            <div
+              className={cn(
+                "h-1.5 rounded-full transition-colors duration-300",
+                step.id <= currentStep ? "bg-primary" : "bg-[#DDE1EC]"
+              )}
+            />
+            <div className="mt-2 flex items-center gap-1.5">
               <div
                 className={cn(
-                  "h-[2px] w-8 sm:w-12 md:w-16 flex-shrink-0 rounded-sm transition-colors duration-300",
-                  isDone ? "bg-primary" : "bg-neutral-800"
-                )}
-              />
-            )}
-
-            {/* 스텝 원 + 라벨 */}
-            <div className="flex flex-col items-center gap-1.5">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                  "transition-all duration-300 text-sm font-medium",
+                  "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full",
+                  "text-[11px] font-semibold transition-all duration-300",
                   isDone && "bg-primary text-white",
                   isActive && "bg-primary text-white",
-                  !isDone && !isActive && "bg-neutral-800 text-ink-caption"
+                  !isDone && !isActive && "bg-[#E8EBF3] text-public-muted"
                 )}
-                style={
-                  isActive
-                    ? { boxShadow: "0 0 0 4px rgba(0,6,102,0.15)" }
-                    : undefined
-                }
               >
                 {isDone ? (
-                  <Check size={14} strokeWidth={3} />
+                  <Check size={11} strokeWidth={3} />
                 ) : (
                   <span>{step.id}</span>
                 )}
@@ -59,7 +54,7 @@ export function StepIndicator({ currentStep, className }: StepIndicatorProps) {
 
               <span
                 className={cn(
-                  "text-[11px] leading-none",
+                  "truncate text-[11px] leading-none",
                   isActive ? "text-primary font-medium" : "text-ink-label"
                 )}
               >
@@ -69,6 +64,7 @@ export function StepIndicator({ currentStep, className }: StepIndicatorProps) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
