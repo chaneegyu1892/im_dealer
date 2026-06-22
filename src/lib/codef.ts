@@ -126,6 +126,54 @@ export async function callCodefApi(
   }
 }
 
+// ─── Codef API 원시 호출 (result.code 그대로 노출) ────────────────────────────
+// callCodefApi 는 CF-00000 이 아니면 전부 실패 처리하므로, 추가인증(2-way, CF-03002)
+// 분기가 필요한 간편인증 흐름에서는 이 함수로 code 를 직접 받아 분기한다.
+export interface CodefRawResponse {
+  code: string;
+  message: string;
+  data: unknown;
+}
+
+export async function callCodefRaw(
+  endpoint: string,
+  params: Record<string, unknown>,
+  token: string
+): Promise<CodefResult<CodefRawResponse>> {
+  try {
+    const res = await fetch(`${CODEF_API_BASE}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(params),
+    });
+
+    const rawText = await res.text();
+
+    let parsed: CodefApiResponse;
+    try {
+      const decoded = decodeURIComponent(rawText);
+      parsed = JSON.parse(decoded) as CodefApiResponse;
+    } catch {
+      return { success: false, error: `응답 파싱 실패: ${rawText.slice(0, 200)}` };
+    }
+
+    return {
+      success: true,
+      data: {
+        code: parsed.result?.code ?? "",
+        message: parsed.result?.message ?? "",
+        data: parsed.data,
+      },
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "알 수 없는 오류";
+    return { success: false, error: `Codef API 호출 오류: ${message}` };
+  }
+}
+
 // ─── 샌드박스 여부 ───────────────────────────────────────────────────────────
 function isSandbox(): boolean {
   return process.env.CODEF_SANDBOX === "true";
