@@ -45,6 +45,14 @@ function rrnToBirthDate(rrn: string): string {
   return `${century}${yy}${mmdd}`;
 }
 
+// 소득금액증명원 과세연도 범위.
+// 매년 7월 이후에야 작년분이 발급 가능하다(그 전엔 재작년까지만 가능 — 그렇지 않으면 CF-12832 발급불가).
+function incomeTaxYears(): { startYear: string; endYear: string } {
+  const now = new Date();
+  const latest = now.getMonth() + 1 >= 7 ? now.getFullYear() - 1 : now.getFullYear() - 2;
+  return { startYear: String(latest - 1), endYear: String(latest) };
+}
+
 // 등본(정부24) 주소 시/도 — 공식 지명
 const SIDO_OPTIONS = [
   "서울특별시", "부산광역시", "대구광역시", "인천광역시", "광주광역시",
@@ -703,8 +711,7 @@ export function VerifyClient() {
               phoneNo: form.phone,
               addrSido: form.addrSido || undefined,
               addrSiGunGu: form.addrSiGunGu || undefined,
-              startYear: String(new Date().getFullYear() - 2),
-              endYear: String(new Date().getFullYear() - 1),
+              ...incomeTaxYears(),
             }}
             onDone={handleEasyAuthDone}
             onBack={() => setStep(3)}
