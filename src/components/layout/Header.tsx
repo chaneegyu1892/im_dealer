@@ -91,9 +91,9 @@ export function Header() {
     user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? null;
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#F0F0F0]">
+    <header className="sticky top-0 z-50 border-b border-public-border bg-white/95 backdrop-blur-xl">
       <div className="page-container">
-        <div className="relative flex items-center h-[72px]">
+        <div className="relative flex h-[50px] items-center md:h-[72px]">
           {/* 로고 */}
           <Link href="/" className="flex items-center" aria-label="아임딜러 홈">
             <Image
@@ -103,7 +103,7 @@ export function Header() {
               height={28}
               priority
               unoptimized
-              className="h-7 w-auto"
+              className="h-5 w-auto md:h-7"
             />
           </Link>
 
@@ -138,21 +138,21 @@ export function Header() {
                 <button
                   type="button"
                   onClick={() => setDropdownOpen((v) => !v)}
-                  className="flex items-center gap-2 rounded-full px-3 py-1.5 hover:bg-neutral transition-colors"
+                  className="flex items-center gap-1.5 rounded-full border border-transparent px-2 py-1 transition-colors hover:border-public-border hover:bg-public-bg md:gap-2 md:px-3 md:py-1.5"
                 >
                   {avatarUrl ? (
-                    <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+                    <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full md:h-7 md:w-7">
                       <Image
                         src={avatarUrl}
                         alt={displayName}
                         width={28}
                         height={28}
                         unoptimized
-                        className="w-full h-full object-cover"
+                        className="h-full w-full object-cover"
                       />
                     </div>
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-primary flex-shrink-0 flex items-center justify-center text-white text-[12px] font-semibold">
+                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-white md:h-7 md:w-7 md:text-[12px]">
                       {displayName[0]}
                     </div>
                   )}
@@ -162,7 +162,7 @@ export function Header() {
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 top-full mt-1.5 w-40 bg-white border border-[#F0F0F0] rounded-xl shadow-lg py-1 z-50">
+                  <div className="absolute right-0 top-full z-50 mt-2 w-40 overflow-hidden rounded-[14px] border border-public-border bg-white py-1 shadow-mobile-float">
                     {isAdminUser && (
                       <Link
                         href="/admin"
@@ -191,7 +191,7 @@ export function Header() {
                   const next = window.location.pathname + window.location.search;
                   router.push(`/login?next=${encodeURIComponent(next)}`);
                 }}
-                className="text-[13px] font-medium text-primary border border-primary/30 rounded-btn px-4 py-1.5 hover:bg-primary/[0.04] transition-colors"
+                className="inline-flex h-8 items-center rounded-full border border-primary/20 px-3 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/[0.04] md:h-auto md:rounded-btn md:px-4 md:py-1.5 md:text-[13px]"
               >
                 로그인
               </Link>

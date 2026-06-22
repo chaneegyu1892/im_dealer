@@ -23,6 +23,10 @@ function getClientIp(request: NextRequest): string | null {
   return null;
 }
 
+function isLocalHostname(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -43,7 +47,7 @@ export default async function middleware(request: NextRequest) {
     if (ratelimit) {
       const ip = getClientIp(request);
       if (!ip) {
-        if (process.env.NODE_ENV === "production") {
+        if (process.env.NODE_ENV === "production" && !isLocalHostname(request.nextUrl.hostname)) {
           return NextResponse.json(
             { error: "요청 출처를 식별할 수 없습니다." },
             { status: 400 }

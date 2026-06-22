@@ -53,6 +53,13 @@ const config: Config = {
           200: "#202020",
           0: "#000000",
         },
+        public: {
+          bg: "#F5F6FA",
+          surface: "#FFFFFF",
+          border: "#E7EAF2",
+          muted: "#6F7590",
+          trust: "#EEF2FF",
+        },
         // ── Semantic ─────────────────────────────
         success: {
           bg: "#E5E5FA",
@@ -86,6 +93,8 @@ const config: Config = {
         card: "0 2px 8px rgba(0,0,0,0.06)",
         "card-hover": "0 8px 24px rgba(0,6,102,0.12)",
         "step-active": "0 0 0 4px rgba(0,6,102,0.15)",
+        "mobile-card": "0 6px 18px rgba(18,24,40,0.04)",
+        "mobile-float": "0 16px 36px rgba(18,24,40,0.12)",
       },
 
       fontFamily: {

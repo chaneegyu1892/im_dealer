@@ -39,36 +39,40 @@ const VERIFY_STEPS = [
 function VerifyStepIndicator({ currentStep }: { currentStep: Step }) {
   const activeNum = currentStep === "done" ? 4 : currentStep;
   return (
-    <div className="flex items-center">
-      {VERIFY_STEPS.map((step, idx) => {
+    <div className="w-full">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="public-quiet-label">심사 진행</span>
+        <span className="text-[12px] font-semibold text-primary">
+          {currentStep === "done" ? "완료" : `${currentStep} / ${VERIFY_STEPS.length}`}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+      {VERIFY_STEPS.map((step) => {
         const isDone = step.id < activeNum;
         const isActive = step.id === activeNum;
         return (
-          <div key={step.id} className="flex items-center">
-            {idx > 0 && (
+          <div key={step.id} className="min-w-0 flex-1">
+            <div
+              className={cn(
+                "h-1.5 rounded-full transition-colors duration-300",
+                step.id <= activeNum ? "bg-primary" : "bg-[#DDE1EC]"
+              )}
+            />
+            <div className="mt-2 flex items-center gap-1.5">
               <div
                 className={cn(
-                  "h-[2px] w-8 sm:w-12 md:w-16 flex-shrink-0 rounded-sm transition-colors duration-300",
-                  isDone ? "bg-primary" : "bg-[#F0F0F0]"
-                )}
-              />
-            )}
-            <div className="flex flex-col items-center gap-1.5">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                  "transition-all duration-300 text-sm font-medium",
+                  "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full",
+                  "text-[11px] font-semibold transition-all duration-300",
                   isDone && "bg-primary text-white",
                   isActive && "bg-primary text-white",
-                  !isDone && !isActive && "bg-[#F0F0F0] text-ink-caption"
+                  !isDone && !isActive && "bg-[#E8EBF3] text-public-muted"
                 )}
-                style={isActive ? { boxShadow: "0 0 0 4px rgba(0,6,102,0.15)" } : undefined}
               >
-                {isDone ? <Check size={14} strokeWidth={3} /> : <span>{step.id}</span>}
+                {isDone ? <Check size={11} strokeWidth={3} /> : <span>{step.id}</span>}
               </div>
               <span
                 className={cn(
-                  "text-[11px] leading-none",
+                  "truncate text-[11px] leading-none",
                   isActive ? "text-primary font-medium" : "text-ink-label"
                 )}
               >
@@ -78,6 +82,7 @@ function VerifyStepIndicator({ currentStep }: { currentStep: Step }) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -111,16 +116,16 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* 안내 카드 */}
-      <div className="rounded-card border border-[#F0F0F0] bg-[#FAFAFA] p-5">
+      <div className="rounded-[16px] border border-primary/15 bg-primary/[0.04] p-4">
         <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-white border border-primary/15 flex items-center justify-center flex-shrink-0">
             <Shield size={18} className="text-primary" />
           </div>
           <div>
             <p className="text-[14px] font-semibold text-ink">공공기관 데이터 조회 안내</p>
-            <p className="text-[12px] text-ink-caption mt-0.5">Codef를 통해 아래 서류를 자동 확인합니다</p>
+            <p className="text-[12px] text-public-muted mt-0.5">Codef를 통해 필요한 서류만 확인합니다</p>
           </div>
         </div>
         <div className="space-y-3">
@@ -131,7 +136,7 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
               </div>
               <div>
                 <p className="text-[13px] font-medium text-ink">{item.title}</p>
-                <p className="text-[12px] text-ink-caption mt-0.5 leading-relaxed">{item.desc}</p>
+                <p className="text-[12px] text-public-muted mt-0.5 leading-relaxed">{item.desc}</p>
               </div>
             </div>
           ))}
@@ -159,10 +164,10 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
             type="button"
             onClick={() => onChange(key)}
             className={cn(
-              "w-full text-left rounded-card border p-4 transition-all duration-200",
+              "w-full text-left rounded-[14px] border p-4 transition-all duration-200 active:scale-[0.99]",
               consents[key]
-                ? "border-primary bg-primary/[0.04]"
-                : "border-[#F0F0F0] bg-white hover:border-primary/30"
+                ? "border-primary bg-primary/[0.06]"
+                : "border-public-border bg-white hover:border-primary/30"
             )}
           >
             <div className="flex items-start gap-3">
@@ -174,9 +179,9 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
               >
                 {consents[key] && <Check size={10} strokeWidth={3} className="text-white" />}
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[13px] font-medium text-ink">{label}</p>
-                <p className="text-[12px] text-ink-caption mt-1 leading-relaxed">{sub}</p>
+                <p className="text-[12px] text-public-muted mt-1 leading-relaxed">{sub}</p>
               </div>
             </div>
           </button>
@@ -189,6 +194,7 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
         fullWidth
         disabled={!allConsented}
         onClick={onNext}
+        className="min-h-[48px] rounded-[12px] text-[15px] font-semibold"
       >
         동의하고 계속
       </Button>
@@ -217,10 +223,10 @@ const CUSTOMER_TYPE_OPTIONS: {
 
 function Step2CustomerType({ value, onChange, onNext, onBack }: Step2Props) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <p className="text-[15px] font-semibold text-ink mb-1">고객 유형을 선택하세요</p>
-        <p className="text-[13px] text-ink-caption">유형에 따라 조회할 서류가 달라집니다.</p>
+        <p className="mb-1 text-[18px] font-semibold text-ink">고객 유형을 선택하세요</p>
+        <p className="text-[12px] leading-relaxed text-public-muted">유형에 따라 확인할 서류가 달라집니다.</p>
       </div>
 
       <div className="space-y-3">
@@ -236,17 +242,17 @@ function Step2CustomerType({ value, onChange, onNext, onBack }: Step2Props) {
         ))}
       </div>
 
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex items-center gap-2 pt-1">
         <Button
           variant="secondary"
           size="md"
           onClick={onBack}
-          className="flex items-center gap-1"
+          className="min-h-[48px] shrink-0 rounded-[12px] border-public-border bg-white px-4 text-ink-label"
         >
           <ChevronLeft size={16} />
           이전
         </Button>
-        <Button variant="primary" size="md" fullWidth onClick={onNext}>
+        <Button variant="primary" size="md" fullWidth onClick={onNext} className="min-h-[48px] rounded-[12px] font-semibold">
           다음
         </Button>
       </div>
@@ -284,7 +290,7 @@ function InputField({
 }) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-[13px] font-medium text-ink">
+      <label htmlFor={id} className="block text-[13px] font-semibold text-ink">
         {label}
       </label>
       <input
@@ -295,13 +301,13 @@ function InputField({
         placeholder={placeholder}
         autoComplete="off"
         className={cn(
-          "w-full rounded-btn border border-[#E0E0E0] bg-white px-4 py-3",
+          "w-full rounded-[12px] border border-public-border bg-white px-4 py-3.5",
           "text-[14px] text-ink placeholder:text-ink-caption",
           "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15",
           "transition-all duration-150"
         )}
       />
-      {hint && <p className="text-[11px] text-ink-caption">{hint}</p>}
+      {hint && <p className="text-[11px] text-public-muted">{hint}</p>}
     </div>
   );
 }
@@ -329,8 +335,8 @@ function Step3Form({
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-[15px] font-semibold text-ink mb-1">본인 정보를 입력하세요</p>
-        <p className="text-[13px] text-ink-caption">
+        <p className="mb-1 text-[18px] font-semibold text-ink">본인 정보를 입력하세요</p>
+        <p className="text-[12px] leading-relaxed text-public-muted">
           입력하신 정보는 서류 확인 후 즉시 파기됩니다.
         </p>
       </div>
@@ -374,18 +380,18 @@ function Step3Form({
       </div>
 
       {error && (
-        <div className="px-4 py-3 rounded-btn bg-red-50 border border-red-200 text-[13px] text-red-700">
+        <div className="rounded-[12px] border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-700">
           {error}
         </div>
       )}
 
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex items-center gap-2 pt-1">
         <Button
           variant="secondary"
           size="md"
           onClick={onBack}
           disabled={loading}
-          className="flex items-center gap-1"
+          className="min-h-[48px] shrink-0 rounded-[12px] border-public-border bg-white px-4 text-ink-label"
         >
           <ChevronLeft size={16} />
           이전
@@ -396,6 +402,7 @@ function Step3Form({
           fullWidth
           disabled={!isValid || loading}
           onClick={onSubmit}
+          className="min-h-[48px] rounded-[12px] font-semibold"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
@@ -415,13 +422,13 @@ function Step3Form({
 function DoneScreen() {
   const router = useRouter();
   return (
-    <div className="flex flex-col items-center text-center py-12 space-y-6">
+    <div className="flex flex-col items-center text-center py-10 space-y-6">
       <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center">
         <CheckCircle2 size={36} className="text-emerald-500" />
       </div>
       <div className="space-y-2">
         <p className="text-[18px] font-semibold text-ink">확인 요청이 완료되었습니다.</p>
-        <p className="text-[14px] text-ink-caption leading-relaxed max-w-xs">
+        <p className="text-[13px] text-public-muted leading-relaxed max-w-xs">
           딜러가 서류를 검토한 후 순차적으로 연락드립니다.
           <br />
           보통 영업일 기준 1~2일 내에 연락드립니다.
@@ -433,6 +440,7 @@ function DoneScreen() {
           size="md"
           fullWidth
           onClick={() => router.push("/")}
+          className="min-h-[48px] rounded-[12px] border-public-border bg-white font-semibold"
         >
           홈으로 돌아가기
         </Button>
@@ -607,62 +615,68 @@ export function VerifyClient() {
   if (!sessionId) return null;
 
   return (
-    <div className="page-container py-10 max-w-md mx-auto">
+    <div className="page-container max-w-md mx-auto py-4 md:py-8">
       {/* 차량 컨텍스트 배너 */}
       {vehicleSlug && step !== "done" && (
-        <div className="flex items-center gap-2 mb-6 px-4 py-3 rounded-card bg-primary/[0.06] border border-primary/20">
-          <span className="text-[12px] text-primary/70">신청 차량</span>
-          <span className="text-[13px] font-semibold text-primary">
-            {formatVehicleSlug(vehicleSlug)}
-          </span>
-          <span className="ml-auto text-[12px] font-medium text-primary/70">
-            {CUSTOMER_TYPE_LABELS[customerType]}
-          </span>
+        <div className="mb-4 rounded-[16px] border border-primary/15 bg-primary/[0.05] px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/60">신청 차량</p>
+              <p className="truncate text-[14px] font-semibold text-primary">
+                {formatVehicleSlug(vehicleSlug)}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-primary">
+              {CUSTOMER_TYPE_LABELS[customerType]}
+            </span>
+          </div>
         </div>
       )}
 
       {/* 스텝 인디케이터 */}
       {step !== "done" && (
-        <div className="flex justify-center mb-10">
+        <div className="mb-5">
           <VerifyStepIndicator currentStep={step} />
         </div>
       )}
 
-      {/* 스텝 콘텐츠 */}
-      {step === 1 && (
-        <Step1Consent
-          consents={consents}
-          onChange={toggleConsent}
-          onNext={() => setStep(presetCustomerType ? 3 : 2)}
-        />
-      )}
+      <div className="public-mobile-section p-4 md:p-5">
+        {/* 스텝 콘텐츠 */}
+        {step === 1 && (
+          <Step1Consent
+            consents={consents}
+            onChange={toggleConsent}
+            onNext={() => setStep(presetCustomerType ? 3 : 2)}
+          />
+        )}
 
-      {step === 2 && (
-        <Step2CustomerType
-          value={customerType}
-          onChange={setCustomerType}
-          onNext={() => setStep(3)}
-          onBack={() => setStep(1)}
-        />
-      )}
+        {step === 2 && (
+          <Step2CustomerType
+            value={customerType}
+            onChange={setCustomerType}
+            onNext={() => setStep(3)}
+            onBack={() => setStep(1)}
+          />
+        )}
 
-      {step === 3 && (
-        <Step3Form
-          customerType={customerType}
-          form={form}
-          onChange={handleFormChange}
-          onSubmit={handleSubmit}
-          onBack={() => setStep(presetCustomerType ? 1 : 2)}
-          loading={loading}
-          error={error}
-        />
-      )}
+        {step === 3 && (
+          <Step3Form
+            customerType={customerType}
+            form={form}
+            onChange={handleFormChange}
+            onSubmit={handleSubmit}
+            onBack={() => setStep(presetCustomerType ? 1 : 2)}
+            loading={loading}
+            error={error}
+          />
+        )}
 
-      {step === "done" && <DoneScreen />}
+        {step === "done" && <DoneScreen />}
+      </div>
 
       {/* 진행 텍스트 */}
       {step !== "done" && (
-        <p className="text-center text-[12px] text-ink-caption mt-6">
+        <p className="text-center text-[12px] text-public-muted mt-4">
           {typeof step === "number" ? `${step} / 3 단계` : ""} · 입력 정보는 암호화되어 전송됩니다
         </p>
       )}

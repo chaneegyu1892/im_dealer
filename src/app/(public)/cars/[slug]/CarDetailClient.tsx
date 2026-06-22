@@ -373,12 +373,12 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
 
   // ═════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-neutral">
+    <div className="public-app-page min-h-screen pb-28 md:pb-0">
 
       {/* ──────────────────────────────────────────────────
           HERO: 차량 이미지 배경 + 어두운 오버레이 + 텍스트
       ────────────────────────────────────────────────── */}
-      <section className="relative h-[56vh] md:h-[62vh] min-h-[380px] md:min-h-[500px] overflow-hidden">
+      <section className="relative h-[42vh] min-h-[292px] overflow-hidden md:h-[62vh] md:min-h-[500px]">
         {/* 배경 이미지 */}
         {heroImage && (
           <div
@@ -391,9 +391,9 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
         )}
 
         {/* 다중 오버레이: 하단에서 올라오는 어두운 그라디언트 */}
-        <div className="absolute inset-0 bg-black/45" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/10" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/35 to-transparent" />
+        <div className="absolute inset-0 bg-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/5" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
 
         {/* 콘텐츠 */}
         <div className="relative z-10 h-full flex flex-col justify-between page-container">
@@ -419,7 +419,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
           </div>
 
           {/* 차량 기본 정보 + 월납입 카드 */}
-          <div className="pb-10 flex items-end justify-between gap-12">
+          <div className="flex items-end justify-between gap-12 pb-7 md:pb-10">
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
@@ -427,7 +427,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               className="flex-1"
             >
               {/* 배지 행 */}
-              <div className="flex flex-wrap items-center gap-2 mb-4">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-semibold text-white/50 uppercase tracking-[0.18em]">
                   {vehicle.brand}
                 </span>
@@ -445,37 +445,37 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               </div>
 
               {/* 차량명 */}
-              <h1 className="font-display text-[32px] md:text-[54px] font-light text-white leading-none tracking-tight mb-3 drop-shadow-md">
+              <h1 className="mb-2.5 text-[30px] font-semibold leading-none tracking-normal text-white drop-shadow-md md:font-display md:text-[54px] md:font-light">
                 {vehicle.name}
               </h1>
 
               {/* 설명 */}
               {vehicle.description && (
-                <p className="text-white/55 text-[14px] leading-relaxed max-w-lg">
+                <p className="hidden text-white/55 text-[14px] leading-relaxed max-w-lg sm:block">
                   {vehicle.description}
                 </p>
               )}
 
               {/* 공통 스펙 배지 */}
-              <div className="flex items-center gap-2 flex-wrap mt-5">
-                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
+              <div className="scrollbar-hide -mx-4 mt-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+                <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
                   <span className="text-[10px] text-white/45 uppercase tracking-wide">기본가</span>
                   <span className="text-[12px] font-semibold text-white">{formatWon(vehicle.basePrice)}~</span>
                 </div>
                 <EvSubsidyNotice range={vehicle.evSubsidyRange} tone="onDark" />
                 {vehicle.defaultTrim?.engineType && (
-                  <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
+                  <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
                     <span className="text-[10px] text-white/45 uppercase tracking-wide">연료</span>
                     <span className="text-[12px] font-semibold text-white">{vehicle.defaultTrim.engineType}</span>
                   </div>
                 )}
                 {vehicle.defaultTrim?.fuelEfficiency && (
-                  <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
+                  <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
                     <span className="text-[10px] text-white/45 uppercase tracking-wide">연비</span>
                     <span className="text-[12px] font-semibold text-white">{vehicle.defaultTrim.fuelEfficiency}km/L~</span>
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
+                <div className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5 sm:flex">
                   <span className="text-[10px] text-white/45 uppercase tracking-wide">트림</span>
                   <span className="text-[12px] font-semibold text-white">{vehicle.trims.length}종</span>
                 </div>
@@ -510,27 +510,58 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
       {/* ──────────────────────────────────────────────────
           MAIN CONTENT
       ────────────────────────────────────────────────── */}
-      <div className="page-container py-6 md:py-10">
+      <div className="page-container -mt-8 py-5 md:mt-0 md:py-10">
         {/* 모바일 전용 월납입 카드 — Hero 아래 풀폭 */}
-        <div className="block md:hidden mb-4">
-          <div className="bg-white rounded-card border border-[#F0F0F0] p-5 shadow-card">
-            <RepresentativeQuotePrice
-              quotes={representativeQuotes}
-              tone="light"
-              size="lg"
-              captionText="60개월 · 초기 비용 0원 · 2만km 기준"
-              className="mb-3"
-            />
+        <div className="relative z-20 block md:hidden mb-4">
+          <div className="public-mobile-section p-4">
+            <div className="flex items-start justify-between gap-3">
+              <RepresentativeQuotePrice
+                quotes={representativeQuotes}
+                tone="brand"
+                size="lg"
+                captionText="60개월 · 초기 비용 0원 · 2만km 기준"
+                className="min-w-0"
+              />
+              <ChannelTalkButton
+                vehicleName={vehicle.name}
+                label="상담"
+                size="sm"
+                className="shrink-0 rounded-full border border-public-border bg-white px-3.5 py-2 text-[12px] font-semibold text-ink-label hover:bg-public-bg hover:opacity-100"
+              />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 rounded-[12px] bg-public-bg px-3 py-2.5">
+              <p className="flex items-center gap-1.5 text-[11px] font-medium text-public-muted">
+                <Check size={12} className="text-primary" />
+                개인정보 없이 확인
+              </p>
+              <p className="flex items-center gap-1.5 text-[11px] font-medium text-public-muted">
+                <Check size={12} className="text-primary" />
+                상담 압박 없음
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="fixed left-0 right-0 z-40 px-4 md:hidden" style={{ bottom: "calc(66px + env(safe-area-inset-bottom, 0px))" }}>
+          <div className="public-floating-action-shell gap-3">
+            <div className="min-w-0 flex-1 pl-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-public-muted">
+                예상 월 납입금
+              </p>
+              <RepresentativeQuotePrice
+                quotes={representativeQuotes}
+                tone="brand"
+                size="sm"
+                showCaption={false}
+              />
+            </div>
             <Link
               href={`/quote?vehicle=${vehicle.slug}`}
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-btn
-                         bg-primary text-white text-[14px] font-semibold
-                         hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 mb-2"
+              className="inline-flex min-h-[46px] shrink-0 items-center justify-center gap-1.5 rounded-[13px] bg-primary px-4 text-[14px] font-semibold text-white transition-all duration-150 active:scale-[0.98]"
             >
-              <Calculator size={15} strokeWidth={2} />
+              <Calculator size={15} strokeWidth={2.3} />
               견적 내기
             </Link>
-            <ChannelTalkButton vehicleName={vehicle.name} label="상담하기" size="md" />
           </div>
         </div>
 

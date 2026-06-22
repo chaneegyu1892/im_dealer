@@ -34,8 +34,8 @@ export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCar
             style={{ backgroundImage: `url(${vehicle.thumbnailUrl})` }}
           />
         )}
-        <div className="absolute inset-0 bg-black/55" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-black/68" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/20" />
         <div
           className={cn(
             "relative z-10 flex flex-col justify-between h-full",
@@ -63,7 +63,7 @@ export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCar
             </div>
             <h2
               className={cn(
-                "font-display font-light text-white leading-tight mb-2 tracking-tight",
+                "font-display font-light text-white leading-tight mb-2 tracking-normal drop-shadow-sm",
                 size === "large"
                   ? "text-[22px] md:text-[40px]"
                   : "text-[20px] md:text-[28px]",
@@ -71,7 +71,7 @@ export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCar
             >
               {vehicle.name}
             </h2>
-            <p className="text-white/50 text-[13px] leading-relaxed max-w-sm line-clamp-2 md:line-clamp-none">
+            <p className="text-white/75 text-[13px] leading-relaxed max-w-sm line-clamp-2 md:line-clamp-none drop-shadow-sm">
               {vehicle.description}
             </p>
           </div>

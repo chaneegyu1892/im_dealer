@@ -11,9 +11,9 @@ interface StepRegionProps {
 export function StepRegion({ value, onChange }: StepRegionProps) {
   return (
     <div className="space-y-3">
-      <div className="mb-6">
-        <h2 className="text-title-sm text-ink font-medium">주로 어느 지역에서 운행하시나요?</h2>
-        <p className="text-label text-ink-label mt-1">지역 특성에 맞는 차량을 추천해 드려요.</p>
+      <div className="mb-5">
+        <h2 className="text-[19px] font-semibold leading-tight text-ink md:text-title-sm md:font-medium">주로 어느 지역에서 운행하시나요?</h2>
+        <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-label">지역 특성에 맞는 차량을 추천해 드려요.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

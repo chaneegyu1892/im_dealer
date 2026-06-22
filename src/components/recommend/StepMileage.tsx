@@ -10,17 +10,17 @@ export function StepMileage({ value, onChange }: StepMileageProps) {
   return (
     <div>
       <div className="mb-4">
-        <h2 className="text-title-sm text-ink font-medium">
+        <h2 className="text-[19px] font-semibold leading-tight text-ink md:text-title-sm md:font-medium">
           연간 주행거리는 얼마나 되시나요?
         </h2>
-        <p className="text-label text-ink-label mt-1">
+        <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-label">
           약정거리를 초과하면 추가 요금이 발생해요.
         </p>
       </div>
 
-      <div className="mb-3 rounded-card bg-primary-50 border border-primary-100 p-3">
-        <p className="text-[12px] text-primary">
-          📊 80%의 고객이 <span className="font-semibold">연 2만km</span>를 선택해요.
+      <div className="mb-3 rounded-[14px] border border-primary/15 bg-primary/[0.04] p-3">
+        <p className="text-[12px] leading-relaxed text-primary">
+          고객 선택이 가장 많은 기준은 <span className="font-semibold">연 2만km</span>입니다.
         </p>
       </div>
 
@@ -33,10 +33,10 @@ export function StepMileage({ value, onChange }: StepMileageProps) {
               type="button"
               onClick={() => onChange(opt.value)}
               className={cn(
-                "relative p-4 rounded-card border text-left transition-all duration-200",
+                "relative rounded-[14px] border p-4 text-left transition-all duration-200 active:scale-[0.99]",
                 value === opt.value
-                  ? "border-primary bg-primary-100"
-                  : "border-[#F0F0F0] bg-white hover:border-primary-200 hover:shadow-card-hover hover:-translate-y-0.5"
+                  ? "border-primary bg-primary/[0.06]"
+                  : "border-public-border bg-white hover:border-primary/25"
               )}
             >
               {isRecommended && (

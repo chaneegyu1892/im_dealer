@@ -25,16 +25,17 @@ export function SelectionCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full text-left rounded-card p-4 border transition-all duration-200",
-        "flex items-start gap-3",
+        "w-full min-h-[72px] rounded-[14px] border p-4 text-left transition-all duration-200",
+        "flex items-center gap-3 active:scale-[0.99]",
         selected
-          ? "border-primary bg-primary-100 shadow-none"
-          : "border-[#F0F0F0] bg-white shadow-card hover:border-primary-200 hover:shadow-card-hover hover:-translate-y-0.5"
+          ? "border-primary bg-primary/[0.06] shadow-[0_8px_20px_rgba(0,6,102,0.07)]"
+          : "border-public-border bg-white shadow-[0_6px_18px_rgba(18,24,40,0.035)] hover:border-primary/25"
       )}
     >
-      {/* 이모지 아이콘 */}
       {icon && (
-        <span className="text-2xl flex-shrink-0 leading-none mt-0.5">{icon}</span>
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-public-bg text-[20px] leading-none">
+          {icon}
+        </span>
       )}
 
       <div className="flex-1 min-w-0">
@@ -54,20 +55,19 @@ export function SelectionCard({
           )}
         </div>
         {desc && (
-          <p className={cn("text-[13px] mt-0.5", selected ? "text-primary/70" : "text-ink-label")}>
+          <p className={cn("mt-0.5 text-[12px] leading-relaxed", selected ? "text-primary/70" : "text-public-muted")}>
             {desc}
           </p>
         )}
         {detail && (
-          <p className="text-[12px] mt-1 text-ink-caption">{detail}</p>
+          <p className="mt-1 text-[11px] text-public-muted">{detail}</p>
         )}
       </div>
 
-      {/* 선택 체크 */}
       <div
         className={cn(
-          "flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 transition-all",
-          selected ? "border-primary bg-primary" : "border-neutral-800 bg-white"
+          "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border transition-all",
+          selected ? "border-primary bg-primary" : "border-public-border bg-white"
         )}
       >
         {selected && <Check size={13} className="text-white" strokeWidth={3} />}

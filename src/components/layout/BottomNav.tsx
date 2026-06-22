@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Home, Sparkles, Car, MessageCircle, type LucideIcon } from "lucide-react";
+import { Home, WandSparkles, CarFront, MessageCircle, type LucideIcon } from "lucide-react";
 
 interface NavItem {
   href?: string;
@@ -16,13 +16,17 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/",          label: "홈",      icon: Home,          exact: true  },
-  { href: "/recommend", label: "AI 추천",  icon: Sparkles,      exact: false },
-  { href: "/cars",      label: "차량탐색", icon: Car,           exact: false },
+  { href: "/recommend", label: "AI 추천",  icon: WandSparkles,  exact: false },
+  { href: "/cars",      label: "차량탐색", icon: CarFront,      exact: false },
   {                     label: "상담",    icon: MessageCircle, exact: false, channelTalk: true },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+
+  if (pathname.startsWith("/quote")) {
+    return null;
+  }
 
   const isActive = (href: string | undefined, exact: boolean, channelTalk?: boolean) => {
     if (channelTalk || !href) return false;
@@ -35,55 +39,40 @@ export function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      {/* Frosted glass bar */}
       <div
-        className="relative mx-3 mb-3 rounded-[20px] overflow-hidden"
+        className="relative mx-4 mb-2.5 overflow-hidden rounded-[20px] border border-public-border"
         style={{
-          background: "rgba(255, 255, 255, 0.88)",
-          backdropFilter: "blur(20px) saturate(180%)",
-          WebkitBackdropFilter: "blur(20px) saturate(180%)",
-          boxShadow:
-            "0 -1px 0 rgba(0,0,0,0.04), 0 8px 32px rgba(0, 6, 102, 0.12), 0 2px 8px rgba(0,0,0,0.06)",
-          border: "1px solid rgba(255,255,255,0.6)",
+          background: "rgba(255, 255, 255, 0.96)",
+          backdropFilter: "blur(16px) saturate(145%)",
+          WebkitBackdropFilter: "blur(16px) saturate(145%)",
+          boxShadow: "0 10px 26px rgba(18, 24, 40, 0.10), 0 1px 3px rgba(18, 24, 40, 0.04)",
         }}
       >
-        <div className="flex items-center justify-around h-[62px] px-1">
+        <div className="flex h-[58px] items-center justify-around px-1">
           {NAV_ITEMS.map(({ href, label, icon: Icon, exact, channelTalk }) => {
             const active = isActive(href, exact, channelTalk);
 
             const inner = (
               <motion.span
-                className="relative flex flex-col items-center justify-center gap-[3px] w-full py-1 cursor-pointer select-none"
-                whileTap={{ scale: 0.91 }}
+                className="relative flex w-full cursor-pointer select-none flex-col items-center justify-center gap-[2px] py-1"
+                whileTap={{ scale: 0.94 }}
                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
               >
-                {/* Sliding active pill */}
-                <AnimatePresence>
-                  {active && (
-                    <motion.span
-                      layoutId="bottomNavPill"
-                      className="absolute inset-0 rounded-[14px]"
-                      style={{ background: "#000666" }}
-                      initial={{ opacity: 0, scale: 0.85 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.85 }}
-                      transition={{ type: "spring", stiffness: 420, damping: 28 }}
-                    />
-                  )}
-                </AnimatePresence>
-
                 {/* Icon */}
                 <motion.span
-                  className="relative z-10 flex items-center justify-center"
-                  animate={active ? { y: -1 } : { y: 0 }}
+                  className={cn(
+                    "relative z-10 flex h-7 min-w-7 items-center justify-center rounded-full transition-colors duration-200",
+                    active ? "bg-primary/[0.08]" : "bg-transparent"
+                  )}
+                  animate={active ? { y: -1, scale: 1.02 } : { y: 0, scale: 1 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 >
                   <Icon
-                    size={21}
-                    strokeWidth={active ? 2.2 : 1.7}
+                    size={active ? 18 : 17}
+                    strokeWidth={active ? 2.35 : 1.85}
                     className={cn(
                       "transition-colors duration-200",
-                      active ? "text-white" : "text-[#A0A0A0]"
+                      active ? "text-primary" : "text-[#7B8299]"
                     )}
                   />
                 </motion.span>
@@ -91,17 +80,17 @@ export function BottomNav() {
                 {/* Label */}
                 <motion.span
                   className={cn(
-                    "relative z-10 text-[9.5px] font-semibold leading-none tracking-wide transition-colors duration-200",
-                    active ? "text-white" : "text-[#A0A0A0]"
+                    "relative z-10 text-[9px] font-semibold leading-none tracking-normal transition-colors duration-200",
+                    active ? "text-primary" : "text-[#7B8299]"
                   )}
-                  animate={active ? { opacity: 1 } : { opacity: 0.75 }}
+                  animate={active ? { opacity: 1 } : { opacity: 0.78 }}
                 >
                   {label}
                 </motion.span>
               </motion.span>
             );
 
-            const wrapperClass = "flex-1 flex justify-center px-1";
+            const wrapperClass = "flex-1 flex justify-center px-0.5";
 
             if (channelTalk) {
               return (

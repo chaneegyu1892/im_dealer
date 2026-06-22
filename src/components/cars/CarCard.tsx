@@ -60,12 +60,11 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className="group relative bg-white rounded-card border border-[#F0F0F0] overflow-hidden cursor-pointer
-                 shadow-card hover:shadow-card-hover hover:border-primary-200 transition-shadow duration-200"
+      className="group relative overflow-hidden rounded-[18px] border border-public-border bg-white shadow-mobile-card transition-shadow duration-200 hover:border-primary-200 hover:shadow-card-hover"
     >
       <Link href={`/cars/${vehicle.slug}`} className="block">
         {/* 이미지 영역 */}
-        <div className="relative overflow-hidden aspect-[16/9]">
+        <div className="relative aspect-[4/3] overflow-hidden bg-public-bg sm:aspect-[16/9]">
           {vehicle.thumbnailUrl ? (
             <Image
               src={vehicle.thumbnailUrl}
@@ -77,11 +76,9 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
             />
           ) : (
             <div
-              className="w-full h-full flex flex-col items-center justify-center relative"
+              className="relative flex h-full w-full flex-col items-center justify-center"
               style={{ background: brandColor }}
             >
-              <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full opacity-10 bg-white" />
-              <div className="absolute -left-6 -bottom-6 w-28 h-28 rounded-full opacity-10 bg-white" />
               <span className="relative z-10 text-white/40 text-[11px] font-medium uppercase tracking-[0.2em] mb-1">
                 {vehicle.brand}
               </span>
@@ -92,10 +89,10 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
           )}
 
           {/* 태그들 */}
-          <div className="absolute top-3 left-3 flex gap-1.5">
+          <div className="absolute left-2.5 top-2.5 flex max-w-[calc(100%-5rem)] gap-1.5 overflow-hidden sm:left-3 sm:top-3">
             {vehicle.hasAvailableInventory && (
               <span
-                className="text-[10px] font-semibold px-2 py-0.5 rounded-[4px]
+                className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-[4px]
                            bg-primary text-white backdrop-blur-sm"
               >
                 즉시출고
@@ -104,7 +101,7 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
             {vehicle.highlights.slice(0, 2).map((tag) => (
               <span
                 key={tag}
-                className="text-[10px] font-semibold px-2 py-0.5 rounded-[4px]
+                className="truncate text-[10px] font-semibold px-2 py-0.5 rounded-[4px]
                            bg-white/90 text-ink backdrop-blur-sm"
               >
                 {tag}
@@ -113,7 +110,7 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
           </div>
 
           {/* 엔진 뱃지 */}
-          <div className="absolute top-3 right-3">
+          <div className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3">
             <span
               className={cn(
                 "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5",
@@ -128,19 +125,19 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
         </div>
 
         {/* 카드 본문 */}
-        <div className="p-3 sm:p-4">
+        <div className="p-3.5 sm:p-4">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-semibold text-ink-caption uppercase tracking-[0.12em]">
+            <span className="text-[10px] font-semibold text-public-muted uppercase tracking-[0.12em]">
               {vehicle.brand}
             </span>
-            <span className="text-[11px] text-ink-caption">{vehicle.category}</span>
+            <span className="text-[11px] text-public-muted">{vehicle.category}</span>
           </div>
 
-          <h3 className="text-title-sm text-ink mb-1.5 group-hover:text-primary transition-colors duration-200">
+          <h3 className="mb-1.5 min-h-[42px] text-[17px] font-semibold leading-tight text-ink transition-colors duration-200 group-hover:text-primary sm:min-h-0">
             {vehicle.name}
           </h3>
 
-          <p className="text-[12px] text-ink-label leading-relaxed line-clamp-1 mb-3">
+          <p className="mb-3 min-h-[18px] truncate text-[12px] leading-relaxed text-ink-label">
             {vehicle.description}
           </p>
 
@@ -153,7 +150,7 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
             </div>
           ) : null}
 
-          <div className="h-px bg-[#F0F0F0] mb-3" />
+          <div className="mb-3 h-px bg-public-border" />
 
           <RepresentativeQuotePrice
             quotes={vehicle.representativeQuotes}
@@ -165,11 +162,9 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
 
       <Link
         href={`/quote?vehicle=${vehicle.slug}`}
-        className="absolute bottom-4 right-4 flex items-center gap-1 text-[12px] font-medium text-primary
-                   transition-all duration-200 hover:gap-2
-                   opacity-100 md:opacity-0 md:group-hover:opacity-100"
+        className="mx-3.5 mb-3.5 flex min-h-[38px] items-center justify-center gap-1 rounded-[10px] bg-primary/[0.06] text-[12px] font-semibold text-primary transition-all duration-200 hover:bg-primary/10 hover:gap-2 sm:mx-4 sm:mb-4"
       >
-        견적 보기
+        바로 견적 보기
         <ArrowRight size={13} strokeWidth={2.5} />
       </Link>
     </motion.div>
