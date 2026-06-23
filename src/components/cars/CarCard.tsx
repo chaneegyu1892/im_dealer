@@ -9,6 +9,7 @@ import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { formatSubsidyManwon } from "@/lib/ev-subsidy";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
+import { summarizeVehicleDescription } from "@/lib/public-ui-text";
 
 interface CarCardProps {
   vehicle: VehicleListItem;
@@ -53,6 +54,7 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
   const engine = ENGINE_BADGE[engineType];
   const EngineIcon = engine.icon;
   const brandColor = BRAND_COLORS[vehicle.brand] ?? BRAND_COLORS["현대"];
+  const description = summarizeVehicleDescription(vehicle.description, 36);
 
   return (
     <motion.div
@@ -60,7 +62,7 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className="group relative overflow-hidden rounded-[18px] border border-public-border bg-white shadow-mobile-card transition-shadow duration-200 hover:border-primary-200 hover:shadow-card-hover"
+      className="group relative overflow-hidden rounded-[18px] border border-public-border bg-white shadow-mobile-card transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-card-hover md:rounded-[20px]"
     >
       <Link href={`/cars/${vehicle.slug}`} className="block">
         {/* 이미지 영역 */}
@@ -137,9 +139,11 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
             {vehicle.name}
           </h3>
 
-          <p className="mb-3 min-h-[18px] truncate text-[12px] leading-relaxed text-ink-label">
-            {vehicle.description}
-          </p>
+          {description && (
+            <p className="mb-3 min-h-[18px] text-[12px] leading-relaxed text-ink-label">
+              {description}
+            </p>
+          )}
 
           {vehicle.evSubsidyRange ? (
             <div className="inline-flex items-center gap-1 mb-3 rounded-[5px] bg-primary/[0.06] border border-primary/10 px-2 py-1">
@@ -162,7 +166,7 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
 
       <Link
         href={`/quote?vehicle=${vehicle.slug}`}
-        className="mx-3.5 mb-3.5 flex min-h-[38px] items-center justify-center gap-1 rounded-[10px] bg-primary/[0.06] text-[12px] font-semibold text-primary transition-all duration-200 hover:bg-primary/10 hover:gap-2 sm:mx-4 sm:mb-4"
+        className="mx-3.5 mb-3.5 flex min-h-[42px] items-center justify-center gap-1 rounded-[12px] bg-primary/[0.07] text-[12px] font-semibold text-primary transition-all duration-200 hover:bg-primary hover:text-white hover:gap-2 sm:mx-4 sm:mb-4"
       >
         바로 견적 보기
         <ArrowRight size={13} strokeWidth={2.5} />

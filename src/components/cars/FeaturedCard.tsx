@@ -6,6 +6,7 @@ import { Sparkles, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { VehicleListItem } from "@/types/api";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
+import { summarizeVehicleDescription } from "@/lib/public-ui-text";
 
 interface FeaturedCardProps {
   vehicle: VehicleListItem;
@@ -19,13 +20,14 @@ interface FeaturedCardProps {
  */
 export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCardProps) {
   const specs = vehicle.defaultTrim?.specs ?? {};
+  const description = summarizeVehicleDescription(vehicle.description);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: index * 0.05, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative overflow-hidden rounded-card cursor-pointer h-full bg-neutral-900"
+      className="group relative h-full cursor-pointer overflow-hidden rounded-[20px] bg-neutral-900 shadow-[0_16px_36px_rgba(18,24,40,0.14)] transition-shadow duration-200 hover:shadow-[0_20px_46px_rgba(18,24,40,0.18)] md:rounded-[24px]"
     >
       <Link href={`/cars/${vehicle.slug}`} className="block h-full">
         {vehicle.thumbnailUrl && (
@@ -38,7 +40,7 @@ export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCar
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/20" />
         <div
           className={cn(
-            "relative z-10 flex flex-col justify-between h-full",
+            "relative z-10 flex h-full flex-col justify-between",
             size === "large"
               ? "p-5 md:p-10 min-h-[220px] md:min-h-[340px]"
               : "p-5 md:p-8 min-h-[220px] md:min-h-[340px]",
@@ -71,9 +73,11 @@ export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCar
             >
               {vehicle.name}
             </h2>
-            <p className="text-white/75 text-[13px] leading-relaxed max-w-sm line-clamp-2 md:line-clamp-none drop-shadow-sm">
-              {vehicle.description}
-            </p>
+            {description && (
+              <p className="max-w-sm text-[13px] leading-relaxed text-white/75 drop-shadow-sm md:text-[14px]">
+                {description}
+              </p>
+            )}
           </div>
           <div>
             {size === "large" && Object.entries(specs).length > 0 && (
@@ -99,8 +103,8 @@ export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCar
       <Link
         href={`/quote?vehicle=${vehicle.slug}`}
         className={cn(
-          "absolute z-20 flex items-center gap-1.5 bg-white text-primary text-[12px] md:text-[13px] font-semibold",
-          "px-4 md:px-5 py-2 md:py-2.5 rounded-btn transition-all duration-200 group-hover:gap-2.5 group-hover:shadow-lg",
+          "absolute z-20 flex min-h-[40px] items-center gap-1.5 rounded-[12px] bg-white text-[12px] font-semibold text-primary transition-all duration-200 group-hover:gap-2.5 group-hover:shadow-lg md:min-h-[44px] md:px-5 md:text-[13px]",
+          "px-4 py-2",
           size === "large"
             ? "bottom-5 right-5 md:bottom-10 md:right-10"
             : "bottom-5 right-5 md:bottom-8 md:right-8",

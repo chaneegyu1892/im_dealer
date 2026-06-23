@@ -204,7 +204,7 @@ function DetailedSpecsSection({ specs }: { specs: VehicleDetailedSpecs }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.37 }}
-        className="bg-white rounded-card border border-[#F0F0F0] overflow-hidden shadow-card"
+        className="overflow-hidden rounded-[22px] border border-public-border bg-white shadow-[0_14px_34px_rgba(18,24,40,0.06)] md:rounded-[24px]"
       >
         {/* 섹션 헤더 */}
         <div className="flex items-center gap-2.5 px-6 py-4 border-b border-[#F4F4F4] bg-neutral">
@@ -487,8 +487,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.15 }}
-              className="hidden md:block shrink-0 bg-white/10 backdrop-blur-md border border-white/15
-                         rounded-card p-6 min-w-[240px]"
+              className="hidden min-w-[260px] shrink-0 rounded-[24px] border border-white/20 bg-white/12 p-6 shadow-[0_18px_44px_rgba(0,0,0,0.18)] backdrop-blur-md md:block"
             >
               <RepresentativeQuotePrice
                 quotes={representativeQuotes}
@@ -565,7 +564,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
 
           {/* ────────────────────────────────────────────
               LEFT: 이미지 갤러리 + 차량 스펙 정보
@@ -578,7 +577,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.25 }}
-                className="bg-white rounded-card border border-[#F0F0F0] overflow-hidden shadow-card"
+                className="overflow-hidden rounded-[22px] border border-public-border bg-white shadow-[0_14px_34px_rgba(18,24,40,0.06)] md:rounded-[24px]"
               >
                 <div className="flex items-center gap-2 px-6 pt-5 pb-4">
                   <Images size={14} className="text-ink-caption" />
@@ -643,7 +642,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.35 }}
-              className="bg-white rounded-card border border-[#F0F0F0] overflow-hidden shadow-card"
+              className="overflow-hidden rounded-[22px] border border-public-border bg-white shadow-[0_14px_34px_rgba(18,24,40,0.06)] md:rounded-[24px]"
             >
               {/* 헤더 바 */}
               <div className="flex items-center gap-2.5 px-6 py-4 border-b border-[#F4F4F4] bg-neutral">
@@ -691,7 +690,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.4 }}
-              className="rounded-card overflow-hidden shadow-card"
+              className="overflow-hidden rounded-[22px] shadow-[0_14px_34px_rgba(0,6,102,0.14)] md:rounded-[24px]"
               style={{
                 background: "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
               }}
@@ -764,7 +763,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.45, delay: 0.25 }}
-                className="bg-white rounded-card border border-[#F0F0F0] p-5 shadow-card"
+                className="rounded-[24px] border border-public-border bg-white p-5 shadow-[0_16px_40px_rgba(18,24,40,0.08)]"
               >
                 <div className="mb-1">
                   <RepresentativeQuotePrice
@@ -782,7 +781,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 {/* 견적 내기 */}
                 <Link
                   href={`/quote?vehicle=${vehicle.slug}`}
-                  className="flex items-center justify-center gap-2 w-full py-3 rounded-btn
+                  className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[13px] py-3
                              bg-primary text-white text-[14px] font-semibold
                              hover:bg-primary/90 active:scale-[0.98]
                              transition-all duration-150 mb-2.5"
@@ -816,7 +815,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.45, delay: 0.39 }}
-                className="bg-white rounded-card border border-[#F0F0F0] p-4 shadow-card"
+                className="rounded-[20px] border border-public-border bg-white p-4 shadow-[0_12px_28px_rgba(18,24,40,0.05)]"
               >
                 <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
                   아임딜러 약속

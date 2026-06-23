@@ -153,7 +153,7 @@ const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
 
 function StepBar({ currentStep }: { currentStep: number }) {
   return (
-    <div className="mb-7">
+    <div className="mb-7 rounded-[18px] border border-public-border bg-white p-4 shadow-[0_10px_28px_rgba(18,24,40,0.04)] md:rounded-[22px] md:p-5">
       <div className="mb-3 flex items-center justify-between">
         <span className="public-quiet-label">견적 진행</span>
         <span className="text-[12px] font-semibold text-primary">{currentStep} / {STEPS.length}</span>
@@ -858,7 +858,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     <div className="public-app-page min-h-screen pb-[104px] md:pb-0">
       {/* 앱형 페이지 헤더 */}
       <div className="border-b border-public-border bg-white">
-        <div className="page-container py-3.5 md:py-8">
+        <div className="page-container py-3.5 md:py-10">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="mb-1 flex items-center gap-1.5">
@@ -867,10 +867,10 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   실시간 견적
                 </span>
               </div>
-              <h1 className="truncate text-[20px] font-semibold leading-tight text-ink md:font-display md:text-headline-sm md:font-light">
+              <h1 className="truncate text-[20px] font-semibold leading-tight text-ink md:font-display md:text-[36px] md:font-light md:tracking-normal">
                 {stepTitle}
               </h1>
-              <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-[14px]">
+              <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-[15px]">
                 {stepDescription}
               </p>
             </div>
@@ -884,7 +884,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       </div>
 
       <div className="page-container py-4 md:py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="mx-auto max-w-5xl">
           <StepBar currentStep={step} />
 
           <AnimatePresence mode="wait">
@@ -897,7 +897,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.25 }}
               >
-                <div className="public-mobile-section mb-4 p-5 md:p-6">
+                <div className="public-mobile-section mb-4 p-5 md:rounded-[24px] md:p-7">
                   <h2 className="mb-1.5 text-[19px] font-semibold leading-tight text-ink md:text-[17px] md:font-medium">
                     계약할 고객 유형을 선택하세요
                   </h2>
@@ -914,7 +914,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           type="button"
                           onClick={() => setCustomerType(option.type)}
                           className={cn(
-                            "flex min-h-[74px] items-center gap-3 rounded-[14px] border px-4 py-3 text-left transition-all duration-150",
+                            "flex min-h-[74px] items-center gap-3 rounded-[14px] border px-4 py-3 text-left transition-all duration-150 md:min-h-[86px]",
                             selected
                               ? "border-primary bg-primary/[0.06]"
                               : "border-public-border bg-white hover:border-primary/30 hover:bg-public-bg"
@@ -961,7 +961,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   <button
                     type="button"
                     onClick={() => goToStep(2)}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-btn bg-primary text-white text-[14px] font-medium hover:opacity-90 transition-all duration-200"
+                    className="inline-flex min-h-[46px] items-center gap-2 rounded-[13px] bg-primary px-6 py-3 text-[14px] font-medium text-white transition-all duration-200 hover:opacity-90"
                   >
                     조건 설정하기
                     <Calculator size={15} />
@@ -990,7 +990,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.25 }}
               >
-                <div className="public-mobile-section mb-4 overflow-hidden md:p-6">
+                <div className="public-mobile-section mb-4 overflow-hidden md:rounded-[24px] md:p-7">
                   <div className="flex justify-center pt-3 md:hidden">
                     <span className="h-1 w-10 rounded-full bg-[#D9DEE9]" />
                   </div>
@@ -1508,9 +1508,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 transition={{ duration: 0.25 }}
               >
                 {/* ── 차량 + 조건 요약 배너 ── */}
-                <div className="public-mobile-section mb-4 overflow-hidden">
+                <div className="public-mobile-section mb-4 overflow-hidden md:rounded-[24px]">
                   {/* 상단: 차량 이미지 + 기본 정보 + 조건 변경 버튼 */}
-                  <div className="flex items-center gap-3 border-b border-public-border px-4 py-3.5">
+                  <div className="flex items-center gap-3 border-b border-public-border px-4 py-3.5 md:px-6 md:py-5">
                     {selectedVehicle?.thumbnailUrl && (
                       <div className="w-[72px] h-[46px] rounded-[8px] overflow-hidden bg-neutral shrink-0">
                         <Image
@@ -1765,13 +1765,13 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 )}
 
                 {/* 면책 안내 */}
-                <div className="mb-4 rounded-[14px] border border-public-border bg-public-bg p-4 text-[12px] leading-relaxed text-public-muted">
+                <div className="mb-4 rounded-[16px] border border-public-border bg-white p-4 text-[12px] leading-relaxed text-public-muted shadow-[0_8px_22px_rgba(18,24,40,0.04)]">
                   위 견적은 실제 계약 가능한 기준으로 계산되었으나, 최종 금액은
                   차량 상태·옵션·프로모션에 따라 달라질 수 있습니다. 전문가
                   상담을 통해 확정 견적을 받으시길 권장합니다.
                 </div>
 
-                <div className="public-mobile-section mb-4 p-4">
+                <div className="public-mobile-section mb-4 p-4 md:rounded-[24px] md:p-6">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/65">
