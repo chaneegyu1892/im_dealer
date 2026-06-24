@@ -140,10 +140,10 @@ export const BUDGET_DETAIL_QUESTION: Record<string, { title: string; subtitle: s
 };
 
 export const FUEL_PREFERENCE_OPTIONS = [
-  { value: "전기차", label: "전기차", desc: "충전 인프라 있음, 유지비 절감", icon: "⚡" },
-  { value: "하이브리드", label: "하이브리드", desc: "연비와 주행거리 모두 잡아요", icon: "🌿" },
-  { value: "가솔린/디젤", label: "내연기관", desc: "익숙한 가솔린·디젤이 편해요", icon: "⛽" },
   { value: "상관없음", label: "상관없음", desc: "연료 방식에 특별한 제한이 없어요", icon: "🔄" },
+  { value: "가솔린/디젤", label: "내연기관", desc: "익숙한 가솔린·디젤이 편해요", icon: "⛽" },
+  { value: "하이브리드", label: "하이브리드", desc: "연비와 주행거리 모두 잡아요", icon: "🌿" },
+  { value: "전기차", label: "전기차", desc: "충전 인프라 있음, 유지비 절감", icon: "⚡" },
 ] as const;
 
 // 전기차 선택 시 추가로 묻는 충전 환경 (3단계+없음)
@@ -159,4 +159,3 @@ export const REGION_OPTIONS = [
   { value: "강원·산간", label: "강원·산간", desc: "눈길·비포장 잦음", icon: "🏔️" },
   { value: "제주", label: "제주", desc: "전기차 인프라 우수", icon: "🌴" },
 ] as const;
-
