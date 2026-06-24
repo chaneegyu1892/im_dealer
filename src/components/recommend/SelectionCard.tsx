@@ -25,15 +25,15 @@ export function SelectionCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full min-h-[72px] rounded-[14px] border p-4 text-left transition-all duration-200",
-        "flex items-center gap-3 active:scale-[0.99]",
+        "w-full min-h-[72px] rounded-[14px] border p-4 text-left transition-all duration-200 md:min-h-[84px] md:p-5",
+        "flex items-center gap-3 active:scale-[0.99] md:gap-4",
         selected
           ? "border-primary bg-primary/[0.06] shadow-[0_8px_20px_rgba(0,6,102,0.07)]"
           : "border-public-border bg-white shadow-[0_6px_18px_rgba(18,24,40,0.035)] hover:border-primary/25"
       )}
     >
       {icon && (
-        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-public-bg text-[20px] leading-none">
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-public-bg text-[20px] leading-none md:h-10 md:w-10 md:text-[22px]">
           {icon}
         </span>
       )}
@@ -42,7 +42,7 @@ export function SelectionCard({
         <div className="flex items-center gap-2 flex-wrap">
           <span
             className={cn(
-              "text-sm font-medium",
+              "text-sm font-medium md:text-[15px]",
               selected ? "text-primary" : "text-ink"
             )}
           >
@@ -55,7 +55,7 @@ export function SelectionCard({
           )}
         </div>
         {desc && (
-          <p className={cn("mt-0.5 text-[12px] leading-relaxed", selected ? "text-primary/70" : "text-public-muted")}>
+          <p className={cn("mt-0.5 text-[12px] leading-relaxed md:text-[13px]", selected ? "text-primary/70" : "text-public-muted")}>
             {desc}
           </p>
         )}

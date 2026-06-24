@@ -24,7 +24,7 @@ export function StepMileage({ value, onChange }: StepMileageProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4">
         {MILEAGE_OPTIONS.map((opt) => {
           const isRecommended = "recommended" in opt && opt.recommended;
           return (
@@ -33,7 +33,7 @@ export function StepMileage({ value, onChange }: StepMileageProps) {
               type="button"
               onClick={() => onChange(opt.value)}
               className={cn(
-                "relative rounded-[14px] border p-4 text-left transition-all duration-200 active:scale-[0.99]",
+                "relative rounded-[14px] border p-4 text-left transition-all duration-200 active:scale-[0.99] md:min-h-[96px] md:p-5",
                 value === opt.value
                   ? "border-primary bg-primary/[0.06]"
                   : "border-public-border bg-white hover:border-primary/25"
@@ -46,13 +46,13 @@ export function StepMileage({ value, onChange }: StepMileageProps) {
               )}
               <p
                 className={cn(
-                  "text-sm font-medium",
+                  "text-sm font-medium md:text-[15px]",
                   value === opt.value ? "text-primary" : "text-ink"
                 )}
               >
                 {opt.label}
               </p>
-              <p className="text-[12px] text-ink-caption mt-0.5">{opt.desc}</p>
+              <p className="text-[12px] text-ink-caption mt-0.5 md:text-[13px]">{opt.desc}</p>
             </button>
           );
         })}

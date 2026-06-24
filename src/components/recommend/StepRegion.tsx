@@ -16,7 +16,7 @@ export function StepRegion({ value, onChange }: StepRegionProps) {
         <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-label">지역 특성에 맞는 차량을 추천해 드려요.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4">
         {REGION_OPTIONS.map((opt) => (
           <SelectionCard
             key={opt.value}

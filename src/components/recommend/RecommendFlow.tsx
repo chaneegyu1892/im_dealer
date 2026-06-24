@@ -130,12 +130,12 @@ export function RecommendFlow() {
   };
 
   return (
-    <div className="page-container max-w-2xl mx-auto py-4 md:py-8">
+    <div className="page-container max-w-4xl mx-auto py-4 md:py-8">
       <div className="mb-5">
         <StepIndicator currentStep={step} />
       </div>
 
-      <div className="public-mobile-section min-h-[360px] p-4 md:p-6">
+      <div className="public-mobile-section min-h-[360px] p-4 md:p-7 lg:p-8">
         {step === 1 && (
           <StepIndustry
             value={state.industry}
@@ -183,7 +183,7 @@ export function RecommendFlow() {
                     집·회사·아파트 등 일상 충전이 가능한지에 따라 추천이
                     달라져요.
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 mt-4">
                     {CHARGING_OPTIONS.map((opt) => (
                       <SelectionCard
                         key={opt.value}

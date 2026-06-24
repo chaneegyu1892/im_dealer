@@ -18,7 +18,7 @@ export function StepFuelPreference({ value, onChange, budgetMax }: StepFuelPrefe
         <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-label">선호하는 연료 방식이 있다면 그에 맞게 추천해 드려요.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4">
         {FUEL_PREFERENCE_OPTIONS.map((opt) => (
           <SelectionCard
             key={opt.value}
