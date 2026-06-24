@@ -10,7 +10,7 @@ export default function RecommendPage() {
   return (
     <div className="public-app-page min-h-screen pb-24 md:pb-0">
       <div className="border-b border-public-border bg-white">
-        <div className="page-container max-w-2xl mx-auto py-3.5 md:py-8">
+        <div className="page-container max-w-4xl mx-auto py-3.5 md:py-8">
           <div className="mb-1 flex items-center gap-1.5">
             <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-public-muted">
               AI 추천
