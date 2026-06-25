@@ -565,7 +565,7 @@ const RANK_STYLE: Record<number, { color: string; bg: string; label: string }> =
   0: { color: "#000666", bg: "#E5E5FA", label: "최저가" },
   1: { color: "#059669", bg: "#ECFDF5", label: "2순위" },
   2: { color: "#D97706", bg: "#FFFBEB", label: "3순위" },
-  3: { color: "#9BA4C0", bg: "#F4F5F8", label: "4순위" },
+  3: { color: "#9BA4C0", bg: "#F4F5F8", label: "기타" },
 };
 
 function FinanceRow({
