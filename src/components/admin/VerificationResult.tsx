@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { FileSearch, CheckCircle2, XCircle, Clock, AlertCircle, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { docTypesForCustomer } from "@/lib/codef/doc-types";
+import { isCustomerType } from "@/constants/customer-types";
 
 // ─── 타입 ────────────────────────────────────────────────
 interface VerificationDocumentSummary {
@@ -33,8 +35,12 @@ interface VerificationRecord {
 }
 
 const DOC_TYPE_LABELS: Record<string, string> = {
-  resident_register: "주민등록등본",
   biz_registration_proof: "사업자등록증명",
+  income_withholding: "근로소득 원천징수영수증",
+  vat_taxbase: "부가가치세과세표준증명",
+  financial_statements: "표준재무제표증명",
+  // 과거 데모 레코드 표시용(현재는 수집하지 않음)
+  resident_register: "주민등록등본",
   income_proof: "소득금액증명원",
 };
 
@@ -102,6 +108,70 @@ function ResultRow({
       <StatusBadge status={status} />
     </div>
   );
+}
+
+// ─── 수집 서류 체크리스트 (고객 유형별) ──────────────────
+// 고객 유형이 제출해야 할 서류 목록을 기준으로, 각 서류의 발급 상태를 보여준다.
+// 기대 서류(순서 유지) + 기대 외 수집분(과거 데모 레코드 등)을 함께 표시한다.
+function DocumentChecklist({
+  customerType,
+  documents,
+}: {
+  customerType: string;
+  documents: VerificationDocumentSummary[];
+}) {
+  const expected: string[] = isCustomerType(customerType)
+    ? docTypesForCustomer(customerType)
+    : [];
+  const byType = new Map(documents.map((d) => [d.docType, d]));
+  const extra = documents.filter((d) => !expected.includes(d.docType));
+
+  const rows: { docType: string; doc: VerificationDocumentSummary | null }[] = [
+    ...expected.map((t) => ({ docType: t, doc: byType.get(t) ?? null })),
+    ...extra.map((d) => ({ docType: d.docType, doc: d })),
+  ];
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-[11px] font-semibold text-[#6B7399] mb-1.5">수집 서류</p>
+      <div className="space-y-1.5">
+        {rows.map(({ docType, doc }) => (
+          <div key={docType} className="flex items-center justify-between">
+            <span className="text-[12px] text-[#1A1A2E]">
+              {DOC_TYPE_LABELS[docType] ?? docType}
+            </span>
+            <DocStatus doc={doc} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DocStatus({ doc }: { doc: VerificationDocumentSummary | null }) {
+  if (!doc) {
+    return <span className="text-[11px] text-[#9BA4C0]">미제출</span>;
+  }
+  if (doc.status === "issued") {
+    return (
+      <a
+        href={`/api/verification/documents/${doc.id}`}
+        className="inline-flex items-center gap-1 text-[11px] font-medium text-[#000666] hover:underline"
+      >
+        <Download size={12} /> 다운로드
+      </a>
+    );
+  }
+  if (doc.status === "failed") {
+    return (
+      <span className="text-[11px] text-red-500" title={doc.failReason ?? undefined}>
+        발급 실패
+      </span>
+    );
+  }
+  return <span className="text-[11px] text-[#9BA4C0]">대기</span>;
 }
 
 // ─── 고객 유형 한글 변환 ──────────────────────────────────
@@ -218,89 +288,50 @@ export function VerificationResult({ sessionId }: Props) {
               )}
             </div>
 
-            {/* 운전면허 */}
-            <ResultRow
-              label="운전면허 진위확인"
-              status={
-                state.data.verifiedAt === null
-                  ? "pending"
-                  : state.data.licenseVerified
-                  ? "verified"
-                  : "failed"
-              }
-              detail={
-                state.data.licenseData
-                  ? extractLicenseDetail(state.data.licenseData)
-                  : undefined
-              }
+            {/* 수집 서류 — 고객 유형별 기대 서류 + 상태 (현재 표준) */}
+            <DocumentChecklist
+              customerType={state.data.customerType}
+              documents={state.data.documents ?? []}
             />
 
-            {/* 건강보험 (개인/개인사업자) */}
-            {(state.data.customerType === "individual" ||
-              state.data.customerType === "self_employed") && (
-              <ResultRow
-                label="건강보험 자격득실"
-                status={
-                  state.data.verifiedAt === null
-                    ? "pending"
-                    : state.data.insuranceVerified
-                    ? "verified"
-                    : "failed"
-                }
-                detail={
-                  state.data.insuranceData
-                    ? extractInsuranceDetail(state.data.insuranceData)
-                    : undefined
-                }
-              />
-            )}
-
-            {/* 사업자등록 (개인사업자/법인) */}
-            {(state.data.customerType === "self_employed" ||
-              state.data.customerType === "corporate" ||
-              state.data.customerType === "nonprofit") && (
-              <ResultRow
-                label="사업자등록 상태"
-                status={
-                  state.data.verifiedAt === null
-                    ? "pending"
-                    : state.data.bizVerified
-                    ? "verified"
-                    : "failed"
-                }
-                detail={
-                  state.data.bizData
-                    ? extractBizDetail(state.data.bizData)
-                    : undefined
-                }
-              />
-            )}
-
-            {/* 수집 문서 (간편인증 발급) */}
-            {state.data.documents && state.data.documents.length > 0 && (
+            {/* 진위확인 결과 — 실제로 수행된 경우에만 표시(보존된 흐름) */}
+            {state.data.verifiedAt !== null && (
               <div className="pt-2 mt-1 border-t border-[#F0F2F8]">
-                <p className="text-[11px] font-semibold text-[#6B7399] mb-1.5">수집 문서</p>
-                <div className="space-y-1.5">
-                  {state.data.documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between">
-                      <span className="text-[12px] text-[#1A1A2E]">
-                        {DOC_TYPE_LABELS[doc.docType] ?? doc.docType}
-                      </span>
-                      {doc.status === "issued" ? (
-                        <a
-                          href={`/api/verification/documents/${doc.id}`}
-                          className="inline-flex items-center gap-1 text-[11px] font-medium text-[#000666] hover:underline"
-                        >
-                          <Download size={12} /> 다운로드
-                        </a>
-                      ) : (
-                        <span className="text-[11px] text-[#9BA4C0]">
-                          {doc.status === "failed" ? "발급 실패" : "대기"}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <p className="text-[11px] font-semibold text-[#6B7399] mb-1.5">진위확인</p>
+                <ResultRow
+                  label="운전면허 진위확인"
+                  status={state.data.licenseVerified ? "verified" : "failed"}
+                  detail={
+                    state.data.licenseData
+                      ? extractLicenseDetail(state.data.licenseData)
+                      : undefined
+                  }
+                />
+                {(state.data.customerType === "individual" ||
+                  state.data.customerType === "self_employed") && (
+                  <ResultRow
+                    label="건강보험 자격득실"
+                    status={state.data.insuranceVerified ? "verified" : "failed"}
+                    detail={
+                      state.data.insuranceData
+                        ? extractInsuranceDetail(state.data.insuranceData)
+                        : undefined
+                    }
+                  />
+                )}
+                {(state.data.customerType === "self_employed" ||
+                  state.data.customerType === "corporate" ||
+                  state.data.customerType === "nonprofit") && (
+                  <ResultRow
+                    label="사업자등록 상태"
+                    status={state.data.bizVerified ? "verified" : "failed"}
+                    detail={
+                      state.data.bizData
+                        ? extractBizDetail(state.data.bizData)
+                        : undefined
+                    }
+                  />
+                )}
               </div>
             )}
 
