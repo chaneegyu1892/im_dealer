@@ -113,7 +113,6 @@ export function QuoteBreakdownTabs({
   );
   const [directMode, setDirectMode] = useState(false);
   const [directValue, setDirectValue] = useState("");
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [financeExpanded, setFinanceExpanded] = useState(false);
 
   // 비회원에게는 초기비용(보증/선납) 설정을 블러 처리한다. user 는 null 로 시작 → 로딩 중엔 잠금 기본값.
@@ -467,9 +466,6 @@ export function QuoteBreakdownTabs({
             </span>
           )}
         </div>
-
-        {/* 수평 바 */}
-        <MonthlyBar data={data} />
       </div>
 
       {/* ④ 계약 조건 그리드 */}
@@ -497,62 +493,10 @@ export function QuoteBreakdownTabs({
       )}
 
       {/* ⑦ 견적 산출 내역 */}
-      {data.breakdown && data.surcharges && (
-        <BreakdownSection
-          data={data}
-          open={breakdownOpen}
-          onToggle={() => setBreakdownOpen((v) => !v)}
-        />
-      )}
+      {data.breakdown && data.surcharges && <BreakdownSection data={data} />}
 
       {/* ⑧ 체크포인트 */}
       <CostCheckpoint contractType={data.contractType} customerType={customerType} />
-    </div>
-  );
-}
-
-// ─── 수평 바 차트 ──────────────────────────────────────────
-function MonthlyBar({ data }: { data: QuoteScenarioDetail }) {
-  const { breakdown: bd, surcharges: sc, purchaseSurcharge } = data;
-  if (!bd || !sc) return null;
-
-  const vehicleShare = bd.monthlyBeforeSurcharge > 0 ? bd.monthlyBeforeSurcharge : 0;
-  const financeShare = sc.totalSurcharge > 0 ? sc.totalSurcharge : 0;
-  const purchaseShare = purchaseSurcharge > 0 ? purchaseSurcharge : 0;
-  const total = vehicleShare + financeShare + purchaseShare;
-  if (!(total > 0)) return null;
-
-  const segments = [
-    { label: "차량 대여료", value: vehicleShare, color: "#000666" },
-    { label: "이자·수수료", value: financeShare, color: "#6066EE" },
-    ...(purchaseShare > 0 ? [{ label: "인수 옵션비", value: purchaseShare, color: "#1A1A2E" }] : []),
-  ];
-
-  return (
-    <div className="rounded-[14px] bg-white px-3.5 py-3 space-y-3 border border-[#EEF0F5]">
-      <p className="text-[11px] font-semibold text-ink-label uppercase tracking-wider">월 납입금 구성</p>
-      {/* 수평 바 */}
-      <div className="flex h-2.5 rounded-full overflow-hidden gap-[2px]">
-        {segments.map((seg) => (
-          <div
-            key={seg.label}
-            style={{ width: `${(seg.value / total) * 100}%`, background: seg.color }}
-            className="transition-all duration-500 first:rounded-l-full last:rounded-r-full"
-          />
-        ))}
-      </div>
-      {/* 범례 */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-        {segments.map((seg) => (
-          <div key={seg.label} className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: seg.color }} />
-            <span className="text-[11px] text-ink-caption">{seg.label}</span>
-            <span className="text-[11px] font-semibold text-ink tabular-nums">
-              {formatCurrency(seg.value)}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -663,19 +607,15 @@ function FinanceRow({
 // ─── 견적 산출 내역 섹션 ──────────────────────────────────
 function BreakdownSection({
   data,
-  open,
-  onToggle,
 }: {
   data: QuoteScenarioDetail;
-  open: boolean;
-  onToggle: () => void;
 }) {
   const bd = data.breakdown;
   if (!bd) return null;
 
   return (
     <div className="rounded-[16px] border border-[#E8EAF2] overflow-hidden bg-white">
-      {/* 요약 (항상 표시) */}
+      {/* 요약 */}
       <div className="px-4 py-3 bg-secondary-100 space-y-2.5">
         <p className="text-[11px] font-semibold text-ink-label uppercase tracking-wider">견적 산출 내역</p>
         <CalcRow label="차량가격" value={formatCurrency(bd.vehiclePrice)} />
@@ -687,54 +627,6 @@ function BreakdownSection({
           </span>
         </div>
       </div>
-
-      {/* 상세 토글 버튼 */}
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-white hover:bg-neutral border-t border-[#ECEEF6] transition-colors text-[11px] font-medium text-ink-caption"
-      >
-        {open ? (
-          <>상세 내역 접기 <ChevronUp size={12} /></>
-        ) : (
-          <>상세 내역 보기 <ChevronDown size={12} /></>
-        )}
-      </button>
-
-      {/* 상세 (펼침, 회수율 제외) */}
-      {open && (
-        <div className="px-4 py-4 space-y-2 bg-white text-[13px] border-t border-[#F0F0F0]">
-          {bd.depositDiscount > 0 && (
-            <CalcRow
-              label={`보증금 할인 (${((data.depositAmount / bd.vehiclePrice) * 100).toFixed(0)}%)`}
-              value={`−${formatCurrency(bd.depositDiscount)}`}
-              negative
-            />
-          )}
-          {bd.prepayAdjust !== 0 && (
-            <CalcRow
-              label="선납금 공제·조정"
-              value={bd.prepayAdjust < 0
-                ? `−${formatCurrency(Math.abs(bd.prepayAdjust))}`
-                : `+${formatCurrency(bd.prepayAdjust)}`}
-              negative={bd.prepayAdjust < 0}
-            />
-          )}
-          {(bd.depositDiscount > 0 || bd.prepayAdjust !== 0) && (
-            <CalcRow label="조정 후 대여료" value={formatCurrency(bd.monthlyBeforeSurcharge)} bold />
-          )}
-          {data.surcharges && data.surcharges.totalSurcharge > 0 && (
-            <CalcRow label="이자·수수료 가산" value={`+${formatCurrency(data.surcharges.totalSurcharge)}`} plus />
-          )}
-          {data.purchaseSurcharge > 0 && (
-            <CalcRow
-              label="인수 옵션 추가비 (+12%)"
-              value={`+${formatCurrency(data.purchaseSurcharge)}`}
-              plus
-            />
-          )}
-        </div>
-      )}
     </div>
   );
 }
