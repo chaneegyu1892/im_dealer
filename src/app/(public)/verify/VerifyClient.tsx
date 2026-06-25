@@ -17,8 +17,7 @@ import {
   parseLegacyQuoteDraft,
   parseQuoteDraft,
 } from "@/lib/quote-draft";
-import { EasyAuthStep, type EasyAuthInfo } from "./EasyAuthStep";
-import { CODEF_ADDRESS, CODEF_SIDO } from "./codef-address";
+import { EasyAuthStep } from "./EasyAuthStep";
 
 // ─── 타입 ────────────────────────────────────────────────
 type Step = 1 | 2 | 3 | "easyauth" | "done";
@@ -28,8 +27,6 @@ interface FormState {
   rrnFront: string; // 주민번호 앞 6자리
   rrnBack: string; // 주민번호 뒤 7자리
   phone: string;
-  addrSido: string;
-  addrSiGunGu: string;
 }
 
 // 주민번호 → 생년월일 YYYYMMDD (홈택스 loginIdentity 용)
@@ -45,14 +42,6 @@ function rrnToBirthDate(rrn: string): string {
       ? "20"
       : "19";
   return `${century}${yy}${mmdd}`;
-}
-
-// 소득금액증명원 과세연도 범위.
-// 매년 7월 이후에야 작년분이 발급 가능하다(그 전엔 재작년까지만 가능 — 그렇지 않으면 CF-12832 발급불가).
-function incomeTaxYears(): { startYear: string; endYear: string } {
-  const now = new Date();
-  const latest = now.getMonth() + 1 >= 7 ? now.getFullYear() - 1 : now.getFullYear() - 2;
-  return { startYear: String(latest - 1), endYear: String(latest) };
 }
 
 // ─── StepIndicator ────────────────────────────────────────
@@ -249,9 +238,9 @@ const CUSTOMER_TYPE_OPTIONS: {
   label: string;
   desc: string;
 }[] = [
-  { type: "individual", icon: "👔", label: "개인", desc: "운전면허와 건강보험 자격 확인" },
-  { type: "self_employed", icon: "💼", label: "개인사업자", desc: "건강보험 지역 가입자 + 사업자등록" },
-  { type: "corporate", icon: "🏢", label: "법인", desc: "법인 사업자등록 조회" },
+  { type: "individual", icon: "👔", label: "개인", desc: "근로소득 원천징수영수증" },
+  { type: "self_employed", icon: "💼", label: "개인사업자", desc: "사업자등록증명 · 부가가치세 과세표준증명" },
+  { type: "corporate", icon: "🏢", label: "법인", desc: "사업자등록증명 · 재무제표 · 부가가치세 과세표준증명" },
 ];
 
 function Step2CustomerType({ value, onChange, onNext, onBack }: Step2Props) {
@@ -295,7 +284,6 @@ function Step2CustomerType({ value, onChange, onNext, onBack }: Step2Props) {
 
 // ─── Step 3: 정보 입력 ────────────────────────────────────
 interface Step3Props {
-  customerType: CustomerType;
   form: FormState;
   onChange: (key: keyof FormState, value: string) => void;
   onSubmit: () => void;
@@ -346,7 +334,6 @@ function InputField({
 }
 
 function Step3Form({
-  customerType,
   form,
   onChange,
   onSubmit,
@@ -354,14 +341,11 @@ function Step3Form({
   loading,
   error,
 }: Step3Props) {
-  const needsResident = customerType !== "corporate"; // 등본 필요 = 주소 입력 필요
-
   const isValid =
     form.name.trim() !== "" &&
     form.rrnFront.length === 6 &&
     form.rrnBack.length === 7 &&
-    form.phone.trim() !== "" &&
-    (!needsResident || (form.addrSido !== "" && form.addrSiGunGu.trim() !== ""));
+    form.phone.trim() !== "";
 
   return (
     <div className="space-y-5">
@@ -419,47 +403,6 @@ function Step3Form({
           placeholder="01012345678"
           hint="간편인증 푸시를 받을 번호"
         />
-        {needsResident && (
-          <div className="space-y-1.5">
-            <label className="block text-[13px] font-semibold text-ink">주소 (등본 발급용)</label>
-            <div className="grid grid-cols-2 gap-3">
-              <select
-                aria-label="주소 시도"
-                value={form.addrSido}
-                onChange={(e) => {
-                  onChange("addrSido", e.target.value);
-                  onChange("addrSiGunGu", "");
-                }}
-                className={cn(
-                  "w-full rounded-[12px] border border-public-border bg-white px-3 py-3.5",
-                  "text-[14px] text-ink focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-                )}
-              >
-                <option value="">시/도 선택</option>
-                {CODEF_SIDO.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-              <select
-                aria-label="주소 시군구"
-                value={form.addrSiGunGu}
-                disabled={!form.addrSido}
-                onChange={(e) => onChange("addrSiGunGu", e.target.value)}
-                className={cn(
-                  "w-full rounded-[12px] border border-public-border bg-white px-3 py-3.5",
-                  "text-[14px] text-ink focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15",
-                  "disabled:bg-[#F4F5F8] disabled:text-ink-caption"
-                )}
-              >
-                <option value="">{form.addrSido ? "시/군/구 선택" : "시/도 먼저"}</option>
-                {(CODEF_ADDRESS[form.addrSido] ?? []).map((g) => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </select>
-            </div>
-            <p className="text-[11px] text-public-muted">주민등록상 주소의 시/도·시/군/구를 선택하세요.</p>
-          </div>
-        )}
       </div>
 
       {error && (
@@ -558,8 +501,6 @@ export function VerifyClient() {
     rrnFront: "",
     rrnBack: "",
     phone: "",
-    addrSido: "",
-    addrSiGunGu: "",
   });
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -716,7 +657,6 @@ export function VerifyClient() {
 
         {step === 3 && (
           <Step3Form
-            customerType={customerType}
             form={form}
             onChange={handleFormChange}
             onSubmit={handleSubmit}
@@ -732,12 +672,8 @@ export function VerifyClient() {
             customerType={customerType}
             info={{
               userName: form.name,
-              identity: form.rrnFront + form.rrnBack,
               birthDate: rrnToBirthDate(form.rrnFront + form.rrnBack),
               phoneNo: form.phone,
-              addrSido: form.addrSido || undefined,
-              addrSiGunGu: form.addrSiGunGu || undefined,
-              ...incomeTaxYears(),
             }}
             onDone={handleEasyAuthDone}
             onBack={() => setStep(3)}

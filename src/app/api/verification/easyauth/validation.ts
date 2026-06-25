@@ -7,18 +7,20 @@ import type { EasyAuthInput } from "@/lib/codef/easyauth";
  */
 export const easyAuthFieldsSchema = z.object({
   verificationId: z.string().min(1),
-  docType: z.enum(["resident_register", "biz_registration_proof", "income_proof"]),
+  docType: z.enum([
+    "biz_registration_proof",
+    "income_withholding",
+    "vat_taxbase",
+    "financial_statements",
+  ]),
   userName: z.string().min(1),
   phoneNo: z.string().min(1),
   loginTypeLevel: z.string().min(1),
   id: z.string().min(1),
   birthDate: z.string().optional(),
-  identity: z.string().optional(),
-  addrSido: z.string().optional(),
-  addrSiGunGu: z.string().optional(),
   telecom: z.string().optional(),
-  startYear: z.string().optional(),
-  endYear: z.string().optional(),
+  taxStartMonth: z.string().optional(),
+  taxEndMonth: z.string().optional(),
 });
 
 export const twoWayInfoSchema = z.object({
@@ -36,14 +38,11 @@ export function toEasyAuthInput(f: EasyAuthFields): EasyAuthInput {
     docType: f.docType,
     userName: f.userName,
     birthDate: f.birthDate ?? "",
-    identity: f.identity,
-    addrSido: f.addrSido,
-    addrSiGunGu: f.addrSiGunGu,
     phoneNo: f.phoneNo,
     loginTypeLevel: f.loginTypeLevel,
     telecom: f.telecom,
     id: f.id,
-    startYear: f.startYear,
-    endYear: f.endYear,
+    taxStartMonth: f.taxStartMonth,
+    taxEndMonth: f.taxEndMonth,
   };
 }

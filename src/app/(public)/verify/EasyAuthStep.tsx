@@ -23,13 +23,30 @@ const TELECOMS: { value: string; label: string }[] = [
 
 export interface EasyAuthInfo {
   userName: string;
-  identity: string; // 주민번호 13자리
-  birthDate: string; // YYYYMMDD (홈택스용)
+  birthDate: string; // YYYYMMDD (홈택스 회원 간편인증 본인확인값)
   phoneNo: string;
-  addrSido?: string;
-  addrSiGunGu?: string;
-  startYear?: string;
-  endYear?: string;
+}
+
+// 부가세 과세기간(기수 코드 yyyyMM): 가장 최근 신고완료 기수.
+// 1기(상반기) 신고기한 ~7/25, 2기(하반기) 신고기한 ~익년 1/25 기준 보수적 선택.
+// ⚠️ 데모 실호출로 발급 가능 기수 재확인 필요(미신고 기수는 CF 오류).
+function vatPeriod(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  if (m >= 8) return `${y}01`; // 올해 1기
+  if (m >= 2) return `${y - 1}07`; // 작년 2기
+  return `${y - 1}01`; // 1월: 작년 1기
+}
+
+// 재무제표 사업종료년월(yyyyMM): 12월 결산법인 가정, 최근 신고완료 사업연도.
+// 법인세 신고기한 ~익년 3/31 + 전산반영 익월말 → 5월부터 작년분 안전.
+// ⚠️ 비(非)12월 결산법인은 값이 달라질 수 있어 데모 검증 필요.
+function corpFiscalEndMonth(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  return `${m >= 5 ? y - 1 : y - 2}12`;
 }
 
 interface Props {
@@ -69,21 +86,27 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
   const [busy, setBusy] = useState(false);
   const [fatal, setFatal] = useState<string | null>(null);
 
-  const body = (docType: DocType) => ({
-    verificationId,
-    docType,
-    userName: info.userName,
-    identity: info.identity || undefined,
-    birthDate: info.birthDate || undefined,
-    addrSido: info.addrSido || undefined,
-    addrSiGunGu: info.addrSiGunGu || undefined,
-    startYear: info.startYear || undefined,
-    endYear: info.endYear || undefined,
-    phoneNo: info.phoneNo,
-    loginTypeLevel: provider,
-    telecom: provider === "5" ? telecom : undefined,
-    id: verificationId,
-  });
+  const body = (docType: DocType) => {
+    const base = {
+      verificationId,
+      docType,
+      userName: info.userName,
+      birthDate: info.birthDate || undefined,
+      phoneNo: info.phoneNo,
+      loginTypeLevel: provider,
+      telecom: provider === "5" ? telecom : undefined,
+      id: verificationId,
+    };
+    // 과세기간은 상품별로 형식이 달라 docType 시점에 계산해 주입한다.
+    if (docType === "vat_taxbase") {
+      const period = vatPeriod();
+      return { ...base, taxStartMonth: period, taxEndMonth: period };
+    }
+    if (docType === "financial_statements") {
+      return { ...base, taxStartMonth: corpFiscalEndMonth() };
+    }
+    return base;
+  };
 
   const setDoc = (i: number, patch: Partial<DocState>) =>
     setDocs((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
