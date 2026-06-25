@@ -307,7 +307,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
 
   const [contractCategory, setContractCategory] = useState<ContractCategory>("장기렌트");
   const [conditions, setConditions] = useState<Conditions>({
-    contractMonths: 48,
+    contractMonths: 60,
     annualMileage: 20000,
   });
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
