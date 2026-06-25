@@ -124,12 +124,14 @@ function DocumentChecklist({
     ? docTypesForCustomer(customerType)
     : [];
   const byType = new Map(documents.map((d) => [d.docType, d]));
-  const extra = documents.filter((d) => !expected.includes(d.docType));
 
-  const rows: { docType: string; doc: VerificationDocumentSummary | null }[] = [
-    ...expected.map((t) => ({ docType: t, doc: byType.get(t) ?? null })),
-    ...extra.map((d) => ({ docType: d.docType, doc: d })),
-  ];
+  // 알려진 고객유형(개인/개인사업자/법인): 현재 기준 기대 서류만 표시.
+  //   → 과거에 수집된 옛 서류(등본·소득금액증명원 등)는 노출하지 않는다.
+  // 미정의 유형(nonprofit 등): 수집된 서류를 그대로 표시(데이터 숨김 방지).
+  const rows: { docType: string; doc: VerificationDocumentSummary | null }[] =
+    expected.length > 0
+      ? expected.map((t) => ({ docType: t, doc: byType.get(t) ?? null }))
+      : documents.map((d) => ({ docType: d.docType, doc: d }));
 
   if (rows.length === 0) return null;
 
