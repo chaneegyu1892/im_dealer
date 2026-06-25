@@ -1509,98 +1509,111 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
               >
                 {/* ── 차량 + 조건 요약 배너 ── */}
                 <div className="public-mobile-section mb-4 overflow-hidden md:rounded-[24px]">
-                  {/* 상단: 차량 이미지 + 기본 정보 + 조건 변경 버튼 */}
-                  <div className="flex items-center gap-3 border-b border-public-border px-4 py-3.5 md:px-6 md:py-5">
-                    {selectedVehicle?.thumbnailUrl && (
-                      <div className="w-[72px] h-[46px] rounded-[8px] overflow-hidden bg-neutral shrink-0">
-                        <Image
-                          src={selectedVehicle.thumbnailUrl}
-                          alt={selectedVehicle.name ?? "차량"}
-                          width={72}
-                          height={46}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-ink-caption uppercase tracking-wider mb-0.5">
-                        {selectedVehicle?.brand}
-                      </p>
-                      <p className="text-[15px] font-semibold text-ink truncate leading-snug">
-                        {selectedVehicle?.name}
-                      </p>
-                      {hasCascade && selectedLineup && (
-                        <p
-                          title={selectedLineup}
-                          className="text-[11px] text-ink-caption mt-0.5 truncate"
-                        >
-                          {selectedLineup}
-                        </p>
-                      )}
-                      {quoteResult.trimName && (
-                        <p className="text-[12px] text-ink-label mt-0.5 truncate">
-                          {quoteResult.trimName}
-                        </p>
-                      )}
-                      <p className="mt-1 flex items-baseline gap-1.5 flex-wrap">
-                        <span className="text-[11px] text-ink-caption">기본 차량가</span>
-                        <span className="text-[13px] font-semibold text-ink tabular-nums">
-                          {(quoteResult.discountPrice ?? quoteResult.trimPrice).toLocaleString()}원
-                        </span>
-                        {quoteResult.discountPrice != null &&
-                          quoteResult.discountPrice < quoteResult.trimPrice && (
-                            <span className="text-[11px] text-ink-caption line-through tabular-nums">
-                              {quoteResult.trimPrice.toLocaleString()}원
-                            </span>
-                          )}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { goToStep(2); setQuoteResult(null); setError(null); }}
-                      className="shrink-0 flex items-center gap-1 text-[12px] font-semibold text-ink-label
-                                 border border-public-border hover:border-primary/40 hover:text-primary
-                                 rounded-[10px] px-3 py-2 transition-all duration-150"
-                    >
-                      <ChevronLeft size={13} />
-                      이전
-                    </button>
-                  </div>
-
-                  {/* 하단: 조건 칩 */}
-                  <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-                    <ConditionChip label={`${quoteResult.contractMonths}개월`} sub="계약기간" />
-                    <ConditionChip label={`연 ${(quoteResult.annualMileage / 10000).toFixed(0)}만km`} sub="약정거리" />
-                    {quoteResult.optionsTotalPrice || selectedExteriorColor || selectedInteriorColor ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowOptionDetail((v) => !v)}
-                        aria-expanded={showOptionDetail}
-                        className={cn(
-                          "inline-flex flex-col items-center rounded-[8px] px-3 py-1.5 border transition-colors duration-150",
-                          showOptionDetail
-                            ? "bg-primary-100 border-primary-200"
-                            : "bg-public-bg border-public-border hover:border-primary/40"
-                        )}
-                      >
-                        <span className="text-[9px] text-ink-caption uppercase tracking-wider mb-0.5">
-                          구성 상세
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink leading-none">
-                          {quoteResult.optionsTotalPrice
-                            ? `옵션 +${Math.round((quoteResult.optionsTotalPrice ?? 0) / 10000).toLocaleString()}만원`
-                            : "옵션·색상"}
-                          <ChevronDown
-                            size={11}
-                            className={cn(
-                              "text-ink-caption transition-transform duration-200",
-                              showOptionDetail && "rotate-180"
-                            )}
+                  {/* 좌우 2분할: 왼쪽 차량 이미지 / 오른쪽 정보·조건 */}
+                  <div className="flex flex-col sm:flex-row">
+                    {/* 좌: 차량 이미지 (여백 두고 배치) */}
+                    <div className="flex w-full sm:w-1/2 shrink-0 p-3 md:p-4 bg-neutral/40 border-b sm:border-b-0 sm:border-r border-public-border">
+                      <div className="relative w-full aspect-[16/10] sm:aspect-auto sm:min-h-[180px] rounded-[12px] overflow-hidden bg-neutral">
+                        {selectedVehicle?.thumbnailUrl ? (
+                          <Image
+                            src={selectedVehicle.thumbnailUrl}
+                            alt={selectedVehicle.name ?? "차량"}
+                            fill
+                            sizes="(max-width: 640px) 100vw, 50vw"
+                            className="object-cover"
                           />
-                        </span>
-                      </button>
-                    ) : null}
-                    <ConditionChip label={CUSTOMER_TYPE_LABELS[customerType]} sub="고객 유형" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[12px] text-ink-caption">
+                            이미지 준비중
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 우: 차량 정보 + 조건 칩 (절반) */}
+                    <div className="flex flex-1 flex-col sm:w-1/2 min-w-0">
+                      <div className="flex items-start gap-3 px-4 py-3.5 md:px-6 md:py-5">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-ink-caption uppercase tracking-wider mb-0.5">
+                            {selectedVehicle?.brand}
+                          </p>
+                          <p className="text-[15px] font-semibold text-ink truncate leading-snug">
+                            {selectedVehicle?.name}
+                          </p>
+                          {hasCascade && selectedLineup && (
+                            <p
+                              title={selectedLineup}
+                              className="text-[11px] text-ink-caption mt-0.5 truncate"
+                            >
+                              {selectedLineup}
+                            </p>
+                          )}
+                          {quoteResult.trimName && (
+                            <p className="text-[12px] text-ink-label mt-0.5 truncate">
+                              {quoteResult.trimName}
+                            </p>
+                          )}
+                          <p className="mt-1 flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-[11px] text-ink-caption">기본 차량가</span>
+                            <span className="text-[13px] font-semibold text-ink tabular-nums">
+                              {(quoteResult.discountPrice ?? quoteResult.trimPrice).toLocaleString()}원
+                            </span>
+                            {quoteResult.discountPrice != null &&
+                              quoteResult.discountPrice < quoteResult.trimPrice && (
+                                <span className="text-[11px] text-ink-caption line-through tabular-nums">
+                                  {quoteResult.trimPrice.toLocaleString()}원
+                                </span>
+                              )}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { goToStep(2); setQuoteResult(null); setError(null); }}
+                          className="shrink-0 flex items-center gap-1 text-[12px] font-semibold text-ink-label
+                                     border border-public-border hover:border-primary/40 hover:text-primary
+                                     rounded-[10px] px-3 py-2 transition-all duration-150"
+                        >
+                          <ChevronLeft size={13} />
+                          이전
+                        </button>
+                      </div>
+
+                      {/* 조건 칩 */}
+                      <div className="flex flex-wrap items-center gap-2 px-4 pb-3.5 md:px-6 mt-auto">
+                        <ConditionChip label={`${quoteResult.contractMonths}개월`} sub="계약기간" />
+                        <ConditionChip label={`연 ${(quoteResult.annualMileage / 10000).toFixed(0)}만km`} sub="약정거리" />
+                        {quoteResult.optionsTotalPrice || selectedExteriorColor || selectedInteriorColor ? (
+                          <button
+                            type="button"
+                            onClick={() => setShowOptionDetail((v) => !v)}
+                            aria-expanded={showOptionDetail}
+                            className={cn(
+                              "inline-flex flex-col items-center rounded-[8px] px-3 py-1.5 border transition-colors duration-150",
+                              showOptionDetail
+                                ? "bg-primary-100 border-primary-200"
+                                : "bg-public-bg border-public-border hover:border-primary/40"
+                            )}
+                          >
+                            <span className="text-[9px] text-ink-caption uppercase tracking-wider mb-0.5">
+                              구성 상세
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink leading-none">
+                              {quoteResult.optionsTotalPrice
+                                ? `옵션 +${Math.round((quoteResult.optionsTotalPrice ?? 0) / 10000).toLocaleString()}만원`
+                                : "옵션·색상"}
+                              <ChevronDown
+                                size={11}
+                                className={cn(
+                                  "text-ink-caption transition-transform duration-200",
+                                  showOptionDetail && "rotate-180"
+                                )}
+                              />
+                            </span>
+                          </button>
+                        ) : null}
+                        <ConditionChip label={CUSTOMER_TYPE_LABELS[customerType]} sub="고객 유형" />
+                      </div>
+                    </div>
                   </div>
 
                   {/* 옵션·색상 세부 내역 펼침 패널 */}
