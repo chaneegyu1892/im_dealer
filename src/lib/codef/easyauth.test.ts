@@ -19,7 +19,7 @@ const mockToken = vi.mocked(getCodefToken);
 const mockRaw = vi.mocked(callCodefRaw);
 
 const baseInput: EasyAuthInput = {
-  docType: "resident_register",
+  docType: "biz_registration_proof",
   userName: "홍길동",
   birthDate: "19900101",
   phoneNo: "01012345678",
@@ -40,20 +40,49 @@ beforeEach(() => {
 });
 
 describe("buildBaseParams", () => {
-  it("회원 간편인증(loginType=5)과 origin 파라미터를 세팅한다 — 등본", () => {
+  it("사업자등록증명: loginIdentity(생년월일)·originDataYN1·제출용도를 세팅한다", () => {
     const p = buildBaseParams(baseInput);
     expect(p.loginType).toBe("5");
-    expect(p.originDataYN).toBe("1"); // 등본 PDF 요청
-    expect(p.loginIdentity).toBeUndefined(); // 등본 회원은 loginIdentity 불요
-    expect(p.id).toBe("session-abc");
-  });
-
-  it("홈택스 상품은 loginIdentity(생년월일)·originDataYN1·제출용도를 세팅한다", () => {
-    const p = buildBaseParams({ ...baseInput, docType: "biz_registration_proof" });
+    expect(p.phoneNo).toBe("01012345678");
     expect(p.loginIdentity).toBe("19900101");
     expect(p.originDataYN1).toBe("1");
     expect(p.usePurposes).toBe("07");
     expect(p.submitTargets).toBe("01");
+    expect(p.id).toBe("session-abc");
+  });
+
+  it("원천징수영수증: 본인확인 필드명은 identity(=생년월일), origin 은 originDataYN", () => {
+    const p = buildBaseParams({ ...baseInput, docType: "income_withholding" });
+    expect(p.identity).toBe("19900101");
+    expect(p.loginIdentity).toBeUndefined();
+    expect(p.originDataYN).toBe("1");
+    expect(p.phoneNo).toBe("01012345678");
+  });
+
+  it("부가세과세표준: 과세기간(startDate/endDate)·loginIdentity·originDataYN1 을 세팅한다", () => {
+    const p = buildBaseParams({
+      ...baseInput,
+      docType: "vat_taxbase",
+      taxStartMonth: "202401",
+      taxEndMonth: "202401",
+    });
+    expect(p.loginIdentity).toBe("19900101");
+    expect(p.startDate).toBe("202401");
+    expect(p.endDate).toBe("202401");
+    expect(p.originDataYN1).toBe("1");
+  });
+
+  it("표준재무제표: 전화번호 필드명은 loginPhoneNo, startDate(사업종료년월)를 세팅한다", () => {
+    const p = buildBaseParams({
+      ...baseInput,
+      docType: "financial_statements",
+      taxStartMonth: "202312",
+    });
+    expect(p.loginPhoneNo).toBe("01012345678");
+    expect(p.phoneNo).toBeUndefined();
+    expect(p.loginIdentity).toBe("19900101");
+    expect(p.startDate).toBe("202312");
+    expect(p.originDataYN1).toBe("1");
   });
 
   it("PASS(통신사)일 때만 telecom 을 싣는다", () => {
@@ -92,22 +121,7 @@ describe("startEasyAuth", () => {
 });
 
 describe("completeEasyAuth", () => {
-  it("등본 성공 시 resOriGinalData(PDF)·resDocNo 를 추출한다", async () => {
-    mockRaw.mockResolvedValue({
-      success: true,
-      data: {
-        code: "CF-00000",
-        message: "성공",
-        data: { resOriGinalData: "JVBERi0xLjQK", resDocNo: "1234-5678" },
-      },
-    });
-    const r = await completeEasyAuth(baseInput, twoWayInfo);
-    expect(r.success).toBe(true);
-    expect(r.pdfBase64).toBe("JVBERi0xLjQK");
-    expect(r.docVerifyNo).toBe("1234-5678");
-  });
-
-  it("홈택스 성공 시 resOriGinalData1(PDF)·resIssueNo 를 추출한다", async () => {
+  it("홈택스(YN1) 성공 시 resOriGinalData1(PDF)·resIssueNo 를 추출한다", async () => {
     mockRaw.mockResolvedValue({
       success: true,
       data: {
@@ -116,12 +130,27 @@ describe("completeEasyAuth", () => {
         data: { resOriGinalData1: "UERGREFUQQ==", resIssueNo: "BIZ-1" },
       },
     });
-    const r = await completeEasyAuth(
-      { ...baseInput, docType: "biz_registration_proof" },
-      twoWayInfo
-    );
+    const r = await completeEasyAuth(baseInput, twoWayInfo);
+    expect(r.success).toBe(true);
     expect(r.pdfBase64).toBe("UERGREFUQQ==");
     expect(r.docVerifyNo).toBe("BIZ-1");
+  });
+
+  it("원천징수영수증(YN) 성공 시 resOriGinalData(PDF)를 추출한다", async () => {
+    mockRaw.mockResolvedValue({
+      success: true,
+      data: {
+        code: "CF-00000",
+        message: "성공",
+        data: { resOriGinalData: "JVBERi0xLjQK", resIssueNo: "INC-1" },
+      },
+    });
+    const r = await completeEasyAuth(
+      { ...baseInput, docType: "income_withholding" },
+      twoWayInfo
+    );
+    expect(r.pdfBase64).toBe("JVBERi0xLjQK");
+    expect(r.docVerifyNo).toBe("INC-1");
   });
 
   it("다건 리스트 응답이면 첫 항목을 사용한다", async () => {
@@ -130,7 +159,7 @@ describe("completeEasyAuth", () => {
       data: {
         code: "CF-00000",
         message: "성공",
-        data: [{ resOriGinalData: "AAAA", resDocNo: "D1" }],
+        data: [{ resOriGinalData1: "AAAA", resIssueNo: "L1" }],
       },
     });
     const r = await completeEasyAuth(baseInput, twoWayInfo);

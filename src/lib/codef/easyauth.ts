@@ -20,14 +20,8 @@ const SUCCESS_CODE = "CF-00000"; // 정상 완료
 export interface EasyAuthInput {
   docType: DocType;
   userName: string;
-  /** 생년월일 8자리 YYYYMMDD — 홈택스 회원 간편인증 loginIdentity */
+  /** 생년월일 8자리 YYYYMMDD — 홈택스 회원 간편인증 본인확인값 */
   birthDate: string;
-  /** 주민번호 13자리('-' 없이) — 등본(정부24) identity. 홈택스는 생년월일 사용. */
-  identity?: string;
-  /** 등본(정부24) 주소 시/도 — 공식 지명(예: "서울특별시"). 회원정보에 주소 없으면 필수. */
-  addrSido?: string;
-  /** 등본(정부24) 주소 시/군/구 — 공식 지명(예: "영등포구"). */
-  addrSiGunGu?: string;
   phoneNo: string;
   /** 간편인증 제공자: 1 카카오톡, 5 통신사(PASS), 6 네이버, 8 toss … */
   loginTypeLevel: string;
@@ -35,9 +29,15 @@ export interface EasyAuthInput {
   telecom?: string;
   /** 요청 식별 아이디 — 동일 기관 다건 묶음을 위한 세션 키 */
   id: string;
-  /** 소득금액증명원 과세기간 (없으면 호출 실패). 라우트에서 주입. */
-  startYear?: string;
-  endYear?: string;
+  /**
+   * 과세기간 시작(yyyyMM). docType 별 의미가 다르다.
+   *  - vat_taxbase: 기수 코드(MM="01" 1기 / "07" 2기)
+   *  - financial_statements: 사업종료년월(예: "202312")
+   * docType 을 아는 클라이언트(EasyAuthStep)가 계산해 주입한다.
+   */
+  taxStartMonth?: string;
+  /** 과세기간 종료(yyyyMM) — vat_taxbase 전용(보통 start 와 동일 기수). */
+  taxEndMonth?: string;
 }
 
 /** 1차 응답의 불투명 토큰. 비-PII. 클라이언트가 2차 호출에 echo. */
@@ -68,45 +68,44 @@ export function buildBaseParams(input: EasyAuthInput): Record<string, unknown> {
     loginType: "5",
     loginTypeLevel: input.loginTypeLevel,
     userName: input.userName,
-    phoneNo: input.phoneNo,
     id: input.id,
     [cfg.originParam]: "1",
   };
   if (input.telecom) base.telecom = input.telecom;
 
   switch (input.docType) {
-    case "resident_register":
-      // 정부24 등본: 본인확인용 주민번호(identity) 필요.
-      if (input.identity) {
-        base.identity = input.identity;
-        base.identityEncYn = "N";
-      }
-      // 주소: 공식 지명. 회원정보에 주소 없으면 필수(CF-13160).
-      if (input.addrSido) base.addrSido = input.addrSido;
-      if (input.addrSiGunGu) base.addrSiGunGu = input.addrSiGunGu;
-      // 등본 옵션은 모두 Required(O).
-      base.pastAddrChangeYN = "0"; // 과거 주소이력 미포함
-      base.inmateYN = "0"; // 동거인 미포함
-      base.relationWithHHYN = "1"; // 세대주와의 관계 포함
-      base.changeDateYN = "0"; // 전입일/변동일 사유 미포함
-      base.compositionReasonYN = "0"; // 세대구성사유 미포함
-      base.isIdentityViewYn = "0"; // 주민번호 뒷자리 미공개
-      base.isNameViewYn = "0"; // 다른 세대원 이름 미포함
-      break;
     case "biz_registration_proof":
+      base.phoneNo = input.phoneNo;
       base.loginIdentity = input.birthDate; // 회원(5) = 생년월일 8자리
       base.usePurposes = "07"; // 금융기관제출용
       base.submitTargets = "01"; // 금융기관
       base.isIdentityViewYN = "0";
       break;
-    case "income_proof":
+    case "income_withholding":
+      // 근로소득 지급명세서: 본인확인 필드명이 'identity'(값은 생년월일 8자리).
+      base.phoneNo = input.phoneNo;
+      base.identity = input.birthDate;
+      // inquiryType 미지정 → 최근 귀속년도 자동 조회.
+      break;
+    case "vat_taxbase":
+      base.phoneNo = input.phoneNo;
       base.loginIdentity = input.birthDate;
       base.usePurposes = "07";
       base.submitTargets = "01";
-      base.isIdentityViewYn = "0";
-      base.isAddrViewYn = "0";
-      if (input.startYear) base.startYear = input.startYear;
-      if (input.endYear) base.endYear = input.endYear;
+      base.isIdentityViewYN = "0";
+      // 과세기간(기수 코드 yyyyMM) — 필수(O).
+      if (input.taxStartMonth) base.startDate = input.taxStartMonth;
+      if (input.taxEndMonth) base.endDate = input.taxEndMonth;
+      break;
+    case "financial_statements":
+      // 재무제표: 전화번호 필드명이 'loginPhoneNo'.
+      base.loginPhoneNo = input.phoneNo;
+      base.loginIdentity = input.birthDate;
+      base.usePurposes = "07";
+      base.submitTargets = "01";
+      base.isIdentityViewYN = "0";
+      // 사업종료년월(yyyyMM) — 법인 필수(O).
+      if (input.taxStartMonth) base.startDate = input.taxStartMonth;
       break;
   }
   return base;
@@ -193,8 +192,7 @@ export async function completeEasyAuth(
   const obj = (raw ?? {}) as Record<string, unknown>;
 
   const pdf = obj[cfg.pdfField];
-  const docVerifyNo =
-    input.docType === "resident_register" ? obj.resDocNo : obj.resIssueNo;
+  const docVerifyNo = obj.resIssueNo;
 
   return {
     success: true,

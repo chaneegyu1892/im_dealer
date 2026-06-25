@@ -74,23 +74,12 @@ async function main(): Promise<void> {
   console.log("\n=== Codef 스모크 테스트 입력 (Enter = 기본값) ===");
   const docType = (await field(
     "CODEF_SMOKE_DOC",
-    "문서 (resident_register / biz_registration_proof / income_proof)",
-    "resident_register"
+    "문서 (biz_registration_proof / income_withholding / vat_taxbase / financial_statements)",
+    "biz_registration_proof"
   )) as DocType;
   const userName = await field("CODEF_SMOKE_NAME", "이름");
-  const isResident = docType === "resident_register";
-  // 등본(정부24)=주민번호 13자리, 홈택스=생년월일 8자리
-  let identity: string | undefined;
-  let birthDate = "";
-  let addrSido: string | undefined;
-  let addrSiGunGu: string | undefined;
-  if (isResident) {
-    identity = await field("CODEF_SMOKE_IDENTITY", "주민번호 13자리 (- 없이)");
-    addrSido = await field("CODEF_SMOKE_ADDR_SIDO", "주소 시/도 공식지명 (예: 서울특별시)");
-    addrSiGunGu = await field("CODEF_SMOKE_ADDR_SIGUNGU", "주소 시/군/구 공식지명 (예: 영등포구)");
-  } else {
-    birthDate = await field("CODEF_SMOKE_BIRTH", "생년월일 YYYYMMDD");
-  }
+  // 홈택스 4종 모두 회원 간편인증 본인확인값 = 생년월일 8자리.
+  const birthDate = await field("CODEF_SMOKE_BIRTH", "생년월일 YYYYMMDD");
   const phoneNo = await field("CODEF_SMOKE_PHONE", "휴대폰 (- 없이)");
   const loginTypeLevel = await field(
     "CODEF_SMOKE_PROVIDER",
@@ -102,15 +91,18 @@ async function main(): Promise<void> {
       ? await field("CODEF_SMOKE_TELECOM", "통신사 (0 SKT / 1 KT / 2 LGU+)", "0")
       : process.env.CODEF_SMOKE_TELECOM;
 
-  let startYear: string | undefined;
-  let endYear: string | undefined;
-  if (docType === "income_proof") {
-    startYear = await field("CODEF_SMOKE_START_YEAR", "과세 시작년도", "2023");
-    endYear = await field("CODEF_SMOKE_END_YEAR", "과세 종료년도", "2024");
+  // 과세기간: 부가세=기수코드(yyyyMM, MM 01/07) start=end, 재무제표=사업종료년월(yyyyMM).
+  let taxStartMonth: string | undefined;
+  let taxEndMonth: string | undefined;
+  if (docType === "vat_taxbase") {
+    taxStartMonth = await field("CODEF_SMOKE_TAX_START", "부가세 과세기간(yyyyMM, MM=01 1기/07 2기)", "202401");
+    taxEndMonth = await field("CODEF_SMOKE_TAX_END", "부가세 과세기간 종료(yyyyMM)", taxStartMonth);
+  } else if (docType === "financial_statements") {
+    taxStartMonth = await field("CODEF_SMOKE_TAX_START", "재무제표 사업종료년월(yyyyMM)", "202312");
   }
 
-  if (!userName || !phoneNo || (isResident ? !identity : !birthDate)) {
-    console.error("✗ 이름·휴대폰·(등본:주민번호 / 홈택스:생년월일)은 필수입니다.");
+  if (!userName || !phoneNo || !birthDate) {
+    console.error("✗ 이름·휴대폰·생년월일은 필수입니다.");
     process.exit(1);
   }
 
@@ -118,15 +110,12 @@ async function main(): Promise<void> {
     docType,
     userName,
     birthDate,
-    identity,
-    addrSido,
-    addrSiGunGu,
     phoneNo,
     loginTypeLevel,
     telecom,
     id: "smoke-" + docType,
-    startYear,
-    endYear,
+    taxStartMonth,
+    taxEndMonth,
   };
 
   console.log(`\n[1/2] startEasyAuth — ${docType} (loginType=5, provider=${loginTypeLevel})`);

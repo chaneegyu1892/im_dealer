@@ -4,7 +4,7 @@ import { easyAuthFieldsSchema, twoWayInfoSchema, toEasyAuthInput } from "./valid
 describe("easyAuthFieldsSchema", () => {
   const valid = {
     verificationId: "v1",
-    docType: "resident_register",
+    docType: "biz_registration_proof",
     userName: "홍길동",
     phoneNo: "01012345678",
     loginTypeLevel: "1",
@@ -39,18 +39,31 @@ describe("twoWayInfoSchema", () => {
 });
 
 describe("toEasyAuthInput", () => {
-  it("birthDate 미제공 시 빈 문자열로 채운다(등본)", () => {
+  it("birthDate 미제공 시 빈 문자열로 채운다", () => {
     const input = toEasyAuthInput(easyAuthFieldsSchema.parse({
       verificationId: "v1",
-      docType: "resident_register",
+      docType: "biz_registration_proof",
       userName: "홍길동",
       phoneNo: "01012345678",
       loginTypeLevel: "1",
       id: "sess-1",
-      identity: "9001011234567",
     }));
     expect(input.birthDate).toBe("");
-    expect(input.identity).toBe("9001011234567");
-    expect(input.docType).toBe("resident_register");
+    expect(input.docType).toBe("biz_registration_proof");
+  });
+
+  it("부가세 과세기간(taxStartMonth/taxEndMonth)을 전달한다", () => {
+    const input = toEasyAuthInput(easyAuthFieldsSchema.parse({
+      verificationId: "v1",
+      docType: "vat_taxbase",
+      userName: "홍길동",
+      phoneNo: "01012345678",
+      loginTypeLevel: "1",
+      id: "sess-1",
+      taxStartMonth: "202401",
+      taxEndMonth: "202401",
+    }));
+    expect(input.taxStartMonth).toBe("202401");
+    expect(input.taxEndMonth).toBe("202401");
   });
 });

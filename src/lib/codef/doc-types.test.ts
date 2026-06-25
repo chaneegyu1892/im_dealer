@@ -3,23 +3,23 @@ import { DOC_TYPES, docTypesForCustomer, type DocType } from "@/lib/codef/doc-ty
 import { CUSTOMER_TYPES } from "@/constants/customer-types";
 
 describe("doc-types", () => {
-  it("개인은 등본·소득금액증명원을 수집한다", () => {
-    expect(docTypesForCustomer("individual")).toEqual([
-      "resident_register",
-      "income_proof",
-    ]);
+  it("개인은 원천징수영수증을 수집한다", () => {
+    expect(docTypesForCustomer("individual")).toEqual(["income_withholding"]);
   });
 
-  it("개인사업자는 등본·사업자증명·소득금액증명원을 수집한다", () => {
+  it("개인사업자는 사업자등록증명·부가세과세표준증명을 수집한다", () => {
     expect(docTypesForCustomer("self_employed")).toEqual([
-      "resident_register",
       "biz_registration_proof",
-      "income_proof",
+      "vat_taxbase",
     ]);
   });
 
-  it("법인은 사업자등록증명만 수집한다", () => {
-    expect(docTypesForCustomer("corporate")).toEqual(["biz_registration_proof"]);
+  it("법인은 사업자등록증명·표준재무제표증명·부가세과세표준증명을 수집한다", () => {
+    expect(docTypesForCustomer("corporate")).toEqual([
+      "biz_registration_proof",
+      "financial_statements",
+      "vat_taxbase",
+    ]);
   });
 
   it("모든 고객유형은 최소 1개 문서를 매핑한다", () => {
