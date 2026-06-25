@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronLeft, Shield, FileText, Building2, HeartPulse, CheckCircle2, Loader2 } from "lucide-react";
+import { Check, ChevronLeft, Shield, FileText, Building2, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SelectionCard } from "@/components/recommend/SelectionCard";
 import { cn } from "@/lib/utils";
@@ -122,8 +122,8 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
   const items = [
     {
       icon: <FileText size={18} className="text-primary" />,
-      title: "주민등록등본",
-      desc: "정부24에서 등본을 발급받습니다. (개인·개인사업자)",
+      title: "근로소득 원천징수영수증",
+      desc: "국세청 홈택스에서 발급받습니다. (개인)",
     },
     {
       icon: <Building2 size={18} className="text-primary" />,
@@ -131,9 +131,14 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
       desc: "국세청 홈택스에서 발급받습니다. (개인사업자·법인)",
     },
     {
-      icon: <HeartPulse size={18} className="text-primary" />,
-      title: "소득금액증명원",
-      desc: "국세청 홈택스에서 발급받습니다. (개인·개인사업자)",
+      icon: <FileText size={18} className="text-primary" />,
+      title: "부가가치세과세표준증명",
+      desc: "국세청 홈택스에서 발급받습니다. (개인사업자·법인)",
+    },
+    {
+      icon: <FileText size={18} className="text-primary" />,
+      title: "표준재무제표증명",
+      desc: "국세청 홈택스에서 발급받습니다. (법인)",
     },
   ];
 
