@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
  * 검증 포인트:
  *   1) sessionId 없이 접근 시 홈으로 redirect
  *   2) 동의 단계: 두 동의 체크박스 모두 체크해야 다음 진행
- *   3) 정보입력 단계: 새 필드(이름·주민등록번호·휴대폰·주소) 노출 +
+ *   3) 정보입력 단계: 필드(이름·주민등록번호·휴대폰) 노출 +
  *      필수값 충족 전 "간편인증으로 진행" 버튼 비활성
  *
  * 주의: 본 spec 은 로그인/Codef 호출까지 가지 않는다. 폼 노출·검증 게이트까지만 확인.
@@ -38,20 +38,17 @@ test.describe("/verify 폼 검증", () => {
     await expect(page.getByLabel("이름")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByPlaceholder("앞 6자리")).toBeVisible();
     await expect(page.getByLabel("휴대폰 번호")).toBeVisible();
-    // 개인사업자 → 등본 필요 → 주소 드롭다운 노출
-    await expect(page.getByLabel("주소 시군구")).toBeVisible();
 
     // 미입력 상태에서는 진행 버튼 비활성
     const submitBtn = page.getByRole("button", { name: /간편인증으로 진행/ });
     await expect(submitBtn).toBeDisabled();
 
-    // 필수값 채우면 활성화 (주민번호 앞6/뒤7, 주소 드롭다운)
+    // 필수값(이름·주민번호 앞6/뒤7·휴대폰)을 채우면 활성화
+    // 등본 제거로 주소 입력은 더 이상 받지 않는다.
     await page.getByLabel("이름").fill("홍길동");
     await page.getByPlaceholder("앞 6자리").fill("900101");
     await page.getByPlaceholder("뒤 7자리").fill("1234567");
     await page.getByLabel("휴대폰 번호").fill("01012345678");
-    await page.getByLabel("주소 시도").selectOption("서울특별시");
-    await page.getByLabel("주소 시군구").selectOption("영등포구");
 
     await expect(submitBtn).toBeEnabled();
   });
