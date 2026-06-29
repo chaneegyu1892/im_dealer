@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatMonthly } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import {
   Building2, ChevronDown, ChevronUp, Trophy, HelpCircle, ShieldCheck, TrendingDown,
 } from "lucide-react";
@@ -10,6 +10,7 @@ import { isCustomerType, type CustomerType } from "@/constants/customer-types";
 import type { QuoteScenarioDetails, QuoteScenarioDetail, FinanceCompanyQuote } from "@/types/quote";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import { MemberGate } from "@/components/auth/MemberGate";
+import { TossPrice } from "@/components/ui/TossPrice";
 
 // ─── 타입 ─────────────────────────────────────────────────
 type ApprovalPreviewLevel = "high" | "medium" | "low";
@@ -217,16 +218,16 @@ export function QuoteBreakdownTabs({
               type="button"
               onClick={() => switchMode(mode)}
               className={cn(
-                "min-h-[92px] py-3.5 px-3.5 rounded-[16px] border text-left transition-all duration-200",
+                "min-h-[92px] py-3.5 px-3.5 rounded-card border text-left transition-all duration-200",
                 isActive
-                  ? "border-primary bg-primary-100 shadow-[0_8px_18px_rgba(0,6,102,0.08)]"
-                  : "border-[#E8EAF2] bg-white hover:border-primary/30"
+                  ? "border-brand bg-brand-soft shadow-soft"
+                  : "border-line2 bg-white hover:border-brand/30"
               )}
             >
               <span className="block text-[10px] font-medium uppercase tracking-wider text-ink-caption mb-0.5">
                 초기비용
               </span>
-              <span className={cn("block text-[15px] font-semibold", isActive ? "text-primary" : "text-ink")}>
+              <span className={cn("block text-[15px] font-bold", isActive ? "text-brand" : "text-ink")}>
                 {title}
               </span>
               <span className="block text-[11px] text-ink-caption mt-0.5">{desc}</span>
@@ -238,16 +239,16 @@ export function QuoteBreakdownTabs({
       {/* ② 초기비용 설정 — 비회원은 블러 + 카카오 로그인 유도 */}
       {costMode === "initial" && onCustomRatesChange && (
         <MemberGate locked={locked} onLogin={onMemberLogin}>
-        <div className="rounded-[18px] border border-[#E0E4EE] bg-white p-4 space-y-4 shadow-[0_8px_18px_rgba(18,24,40,0.04)]">
+        <div className="rounded-card border border-line2 bg-white p-4 space-y-4 shadow-soft">
 
           {/* 헤더 */}
           <div className="flex items-center justify-between">
-            <p className="text-[12px] font-semibold text-ink-label uppercase tracking-wider">초기비용 설정</p>
+            <p className="text-[12px] font-bold text-ink-label uppercase tracking-wider">초기비용 설정</p>
             <span className={cn(
               "flex items-center gap-1.5 text-[11px] text-ink-caption transition-opacity duration-200",
               isRecalculating ? "opacity-100" : "opacity-0 pointer-events-none"
             )}>
-              <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="inline-block w-3 h-3 border-2 border-brand border-t-transparent rounded-full animate-spin" />
               재계산 중…
             </span>
           </div>
@@ -264,10 +265,10 @@ export function QuoteBreakdownTabs({
                   onClick={() => switchCostType(type)}
                   className={cn(
                     "flex-1 py-2.5 px-3 rounded-[12px] border text-left transition-all duration-150",
-                    isActive ? "border-primary bg-primary/5" : "border-[#E8EAF2] bg-neutral hover:border-primary/30"
+                    isActive ? "border-brand bg-brand-soft" : "border-line2 bg-sec hover:border-brand/30"
                   )}
                 >
-                  <span className={cn("block text-[13px] font-semibold", isActive ? "text-primary" : "text-ink")}>
+                  <span className={cn("block text-[13px] font-bold", isActive ? "text-brand" : "text-ink")}>
                     {info.label}
                   </span>
                   <span className="block text-[10px] text-ink-caption">{info.subLabel}</span>
@@ -277,7 +278,7 @@ export function QuoteBreakdownTabs({
             <button
               type="button"
               title={COST_TYPE_INFO[costType].tooltip}
-              className="p-2 rounded-full text-ink-caption hover:text-ink hover:bg-neutral transition-colors shrink-0"
+              className="p-2 rounded-full text-ink-caption hover:text-ink hover:bg-sec transition-colors shrink-0"
               onClick={() => alert(COST_TYPE_INFO[costType].tooltip)}
             >
               <HelpCircle size={16} />
@@ -294,10 +295,10 @@ export function QuoteBreakdownTabs({
                 type="button"
                 onClick={() => applyRate(0)}
                 className={cn(
-                  "px-3 py-1.5 rounded-full border text-[12px] font-medium transition-all duration-150",
+                  "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
                   activeRate === 0 && !directMode
                     ? "bg-ink text-white border-ink"
-                    : "bg-white text-ink-label border-[#E0E0E0] hover:border-ink/40"
+                    : "bg-white text-ink-label border-line2 hover:border-ink/40"
                 )}
               >
                 없음
@@ -308,10 +309,10 @@ export function QuoteBreakdownTabs({
                   type="button"
                   onClick={() => applyRate(r)}
                   className={cn(
-                    "px-3 py-1.5 rounded-full border text-[12px] font-medium transition-all duration-150",
+                    "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
                     activeRate === r && !directMode
-                      ? "bg-primary text-white border-primary"
-                      : "bg-white text-ink-label border-[#E0E0E0] hover:border-primary/40"
+                      ? "bg-brand text-white border-brand"
+                      : "bg-white text-ink-label border-line2 hover:border-brand/40"
                   )}
                 >
                   {r}%
@@ -321,10 +322,10 @@ export function QuoteBreakdownTabs({
                 type="button"
                 onClick={() => { setDirectMode(true); setDirectValue(String(activeRate)); }}
                 className={cn(
-                  "px-3 py-1.5 rounded-full border text-[12px] font-medium transition-all duration-150",
+                  "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
                   directMode
-                    ? "bg-primary text-white border-primary"
-                    : "bg-white text-ink-label border-[#E0E0E0] hover:border-primary/40"
+                    ? "bg-brand text-white border-brand"
+                    : "bg-white text-ink-label border-line2 hover:border-brand/40"
                 )}
               >
                 직접입력
@@ -335,7 +336,7 @@ export function QuoteBreakdownTabs({
           {/* 직접 입력 필드 */}
           {directMode && (
             <div className="flex items-center gap-2">
-              <div className="flex items-center border border-[#E0E0E0] rounded-[10px] overflow-hidden bg-white focus-within:border-primary/50 transition-colors">
+              <div className="flex items-center border border-line2 rounded-[10px] overflow-hidden bg-white focus-within:border-brand/50 transition-colors">
                 <input
                   type="number"
                   min={0}
@@ -343,7 +344,7 @@ export function QuoteBreakdownTabs({
                   value={directValue}
                   onChange={(e) => setDirectValue(e.target.value)}
                   placeholder="0"
-                  className="w-20 px-3 py-2 text-[15px] font-semibold text-ink bg-transparent outline-none tabular-nums"
+                  className="num w-20 px-3 py-2 text-[15px] font-extrabold text-ink bg-transparent outline-none tabular-nums"
                 />
                 <span className="pr-3 text-[13px] text-ink-caption font-medium">%</span>
               </div>
@@ -354,7 +355,7 @@ export function QuoteBreakdownTabs({
                   applyRate(v);
                   setDirectValue(String(v));
                 }}
-                className="px-4 py-2 rounded-[10px] bg-primary text-white text-[12px] font-semibold hover:bg-primary/90 transition-colors"
+                className="px-4 py-2 rounded-[10px] bg-brand text-white text-[12px] font-bold hover:bg-brand-dark transition-colors"
               >
                 적용
               </button>
@@ -370,7 +371,7 @@ export function QuoteBreakdownTabs({
                   style={{
                     // 썸 중심 위치까지 채움 — 썸 이동 범위 보정과 동일 식
                     width: `calc(${(activeRate / RATE_MAX)} * (100% - 20px) + 10px)`,
-                    background: "linear-gradient(90deg, #000666 0%, #6066EE 100%)",
+                    background: "linear-gradient(90deg, #27368A 0%, #5A3DB0 100%)",
                   }}
                 />
               </div>
@@ -392,8 +393,8 @@ export function QuoteBreakdownTabs({
                 style={{
                   left: `calc(${(activeRate / RATE_MAX)} * (100% - 20px) + 10px)`,
                   background: "#fff",
-                  border: "2.5px solid #000666",
-                  boxShadow: activeRate > 0 ? "0 1px 8px rgba(0,6,102,0.3)" : "0 1px 4px rgba(0,0,0,0.15)",
+                  border: "2.5px solid #27368A",
+                  boxShadow: activeRate > 0 ? "0 1px 8px rgba(39,54,138,0.3)" : "0 1px 4px rgba(0,0,0,0.15)",
                 }}
               />
             </div>
@@ -407,8 +408,8 @@ export function QuoteBreakdownTabs({
                   className={cn(
                     "text-[10px] font-medium transition-colors px-0.5",
                     activeRate === tick
-                      ? "text-primary font-bold"
-                      : "text-ink-caption hover:text-primary"
+                      ? "text-brand font-bold"
+                      : "text-ink-caption hover:text-brand"
                   )}
                 >
                   {tick === 0 ? "0%" : `${tick}%`}
@@ -419,20 +420,20 @@ export function QuoteBreakdownTabs({
 
           {/* 절감 효과 */}
           {discountInfo && (
-            <div className="rounded-[10px] bg-[#EEF2FF] border border-primary/20 p-3">
+            <div className="rounded-[10px] bg-brand-soft border border-brand/20 p-3">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="flex items-center gap-1.5 text-[12px] font-semibold text-primary">
+                <span className="flex items-center gap-1.5 text-[12px] font-bold text-brand">
                   <TrendingDown size={13} />
                   월 납입금 절감
                 </span>
-                <span className="text-[15px] font-bold text-primary tabular-nums">
+                <span className="num text-[15px] font-extrabold text-brand tabular-nums">
                   −{formatCurrency(discountInfo.monthly)}/월
                 </span>
               </div>
-              <p className="text-[11px] text-primary/75 leading-relaxed">
+              <p className="text-[11px] text-brand/75 leading-relaxed">
                 납부한 {discountInfo.typeLabel}({formatCurrency(discountInfo.amount)})의
                 연간 수익률로 환산하면 약{" "}
-                <span className="font-bold text-primary">{discountInfo.effectiveRate.toFixed(1)}%</span>에 해당합니다.
+                <span className="font-bold text-brand">{discountInfo.effectiveRate.toFixed(1)}%</span>에 해당합니다.
                 {discountInfo.returned
                   ? " 보증금은 계약 종료 후 전액 반환됩니다."
                   : " 선납금은 반환되지 않으나 그만큼 매달 부담이 줄어듭니다."}
@@ -443,40 +444,53 @@ export function QuoteBreakdownTabs({
         </MemberGate>
       )}
 
-      {/* ③ 월 납입금 */}
+      {/* ③ 월 납입금 — 토스 시그니처 거대 숫자 */}
       <div
         className={cn(
-          "rounded-[18px] border border-primary/15 bg-[linear-gradient(180deg,#F7F8FF_0%,#FFFFFF_86%)] p-4 transition-opacity duration-200 shadow-[0_10px_24px_rgba(0,6,102,0.07)]",
+          "rounded-[18px] border border-brand/15 bg-brand-soft p-5 transition-opacity duration-200 shadow-soft",
           isRecalculating && "opacity-60"
         )}
       >
-        <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/65 mb-1">
-              월 납입금
+            <p className="text-[12px] font-extrabold text-brand/70 mb-2">
+              월 렌트료 · 기본
             </p>
-            <p className="whitespace-nowrap text-[34px] min-[390px]:text-[36px] md:text-[40px] font-semibold text-primary leading-none tabular-nums tracking-normal">
-              {formatMonthly(data.monthlyPayment)}
-            </p>
+            <TossPrice won={data.monthlyPayment} size="xl" tone="brand" />
           </div>
           {data.bestFinanceCompany && (
-            <span className="inline-flex w-fit items-center gap-1.5 text-[11px] font-semibold text-primary bg-white border border-primary/15 rounded-full px-2.5 py-1 shadow-sm sm:mb-1">
-              <Building2 size={10} className="text-secondary" />
+            <span className="inline-flex w-fit items-center gap-1.5 text-[11px] font-bold text-brand bg-white border border-brand/15 rounded-full px-2.5 py-1 shadow-sm sm:mb-1.5">
+              <Building2 size={10} className="text-brand" />
               {data.bestFinanceCompany}
             </span>
           )}
         </div>
       </div>
 
-      {/* ④ 계약 조건 그리드 */}
-      <div className="rounded-[14px] bg-public-bg p-4 grid grid-cols-2 gap-y-3 gap-x-4 border border-[#EEF0F5]">
-        <ConditionRow label="계약기간" value={`${data.contractMonths}개월`} />
-        <ConditionRow label="약정거리" value={`연 ${(data.annualMileage / 10000).toFixed(0)}만km`} />
+      {/* ④ 조건 요약 — 토스 회색 블록 + 리스트 행 */}
+      <div className="t-gray px-4 py-1.5">
+        <p className="pt-3 pb-1 text-[11px] font-extrabold uppercase tracking-[0.1em] text-g2">
+          조건 요약
+        </p>
+        <div className="t-lrow border-t border-line">
+          <span className="k">계약기간</span>
+          <span className="v">{data.contractMonths}개월</span>
+        </div>
+        <div className="t-lrow border-t border-line">
+          <span className="k">연간주행</span>
+          <span className="v">연 {(data.annualMileage / 10000).toFixed(0)}만km</span>
+        </div>
         {data.depositAmount > 0 && (
-          <ConditionRow label="보증금" value={formatCurrency(data.depositAmount)} />
+          <div className="t-lrow border-t border-line">
+            <span className="k">보증금</span>
+            <span className="v num text-brand">{formatCurrency(data.depositAmount)}</span>
+          </div>
         )}
         {data.prepayAmount > 0 && (
-          <ConditionRow label="선납금" value={formatCurrency(data.prepayAmount)} />
+          <div className="t-lrow border-t border-line">
+            <span className="k">선납금</span>
+            <span className="v num text-brand">{formatCurrency(data.prepayAmount)}</span>
+          </div>
         )}
       </div>
 
@@ -517,18 +531,18 @@ function FinanceSection({
   const best = sorted[0];
 
   return (
-    <div className="rounded-[16px] border border-[#E8EAF2] overflow-hidden bg-white">
+    <div className="rounded-card border border-line2 overflow-hidden bg-white">
       {/* 헤더 */}
-      <div className="flex items-center gap-2 px-4 py-3 bg-neutral border-b border-[#F0F2F8]">
-        <Trophy size={12} className="text-primary" />
-        <span className="text-[12px] font-semibold text-ink-label uppercase tracking-wider">
+      <div className="flex items-center gap-2 px-4 py-3 bg-sec border-b border-line">
+        <Trophy size={12} className="text-brand" />
+        <span className="text-[12px] font-bold text-ink-label uppercase tracking-wider">
           금융사별 견적
         </span>
         <span className="ml-auto text-[11px] text-ink-caption">{sorted.length}개사</span>
       </div>
 
       {/* 상위 2개 항상 노출 */}
-      <div className="divide-y divide-[#F0F2F8] bg-white">
+      <div className="divide-y divide-line bg-white">
         {top2.map((r, i) => (
           <FinanceRow key={`${r.financeCompanyName}-${i}`} result={r} rank={i} best={best} />
         ))}
@@ -540,7 +554,7 @@ function FinanceSection({
           <button
             type="button"
             onClick={onToggle}
-            className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-neutral hover:bg-neutral-800 border-t border-[#F0F2F8] transition-colors text-[11px] font-medium text-ink-caption"
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-sec hover:bg-line2 border-t border-line transition-colors text-[11px] font-medium text-ink-caption"
           >
             {expanded ? (
               <>접기 <ChevronUp size={12} /></>
@@ -549,7 +563,7 @@ function FinanceSection({
             )}
           </button>
           {expanded && (
-            <div className="divide-y divide-[#F0F2F8] bg-white border-t border-[#F0F2F8]">
+            <div className="divide-y divide-line bg-white border-t border-line">
               {rest.map((r, i) => (
                 <FinanceRow key={`${r.financeCompanyName}-${i}`} result={r} rank={i + 2} best={best} />
               ))}
@@ -562,7 +576,7 @@ function FinanceSection({
 }
 
 const RANK_STYLE: Record<number, { color: string; bg: string; label: string }> = {
-  0: { color: "#000666", bg: "#E5E5FA", label: "최저가" },
+  0: { color: "#27368A", bg: "#ECEEF9", label: "최저가" },
   1: { color: "#059669", bg: "#ECFDF5", label: "2순위" },
   2: { color: "#D97706", bg: "#FFFBEB", label: "3순위" },
   3: { color: "#9BA4C0", bg: "#F4F5F8", label: "기타" },
@@ -582,20 +596,18 @@ function FinanceRow({
   const style = RANK_STYLE[rank] ?? RANK_STYLE[3];
 
   return (
-      <div className={cn("flex items-center gap-3 px-4 py-3", isBest && "bg-primary-100")}>
+      <div className={cn("flex items-center gap-3 px-4 py-3", isBest && "bg-brand-soft")}>
       <span
         className="text-[10px] font-bold px-2 py-0.5 rounded-[4px] shrink-0 w-[46px] text-center"
         style={{ color: style.color, background: style.bg }}
       >
         {style.label}
       </span>
-      <span className={cn("flex-1 text-[13px] truncate min-w-0", isBest ? "font-semibold text-primary" : "text-ink-body")}>
+      <span className={cn("flex-1 text-[13px] truncate min-w-0", isBest ? "font-bold text-brand" : "text-ink-body")}>
         {result.financeCompanyName}
       </span>
       <div className="flex flex-col items-end shrink-0">
-        <span className={cn("text-[15px] font-semibold tabular-nums", isBest ? "text-primary" : "text-ink")}>
-          {formatMonthly(result.monthlyPayment)}
-        </span>
+        <TossPrice won={result.monthlyPayment} size="md" tone={isBest ? "brand" : "ink"} />
         <span className="text-[10px] text-ink-caption tabular-nums">
           {diff > 0 ? `+${formatCurrency(diff)}` : "기준가"}
         </span>
@@ -614,17 +626,15 @@ function BreakdownSection({
   if (!bd) return null;
 
   return (
-    <div className="rounded-[16px] border border-[#E8EAF2] overflow-hidden bg-white">
+    <div className="rounded-card border border-line2 overflow-hidden bg-white">
       {/* 요약 */}
-      <div className="px-4 py-3 bg-secondary-100 space-y-2.5">
-        <p className="text-[11px] font-semibold text-ink-label uppercase tracking-wider">견적 산출 내역</p>
+      <div className="px-4 py-3 bg-sec space-y-2.5">
+        <p className="text-[11px] font-bold text-ink-label uppercase tracking-wider">견적 산출 내역</p>
         <CalcRow label="차량가격" value={formatCurrency(bd.vehiclePrice)} />
         <CalcRow label="기준 대여료" value={formatCurrency(bd.baseMonthly)} bold />
-        <div className="flex items-center justify-between pt-2 border-t border-[#D8DCF0] mt-0.5">
-          <span className="text-[13px] font-semibold text-primary">최종 월 납입금</span>
-          <span className="text-[20px] font-semibold text-primary tabular-nums">
-            {formatMonthly(data.monthlyPayment)}
-          </span>
+        <div className="flex items-center justify-between pt-2 border-t border-line2 mt-0.5">
+          <span className="text-[13px] font-bold text-brand">최종 월 납입금</span>
+          <TossPrice won={data.monthlyPayment} size="md" tone="brand" />
         </div>
       </div>
     </div>
@@ -632,15 +642,6 @@ function BreakdownSection({
 }
 
 // ─── 공통 서브 컴포넌트 ────────────────────────────────────
-function ConditionRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] text-ink-caption">{label}</p>
-      <p className="text-[13px] font-medium text-ink mt-0.5">{value}</p>
-    </div>
-  );
-}
-
 function ApprovalPreview({ data }: { data: QuoteScenarioDetail }) {
   const depositRate = getDepositRate(data);
   const level = estimateApproval(data.monthlyPayment, depositRate);
@@ -713,7 +714,7 @@ function CostCheckpoint({ contractType, customerType }: { contractType: string; 
       <p className="text-[11px] font-semibold text-ink-label">체크포인트</p>
       {points.map((p) => (
         <p key={p} className="text-[12px] text-ink-caption flex items-start gap-1.5">
-          <span className="text-primary mt-0.5">•</span>
+          <span className="text-brand mt-0.5">•</span>
           {p}
         </p>
       ))}
@@ -722,7 +723,7 @@ function CostCheckpoint({ contractType, customerType }: { contractType: string; 
           <p className="text-[11px] font-semibold text-ink-label">고객 유형 안내</p>
           {customerPoints.map((p) => (
             <p key={p} className="text-[12px] text-ink-caption flex items-start gap-1.5">
-              <span className="text-primary mt-0.5">•</span>
+              <span className="text-brand mt-0.5">•</span>
               {p}
             </p>
           ))}

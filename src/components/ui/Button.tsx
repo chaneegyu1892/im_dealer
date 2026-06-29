@@ -7,7 +7,7 @@ import {
   isValidElement,
 } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "inverted" | "outlined";
+type ButtonVariant = "primary" | "secondary" | "inverted" | "outlined" | "ghost";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -20,13 +20,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-white hover:opacity-90 active:opacity-80",
+    "bg-brand text-white hover:bg-brand-dark active:bg-brand-dark",
   secondary:
-    "bg-neutral text-primary border border-neutral-800 hover:bg-neutral-800",
+    "bg-sec text-ink border border-line2 hover:bg-line2",
   inverted:
     "bg-navy-dark text-white hover:opacity-90 active:opacity-80",
   outlined:
-    "bg-transparent text-ink border border-neutral-800 hover:bg-neutral-800",
+    "bg-transparent text-ink border border-line2 hover:bg-sec",
+  ghost:
+    "bg-sec text-ink hover:bg-line2",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
@@ -50,7 +52,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const classes = cn(
-      "inline-flex items-center justify-center rounded-btn font-medium",
+      "inline-flex items-center justify-center rounded-btn font-bold",
       "transition-all duration-200",
       "disabled:opacity-40 disabled:cursor-not-allowed",
       variantStyles[variant],

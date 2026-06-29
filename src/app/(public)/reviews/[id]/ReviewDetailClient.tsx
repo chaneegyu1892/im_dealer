@@ -45,13 +45,13 @@ export function ReviewDetailClient({ review }: ReviewDetailClientProps) {
 
   return (
     <div className="space-y-6">
-      <p className="text-[16px] text-ink-body leading-[1.8] whitespace-pre-wrap break-words">
+      <p className="text-[15px] text-g1 leading-[1.75] whitespace-pre-wrap break-words">
         {review.content}
       </p>
 
       {review.imageUrls.length > 0 && (
         <div className="space-y-3">
-          <div className="aspect-[16/10] w-full bg-[#F5F5F5] rounded-[12px] overflow-hidden border border-[#F0F0F0]">
+          <div className="aspect-[16/10] w-full bg-sec rounded-[14px] overflow-hidden border border-line2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={review.imageUrls[activeIdx]}
@@ -67,9 +67,9 @@ export function ReviewDetailClient({ review }: ReviewDetailClientProps) {
                   key={url}
                   onClick={() => setActiveIdx(idx)}
                   className={cn(
-                    "shrink-0 w-20 h-20 rounded-[8px] overflow-hidden border-2 transition-colors",
+                    "shrink-0 w-20 h-20 rounded-[10px] overflow-hidden border-2 transition-colors",
                     idx === activeIdx
-                      ? "border-primary"
+                      ? "border-brand"
                       : "border-transparent opacity-70 hover:opacity-100"
                   )}
                 >
@@ -86,8 +86,8 @@ export function ReviewDetailClient({ review }: ReviewDetailClientProps) {
         </div>
       )}
 
-      <div className="pt-4 border-t border-[#F0F0F0] flex items-center justify-between gap-4">
-        <span className="text-[13px] text-ink-caption">
+      <div className="t-gray flex items-center justify-between gap-4 p-4">
+        <span className="text-[13.5px] font-bold text-g1">
           이 후기가 도움이 되었나요?
         </span>
         {likedResolved ? (
@@ -99,7 +99,7 @@ export function ReviewDetailClient({ review }: ReviewDetailClientProps) {
             variant="filled"
           />
         ) : (
-          <div className="h-9 w-20 rounded-full bg-[#F4F5FA] animate-pulse" />
+          <div className="h-10 w-20 rounded-pill bg-line2 animate-pulse" />
         )}
       </div>
     </div>

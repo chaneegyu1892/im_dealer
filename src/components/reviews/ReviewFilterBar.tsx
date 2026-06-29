@@ -68,18 +68,18 @@ export function ReviewFilterBar({
   };
 
   return (
-    <div className="bg-white rounded-card border border-[#F0F0F0] p-4 sm:p-5 space-y-5">
+    <div className="t-card p-4 sm:p-5 space-y-5">
       {/* 정렬 + 결과 수 */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold text-ink-caption uppercase tracking-wide">
+          <span className="text-[12px] font-extrabold text-g2">
             정렬
           </span>
           <div className="relative">
             <select
               value={state.sort}
               onChange={(e) => update({ sort: e.target.value as ReviewSort })}
-              className="h-9 pl-3 pr-8 text-[13px] text-ink bg-white border border-[#E5E7F0] rounded-[10px] appearance-none cursor-pointer focus:outline-none focus:border-[#6066EE]"
+              className="h-9 pl-3 pr-8 text-[13px] font-bold text-ink bg-sec border border-line2 rounded-[11px] appearance-none cursor-pointer focus:outline-none focus:border-brand"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -89,22 +89,22 @@ export function ReviewFilterBar({
             </select>
             <ChevronDown
               size={14}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-caption pointer-events-none"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-g2 pointer-events-none"
             />
           </div>
         </div>
 
         {typeof resultCount === "number" && (
-          <span className="text-[12px] text-ink-caption">
-            총 {resultCount}개 후기
+          <span className="text-[12px] font-bold text-g2">
+            총 <span className="num font-extrabold text-ink">{resultCount}</span>개 후기
           </span>
         )}
       </div>
 
       {/* 차량 (브랜드 → 차종) */}
-      <div className="space-y-3 pt-1 border-t border-[#F0F0F0]">
+      <div className="space-y-3 pt-1 border-t border-line2">
         <div className="flex flex-wrap items-center gap-2 pt-3">
-          <span className="text-[11px] font-semibold text-ink-caption uppercase tracking-wide mr-1 shrink-0">
+          <span className="text-[12px] font-extrabold text-g2 mr-1 shrink-0">
             브랜드
           </span>
           <BrandChip
@@ -123,7 +123,7 @@ export function ReviewFilterBar({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold text-ink-caption uppercase tracking-wide w-12 shrink-0">
+          <span className="text-[12px] font-extrabold text-g2 w-12 shrink-0">
             차종
           </span>
           <div className="flex-1 min-w-0 max-w-[420px]">
@@ -143,8 +143,8 @@ export function ReviewFilterBar({
       </div>
 
       {/* 평점 + 이미지 + 초기화 */}
-      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[#F0F0F0]">
-        <span className="text-[11px] font-semibold text-ink-caption uppercase tracking-wide mr-1 mt-3 shrink-0">
+      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-line2">
+        <span className="text-[12px] font-extrabold text-g2 mr-1 mt-3 shrink-0">
           평점
         </span>
         <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -156,19 +156,12 @@ export function ReviewFilterBar({
                 type="button"
                 onClick={() => toggleRating(r)}
                 aria-pressed={active}
-                className={cn(
-                  "inline-flex items-center gap-1 h-8 px-3 rounded-full text-[12px] font-medium border transition-colors",
-                  active
-                    ? "bg-primary text-white border-primary"
-                    : "bg-white text-ink-caption border-[#E5E7F0] hover:border-[#CDD2E4]"
-                )}
+                className={cn("chip gap-1", active && "chip-on")}
               >
                 <Star
                   size={12}
                   className={cn(
-                    active
-                      ? "fill-white text-white"
-                      : "fill-primary text-primary"
+                    active ? "fill-white text-white" : "fill-brand text-brand"
                   )}
                 />
                 {r}점
@@ -176,17 +169,12 @@ export function ReviewFilterBar({
             );
           })}
 
-          <span className="w-px h-5 bg-[#E5E7F0] mx-1" aria-hidden />
+          <span className="w-px h-5 bg-line2 mx-1" aria-hidden />
 
           <button
             type="button"
             onClick={() => update({ withImages: !state.withImages })}
-            className={cn(
-              "inline-flex items-center gap-1 h-8 px-3 rounded-full text-[12px] font-medium border transition-colors",
-              state.withImages
-                ? "bg-primary text-white border-primary"
-                : "bg-white text-ink-caption border-[#E5E7F0] hover:border-[#CDD2E4]"
-            )}
+            className={cn("chip gap-1", state.withImages && "chip-on")}
           >
             <ImageIcon size={12} />
             사진 있는 후기만
@@ -204,9 +192,9 @@ export function ReviewFilterBar({
                   sort: state.sort,
                 })
               }
-              className="inline-flex items-center gap-1 h-8 px-3 rounded-full text-[12px] font-medium text-ink-caption hover:text-ink"
+              className="inline-flex items-center gap-1 h-9 px-3 rounded-pill text-[13px] font-bold text-g2 hover:text-ink"
             >
-              <X size={12} />
+              <X size={13} />
               필터 초기화
             </button>
           )}
@@ -230,12 +218,7 @@ function BrandChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={cn(
-        "inline-flex items-center h-8 px-3 rounded-full text-[12px] font-medium border transition-colors",
-        active
-          ? "bg-primary text-white border-primary"
-          : "bg-white text-ink-caption border-[#E5E7F0] hover:border-[#CDD2E4]"
-      )}
+      className={cn("chip", active && "chip-on")}
     >
       {label}
     </button>

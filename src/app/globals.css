@@ -118,6 +118,81 @@
     @apply text-[11px] font-semibold text-ink-caption uppercase tracking-[0.15em];
   }
 
+  /* ══ Toss-style Navy 디자인 시스템 (feat/toss-redesign) ═══════════════
+     모바일앱 기준 · 데스크톱은 같은 컬럼을 확장. 공개 화면 전용 opt-in.
+     전역 body·admin 에는 영향 없음. 폰트 크기는 실제 폰 가독성 기준으로 상향. */
+
+  /* 화면 중앙 컬럼 — 모바일 480 / 데스크톱 760 으로 "확장" */
+  .t-shell { @apply mx-auto w-full max-w-[480px] px-4 md:max-w-[760px] md:px-6; letter-spacing: -0.02em; }
+  .t-shell-wide { @apply mx-auto w-full max-w-[480px] px-4 md:max-w-[960px] md:px-6; letter-spacing: -0.02em; }
+
+  /* 큰 숫자: tabular-nums + 좁은 자간 (가격은 TossPrice 컴포넌트 권장) */
+  .num { font-variant-numeric: tabular-nums; letter-spacing: -0.04em; }
+
+  /* kicker 아이라벨 (STEP 02 · ABOUT 등) */
+  .t-kick { @apply inline-flex items-center gap-1.5 text-[12.5px] font-extrabold uppercase tracking-[0.08em] text-brand; }
+
+  /* 큰 헤드라인 */
+  .t-h1  { @apply text-[27px] md:text-[30px] font-extrabold leading-[1.25] tracking-[-0.04em] text-ink; }
+  .t-sub { @apply text-[14px] text-g1 leading-[1.55]; }
+
+  /* 태그 (soft pill) */
+  .t-tag    { @apply inline-flex items-center rounded-pill bg-brand-soft px-[13px] py-[6px] text-[13px] font-bold text-brand; }
+  .t-tag-pp { @apply bg-purple-soft text-purple; }
+
+  /* 카드 / 회색 정보블록 */
+  .t-card { @apply rounded-[18px] border border-line2 bg-white; }
+  .t-gray { @apply rounded-[16px] bg-sec; }
+
+  /* 리스트 행(조건요약 등) */
+  .t-lrow   { @apply flex items-center justify-between py-[10px] text-[14px]; }
+  .t-lrow .k { @apply text-g1; }
+  .t-lrow .v { @apply font-bold text-ink; }
+
+  /* 별점 */
+  .t-stars { color: #FFB020; letter-spacing: 1px; }
+
+  /* 아이콘 버튼 / 앱바 */
+  .t-iconbtn { @apply flex h-9 w-9 items-center justify-center rounded-[11px] bg-sec text-ink; }
+  .t-appbar  { @apply flex items-center gap-2.5 py-2; }
+  .t-appbar .t { @apply text-[16px] font-extrabold text-ink; }
+
+  /* 칩(필터/카테고리) */
+  .chip    { @apply inline-flex items-center px-[15px] py-[10px] rounded-pill text-[13.5px] font-bold bg-white border border-line2 text-g1 transition-colors; }
+  .chip-on { @apply bg-brand border-brand text-white; }
+
+  /* 세그먼티드 컨트롤 */
+  .seg        { @apply grid gap-1 bg-sec p-1 rounded-[13px]; }
+  .seg button { @apply py-[12px] rounded-[10px] text-[13.5px] font-extrabold text-g2 transition-all; }
+  .seg .on    { @apply bg-white text-ink shadow-soft; }
+
+  /* 진행 바 */
+  .t-progress     { @apply h-1.5 w-full overflow-hidden rounded-pill bg-line2; }
+  .t-progress > i { @apply block h-full rounded-pill bg-brand transition-[width] duration-300; }
+
+  /* 리스트 행(트림·기간·주행거리) */
+  .listrow { @apply flex items-center justify-between py-4; }
+
+  /* 선택 타일(라디오 카드) — 아이콘 박스 포함 */
+  .tile      { @apply flex items-center gap-3 p-4 rounded-[14px] border-[1.5px] border-line2 bg-white w-full text-left transition-colors; }
+  .tile-on   { @apply border-brand bg-brand-soft; }
+  .tile .ic  { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sec text-g1; }
+  .tile-on .ic { @apply bg-brand text-white; }
+  .tile .nm  { @apply text-[15px] font-extrabold text-ink; }
+  .tile .ds  { @apply text-[12.5px] text-g2; }
+
+  /* 메인 CTA */
+  .cta        { @apply w-full flex items-center justify-center gap-2 bg-brand text-white text-[16px] font-extrabold py-[15px] rounded-btn transition-colors; }
+  .cta:active { @apply bg-brand-dark; }
+  .cta:disabled { @apply opacity-40 cursor-not-allowed; }
+  .cta-gho    { @apply bg-sec text-ink; }
+
+  /* 하단 고정 CTA 도크 */
+  .dock { @apply sticky bottom-0 px-[18px] pt-[10px] pb-4 border-t border-line bg-white; }
+
+  /* 화면 래퍼: 토스식 좁은 자간 */
+  .toss-page { letter-spacing: -0.02em; -webkit-font-smoothing: antialiased; }
+
   /* ── Public mobile app surfaces ───────────────── */
   .public-app-page {
     background:

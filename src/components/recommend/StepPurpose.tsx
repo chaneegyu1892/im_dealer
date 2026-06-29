@@ -20,16 +20,17 @@ export function StepPurpose({ industry, value, onChange, detail, onDetailChange 
 
   return (
     <div className="space-y-3">
-      <div className="mb-5">
-        <h2 className="text-[19px] font-semibold leading-tight text-ink md:text-title-sm md:font-medium">
-          차량을 주로 어떤 용도로 사용하실 건가요?
+      <div className="mb-6">
+        <span className="t-kick">STEP 02</span>
+        <h2 className="t-h1 mt-2">
+          주로 <span className="text-brand">어디에</span> 쓰시나요?
         </h2>
-        <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-label">
+        <p className="t-sub mt-2">
           사용 목적에 맞는 차종과 조건을 추천해 드려요.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {purposeOptions.map((opt) => (
           <SelectionCard
             key={opt.value}
@@ -43,15 +44,13 @@ export function StepPurpose({ industry, value, onChange, detail, onDetailChange 
       </div>
 
       {value && detailQuestion && (
-        <div key={value} className="mt-5 animate-slide-down rounded-[16px] border border-public-border bg-public-bg p-4">
+        <div key={value} className="t-gray mt-6 animate-slide-down p-4">
           <div className="mb-4">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/70">
-              추가 질문
-            </p>
-            <h3 className="text-[15px] font-semibold text-ink">{detailQuestion.title}</h3>
-            <p className="mt-0.5 text-[12px] leading-relaxed text-public-muted">{detailQuestion.subtitle}</p>
+            <span className="t-kick text-[11px]">추가 질문</span>
+            <h3 className="mt-1.5 text-[18px] font-extrabold leading-snug tracking-[-0.03em] text-ink">{detailQuestion.title}</h3>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-g2">{detailQuestion.subtitle}</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {detailOptions.map((opt) => (
               <SelectionCard
                 key={opt.value}

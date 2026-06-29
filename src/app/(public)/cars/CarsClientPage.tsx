@@ -5,10 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowRight, Sparkles, Search, LayoutGrid, Truck, X,
+  ArrowRight, Search, LayoutGrid, Truck, X,
   ChevronDown, SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AiBadge } from "@/components/ui/AiBadge";
 import { CarCard } from "@/components/cars/CarCard";
 import { FeaturedCarsSlider } from "@/components/cars/FeaturedCarsSlider";
 import type { VehicleListItem } from "@/types/api";
@@ -215,14 +216,14 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -52, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-0 right-0 top-[50px] z-50 border-b border-public-border bg-white/95 shadow-sm backdrop-blur-md md:top-[72px]"
+            className="fixed left-0 right-0 top-[50px] z-50 border-b border-line2 bg-white/95 shadow-soft backdrop-blur-md md:top-[72px]"
           >
             <div className="page-container py-2.5">
               <div className="flex items-center gap-2">
 
                 {/* 활성 필터 칩 표시 */}
                 {brandFilter !== "전체" && (
-                  <span className="flex-shrink-0 flex items-center gap-1 h-8 px-3 rounded-full bg-primary/10 text-primary text-[12px] font-medium border border-primary/20">
+                  <span className="flex-shrink-0 flex items-center gap-1 h-8 px-3 rounded-pill bg-brand-soft text-brand text-[12px] font-bold">
                     {brandFilter}
                     <button onClick={() => setBrandFilter("전체")} className="ml-0.5">
                       <X size={10} />
@@ -230,7 +231,7 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                   </span>
                 )}
                 {categoryFilter !== "전체" && (
-                  <span className="flex-shrink-0 flex items-center gap-1 h-8 px-3 rounded-full bg-primary/10 text-primary text-[12px] font-medium border border-primary/20">
+                  <span className="flex-shrink-0 flex items-center gap-1 h-8 px-3 rounded-pill bg-brand-soft text-brand text-[12px] font-bold">
                     {categoryFilter}
                     <button onClick={() => setCategoryFilter("전체")} className="ml-0.5">
                       <X size={10} />
@@ -242,16 +243,16 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                 <button
                   onClick={scrollToFilters}
                   className={cn(
-                    "flex-shrink-0 flex items-center gap-1.5 h-8 px-3.5 rounded-full border text-[12px] font-medium transition-all duration-150",
+                    "flex-shrink-0 flex items-center gap-1.5 h-8 px-3.5 rounded-pill border text-[12px] font-bold transition-all duration-150",
                     activeFilterCount > 0
-                      ? "border-primary bg-primary text-white"
-                      : "border-[#DEDEDE] bg-white text-[#555] hover:border-[#ABABAB]",
+                      ? "border-brand bg-brand text-white"
+                      : "border-line2 bg-white text-g1 hover:border-g3",
                   )}
                 >
                   <SlidersHorizontal size={12} />
                   필터
                   {activeFilterCount > 0 && (
-                    <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white text-primary text-[10px] font-bold">
+                    <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white text-brand text-[10px] font-bold">
                       {activeFilterCount}
                     </span>
                   )}
@@ -260,18 +261,18 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                 <div className="flex-1" />
 
                 {/* 검색 */}
-                <div className="flex items-center gap-1.5 h-8 px-3 rounded-full border border-[#DEDEDE] bg-white focus-within:border-primary/50 transition-colors min-w-0">
-                  <Search size={11} className="text-[#BBBBBB] flex-shrink-0" />
+                <div className="flex items-center gap-1.5 h-8 px-3 rounded-pill border border-line2 bg-white focus-within:border-brand transition-colors min-w-0">
+                  <Search size={11} className="text-g3 flex-shrink-0" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="검색"
-                    className="w-16 sm:w-24 text-[12px] text-ink bg-transparent outline-none placeholder:text-[#CCCCCC] min-w-0"
+                    className="w-16 sm:w-24 text-[12px] font-medium text-ink bg-transparent outline-none placeholder:text-g3 placeholder:font-normal min-w-0"
                   />
                   {searchQuery && (
                     <button onClick={() => setSearchQuery("")} className="flex-shrink-0">
-                      <X size={10} className="text-[#CCCCCC]" />
+                      <X size={10} className="text-g3" />
                     </button>
                   )}
                 </div>
@@ -280,12 +281,12 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                 <div className="relative flex-shrink-0">
                   <button
                     onClick={(e) => { e.stopPropagation(); setSortOpen((v) => !v); }}
-                    className="flex items-center gap-1 h-8 px-3 rounded-full border border-[#DEDEDE] bg-white text-[12px] text-[#555] hover:border-[#ABABAB] transition-colors whitespace-nowrap"
+                    className="flex items-center gap-1 h-8 px-3 rounded-pill border border-line2 bg-white text-[12px] font-bold text-g1 hover:border-g3 transition-colors whitespace-nowrap"
                   >
                     {currentSortLabel}
                     <ChevronDown
                       size={11}
-                      className={cn("text-[#AAAAAA] transition-transform", sortOpen && "rotate-180")}
+                      className={cn("text-g3 transition-transform", sortOpen && "rotate-180")}
                     />
                   </button>
                   <AnimatePresence>
@@ -295,7 +296,7 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 4, scale: 0.97 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute right-0 top-full mt-1.5 w-36 bg-white rounded-xl border border-[#E8E8E8] shadow-lg overflow-hidden z-50"
+                        className="absolute right-0 top-full mt-1.5 w-36 bg-white rounded-[14px] border border-line2 shadow-lift overflow-hidden z-50"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {SORT_OPTIONS.map((opt) => (
@@ -305,8 +306,8 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                             className={cn(
                               "w-full text-left px-4 py-2.5 text-[13px] transition-colors",
                               sortBy === opt.value
-                                ? "bg-primary/5 text-primary font-medium"
-                                : "text-[#555] hover:bg-[#F7F7F8]",
+                                ? "bg-brand-soft text-brand font-bold"
+                                : "text-g1 hover:bg-sec",
                             )}
                           >
                             {opt.label}
@@ -324,28 +325,28 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
       </AnimatePresence>
 
       {/* ── 페이지 헤더 ── */}
-      <div className="border-b border-public-border bg-white">
-        <div className="page-container py-6 md:py-12">
-          <p className="public-quiet-label mb-2">
+      <div className="border-b border-line2 bg-white">
+        <div className="page-container py-7 md:py-12">
+          <div className="t-kick mb-2.5">
             차량 탐색 · 총 {totalCount}개 차종
-          </p>
-          <h1 className="text-[25px] font-semibold leading-tight text-ink md:font-display md:text-[38px] md:font-light md:tracking-normal">
+          </div>
+          <h1 className="text-[27px] font-extrabold leading-[1.2] tracking-[-0.04em] text-ink md:text-[38px]">
             진짜 견적으로 비교하세요
           </h1>
-          <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-public-muted md:text-[15px]">
+          <p className="mt-2.5 max-w-2xl text-[14px] leading-relaxed text-g1 md:text-[15px]">
             허위 없이, 실제 운영 가능한 조건과 월 납입금을 먼저 확인하세요.
           </p>
         </div>
       </div>
 
       {/* ── 메인 필터 패널 ── */}
-      <div ref={filterPanelRef} className="border-b border-public-border bg-white md:border-b-0 md:bg-transparent">
+      <div ref={filterPanelRef} className="border-b border-line2 bg-white md:border-b-0 md:bg-transparent">
         <div className="page-container py-5 md:py-0">
-          <div className="md:-mt-6 md:rounded-[24px] md:border md:border-public-border md:bg-white md:p-6 md:shadow-[0_18px_46px_rgba(18,24,40,0.07)]">
+          <div className="md:-mt-6 md:rounded-[24px] md:border md:border-line2 md:bg-white md:p-6 md:shadow-soft">
 
           {/* 브랜드 선택 */}
           <div className="mb-5">
-            <p className="public-quiet-label mb-3">
+            <p className="mb-3 text-[12.5px] font-extrabold uppercase tracking-[0.06em] text-g2">
               브랜드 선택
             </p>
 
@@ -357,17 +358,17 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                 onClick={() => setBrandFilter("전체")}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1",
-                  "w-full h-[62px] md:w-[92px] md:h-[76px] rounded-[14px] border bg-white",
-                  "text-[12px] md:text-[14px] font-semibold transition-all duration-200",
+                  "w-full h-[62px] md:w-[92px] md:h-[76px] rounded-[16px] border bg-white",
+                  "text-[12px] md:text-[14px] font-bold transition-all duration-200",
                   brandFilter === "전체"
-                    ? "border-primary text-primary bg-primary/[0.03] shadow-[0_0_0_3px_rgba(0,6,102,0.07)]"
-                    : "border-public-border text-public-muted hover:border-[#BFC5D6]",
+                    ? "border-brand text-brand bg-brand-soft shadow-[0_0_0_3px_rgba(39,54,138,0.07)]"
+                    : "border-line2 text-g2 hover:border-g3",
                 )}
               >
                 <LayoutGrid
                   size={18}
                   strokeWidth={1.5}
-                  className={cn("md:w-[22px] md:h-[22px]", brandFilter === "전체" ? "text-primary" : "text-[#CCCCCC]")}
+                  className={cn("md:w-[22px] md:h-[22px]", brandFilter === "전체" ? "text-brand" : "text-g3")}
                 />
                 전체
               </button>
@@ -382,11 +383,11 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                     onClick={() => setBrandFilter(brand)}
                     className={cn(
                       "flex flex-col items-center justify-center gap-1.5",
-                      "w-full h-[62px] md:w-[92px] md:h-[76px] rounded-[14px] border bg-white",
+                      "w-full h-[62px] md:w-[92px] md:h-[76px] rounded-[16px] border bg-white",
                       "transition-all duration-200",
                       isActive
-                        ? "border-primary bg-primary/[0.03] shadow-[0_0_0_3px_rgba(0,6,102,0.07)]"
-                        : "border-public-border hover:border-[#BFC5D6]",
+                        ? "border-brand bg-brand-soft shadow-[0_0_0_3px_rgba(39,54,138,0.07)]"
+                        : "border-line2 hover:border-g3",
                     )}
                   >
                     {logoSrc ? (
@@ -403,12 +404,12 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                         unoptimized
                       />
                     ) : (
-                      <span className="text-[12px] md:text-[13px] font-semibold text-ink leading-none">{brand}</span>
+                      <span className="text-[12px] md:text-[13px] font-bold text-ink leading-none">{brand}</span>
                     )}
                     <span
                       className={cn(
-                        "text-[11px] md:text-[13px] leading-none font-medium",
-                        isActive ? "text-primary" : "text-[#BBBBBB]",
+                        "text-[11px] md:text-[13px] leading-none font-bold",
+                        isActive ? "text-brand" : "text-g3",
                       )}
                     >
                       {brand}
@@ -425,7 +426,7 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
 
             {/* 차종 필터 1줄 */}
             <div className="flex-1 overflow-hidden">
-              <p className="public-quiet-label mb-2.5">
+              <p className="mb-2.5 text-[12.5px] font-extrabold uppercase tracking-[0.06em] text-g2">
                 차종 선택
               </p>
               <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
@@ -436,14 +437,11 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                       key={cat}
                       onClick={() => setCategoryFilter(cat)}
                       className={cn(
-                        "flex items-center gap-2 h-10 px-4 md:px-5 rounded-full border shrink-0",
-                        "text-[13px] md:text-[14px] font-medium transition-all duration-150 whitespace-nowrap",
-                        isActive
-                          ? "bg-primary text-white border-primary shadow-sm"
-                          : "bg-white text-[#555] border-public-border hover:border-[#BFC5D6]",
+                        "chip gap-2 h-10 shrink-0 whitespace-nowrap",
+                        isActive && "chip-on",
                       )}
                     >
-                      <span className={isActive ? "text-white/80" : "text-[#AAAAAA]"}>
+                      <span className={isActive ? "text-white/80" : "text-g3"}>
                         <CategoryIcon category={cat} />
                       </span>
                       {cat}
@@ -459,7 +457,7 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
               {hasActiveFilters && (
                 <button
                   onClick={resetFilters}
-                  className="flex h-10 flex-shrink-0 items-center gap-1 rounded-full border border-public-border bg-white px-3 text-[12px] text-[#888] transition-colors hover:border-primary/30"
+                  className="flex h-10 flex-shrink-0 items-center gap-1 rounded-pill border border-line2 bg-white px-3 text-[12px] font-medium text-g2 transition-colors hover:border-brand/30"
                 >
                   <X size={10} />
                   <span>초기화</span>
@@ -467,18 +465,18 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
               )}
 
               {/* 검색 — 모바일에서 flex-1로 가로 가득 채움 */}
-              <div className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-[12px] border border-public-border bg-public-bg px-3.5 transition-colors focus-within:border-primary/50 md:flex-none md:bg-white">
-                <Search size={12} className="text-[#BBBBBB] flex-shrink-0" />
+              <div className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-btn border border-line2 bg-sec px-3.5 transition-colors focus-within:border-brand focus-within:bg-white md:flex-none md:bg-white">
+                <Search size={13} className="text-g3 flex-shrink-0" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="차량 검색"
-                  className="w-full md:w-32 text-[13px] text-ink bg-transparent outline-none placeholder:text-[#CCCCCC] min-w-0"
+                  className="w-full md:w-32 text-[13.5px] font-medium text-ink bg-transparent outline-none placeholder:text-g3 placeholder:font-normal min-w-0"
                 />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery("")} className="flex-shrink-0">
-                    <X size={11} className="text-[#CCCCCC]" />
+                    <X size={11} className="text-g3" />
                   </button>
                 )}
               </div>
@@ -487,13 +485,13 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
               <div className="relative flex-shrink-0">
                 <button
                   onClick={(e) => { e.stopPropagation(); setSortOpen((v) => !v); }}
-                  className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-[12px] border border-public-border bg-white px-3.5 text-[12px] text-[#555] transition-colors hover:border-primary/30 md:px-4 md:text-[13px]"
+                  className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-btn border border-line2 bg-white px-3.5 text-[12.5px] font-bold text-g1 transition-colors hover:border-brand/30 md:px-4 md:text-[13px]"
                 >
                   {currentSortLabel}
                   <ChevronDown
                     size={12}
                     className={cn(
-                      "text-[#AAAAAA] transition-transform duration-200",
+                      "text-g3 transition-transform duration-200",
                       sortOpen && "rotate-180",
                     )}
                   />
@@ -505,7 +503,7 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 4, scale: 0.97 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 top-full mt-1.5 w-36 bg-white rounded-xl border border-[#E8E8E8] shadow-lg overflow-hidden z-50"
+                      className="absolute right-0 top-full mt-1.5 w-36 bg-white rounded-[14px] border border-line2 shadow-lift overflow-hidden z-50"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {SORT_OPTIONS.map((opt) => (
@@ -515,8 +513,8 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                           className={cn(
                             "w-full text-left px-4 py-2.5 text-[13px] transition-colors",
                             sortBy === opt.value
-                              ? "bg-primary/5 text-primary font-medium"
-                              : "text-[#555] hover:bg-[#F7F7F8]",
+                              ? "bg-brand-soft text-brand font-bold"
+                              : "text-g1 hover:bg-sec",
                           )}
                         >
                           {opt.label}
@@ -541,10 +539,10 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
           <section className="mb-8 md:mb-10">
             <div className="mb-4 flex items-end justify-between gap-4">
               <div>
-                <p className="public-quiet-label mb-1.5">
+                <div className="t-kick mb-1.5">
                   주목할 차량
-                </p>
-                <h2 className="text-[18px] font-semibold text-ink md:text-[22px]">
+                </div>
+                <h2 className="text-[20px] font-extrabold tracking-[-0.03em] text-ink md:text-[24px]">
                   지금 가장 많이 비교하는 모델
                 </h2>
               </div>
@@ -557,29 +555,30 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
         {isBrowsing ? (
           <section>
             <div className="flex items-center justify-between mb-4 md:mb-5">
-              <div className="flex items-center gap-2">
-                <p className="text-[10px] md:text-[11px] font-semibold text-ink-caption uppercase tracking-wider">
+              <div className="flex items-baseline gap-2">
+                <h2 className="text-[18px] font-extrabold tracking-[-0.03em] text-ink md:text-[20px]">
                   검색 결과
-                </p>
-                <span className="text-[11px] text-ink-caption">{filteredVehicles.length}개</span>
+                </h2>
+                <span className="num text-[14px] font-extrabold text-brand">{filteredVehicles.length}</span>
+                <span className="text-[12px] font-medium text-g2">개</span>
               </div>
 
               {/* 활성 필터 칩 */}
               {hasActiveFilters && (
                 <div className="flex items-center gap-1.5">
                   {brandFilter !== "전체" && (
-                    <span className="flex items-center gap-1 h-6 px-2.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium">
+                    <span className="flex items-center gap-1 h-7 px-3 rounded-pill bg-brand-soft text-brand text-[12px] font-bold">
                       {brandFilter}
                       <button onClick={() => setBrandFilter("전체")}>
-                        <X size={9} />
+                        <X size={10} />
                       </button>
                     </span>
                   )}
                   {categoryFilter !== "전체" && (
-                    <span className="flex items-center gap-1 h-6 px-2.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium">
+                    <span className="flex items-center gap-1 h-7 px-3 rounded-pill bg-brand-soft text-brand text-[12px] font-bold">
                       {categoryFilter}
                       <button onClick={() => setCategoryFilter("전체")}>
-                        <X size={9} />
+                        <X size={10} />
                       </button>
                     </span>
                   )}
@@ -607,13 +606,13 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                   animate={{ opacity: 1 }}
                   className="flex flex-col items-center justify-center py-20 text-center"
                 >
-                    <div className="w-12 h-12 md:w-14 md:h-14 rounded-[16px] bg-primary-100 flex items-center justify-center mb-4">
-                    <Search size={20} className="text-primary" />
+                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-[18px] bg-brand-soft flex items-center justify-center mb-4">
+                    <Search size={22} className="text-brand" />
                   </div>
-                  <p className="text-[15px] md:text-[16px] font-display font-medium text-ink mb-1.5">
+                  <p className="text-[17px] md:text-[18px] font-extrabold tracking-[-0.02em] text-ink mb-1.5">
                     해당 조건의 차량이 없어요
                   </p>
-                  <p className="text-[12px] md:text-[13px] text-ink-label mb-5">
+                  <p className="text-[13px] md:text-[14px] text-g1 mb-5">
                     조건을 조금 바꿔보면 더 많은 차량을 찾을 수 있어요
                   </p>
                   <button
@@ -621,7 +620,7 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
                       resetFilters();
                       setSearchQuery("");
                     }}
-                    className="text-[13px] font-medium text-primary hover:underline"
+                    className="text-[13.5px] font-extrabold text-brand hover:underline"
                   >
                     검색·필터 초기화
                   </button>
@@ -631,14 +630,14 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
           </section>
         ) : (
           /* 기본 화면 안내 — 검색·필터 사용 유도 */
-          <section className="flex flex-col items-center justify-center rounded-[22px] border border-dashed border-public-border bg-white py-12 text-center md:py-16">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[16px] bg-primary-100 md:h-14 md:w-14">
-              <Search size={20} className="text-primary" />
+          <section className="flex flex-col items-center justify-center rounded-[22px] border border-dashed border-line2 bg-white py-12 text-center md:py-16">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] bg-brand-soft md:h-16 md:w-16">
+              <Search size={22} className="text-brand" />
             </div>
-            <p className="text-[15px] md:text-[16px] font-display font-medium text-ink mb-1.5">
+            <p className="text-[17px] md:text-[18px] font-extrabold tracking-[-0.02em] text-ink mb-1.5">
               찾으시는 차량이 있나요?
             </p>
-            <p className="text-[12px] md:text-[13px] text-ink-label">
+            <p className="text-[13px] md:text-[14px] text-g1">
               위에서 브랜드·차종을 선택하거나 검색하면 차량을 보여드려요
             </p>
           </section>
@@ -647,10 +646,10 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
         {/* 이런 차량은 어떠세요? */}
         {searchQuery && suggestedVehicles.length > 0 && (
           <section className="mt-10 md:mt-12">
-            <p className="text-[10px] md:text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-1">
+            <h2 className="text-[18px] md:text-[20px] font-extrabold tracking-[-0.03em] text-ink mb-1">
               이런 차량은 어떠세요?
-            </p>
-            <p className="text-[13px] text-ink-label mb-5">같은 카테고리의 다른 차량들이에요</p>
+            </h2>
+            <p className="text-[13px] text-g1 mb-5">같은 카테고리의 다른 차량들이에요</p>
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5">
               {suggestedVehicles.map((vehicle, idx) => (
                 <CarCard key={vehicle.id} vehicle={vehicle} index={idx} />
@@ -663,28 +662,28 @@ export function CarsClientPage({ vehicles, brandSignals }: CarsClientPageProps) 
         <section
           className="mt-12 overflow-hidden rounded-[18px] md:mt-14"
           style={{
-            background: "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
+            background: "linear-gradient(135deg, #27368A 0%, #1B2A66 55%, #5A3DB0 100%)",
           }}
         >
           <div className="px-5 md:px-12 py-7 md:py-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={13} className="text-white/50" />
-                <span className="text-[11px] font-semibold text-white/50 uppercase tracking-wider">
-                  AI 추천
+                <AiBadge tone="onDark" />
+                <span className="text-[12px] font-extrabold text-white/70 uppercase tracking-[0.08em]">
+                  추천
                 </span>
               </div>
-              <h3 className="font-display text-[18px] md:text-[22px] font-light text-white mb-1.5">
+              <h3 className="text-[20px] md:text-[24px] font-extrabold tracking-[-0.03em] text-white mb-1.5">
                 어떤 차가 맞는지 모르겠다면?
               </h3>
-              <p className="text-[12px] md:text-[13px] text-white/50">
+              <p className="text-[13px] md:text-[14px] text-white/65">
                 업종·예산·성향 4가지 질문으로 최적의 차량을 찾아드려요
               </p>
             </div>
             <Link
               href="/recommend"
-              className="w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-2 bg-white text-primary
-                         text-[13px] font-semibold px-6 md:px-7 py-3 rounded-btn hover:shadow-lg transition-shadow duration-200"
+              className="w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-2 bg-white text-brand
+                         text-[14px] font-extrabold px-6 md:px-7 py-3.5 rounded-btn hover:shadow-lg transition-shadow duration-200"
             >
               AI 추천 시작
               <ArrowRight size={14} strokeWidth={2.5} />

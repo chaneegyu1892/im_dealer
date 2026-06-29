@@ -15,11 +15,12 @@ export function StepBudgetDetail({ paymentStyle, value, onChange }: StepBudgetDe
   return (
     <div className="space-y-3">
       <div className="mb-6">
-        <h2 className="text-title-sm text-ink font-medium">{question.title}</h2>
-        <p className="text-label text-ink-label mt-1">{question.subtitle}</p>
+        <span className="t-kick text-[11px]">추가 질문</span>
+        <h2 className="t-h1 mt-1.5">{question.title}</h2>
+        <p className="t-sub mt-2">{question.subtitle}</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {options.map((opt) => (
           <SelectionCard
             key={opt.value}

@@ -107,15 +107,15 @@ export function VehicleCombobox({
   return (
     <div ref={wrapRef} className="relative">
       {selected ? (
-        <div className="h-10 px-3 pr-2 flex items-center gap-2 bg-[#F2F4FF] border border-[#CCCCF5] rounded-[10px]">
-          <span className="text-[14px] font-medium text-[#000666] truncate">
+        <div className="h-11 px-3 pr-2 flex items-center gap-2 bg-brand-soft border border-brand/30 rounded-[12px]">
+          <span className="text-[14px] font-extrabold text-brand truncate">
             {selected.brand} {selected.name}
           </span>
           <button
             type="button"
             onClick={handleClear}
             aria-label="차종 선택 해제"
-            className="ml-auto shrink-0 w-6 h-6 rounded-full hover:bg-white/70 flex items-center justify-center text-[#000666]"
+            className="ml-auto shrink-0 w-6 h-6 rounded-full hover:bg-white/70 flex items-center justify-center text-brand"
           >
             <X size={14} />
           </button>
@@ -124,7 +124,7 @@ export function VehicleCombobox({
         <div className="relative">
           <Search
             size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-caption pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-g2 pointer-events-none"
           />
           <input
             ref={inputRef}
@@ -137,12 +137,12 @@ export function VehicleCombobox({
             }}
             onFocus={() => setOpen(true)}
             onKeyDown={onKeyDown}
-            className="w-full h-10 pl-9 pr-9 text-[14px] text-ink bg-white border border-[#E5E7F0] rounded-[10px] focus:outline-none focus:border-[#6066EE]"
+            className="w-full h-11 pl-9 pr-9 text-[14px] text-ink bg-sec border border-line2 rounded-[12px] focus:outline-none focus:border-brand focus:bg-white"
           />
           <ChevronDown
             size={14}
             className={cn(
-              "absolute right-3 top-1/2 -translate-y-1/2 text-ink-caption transition-transform pointer-events-none",
+              "absolute right-3 top-1/2 -translate-y-1/2 text-g2 transition-transform pointer-events-none",
               open && "rotate-180"
             )}
           />
@@ -150,9 +150,9 @@ export function VehicleCombobox({
       )}
 
       {open && !selected && (
-        <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-[#E5E7F0] rounded-[10px] shadow-lg overflow-hidden">
+        <div className="absolute z-30 left-0 right-0 mt-1.5 bg-white border border-line2 rounded-[14px] shadow-soft overflow-hidden">
           {matches.length === 0 ? (
-            <div className="px-4 py-6 text-center text-[13px] text-ink-caption">
+            <div className="px-4 py-6 text-center text-[13px] font-bold text-g2">
               검색 결과가 없습니다
             </div>
           ) : (
@@ -175,18 +175,18 @@ export function VehicleCombobox({
                     }}
                     onMouseEnter={() => setHighlight(idx)}
                     className={cn(
-                      "px-3 py-2 text-[13px] cursor-pointer flex items-center gap-2",
+                      "px-3 py-2.5 text-[13.5px] cursor-pointer flex items-center gap-2",
                       isHighlighted
-                        ? "bg-[#F2F4FF] text-[#000666]"
-                        : "text-ink hover:bg-[#F8F9FC]"
+                        ? "bg-brand-soft text-brand"
+                        : "text-ink hover:bg-sec"
                     )}
                   >
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-caption shrink-0 w-12">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-g2 shrink-0 w-12">
                       {v.brand}
                     </span>
-                    <span className="truncate flex-1">{v.name}</span>
+                    <span className="truncate flex-1 font-bold">{v.name}</span>
                     {value === v.id && (
-                      <Check size={14} className="text-[#000666] shrink-0" />
+                      <Check size={14} className="text-brand shrink-0" />
                     )}
                   </li>
                 );

@@ -20,11 +20,12 @@ export function StepPaymentStyle({ value, onChange, detail, onDetailChange }: St
   return (
     <div className="space-y-6">
       <div>
-        <div className="mb-4">
-          <h2 className="text-title-sm text-ink font-medium">
-            납입 방식 성향을 골라주세요
+        <div className="mb-5">
+          <span className="t-kick">STEP 05</span>
+          <h2 className="t-h1 mt-2">
+            <span className="text-brand">납입 방식</span> 성향을 골라주세요
           </h2>
-          <p className="text-label text-ink-label mt-1">
+          <p className="t-sub mt-2">
             보증금·선납금 활용 여부로 월 납입금이 달라져요.
           </p>
         </div>
@@ -45,15 +46,13 @@ export function StepPaymentStyle({ value, onChange, detail, onDetailChange }: St
       </div>
 
       {value && detailQuestion && (
-        <div key={value} className="pt-2 border-t border-[#F0F0F0] animate-slide-down">
+        <div key={value} className="animate-slide-down border-t border-line pt-5">
           <div className="mb-4">
-            <p className="text-[11px] font-semibold text-primary uppercase tracking-wider mb-1.5">
-              추가 질문
-            </p>
-            <h3 className="text-base font-medium text-ink">{detailQuestion.title}</h3>
-            <p className="text-[13px] text-ink-label mt-0.5">{detailQuestion.subtitle}</p>
+            <span className="t-kick text-[11px]">추가 질문</span>
+            <h3 className="mt-1.5 text-[18px] font-extrabold leading-snug tracking-[-0.03em] text-ink">{detailQuestion.title}</h3>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-g2">{detailQuestion.subtitle}</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {detailOptions.map((opt) => (
               <SelectionCard
                 key={opt.value}

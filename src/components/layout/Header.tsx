@@ -116,16 +116,13 @@ export function Header() {
                   key={href}
                   href={href}
                   className={cn(
-                    "relative px-5 py-2 rounded-btn text-[14px] transition-colors duration-200",
+                    "relative px-4 py-2 rounded-xl text-[14px] transition-colors duration-200",
                     active
-                      ? "text-primary font-medium"
-                      : "text-ink-body hover:text-primary"
+                      ? "text-brand font-bold bg-brand/[0.06]"
+                      : "text-g1 hover:text-brand hover:bg-brand/[0.04]"
                   )}
                 >
                   {label}
-                  {active && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-primary rounded-full" />
-                  )}
                 </Link>
               );
             })}
@@ -152,7 +149,7 @@ export function Header() {
                       />
                     </div>
                   ) : (
-                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-white md:h-7 md:w-7 md:text-[12px]">
+                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-brand text-[11px] font-bold text-white md:h-7 md:w-7 md:text-[12px]">
                       {displayName[0]}
                     </div>
                   )}
@@ -166,7 +163,7 @@ export function Header() {
                     {isAdminUser && (
                       <Link
                         href="/admin"
-                        className="w-full block text-left px-4 py-2.5 text-[13px] text-primary font-medium hover:bg-primary/[0.04] transition-colors border-b border-[#F0F0F0]"
+                        className="w-full block text-left px-4 py-2.5 text-[13px] text-brand font-bold hover:bg-brand/[0.04] transition-colors border-b border-line"
                       >
                         관리자 콘솔
                       </Link>
@@ -191,7 +188,7 @@ export function Header() {
                   const next = window.location.pathname + window.location.search;
                   router.push(`/login?next=${encodeURIComponent(next)}`);
                 }}
-                className="inline-flex h-8 items-center rounded-full border border-primary/20 px-3 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/[0.04] md:h-auto md:rounded-btn md:px-4 md:py-1.5 md:text-[13px]"
+                className="inline-flex h-8 items-center rounded-full border border-brand/20 px-3 text-[12px] font-bold text-brand transition-colors hover:bg-brand/[0.04] md:h-auto md:rounded-btn md:px-4 md:py-1.5 md:text-[13px]"
               >
                 로그인
               </Link>

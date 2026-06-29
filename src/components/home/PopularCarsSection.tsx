@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import type { VehicleListItem } from "@/types/api";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 
@@ -19,8 +19,8 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
     >
       <Link
         href={`/cars/${vehicle.slug}`}
-        className="group block bg-white rounded-card border border-[#F0F0F0] overflow-hidden
-                   transition-all duration-300 hover:shadow-card-hover hover:border-primary-200 hover:-translate-y-1"
+        className="group block bg-white rounded-[18px] border border-line2 overflow-hidden shadow-soft
+                   transition-all duration-300 hover:shadow-card-hover hover:border-brand/30 hover:-translate-y-1"
       >
         {/* 썸네일 */}
         <div className="relative aspect-video md:aspect-auto md:h-[180px] bg-neutral overflow-hidden">
@@ -32,19 +32,18 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-ink-caption text-[13px]">
+            <div className="w-full h-full flex items-center justify-center text-g2 text-[13px]">
               이미지 준비중
             </div>
           )}
           <div className="absolute top-3 left-3 flex items-center gap-1.5">
             {vehicle.isPopular && (
-              <span className="inline-flex items-center gap-1 bg-primary text-white text-[10px] font-semibold px-2.5 py-1 rounded-[4px]">
-                <Sparkles size={9} />
+              <span className="inline-flex items-center gap-1 bg-brand text-white text-[11px] font-extrabold px-2.5 py-1 rounded-pill">
                 인기
               </span>
             )}
             {vehicle.hasAvailableInventory && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-primary text-white px-2.5 py-1 rounded-[4px]">
+              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold bg-pos text-white px-2.5 py-1 rounded-pill">
                 즉시출고
               </span>
             )}
@@ -53,25 +52,25 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
 
         {/* 정보 */}
         <div className="p-5">
-          <p className="text-[11px] text-ink-caption font-medium tracking-wider uppercase">
+          <p className="text-[12px] text-g2 font-bold">
             {vehicle.brand}
           </p>
-          <h3 className="text-[17px] font-display font-medium text-ink mt-1 leading-snug">
+          <h3 className="text-[19px] font-extrabold text-ink mt-1 leading-tight tracking-[-0.03em]">
             {vehicle.name}
           </h3>
           {vehicle.defaultTrim && (
-            <p className="text-[12px] text-secondary mt-1">
+            <p className="text-[12.5px] text-g2 mt-1">
               {vehicle.defaultTrim.engineType} · {vehicle.defaultTrim.name}
             </p>
           )}
 
-          <div className="mt-4 pt-4 border-t border-[#F0F0F0] flex items-end justify-between">
+          <div className="mt-4 pt-4 border-t border-line2 flex items-end justify-between">
             <RepresentativeQuotePrice
               quotes={vehicle.representativeQuotes}
               tone="brand"
               size="sm"
             />
-            <span className="text-[12px] text-primary font-medium flex items-center gap-1
+            <span className="text-[12px] text-brand font-extrabold flex items-center gap-1
                              opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               상세 보기 <ArrowRight size={12} />
             </span>
@@ -88,17 +87,17 @@ export function PopularCarsSection({ vehicles }: { vehicles: VehicleListItem[] }
   const visibleVehicles = expanded ? vehicles : vehicles.slice(0, INITIAL_VISIBLE);
 
   return (
-    <section className="page-container py-16">
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 mb-8">
+    <section className="t-shell-wide py-14">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 mb-7">
         <div>
-          <p className="section-label mb-2">주목할 차량</p>
-          <h2 className="font-display text-headline-sm text-ink">
-            지금 가장 많이 찾는 차량
-          </h2>
+          <div className="t-kick mb-2">
+            주목할 차량
+          </div>
+          <h2 className="t-h1">지금 가장 많이 찾는 차량</h2>
         </div>
         <Link
           href="/cars"
-          className="text-[13px] text-primary font-medium flex items-center gap-1 hover:underline shrink-0"
+          className="text-[13px] text-brand font-extrabold flex items-center gap-1 hover:underline shrink-0"
         >
           전체 보기 <ArrowRight size={13} />
         </Link>
@@ -111,11 +110,11 @@ export function PopularCarsSection({ vehicles }: { vehicles: VehicleListItem[] }
       </div>
 
       {hasMore && (
-        <div className="mt-8 flex justify-center">
+        <div className="mt-7 flex justify-center">
           <button
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-primary/30 text-primary text-[13px] font-medium hover:bg-primary/[0.04] hover:border-primary/60 transition-all duration-200"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-pill bg-sec text-g1 text-[13.5px] font-bold hover:bg-line2 transition-all duration-200"
             aria-expanded={expanded}
           >
             {expanded ? (

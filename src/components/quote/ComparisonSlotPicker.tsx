@@ -167,16 +167,16 @@ export function ComparisonSlotPicker({
   }, [resolvedTrim, selectedSlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="bg-white rounded-card border border-[#F0F0F0] p-4 md:p-5">
+    <div className="bg-white rounded-card border border-line2 shadow-soft p-4 md:p-5">
       <div className="flex items-start gap-2 mb-3">
-        <span className="text-[12px] font-semibold text-primary bg-primary-100 px-2 py-0.5 rounded-[4px]">
+        <span className="text-[12px] font-bold text-brand bg-brand-soft px-2 py-0.5 rounded-[6px]">
           비교 차량
         </span>
         <button
           type="button"
           onClick={onRemove}
           aria-label="비교 차량 제거"
-          className="ml-auto w-7 h-7 flex items-center justify-center rounded-full text-ink-caption hover:bg-neutral hover:text-ink transition-colors"
+          className="ml-auto w-7 h-7 flex items-center justify-center rounded-full text-ink-caption hover:bg-sec hover:text-ink transition-colors"
         >
           <X size={15} />
         </button>
@@ -198,7 +198,7 @@ export function ComparisonSlotPicker({
 
         {selectedSlug && trimsLoading && (
           <div className="flex items-center gap-2 text-[13px] text-ink-caption">
-            <span className="w-3.5 h-3.5 border-2 border-neutral-700 border-t-primary rounded-full animate-spin" />
+            <span className="w-3.5 h-3.5 border-2 border-line2 border-t-brand rounded-full animate-spin" />
             트림 정보 불러오는 중...
           </div>
         )}

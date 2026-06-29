@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { StepIndicator, type StepId } from "./StepIndicator";
+import { StepIndicator, STEPS, type StepId } from "./StepIndicator";
 import { StepIndustry } from "./StepIndustry";
 import { StepPurpose } from "./StepPurpose";
 import { StepMileage } from "./StepMileage";
 import { StepFuelPreference } from "./StepFuelPreference";
 import { StepRegion } from "./StepRegion";
-import { Button } from "@/components/ui/Button";
 import { ChevronLeft } from "lucide-react";
 import { CHARGING_OPTIONS } from "@/constants/recommend-options";
 import { SelectionCard } from "./SelectionCard";
@@ -129,13 +128,39 @@ export function RecommendFlow() {
     }));
   };
 
+  const stepLabel = (STEPS.find((s) => s.id === step) ?? STEPS[0]).label;
+
   return (
-    <div className="page-container max-w-4xl mx-auto py-4 md:py-8">
-      <div className="mb-5">
+    <div className="t-shell pt-3 pb-[120px] md:pb-10">
+      {/* 앱바: 뒤로가기 + 단계명 + n/N */}
+      <div className="t-appbar justify-between">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="이전 단계"
+              className="t-iconbtn"
+            >
+              <ChevronLeft size={18} />
+            </button>
+          ) : (
+            <span className="h-9 w-9" aria-hidden />
+          )}
+          <span className="t truncate">{stepLabel}</span>
+        </div>
+        <span className="num text-[15px] font-extrabold text-g2">
+          <span className="text-brand">{step}</span>
+          {" / "}
+          {STEPS.length}
+        </span>
+      </div>
+
+      <div className="mt-1 mb-6">
         <StepIndicator currentStep={step} />
       </div>
 
-      <div className="public-mobile-section min-h-[360px] p-4 md:p-7 lg:p-8">
+      <div className="min-h-[300px]">
         {step === 1 && (
           <StepIndustry
             value={state.industry}
@@ -169,21 +194,21 @@ export function RecommendFlow() {
                 setState((s) => ({ ...s, annualMileage: v }))
               }
             />
-            <div className="pt-6 border-t border-public-border">
+            <div className="border-t border-line pt-7">
               <StepFuelPreference
                 value={state.fuelPreference}
                 onChange={handleFuelChange}
               />
               {state.fuelPreference === "전기차" && (
-                <div className="mt-5 rounded-[16px] border border-primary/15 bg-primary/[0.04] p-4 transition-all duration-200">
-                  <h3 className="text-[16px] font-semibold text-ink">
+                <div className="mt-5 rounded-[16px] border border-brand/15 bg-brand-soft p-4 transition-all duration-200">
+                  <h3 className="text-[15px] font-extrabold text-ink">
                     충전 환경이 있나요?
                   </h3>
-                  <p className="mt-1 text-[12px] leading-relaxed text-public-muted">
+                  <p className="mt-1 text-[12.5px] leading-relaxed text-g2">
                     집·회사·아파트 등 일상 충전이 가능한지에 따라 추천이
                     달라져요.
                   </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 mt-4">
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4">
                     {CHARGING_OPTIONS.map((opt) => (
                       <SelectionCard
                         key={opt.value}
@@ -203,7 +228,7 @@ export function RecommendFlow() {
                 </div>
               )}
             </div>
-            <div className="pt-6 border-t border-public-border">
+            <div className="border-t border-line pt-7">
               <StepRegion
                 value={state.residenceRegion}
                 onChange={(v) => setState((s) => ({ ...s, residenceRegion: v }))}
@@ -214,42 +239,42 @@ export function RecommendFlow() {
       </div>
 
       {error && (
-        <div className="mt-4 rounded-[12px] border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+        <div className="mt-5 rounded-[12px] border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-700">
           {error}
         </div>
       )}
 
-      <div className="mt-4 flex items-center gap-2">
-        {step > 1 && (
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={handleBack}
-            className="min-h-[48px] shrink-0 rounded-[12px] border-public-border bg-white px-4 text-ink-label"
-          >
-            <ChevronLeft size={16} />
-            이전
-          </Button>
-        )}
-        <Button
-          variant="primary"
-          size="md"
-          fullWidth
-          disabled={!canProceed || loading}
-          onClick={handleNext}
-          className="min-h-[48px] rounded-[12px] font-semibold"
-        >
-          {loading
-            ? "조건을 분석 중입니다"
-            : step === TOTAL_STEPS
-            ? "추천 결과 확인하기"
-            : "다음"}
-        </Button>
+      {/* 하단 고정 dock */}
+      <div className="dock fixed inset-x-0 bottom-0 z-20 md:static md:mt-8 md:border-0 md:bg-transparent md:px-0 md:pt-0">
+        <div className="t-shell px-0">
+          <div className="flex items-center gap-2.5">
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="cta cta-gho w-auto shrink-0 px-5"
+              >
+                이전
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={!canProceed || loading}
+              onClick={handleNext}
+              className="cta"
+            >
+              {loading
+                ? "조건을 분석 중입니다"
+                : step === TOTAL_STEPS
+                ? "추천 결과 확인하기"
+                : "다음 →"}
+            </button>
+          </div>
+          <p className="mt-2.5 text-center text-[12px] text-g2">
+            개인정보 입력 없이 추천 결과를 확인할 수 있습니다
+          </p>
+        </div>
       </div>
-
-      <p className="mt-3 text-center text-[12px] text-public-muted">
-        개인정보 입력 없이 추천 결과를 확인할 수 있습니다
-      </p>
     </div>
   );
 }

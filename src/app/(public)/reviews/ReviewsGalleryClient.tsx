@@ -207,17 +207,17 @@ export function ReviewsGalleryClient({
         />
 
         {error && (
-          <div className="text-[13px] text-red-600 bg-red-50 border border-red-100 rounded-card px-4 py-3">
+          <div className="text-[13px] text-red-600 bg-red-50 border border-red-100 rounded-[16px] px-4 py-3">
             {error}
           </div>
         )}
 
         {loading && items.length === 0 ? (
-          <div className="py-16 flex items-center justify-center text-ink-caption">
+          <div className="py-16 flex items-center justify-center text-[13px] font-bold text-g2">
             <Loader2 className="animate-spin mr-2" size={18} /> 불러오는 중
           </div>
         ) : items.length === 0 ? (
-          <div className="py-16 text-center text-ink-caption">
+          <div className="t-gray py-16 text-center text-[13.5px] font-bold text-g1">
             조건에 맞는 후기가 없습니다.
           </div>
         ) : (
@@ -230,13 +230,13 @@ export function ReviewsGalleryClient({
 
         <div ref={sentinelRef} className="h-12 flex items-center justify-center">
           {loadingMore && (
-            <span className="inline-flex items-center text-[12px] text-ink-caption">
+            <span className="inline-flex items-center text-[12px] font-bold text-g2">
               <Loader2 className="animate-spin mr-1.5" size={14} /> 더
               불러오는 중
             </span>
           )}
           {!nextCursor && items.length > 0 && !loading && (
-            <span className="text-[12px] text-ink-caption">
+            <span className="text-[12px] text-g2">
               마지막 후기입니다.
             </span>
           )}

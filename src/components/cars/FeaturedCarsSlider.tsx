@@ -60,7 +60,7 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
           aria-label="이전 차량"
           className={cn(
             "hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-30",
-            "w-11 h-11 items-center justify-center rounded-full bg-white shadow-card border border-[#ECECEC]",
+            "w-11 h-11 items-center justify-center rounded-full bg-white shadow-soft border border-line2",
             "transition-all duration-200",
             atStart ? "opacity-0 pointer-events-none" : "opacity-100 hover:scale-105 hover:shadow-card-hover",
           )}
@@ -97,7 +97,7 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
           aria-label="다음 차량"
           className={cn(
             "hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30",
-            "w-11 h-11 items-center justify-center rounded-full bg-white shadow-card border border-[#ECECEC]",
+            "w-11 h-11 items-center justify-center rounded-full bg-white shadow-soft border border-line2",
             "transition-all duration-200",
             atEnd ? "opacity-0 pointer-events-none" : "opacity-100 hover:scale-105 hover:shadow-card-hover",
           )}

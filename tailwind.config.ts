@@ -9,6 +9,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ── Toss-style Navy redesign tokens ───────
+        // (feat/toss-redesign — 신규 화면/컴포넌트용. 기존 토큰과 병존)
+        brand: { DEFAULT: "#27368A", dark: "#172357", soft: "#ECEEF9" },
+        purple: { DEFAULT: "#5A3DB0", soft: "#F0EAFB" },
+        pos: "#1FC26B",
+        g1: "#4E5968",
+        g2: "#8B95A1",
+        g3: "#B0B8C1",
+        line: "#F2F4F6",
+        line2: "#E5E8EB",
+        sec: "#F7F8FA",
         // ── Primary (Deep Navy) ──────────────────
         primary: {
           DEFAULT: "#000666",
@@ -72,7 +83,7 @@ const config: Config = {
         destructive: "#CC0000",
         // ── Typography text colors ────────────────
         ink: {
-          DEFAULT: "#333333",
+          DEFAULT: "#191F28",
           body: "#404040",
           label: "#71749A",
           caption: "#A0A0A0",
@@ -82,9 +93,10 @@ const config: Config = {
       },
 
       borderRadius: {
-        card: "12px",
-        btn: "8px",
-        pill: "20px",
+        card: "16px",
+        "card-lg": "20px",
+        btn: "13px",
+        pill: "999px",
         tooltip: "8px",
         toast: "10px",
       },
@@ -95,6 +107,10 @@ const config: Config = {
         "step-active": "0 0 0 4px rgba(0,6,102,0.15)",
         "mobile-card": "0 6px 18px rgba(18,24,40,0.04)",
         "mobile-float": "0 16px 36px rgba(18,24,40,0.12)",
+        // ── Toss-style redesign shadows ───────────
+        soft: "0 1px 2px rgba(25,31,40,.04), 0 8px 20px -8px rgba(25,31,40,.12)",
+        lift: "0 12px 28px -10px rgba(39,54,138,.20), 0 30px 56px -28px rgba(25,31,40,.26)",
+        pop: "0 -10px 36px rgba(25,31,40,.14)",
       },
 
       fontFamily: {

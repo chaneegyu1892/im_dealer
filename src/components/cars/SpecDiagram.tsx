@@ -324,20 +324,18 @@ export function SpecDiagramModal({ specKey, label, value, onClose }: SpecModalPr
           exit={{ scale: 0.95, opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
-          className="relative z-10 w-full max-w-[400px] bg-white rounded-2xl shadow-2xl overflow-hidden"
+          className="relative z-10 w-full max-w-[400px] bg-white rounded-[22px] shadow-2xl overflow-hidden"
         >
           {/* 헤더 */}
-          <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-[#F0F0F0]">
+          <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-line">
             <div>
-              <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-0.5">
-                차량 제원
-              </p>
-              <h3 className="text-[17px] font-semibold text-ink">{label}</h3>
-              <p className="text-[22px] font-bold text-primary mt-0.5 leading-none">{value}</p>
+              <p className="t-kick mb-1.5">차량 제원</p>
+              <h3 className="text-[19px] font-extrabold tracking-[-0.03em] text-ink">{label}</h3>
+              <p className="num text-[24px] font-extrabold text-brand mt-1 leading-none">{value}</p>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-ink-caption hover:text-ink rounded-xl hover:bg-neutral transition-colors mt-0.5"
+              className="t-iconbtn shrink-0 mt-0.5 hover:bg-line2 transition-colors"
             >
               <X size={18} />
             </button>
@@ -345,7 +343,7 @@ export function SpecDiagramModal({ specKey, label, value, onClose }: SpecModalPr
 
           {/* 다이어그램 */}
           {diagramConfig && (
-            <div className="px-5 pt-4 pb-3 bg-[#F8F9FA]">
+            <div className="px-5 pt-4 pb-3 bg-sec">
               {diagramConfig.component}
             </div>
           )}
@@ -353,7 +351,7 @@ export function SpecDiagramModal({ specKey, label, value, onClose }: SpecModalPr
           {/* 설명 */}
           {description && (
             <div className="px-5 py-4">
-              <p className="text-[13px] text-ink-label leading-relaxed">{description}</p>
+              <p className="text-[13.5px] text-g1 leading-[1.6]">{description}</p>
             </div>
           )}
 
