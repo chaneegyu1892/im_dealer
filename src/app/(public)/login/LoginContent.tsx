@@ -35,50 +35,54 @@ export default function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FC] px-4">
-      {/* 로고 */}
-      <div className="mb-8 flex flex-col items-center text-center">
-        <Image
-          src="/images/brand/main-logo.svg"
-          alt="아임딜러"
-          width={195}
-          height={40}
-          priority
-          unoptimized
-          className="h-10 w-auto"
-        />
-        <p className="text-[14px] text-[#9BA4C0] mt-2">장기렌트 · 리스 전문 플랫폼</p>
-      </div>
-
-      {/* 카드 */}
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-card p-8 space-y-5">
-        <div className="text-center space-y-1">
-          <h1 className="text-[20px] font-semibold text-[#1A1A2E]">로그인 / 회원가입</h1>
-          <p className="text-[13px] text-[#9BA4C0]">
+    <div className="toss-page min-h-screen bg-white flex flex-col justify-center">
+      <div className="t-shell">
+        {/* 로고 + 헤드라인 */}
+        <div className="flex flex-col items-center text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-[16px] bg-brand">
+            <Image
+              src="/images/brand/main-logo.svg"
+              alt="아임딜러"
+              width={195}
+              height={40}
+              priority
+              unoptimized
+              className="h-6 w-auto brightness-0 invert"
+            />
+          </span>
+          <h1 className="t-h1 mt-6">
+            로그인하고
+            <br />
+            견적을 저장하세요
+          </h1>
+          <p className="t-sub mt-3">
             소셜 계정으로 간편하게 시작하세요
           </p>
         </div>
 
-        {/* 카카오 로그인 버튼 */}
-        <button
-          type="button"
-          onClick={handleKakaoLogin}
-          className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#FEE500] hover:bg-[#F5DC00] active:scale-[0.98] transition-all duration-150 py-3.5 font-semibold text-[#1A1A2E] text-[15px]"
-        >
-          <KakaoIcon />
-          카카오로 시작하기
-        </button>
+        {/* 카카오 로그인 버튼 (노란색 유지) */}
+        <div className="mt-9">
+          <button
+            type="button"
+            onClick={handleKakaoLogin}
+            className="cta bg-[#FEE500] text-[#191600] hover:bg-[#FEE500] active:bg-[#F5DC00]"
+          >
+            <KakaoIcon />
+            카카오로 시작하기
+          </button>
 
-        {/* 네이버 (향후 추가) */}
-        {/* <button
-          type="button"
-          disabled
-          className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#03C75A] py-3.5 font-semibold text-white text-[15px] opacity-40 cursor-not-allowed"
-        >
-          네이버로 시작하기
-        </button> */}
+          {/* 네이버 (향후 추가) */}
+          {/* <button
+            type="button"
+            disabled
+            className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#03C75A] py-3.5 font-semibold text-white text-[15px] opacity-40 cursor-not-allowed"
+          >
+            네이버로 시작하기
+          </button> */}
+        </div>
 
-        <p className="text-center text-[11px] text-[#9BA4C0] leading-relaxed">
+        {/* 약관 안내 */}
+        <p className="mt-7 text-center text-[12px] leading-relaxed text-g2">
           로그인 시 서비스 이용약관 및 개인정보처리방침에
           <br />동의하는 것으로 간주됩니다.
         </p>
@@ -104,7 +108,7 @@ function KakaoIcon() {
         fillRule="evenodd"
         clipRule="evenodd"
         d="M10 2C5.582 2 2 4.784 2 8.213c0 2.177 1.38 4.09 3.47 5.195l-.88 3.278a.25.25 0 0 0 .375.275L9.1 14.4c.298.035.6.053.9.053 4.418 0 8-2.784 8-6.213S14.418 2 10 2Z"
-        fill="#1A1A2E"
+        fill="#191600"
       />
     </svg>
   );

@@ -14,8 +14,8 @@ export function StepFuelPreference({ value, onChange, budgetMax }: StepFuelPrefe
   return (
     <div className="space-y-3">
       <div className="mb-5">
-        <h2 className="text-[19px] font-semibold leading-tight text-ink md:text-title-sm md:font-medium">연료 방식에 선호가 있으신가요?</h2>
-        <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-label">선호하는 연료 방식이 있다면 그에 맞게 추천해 드려요.</p>
+        <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.03em] text-ink">연료 방식에 <span className="text-brand">선호</span>가 있으신가요?</h2>
+        <p className="t-sub mt-1.5">선호하는 연료 방식이 있다면 그에 맞게 추천해 드려요.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4">

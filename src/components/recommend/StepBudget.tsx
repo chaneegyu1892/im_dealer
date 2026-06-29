@@ -26,26 +26,27 @@ export function StepBudget({ value, onChange }: StepBudgetProps) {
 
   return (
     <div>
-      <div className="mb-4">
-        <h2 className="text-title-sm text-ink font-medium">
-          월 납입금 범위를 선택해 주세요
+      <div className="mb-5">
+        <span className="t-kick">STEP 04</span>
+        <h2 className="t-h1 mt-2">
+          월 <span className="text-brand">납입금</span> 범위를 골라주세요
         </h2>
-        <p className="text-label text-ink-label mt-1">
+        <p className="t-sub mt-2">
           보증금·선납금 제외한 순수 월 납입 기준이에요.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {BUDGET_RANGE_OPTIONS.map((opt) => (
           <button
             key={opt.value}
             type="button"
             onClick={() => handleRange(opt)}
             className={cn(
-              "py-4 px-4 rounded-card border text-base font-medium transition-all duration-200",
+              "rounded-[14px] border-[1.5px] px-4 py-4 text-[15px] font-extrabold transition-colors",
               value.rangeKey === opt.value
-                ? "border-primary bg-primary-100 text-primary"
-                : "border-neutral-800 bg-white text-ink hover:border-primary-200 hover:shadow-card-hover hover:-translate-y-0.5"
+                ? "border-brand bg-brand-soft text-brand"
+                : "border-line2 bg-white text-ink"
             )}
           >
             {opt.label}

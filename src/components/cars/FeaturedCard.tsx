@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { VehicleListItem } from "@/types/api";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
@@ -27,7 +27,7 @@ export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCar
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: index * 0.05, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative h-full cursor-pointer overflow-hidden rounded-[20px] bg-neutral-900 shadow-[0_16px_36px_rgba(18,24,40,0.14)] transition-shadow duration-200 hover:shadow-[0_20px_46px_rgba(18,24,40,0.18)] md:rounded-[24px]"
+      className="group relative h-full cursor-pointer overflow-hidden rounded-[20px] bg-neutral-900 shadow-[0_16px_36px_rgba(18,24,40,0.14)] transition-shadow duration-200 hover:shadow-[0_20px_46px_rgba(18,24,40,0.18)]"
     >
       <Link href={`/cars/${vehicle.slug}`} className="block h-full">
         {vehicle.thumbnailUrl && (
@@ -48,33 +48,32 @@ export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCar
         >
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[11px] font-semibold bg-white/15 text-white/90 px-2.5 py-1 rounded-[4px] border border-white/20 uppercase tracking-wider">
+              <span className="text-[12px] font-bold bg-white/15 text-white/95 px-3 py-1 rounded-pill backdrop-blur-sm">
                 {vehicle.brand}
               </span>
               {vehicle.isPopular && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-[4px]">
-                  <Sparkles size={9} />
+                <span className="inline-flex items-center gap-1 text-[12px] font-bold bg-brand text-white px-3 py-1 rounded-pill">
                   인기
                 </span>
               )}
               {vehicle.hasAvailableInventory && (
-                <span className="text-[11px] font-semibold bg-primary text-white px-2.5 py-1 rounded-[4px]">
+                <span className="text-[12px] font-bold bg-pos text-white px-3 py-1 rounded-pill">
                   즉시출고
                 </span>
               )}
             </div>
             <h2
               className={cn(
-                "font-display font-light text-white leading-tight mb-2 tracking-normal drop-shadow-sm",
+                "font-extrabold text-white leading-tight mb-2 tracking-[-0.03em] drop-shadow-sm",
                 size === "large"
-                  ? "text-[22px] md:text-[40px]"
-                  : "text-[20px] md:text-[28px]",
+                  ? "text-[24px] md:text-[40px]"
+                  : "text-[22px] md:text-[30px]",
               )}
             >
               {vehicle.name}
             </h2>
             {description && (
-              <p className="max-w-sm text-[13px] leading-relaxed text-white/75 drop-shadow-sm md:text-[14px]">
+              <p className="max-w-sm text-[13px] leading-relaxed text-white/80 drop-shadow-sm md:text-[14px]">
                 {description}
               </p>
             )}
@@ -103,7 +102,7 @@ export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCar
       <Link
         href={`/quote?vehicle=${vehicle.slug}`}
         className={cn(
-          "absolute z-20 flex min-h-[40px] items-center gap-1.5 rounded-[12px] bg-white text-[12px] font-semibold text-primary transition-all duration-200 group-hover:gap-2.5 group-hover:shadow-lg md:min-h-[44px] md:px-5 md:text-[13px]",
+          "absolute z-20 flex min-h-[42px] items-center gap-1.5 rounded-btn bg-white text-[13px] font-extrabold text-brand transition-all duration-200 group-hover:gap-2.5 group-hover:shadow-lg md:min-h-[46px] md:px-5 md:text-[13.5px]",
           "px-4 py-2",
           size === "large"
             ? "bottom-5 right-5 md:bottom-10 md:right-10"

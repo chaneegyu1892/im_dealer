@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Star, Image as ImageIcon, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PublicReview } from "@/types/review";
 import { LikeButton } from "./LikeButton";
@@ -22,79 +22,91 @@ export function ReviewCard({
   const cover = review.imageUrls[0];
   const extra = Math.max(0, review.imageUrls.length - 1);
   const isBest = variant === "best" || review.isBest;
+  const initial = review.displayName.trim().charAt(0) || "익";
+  // id 기준으로 아바타 톤을 결정적으로 분배 (purple-soft 일부)
+  const purpleAvatar =
+    (review.id.charCodeAt(review.id.length - 1) || 0) % 3 === 0;
 
   return (
     <article
       className={cn(
-        "group relative bg-white rounded-card border border-[#F0F0F0] overflow-hidden flex flex-col transition-all hover:border-primary/30 hover:shadow-md",
+        "group relative flex flex-col t-card overflow-hidden transition-shadow hover:shadow-soft",
         className
       )}
     >
       <Link
         href={`/reviews/${review.id}`}
-        className="flex flex-col flex-1"
+        className="flex flex-1 flex-col p-4"
         prefetch={false}
       >
-        <div className="relative aspect-[4/3] bg-[#F5F5F5]">
-          {cover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cover}
-              alt="후기 이미지"
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-ink-caption">
-              <ImageIcon size={28} className="opacity-40" />
+        {/* 작성자 + 별점 + 차량 태그 */}
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[15px] font-extrabold",
+              purpleAvatar
+                ? "bg-purple-soft text-purple"
+                : "bg-brand-soft text-brand"
+            )}
+          >
+            {initial}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-[14px] font-extrabold text-ink">
+                {review.displayName}
+              </p>
+              {isBest && (
+                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-pill bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  <Sparkles size={9} />
+                  BEST
+                </span>
+              )}
             </div>
-          )}
-          {extra > 0 && (
-            <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[11px] font-medium px-2 py-0.5 rounded-full">
-              +{extra}
-            </div>
-          )}
-          {isBest && (
-            <div className="absolute top-2 left-2 inline-flex items-center gap-1 bg-primary text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-              <Sparkles size={10} />
-              BEST
-            </div>
+            <p className="mt-0.5 t-stars text-[14px] leading-none">
+              {"★".repeat(review.rating)}
+              <span className="text-line2">
+                {"★".repeat(5 - review.rating)}
+              </span>
+            </p>
+          </div>
+          {review.vehicleName && (
+            <span
+              className={cn(
+                "t-tag shrink-0 max-w-[40%] truncate",
+                purpleAvatar && "t-tag-pp"
+              )}
+            >
+              {review.vehicleName}
+            </span>
           )}
         </div>
 
-        <div className="p-4 flex-1 flex flex-col gap-2">
-          <div className="flex items-center gap-0.5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star
-                key={i}
-                size={13}
-                className={
-                  i < review.rating
-                    ? "fill-primary text-primary"
-                    : "text-neutral-600"
-                }
-              />
-            ))}
+        {/* 본문 */}
+        <p className="mt-3 line-clamp-3 min-h-[60px] flex-1 text-[14px] leading-[1.55] text-g1">
+          {review.content}
+        </p>
+
+        {/* 이미지 썸네일 */}
+        {cover ? (
+          <div className="relative mt-3 aspect-[5/3] w-full overflow-hidden rounded-[12px] bg-sec">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={cover}
+              alt="후기 이미지"
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+            {extra > 0 && (
+              <div className="absolute bottom-2 right-2 rounded-pill bg-black/60 px-2 py-0.5 text-[11px] font-bold text-white">
+                +{extra}
+              </div>
+            )}
           </div>
-          <p className="text-[14px] text-ink-body leading-relaxed line-clamp-3 flex-1 min-h-[60px]">
-            {review.content}
-          </p>
-          <div className="pt-2 mt-auto border-t border-[#F0F0F0] flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[12px] font-medium text-ink truncate">
-                {review.displayName}
-              </p>
-              {review.vehicleName && (
-                <p className="text-[11px] text-ink-caption truncate">
-                  {review.vehicleName}
-                </p>
-              )}
-            </div>
-            <p className="text-[11px] text-ink-caption shrink-0">
-              {review.reviewDate}
-            </p>
-          </div>
-        </div>
+        ) : null}
+
+        {/* 날짜 */}
+        <p className="mt-3 text-[12px] text-g2">{review.reviewDate}</p>
       </Link>
 
       <div className="px-4 pb-4">

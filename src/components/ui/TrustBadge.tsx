@@ -11,12 +11,12 @@ function TrustBadge({ label, className }: TrustBadgeProps) {
     <span
       className={cn(
         "inline-flex items-center gap-2",
-        "bg-primary-100 text-primary rounded-pill px-[14px] py-[6px]",
-        "text-label font-medium",
+        "bg-brand-soft text-brand rounded-pill px-[14px] py-[6px]",
+        "text-label font-bold",
         className
       )}
     >
-      <span className="flex-shrink-0 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+      <span className="flex-shrink-0 w-4 h-4 rounded-full bg-brand flex items-center justify-center">
         <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
       </span>
       {label}

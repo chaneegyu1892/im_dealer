@@ -134,12 +134,12 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
 
   if (submitted) {
     return (
-      <div className="rounded-card border border-[#F0F0F0] bg-white p-6 text-center">
-        <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <CheckCircle2 size={22} className="text-primary" />
+      <div className="t-card p-6 text-center">
+        <div className="mx-auto w-12 h-12 rounded-full bg-brand-soft flex items-center justify-center">
+          <CheckCircle2 size={22} className="text-brand" />
         </div>
-        <p className="mt-4 text-[16px] font-semibold text-ink">후기가 접수되었어요</p>
-        <p className="mt-2 text-[13px] leading-relaxed text-ink-caption">
+        <p className="mt-4 text-[16px] font-extrabold text-ink">후기가 접수되었어요</p>
+        <p className="mt-2 text-[13px] leading-relaxed text-g1">
           담당 어드민 검토 후 공개됩니다.
           <br />
           소중한 의견 감사합니다.
@@ -151,9 +151,9 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
   const displayRating = hover ?? rating;
 
   return (
-    <div className="rounded-card border border-[#F0F0F0] bg-white p-5 space-y-6">
+    <div className="t-card p-5 space-y-6">
       <div>
-        <label className="block text-[13px] font-medium text-ink mb-3">별점</label>
+        <label className="block text-[13px] font-extrabold text-ink mb-3">별점</label>
         <div className="flex items-center gap-1.5">
           {[1, 2, 3, 4, 5].map((n) => {
             const filled = n <= displayRating;
@@ -171,20 +171,20 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
                   size={32}
                   className={
                     filled
-                      ? "fill-[#FFB400] text-[#FFB400]"
-                      : "fill-transparent text-[#D0D0D0]"
+                      ? "fill-[#FFB020] text-[#FFB020]"
+                      : "fill-transparent text-g3"
                   }
                   strokeWidth={1.5}
                 />
               </button>
             );
           })}
-          <span className="ml-2 text-[13px] text-ink-caption">{displayRating}점</span>
+          <span className="ml-2 text-[13px] font-bold text-g1">{displayRating}점</span>
         </div>
       </div>
 
       <div>
-        <label htmlFor="review-content" className="block text-[13px] font-medium text-ink mb-2">
+        <label htmlFor="review-content" className="block text-[13px] font-extrabold text-ink mb-2">
           후기 내용
         </label>
         <textarea
@@ -197,7 +197,7 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
               ? `${vehicleName} 이용 경험을 솔직하게 적어주세요. (최소 ${MIN_LEN}자)`
               : `이용 경험을 솔직하게 적어주세요. (최소 ${MIN_LEN}자)`
           }
-          className="w-full rounded-btn border border-[#E0E0E0] bg-white px-4 py-3 text-[14px] text-ink placeholder:text-ink-caption focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 resize-none"
+          className="w-full rounded-[14px] border border-line2 bg-sec px-4 py-3 text-[14px] text-ink placeholder:text-g2 focus:outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/15 resize-none"
         />
         <div className="mt-1.5 flex items-center justify-between text-[12px]">
           <span
@@ -206,7 +206,7 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
                 ? "text-[#D17C00]"
                 : tooLong
                 ? "text-[#C0392B]"
-                : "text-ink-caption"
+                : "text-g2"
             }
           >
             {tooShort
@@ -216,7 +216,7 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
               : `${MIN_LEN}자 이상 ${MAX_LEN}자 이내`}
           </span>
           <span
-            className={tooLong ? "text-[#C0392B] font-medium" : "text-ink-caption"}
+            className={tooLong ? "text-[#C0392B] font-bold" : "text-g2"}
           >
             {length}/{MAX_LEN}
           </span>
@@ -225,10 +225,10 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
 
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-[13px] font-medium text-ink">
+          <label className="block text-[13px] font-extrabold text-ink">
             사진 (선택)
           </label>
-          <span className="text-[12px] text-ink-caption">
+          <span className="text-[12px] text-g2">
             {imageUrls.length}/{MAX_IMAGES}
           </span>
         </div>
@@ -237,7 +237,7 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
           {imageUrls.map((url, idx) => (
             <div
               key={url}
-              className="relative aspect-square rounded-btn overflow-hidden border border-[#E0E0E0] bg-[#F5F5F5]"
+              className="relative aspect-square rounded-[12px] overflow-hidden border border-line2 bg-sec"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt={`첨부 이미지 ${idx + 1}`} className="w-full h-full object-cover" />
@@ -257,7 +257,7 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="aspect-square rounded-btn border border-dashed border-[#D0D0D0] bg-[#FAFAFA] flex flex-col items-center justify-center gap-1 text-ink-caption hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-50"
+              className="aspect-square rounded-[12px] border border-dashed border-line2 bg-sec flex flex-col items-center justify-center gap-1 text-g2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-50"
             >
               {uploading ? (
                 <>
@@ -283,13 +283,13 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
           onChange={onPickFiles}
         />
 
-        <p className="mt-1.5 text-[11px] text-ink-caption">
+        <p className="mt-1.5 text-[11px] text-g2">
           최대 {MAX_IMAGES}장 · JPG/PNG/WEBP · 큰 사진은 자동으로 줄어 업로드됩니다
         </p>
       </div>
 
       {error && (
-        <p className="text-[13px] text-[#C0392B] bg-[#FDECEA] border border-[#F5C6CB] rounded-btn px-3 py-2">
+        <p className="text-[13px] text-[#C0392B] bg-[#FDECEA] border border-[#F5C6CB] rounded-[12px] px-3 py-2">
           {error}
         </p>
       )}
@@ -304,7 +304,7 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
         {submitting ? "제출 중..." : "후기 제출하기"}
       </Button>
 
-      <p className="text-[11px] text-ink-caption leading-relaxed text-center">
+      <p className="text-[11px] text-g2 leading-relaxed text-center">
         이름은 &lsquo;{customerDisplayName}&rsquo; 형태로 마스킹되어 표시됩니다.
       </p>
     </div>

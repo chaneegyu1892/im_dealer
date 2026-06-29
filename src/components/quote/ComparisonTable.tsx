@@ -132,7 +132,7 @@ export function ComparisonTable({ primary, comparison }: ComparisonTableProps) {
   );
 
   return (
-    <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card overflow-hidden">
+    <div className="bg-white rounded-card border border-line2 shadow-soft overflow-hidden">
       <div className="hidden md:block">
         <DesktopTable columns={columns} totalCosts={totalCosts} />
       </div>
@@ -168,10 +168,10 @@ function DesktopTable({ columns, totalCosts }: RowProps) {
   return (
     <div className="grid grid-cols-[minmax(130px,max-content)_1fr_1fr] divide-x divide-[#F0F0F0]">
       {/* Header */}
-      <div className="bg-neutral" />
+      <div className="bg-sec" />
       {columns.map((col, i) => (
-        <div key={i} className={cn("p-4", col.isPrimary ? "bg-primary-100" : "bg-white")}>
-          <p className="text-[11px] font-semibold text-primary uppercase tracking-wider mb-1">{col.label}</p>
+        <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-white")}>
+          <p className="text-[11px] font-bold text-brand uppercase tracking-wider mb-1">{col.label}</p>
           <p className="text-[12px] text-ink-caption">{col.brand}</p>
           <p className="text-[15px] font-medium text-ink leading-snug">{col.vehicleName}</p>
           <p className="text-[12px] text-ink-label mt-0.5">{col.trimName}</p>
@@ -239,7 +239,7 @@ function DesktopTable({ columns, totalCosts }: RowProps) {
       <LabelCell highlight>월 납입금</LabelCell>
       {columns.map((col, i) => (
         <ValueCell key={i} highlight>
-          <span className="text-[20px] font-semibold text-ink">
+          <span className="num text-[20px] font-extrabold text-ink">
             {formatWon(col.scenario.monthlyPayment)}
           </span>
           {!col.isPrimary && (
@@ -280,7 +280,7 @@ function DesktopTable({ columns, totalCosts }: RowProps) {
       <LabelCell highlight>예상 총 비용</LabelCell>
       {columns.map((_, i) => (
         <ValueCell key={i} highlight>
-          <span className="text-[15px] font-semibold text-ink">{formatManWon(totalCosts[i])}</span>
+          <span className="num text-[15px] font-extrabold text-ink">{formatManWon(totalCosts[i])}</span>
           {i !== 0 && (
             <DeltaBadge value={totalCosts[i]} baseValue={baseTotal} unit="man" />
           )}
@@ -300,10 +300,10 @@ function MobileStack({ columns, totalCosts }: RowProps) {
   return (
     <div className="divide-y divide-[#F0F0F0]">
       {columns.map((col, i) => (
-        <div key={i} className={cn("p-4", col.isPrimary ? "bg-primary-100" : "bg-white")}>
+        <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-white")}>
           <div className="flex items-start gap-2 mb-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-semibold text-primary uppercase tracking-wider mb-0.5">{col.label}</p>
+              <p className="text-[11px] font-bold text-brand uppercase tracking-wider mb-0.5">{col.label}</p>
               <p className="text-[11px] text-ink-caption">{col.brand}</p>
               <p className="text-[15px] font-medium text-ink leading-snug truncate">{col.vehicleName}</p>
               <p className="text-[12px] text-ink-label mt-0.5 truncate">{col.trimName}</p>
@@ -316,7 +316,7 @@ function MobileStack({ columns, totalCosts }: RowProps) {
 
           {/* 구성 요약 — 라인업/기본 차량가/옵션/색상 */}
           {col.config && (
-            <div className="bg-neutral rounded-[8px] p-3 mb-2 space-y-1 text-[11px] leading-relaxed">
+            <div className="bg-sec rounded-[10px] p-3 mb-2 space-y-1 text-[11px] leading-relaxed">
               <p className="text-ink-body">
                 <span className="text-ink-caption">라인업</span>{" "}
                 {col.config.lineupName ?? "—"}
@@ -339,11 +339,11 @@ function MobileStack({ columns, totalCosts }: RowProps) {
           )}
 
           {/* 월 납입금 */}
-          <div className="bg-white rounded-[8px] border border-[#F0F0F0] p-3 mb-2">
+          <div className="bg-white rounded-[10px] border border-line2 p-3 mb-2">
             <div className="flex items-center justify-between flex-wrap gap-1">
               <p className="text-[12px] text-ink-label">월 납입금</p>
               <div className="flex items-center flex-wrap gap-1">
-                <span className="text-[20px] font-semibold text-ink">
+                <span className="num text-[20px] font-extrabold text-ink">
                   {formatWon(col.scenario.monthlyPayment)}
                 </span>
                 {!col.isPrimary && (
@@ -376,7 +376,7 @@ function MobileStack({ columns, totalCosts }: RowProps) {
               </p>
             </div>
             <div className="flex items-center flex-wrap gap-1">
-              <span className="text-[15px] font-semibold text-ink">{formatManWon(totalCosts[i])}</span>
+              <span className="num text-[15px] font-extrabold text-ink">{formatManWon(totalCosts[i])}</span>
               {!col.isPrimary && (
                 <DeltaBadge value={totalCosts[i]} baseValue={baseTotal} unit="man" />
               )}
@@ -390,7 +390,7 @@ function MobileStack({ columns, totalCosts }: RowProps) {
 
 function LabelCell({ children, highlight = false }: { children: React.ReactNode; highlight?: boolean }) {
   return (
-    <div className={cn("px-4 py-3 text-[12px] font-medium text-ink-label bg-neutral flex items-center", highlight && "font-semibold text-ink")}>
+    <div className={cn("px-4 py-3 text-[12px] font-medium text-ink-label bg-sec flex items-center", highlight && "font-bold text-ink")}>
       {children}
     </div>
   );
@@ -398,7 +398,7 @@ function LabelCell({ children, highlight = false }: { children: React.ReactNode;
 
 function ValueCell({ children, highlight = false }: { children: React.ReactNode; highlight?: boolean }) {
   return (
-    <div className={cn("px-4 py-3 flex flex-wrap items-center gap-1", highlight && "bg-primary-100/30")}>
+    <div className={cn("px-4 py-3 flex flex-wrap items-center gap-1", highlight && "bg-brand-soft/40")}>
       {children}
     </div>
   );

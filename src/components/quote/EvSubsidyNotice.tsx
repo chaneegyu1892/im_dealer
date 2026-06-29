@@ -36,16 +36,16 @@ export function EvSubsidyNotice({ amount, range, tone = "light" }: EvSubsidyNoti
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-[10px] bg-gradient-to-r from-primary/[0.08] to-primary/[0.02] border border-primary/15 px-4 py-3">
-      <span className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-primary/10">
-        <Zap size={18} strokeWidth={2.5} className="text-primary" />
+    <div className="flex items-center gap-3 rounded-card bg-brand-soft border border-brand/30 px-4 py-3">
+      <span className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-brand/10">
+        <Zap size={18} strokeWidth={2.5} className="text-brand" />
       </span>
       <div className="min-w-0 flex-1">
-        <span className="block text-[13px] font-semibold text-primary leading-tight">전기차 보조금 지원 대상</span>
+        <span className="block text-[13px] font-bold text-brand leading-tight">전기차 보조금 지원 대상</span>
         <span className="block text-[11px] font-normal text-ink-caption">실구매가에 이미 반영된 금액</span>
       </div>
       <div className="shrink-0 text-right leading-none">
-        <span className="text-[22px] font-bold text-primary tracking-tight">{label}</span>
+        <span className="num text-[22px] font-extrabold text-brand tracking-tight">{label}</span>
       </div>
     </div>
   );

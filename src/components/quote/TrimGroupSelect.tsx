@@ -87,10 +87,10 @@ export function TrimGroupSelect<T extends GroupableTrim>({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={cn(
-          "w-full flex items-center justify-between gap-2 px-3 py-2 text-[13px] rounded-[8px] border transition-colors",
+          "w-full flex items-center justify-between gap-2 px-3 py-2 text-[13px] rounded-[10px] border transition-colors",
           isOpen
-            ? "border-primary bg-white"
-            : "border-[#E8EAF0] bg-[#F8F9FC] hover:border-primary/40"
+            ? "border-brand bg-white"
+            : "border-line2 bg-sec hover:border-brand/40"
         )}
       >
         {selected ? (
@@ -156,8 +156,8 @@ export function TrimGroupSelect<T extends GroupableTrim>({
                         className={cn(
                           "w-full flex items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition-colors",
                           isSelected
-                            ? "bg-primary-100 text-primary"
-                            : "text-[#1A1A2E] hover:bg-[#F8F9FC]"
+                            ? "bg-brand-soft text-brand"
+                            : "text-[#1A1A2E] hover:bg-sec"
                         )}
                       >
                         <span className="min-w-0">
@@ -183,7 +183,7 @@ export function TrimGroupSelect<T extends GroupableTrim>({
                               {fmtMan(g.trim.price)}
                             </span>
                           )}
-                          {isSelected && <Check size={14} className="text-primary" />}
+                          {isSelected && <Check size={14} className="text-brand" />}
                         </span>
                       </button>
                     );

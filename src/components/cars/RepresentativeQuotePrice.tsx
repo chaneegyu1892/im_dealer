@@ -53,11 +53,11 @@ const TONE_CLASS: Record<
     empty: "text-ink-label",
   },
   brand: {
-    caption: "text-ink-caption",
-    label: "text-ink-caption",
-    number: "text-primary",
-    unit: "text-ink-label",
-    empty: "text-ink-caption",
+    caption: "text-g2",
+    label: "text-g2",
+    number: "text-brand",
+    unit: "text-g1",
+    empty: "text-g2",
   },
   dark: {
     caption: "text-white/40",
@@ -106,7 +106,7 @@ export function RepresentativeQuotePrice({
               )}
               <span
                 className={cn(
-                  "font-semibold leading-none",
+                  "num font-extrabold leading-none",
                   NUMBER_SIZE[size],
                   t.number,
                 )}

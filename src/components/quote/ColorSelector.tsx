@@ -66,8 +66,8 @@ function ColorSection({
               className={cn(
                 "relative flex flex-col items-start gap-2 p-3 rounded-btn border text-left transition-all duration-150",
                 isSelected
-                  ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
-                  : "border-neutral-800 bg-white hover:border-secondary-400"
+                  ? "border-brand bg-brand-soft shadow-soft"
+                  : "border-line2 bg-white hover:border-brand/30"
               )}
             >
               <div className="flex items-center gap-2.5 w-full">
@@ -77,7 +77,7 @@ function ColorSection({
                     style={{ background: c.hexCode }}
                   />
                   {isSelected && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                    <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-brand flex items-center justify-center">
                       <Check size={10} className="text-white" strokeWidth={3} />
                     </div>
                   )}
@@ -89,7 +89,7 @@ function ColorSection({
                       // 색상명은 잘리면 식별 불가 — 한 줄 말줄임 대신 어절 단위 2줄 줄바꿈 허용
                       // (어절이 너비를 넘으면 overflow-wrap 으로 글자 단위 줄바꿈 폴백)
                       "text-[13px] font-bold leading-snug break-keep [overflow-wrap:anywhere] line-clamp-2",
-                      isSelected ? "text-primary" : "text-ink"
+                      isSelected ? "text-brand" : "text-ink"
                     )}
                   >
                     {c.name}
@@ -131,9 +131,9 @@ export function ColorSelector({
   }
 
   return (
-    <div className="space-y-5 p-5 bg-white rounded-card border border-neutral-700">
+    <div className="space-y-5 p-5 bg-white rounded-card border border-line2 shadow-soft">
       <div className="flex items-center gap-2">
-        <Palette size={18} className="text-primary" />
+        <Palette size={18} className="text-brand" />
         <h3 className="text-[15px] font-bold text-ink">색상 선택</h3>
       </div>
       {exteriors.length > 0 && (

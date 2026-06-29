@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Star, X, ArrowRight, Sparkles, Heart } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, X, ArrowRight, Heart } from "lucide-react";
 import type { PublicReview } from "@/types/review";
 
 const CARD_WIDTH = 320;
@@ -34,30 +34,29 @@ function ReviewCard({
           onOpen(review);
         }
       }}
-      className="w-[320px] shrink-0 bg-white rounded-card border border-[#F0F0F0] p-5 shadow-card cursor-pointer hover:border-primary/30 hover:shadow-md transition-all"
+      className="w-[320px] shrink-0 bg-white rounded-[18px] border border-line2 p-5 shadow-soft cursor-pointer hover:border-brand/30 hover:shadow-md transition-all"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-0.5">
           {Array.from({ length: 5 }).map((_, i) => (
             <Star
               key={i}
-              size={14}
+              size={15}
               className={
                 i < review.rating
-                  ? "fill-primary text-primary"
-                  : "text-neutral-600"
+                  ? "fill-[#FFB020] text-[#FFB020]"
+                  : "text-line2"
               }
             />
           ))}
         </div>
         {showBestBadge && (
-          <span className="inline-flex items-center gap-1 bg-primary text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-            <Sparkles size={10} />
+          <span className="inline-flex items-center gap-1 bg-brand text-white text-[11px] font-extrabold px-2.5 py-1 rounded-pill">
             BEST 리뷰
           </span>
         )}
       </div>
-      <p className="mt-3 text-[14px] text-ink-body leading-relaxed line-clamp-3 min-h-[66px]">
+      <p className="mt-3 text-[14px] text-ink-body leading-[1.6] line-clamp-3 min-h-[66px]">
         {review.content}
       </p>
       {images.length > 0 && (
@@ -67,7 +66,7 @@ function ReviewCard({
             return (
               <div
                 key={url}
-                className="relative aspect-square rounded-[8px] overflow-hidden border border-[#F0F0F0] bg-[#F5F5F5]"
+                className="relative aspect-square rounded-[10px] overflow-hidden border border-line2 bg-sec"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -86,16 +85,16 @@ function ReviewCard({
           })}
         </div>
       )}
-      <div className="mt-4 pt-4 border-t border-[#F0F0F0] flex items-center justify-between">
+      <div className="mt-4 pt-4 border-t border-line2 flex items-center justify-between">
         <div>
-          <p className="text-[13px] font-medium text-ink">{review.displayName}</p>
+          <p className="text-[13.5px] font-extrabold text-ink">{review.displayName}</p>
           {review.vehicleName && (
-            <p className="text-[11px] text-ink-caption mt-0.5">{review.vehicleName}</p>
+            <p className="text-[11.5px] text-g2 mt-0.5">{review.vehicleName}</p>
           )}
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-ink-caption">
+        <div className="flex items-center gap-2 text-[11.5px] text-g2">
           {review.likeCount > 0 && (
-            <span className="inline-flex items-center gap-0.5 text-primary">
+            <span className="inline-flex items-center gap-0.5 text-brand font-bold">
               <Heart size={11} className="fill-current" />
               {review.likeCount}
             </span>
@@ -141,14 +140,14 @@ function ReviewModal({
       aria-label="후기 상세"
     >
       <div
-        className="relative w-full max-w-[640px] max-h-[90vh] bg-white rounded-card shadow-xl overflow-hidden flex flex-col"
+        className="relative w-full max-w-[640px] max-h-[90vh] bg-white rounded-[18px] shadow-xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           aria-label="닫기"
           onClick={onClose}
-          className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 hover:bg-white border border-[#E0E0E0] flex items-center justify-center text-ink"
+          className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 hover:bg-white border border-line2 flex items-center justify-center text-ink"
         >
           <X size={16} />
         </button>
@@ -160,11 +159,11 @@ function ReviewModal({
                 key={i}
                 size={16}
                 className={
-                  i < review.rating ? "fill-primary text-primary" : "text-neutral-600"
+                  i < review.rating ? "fill-[#FFB020] text-[#FFB020]" : "text-line2"
                 }
               />
             ))}
-            <span className="ml-2 text-[13px] text-ink-caption">
+            <span className="ml-2 text-[13px] font-bold text-g2">
               {review.rating}/5
             </span>
           </div>
@@ -175,7 +174,7 @@ function ReviewModal({
 
           {images.length > 0 && (
             <div className="space-y-2">
-              <div className="aspect-[4/3] w-full bg-[#F5F5F5] rounded-[10px] overflow-hidden border border-[#F0F0F0]">
+              <div className="aspect-[4/3] w-full bg-sec rounded-[12px] overflow-hidden border border-line2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={images[activeIdx]}
@@ -193,7 +192,7 @@ function ReviewModal({
                       onClick={() => setActiveIdx(idx)}
                       className={
                         "shrink-0 w-16 h-16 rounded-[6px] overflow-hidden border-2 transition-colors " +
-                        (idx === activeIdx ? "border-primary" : "border-transparent opacity-70 hover:opacity-100")
+                        (idx === activeIdx ? "border-brand" : "border-transparent opacity-70 hover:opacity-100")
                       }
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -210,21 +209,21 @@ function ReviewModal({
             </div>
           )}
 
-          <div className="pt-4 border-t border-[#F0F0F0] flex items-center justify-between">
+          <div className="pt-4 border-t border-line2 flex items-center justify-between">
             <div>
-              <p className="text-[14px] font-medium text-ink">{review.displayName}</p>
+              <p className="text-[14px] font-extrabold text-ink">{review.displayName}</p>
               {review.vehicleName && (
-                <p className="text-[12px] text-ink-caption mt-0.5">
+                <p className="text-[12px] text-g2 mt-0.5">
                   {review.vehicleName}
                 </p>
               )}
             </div>
-            <p className="text-[12px] text-ink-caption">{review.reviewDate}</p>
+            <p className="text-[12px] text-g2">{review.reviewDate}</p>
           </div>
 
           <Link
             href={`/reviews/${review.id}`}
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-primary hover:underline"
+            className="inline-flex items-center gap-1.5 text-[13px] font-extrabold text-brand hover:underline"
           >
             이 후기 자세히 보기
             <ArrowRight size={14} />
@@ -300,15 +299,18 @@ export function CustomerReviewsSection({
   };
 
   return (
-    <section className="page-container py-16">
-      <div className="mb-8 flex items-end justify-between gap-4">
+    <section className="t-shell-wide py-14">
+      <div className="mb-7 flex items-end justify-between gap-4">
         <div>
-          <p className="section-label mb-2">{sectionLabel}</p>
-          <h2 className="font-display text-headline-sm text-ink">{title}</h2>
+          <div className="t-kick mb-2">
+            <Star size={13} className="fill-[#FFB020] text-[#FFB020]" />
+            {sectionLabel}
+          </div>
+          <h2 className="t-h1">{title}</h2>
         </div>
         <Link
           href="/reviews"
-          className="hidden sm:inline-flex items-center gap-1 text-[13px] font-medium text-ink-caption hover:text-ink transition-colors"
+          className="hidden sm:inline-flex items-center gap-1 text-[13px] font-bold text-g2 hover:text-ink transition-colors"
         >
           전체 후기 보기
           <ArrowRight size={14} />

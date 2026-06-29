@@ -87,18 +87,18 @@ export function LikeButton({
 
   const sizeClasses =
     size === "sm"
-      ? "h-8 px-2.5 text-[12px] gap-1"
-      : "h-9 px-3 text-[13px] gap-1.5";
+      ? "h-8 px-3 text-[12px] gap-1"
+      : "h-10 px-4 text-[13px] gap-1.5";
   const iconSize = size === "sm" ? 14 : 16;
 
   const variantClasses =
     variant === "filled"
       ? liked
-        ? "bg-primary text-white border border-primary"
-        : "bg-white text-ink border border-[#E5E7F0] hover:border-primary/40"
+        ? "bg-brand text-white border border-brand"
+        : "bg-sec text-ink border border-line2 hover:border-brand/40"
       : liked
-        ? "text-primary border border-primary/30 bg-primary/5"
-        : "text-ink-caption border border-[#E5E7F0] bg-white hover:text-ink hover:border-[#CDD2E4]";
+        ? "text-brand border border-brand/30 bg-brand-soft"
+        : "text-g1 border border-line2 bg-white hover:text-ink hover:border-brand/40";
 
   return (
     <button
@@ -108,7 +108,7 @@ export function LikeButton({
       aria-pressed={liked}
       aria-label={liked ? "좋아요 취소" : "좋아요"}
       className={cn(
-        "inline-flex items-center rounded-full font-medium transition-colors disabled:opacity-60",
+        "inline-flex items-center rounded-pill font-bold transition-colors disabled:opacity-60",
         sizeClasses,
         variantClasses,
         className

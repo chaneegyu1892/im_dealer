@@ -36,9 +36,9 @@ export function SelectRow({
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           className={cn(
-            "w-full appearance-none bg-white border border-neutral-800 rounded-btn",
+            "w-full appearance-none bg-white border border-line2 rounded-btn",
             "px-4 py-2.5 text-[14px] pr-9",
-            "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10",
+            "focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/10",
             "transition-colors duration-150 cursor-pointer",
             "text-ink disabled:text-ink-caption disabled:cursor-not-allowed disabled:bg-neutral",
           )}
@@ -72,11 +72,11 @@ export function OptionButton({ selected, onClick, children, size = "md" }: Optio
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-btn font-medium transition-all duration-150 border",
+        "rounded-btn font-bold transition-all duration-150 border",
         size === "sm" ? "px-3 py-1.5 text-[12px]" : "px-5 py-2.5 text-[14px]",
         selected
-          ? "bg-primary text-white border-primary"
-          : "bg-white text-ink-label border-neutral-800 hover:border-secondary-400 hover:text-ink",
+          ? "bg-brand text-white border-brand"
+          : "bg-white text-ink-label border-line2 hover:border-brand/30 hover:text-ink",
       )}
     >
       {children}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Home, WandSparkles, CarFront, MessageCircle, type LucideIcon } from "lucide-react";
+import { Home, Lightbulb, CarFront, MessageCircle, type LucideIcon } from "lucide-react";
 
 interface NavItem {
   href?: string;
@@ -16,7 +16,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/",          label: "홈",      icon: Home,          exact: true  },
-  { href: "/recommend", label: "AI 추천",  icon: WandSparkles,  exact: false },
+  { href: "/recommend", label: "AI 추천",  icon: Lightbulb,  exact: false },
   { href: "/cars",      label: "차량탐색", icon: CarFront,      exact: false },
   {                     label: "상담",    icon: MessageCircle, exact: false, channelTalk: true },
 ];
@@ -24,7 +24,8 @@ const NAV_ITEMS: NavItem[] = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/quote")) {
+  // 견적·AI추천 플로우는 하단 고정 CTA(dock)를 쓰므로 탭바와 겹침 방지
+  if (pathname.startsWith("/quote") || pathname === "/recommend") {
     return null;
   }
 
@@ -62,7 +63,7 @@ export function BottomNav() {
                 <motion.span
                   className={cn(
                     "relative z-10 flex h-7 min-w-7 items-center justify-center rounded-full transition-colors duration-200",
-                    active ? "bg-primary/[0.08]" : "bg-transparent"
+                    active ? "bg-brand/[0.08]" : "bg-transparent"
                   )}
                   animate={active ? { y: -1, scale: 1.02 } : { y: 0, scale: 1 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -72,7 +73,7 @@ export function BottomNav() {
                     strokeWidth={active ? 2.35 : 1.85}
                     className={cn(
                       "transition-colors duration-200",
-                      active ? "text-primary" : "text-[#7B8299]"
+                      active ? "text-brand" : "text-[#7B8299]"
                     )}
                   />
                 </motion.span>

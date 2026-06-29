@@ -1,5 +1,5 @@
-import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AiBadge } from "@/components/ui/AiBadge";
 
 interface AiInsightProps {
   reason: string;
@@ -11,20 +11,18 @@ export function AiInsight({ reason, highlights, className }: AiInsightProps) {
   return (
     <div
       className={cn(
-        "rounded-btn p-4 border border-primary-200 bg-primary-100",
+        "rounded-card p-4 border border-brand/30 bg-brand-soft",
         className
       )}
     >
       {/* 헤더 */}
       <div className="flex items-center gap-1.5 mb-2">
-        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary">
-          <Sparkles size={11} className="text-white" />
-        </span>
-        <span className="text-[12px] font-medium text-primary">AI 추천 이유</span>
+        <AiBadge />
+        <span className="text-[13px] font-bold text-brand">추천 이유</span>
       </div>
 
       {/* 이유 텍스트 */}
-      <div className="text-[13px] text-ink leading-relaxed space-y-1">
+      <div className="text-[14px] text-ink leading-relaxed space-y-1">
         {reason.split(/(?<=\.) /).map((sentence, i) => (
           sentence.trim() && <p key={i}>{sentence.trim()}</p>
         ))}
@@ -36,7 +34,7 @@ export function AiInsight({ reason, highlights, className }: AiInsightProps) {
           {highlights.map((tag) => (
             <span
               key={tag}
-              className="text-[11px] font-medium text-primary bg-white border border-primary-200 rounded-pill px-2.5 py-0.5"
+              className="text-[12.5px] font-bold text-brand bg-white border border-brand/30 rounded-pill px-3 py-1"
             >
               {tag}
             </span>

@@ -4,10 +4,11 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { cn, formatCurrency, formatMonthly } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import type { RecommendedVehicle } from "@/types/recommendation";
 import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
+import { TossPrice } from "@/components/ui/TossPrice";
 import { ChevronRight, Trophy, Check, Users } from "lucide-react";
 import { industryToCustomerType } from "@/constants/customer-types";
 import { useAuthUser } from "@/hooks/useAuthUser";
@@ -86,21 +87,21 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[18px] bg-white shadow-[0_8px_24px_rgba(18,24,40,0.05)]",
-        isTop ? "border border-primary" : "border border-public-border"
+        "overflow-hidden rounded-[18px] bg-white shadow-soft",
+        isTop ? "border-[1.5px] border-brand" : "border border-line2"
       )}
     >
       {/* 순위 배지 */}
       <div
         className={cn(
           "flex items-center gap-2 px-4 py-2.5",
-          isTop ? "bg-primary" : "bg-public-bg"
+          isTop ? "bg-brand" : "bg-public-bg"
         )}
       >
         {isTop && <Trophy size={14} className="text-white" />}
         <span
           className={cn(
-            "text-[12px] font-medium",
+            "text-[13.5px] font-bold",
             isTop ? "text-white" : "text-ink-label"
           )}
         >
@@ -132,17 +133,17 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
 
           {/* 이름·트림 */}
           <div className="flex-1 min-w-0">
-            <p className="text-[12px] text-ink-label">{detail.brand}</p>
-            <h3 className="truncate text-[18px] font-semibold leading-tight text-ink md:text-title-sm md:font-medium">
+            <p className="text-[13.5px] font-bold text-g2">{detail.brand}</p>
+            <h3 className="truncate text-[20px] font-extrabold leading-tight tracking-[-0.03em] text-ink">
               {detail.name}
             </h3>
-            <p className="text-[12px] text-ink-caption mt-0.5">{detail.defaultTrimName}</p>
+            <p className="text-[13.5px] text-g2 mt-0.5">{detail.defaultTrimName}</p>
           </div>
 
           {/* 차량 상세 링크 */}
           <Link
             href={`/cars/${detail.slug}`}
-            className="flex-shrink-0 text-ink-caption hover:text-primary transition-colors"
+            className="flex-shrink-0 text-ink-caption hover:text-brand transition-colors"
             aria-label="차량 상세 보기"
           >
             <ChevronRight size={20} />
@@ -157,12 +158,12 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Users size={13} className="text-secondary" />
-              <p className="text-[12px] font-medium text-ink-label">추천 구성</p>
-              <span className="text-[10px] font-medium text-secondary bg-secondary-100 rounded-pill px-2 py-0.5">
+              <p className="text-[13.5px] font-medium text-ink-label">추천 구성</p>
+              <span className="text-[12px] font-medium text-secondary bg-secondary-100 rounded-pill px-2 py-0.5">
                 인기
               </span>
             </div>
-            <p className="text-[11px] text-public-muted mb-3">
+            <p className="text-[13px] text-public-muted mb-3">
               필요한 옵션을 선택하면 견적 조건에 함께 반영됩니다.
             </p>
 
@@ -171,9 +172,9 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
                 <div key={config.id}>
                   {/* 구성 헤더 */}
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-[12px] font-medium text-ink">{config.name}</p>
+                    <p className="text-[13.5px] font-medium text-ink">{config.name}</p>
                     {config.note && (
-                      <p className="text-[10px] text-ink-caption">{config.note}</p>
+                      <p className="text-[12px] text-ink-caption">{config.note}</p>
                     )}
                   </div>
 
@@ -188,18 +189,18 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
                           onClick={() => toggleItem(item.id)}
                           aria-pressed={isSelected}
                           className={cn(
-                "inline-flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-[12px] font-medium transition-all duration-150",
+                "inline-flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-[13.5px] font-medium transition-all duration-150",
                 "active:scale-[0.97]",
                 isSelected
-                  ? "bg-primary/[0.06] border border-primary text-primary shadow-sm"
-                  : "bg-white border border-dashed border-public-border text-ink-label hover:border-solid hover:border-primary/30 hover:text-ink hover:bg-primary/[0.03]"
+                  ? "bg-brand-soft border border-brand text-brand font-bold shadow-sm"
+                  : "bg-white border border-dashed border-line2 text-ink-label hover:border-solid hover:border-brand/30 hover:text-ink hover:bg-brand/[0.03]"
                           )}
                         >
                           <span
                             className={cn(
                               "flex items-center justify-center w-3.5 h-3.5 rounded-full border flex-shrink-0",
                               isSelected
-                                ? "bg-primary border-primary"
+                                ? "bg-brand border-brand"
                                 : "border-neutral-400"
                             )}
                           >
@@ -208,8 +209,8 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
                           <span>{item.name}</span>
                           <span
                             className={cn(
-                              "text-[11px]",
-                              isSelected ? "text-primary" : "text-ink-caption"
+                              "text-[13px]",
+                              isSelected ? "text-brand" : "text-ink-caption"
                             )}
                           >
                             +{Math.round(item.price / 10000)}만
@@ -224,9 +225,9 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
 
             {/* 선택 총액 */}
             {selectedTotal > 0 && (
-              <div className="mt-3 flex items-center justify-between rounded-[12px] bg-primary/[0.06] border border-primary/15 px-3 py-2">
-                <p className="text-[12px] text-primary font-medium">선택 구성 추가금</p>
-                <p className="text-[13px] font-semibold text-primary">
+              <div className="mt-3 flex items-center justify-between rounded-[12px] bg-brand/[0.06] border border-brand/15 px-3 py-2">
+                <p className="text-[13.5px] text-brand font-bold">선택 구성 추가금</p>
+                <p className="num text-[14px] font-extrabold text-brand">
                   +{formatCurrency(selectedTotal)}
                 </p>
               </div>
@@ -237,10 +238,10 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
         {/* 월 납입금 예상 — 3가지 견적 비교 */}
         <div>
           <div className="mb-3">
-            <p className="text-[12px] font-medium text-ink-label">
+            <p className="text-[13.5px] font-medium text-ink-label">
               예상 월 납입금 ({months}개월)
             </p>
-            <p className="text-[10px] text-public-muted mt-0.5">
+            <p className="text-[12px] text-public-muted mt-0.5">
               조건별 월 납입금과 실부담을 함께 비교해 보세요
             </p>
           </div>
@@ -248,14 +249,12 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {/* 무보증 */}
             <div className="rounded-[14px] border border-public-border bg-public-bg p-3 flex flex-col gap-1">
-              <p className="text-[10px] text-ink-caption">무보증</p>
-              <p className="public-finance-number text-[20px] leading-none text-ink">
-                {formatMonthly(scenarios.standard.monthlyPayment)}
-              </p>
-              <p className="text-[10px] text-ink-caption">보증금·선납금 없음</p>
+              <p className="text-[12px] text-ink-caption">무보증</p>
+              <TossPrice won={scenarios.standard.monthlyPayment} size="sm" tone="ink" />
+              <p className="text-[12px] text-ink-caption">보증금·선납금 없음</p>
               <div className="mt-1.5 pt-1.5 border-t border-neutral-200">
-                <p className="text-[10px] text-ink-caption">{months}개월 실부담</p>
-                <p className="text-[12px] font-medium text-ink">
+                <p className="text-[12px] text-ink-caption">{months}개월 실부담</p>
+                <p className="text-[13.5px] font-medium text-ink">
                   {formatMan(standardTotalCost)}
                 </p>
               </div>
@@ -265,21 +264,19 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
             <MemberGate locked={locked} className="sm:col-span-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {/* 보증금형 — 기본 강조 + 추천 배지 */}
-            <div className="relative rounded-[14px] border border-primary bg-primary/[0.06] p-3 flex flex-col gap-1">
-              <span className="absolute -top-2 right-2 text-[9px] font-semibold text-white bg-primary rounded-pill px-2 py-0.5 shadow-sm">
+            <div className="relative rounded-[14px] border border-brand bg-brand/[0.06] p-3 flex flex-col gap-1">
+              <span className="absolute -top-2 right-2 text-[11px] font-bold text-white bg-brand rounded-pill px-2 py-0.5 shadow-sm">
                 추천
               </span>
-              <p className="text-[10px] text-primary font-medium">보증금 20%</p>
-              <p className="public-finance-number text-[20px] leading-none">
-                {formatMonthly(scenarios.conservative.monthlyPayment)}
-              </p>
-              <p className="text-[10px] text-primary-700">
+              <p className="text-[12px] text-brand font-bold">보증금 20%</p>
+              <TossPrice won={scenarios.conservative.monthlyPayment} size="sm" tone="brand" />
+              <p className="text-[12px] text-brand-dark">
                 보증금 {formatCurrency(scenarios.conservative.depositAmount)}
               </p>
-              <p className="text-[10px] text-primary-700">↳ 계약 종료 시 전액 환급</p>
-              <div className="mt-1.5 pt-1.5 border-t border-primary-200">
-                <p className="text-[10px] text-primary-700">{months}개월 실부담</p>
-                <p className="text-[12px] font-semibold text-primary">
+              <p className="text-[12px] text-brand-dark">↳ 계약 종료 시 전액 환급</p>
+              <div className="mt-1.5 pt-1.5 border-t border-brand/20">
+                <p className="text-[12px] text-brand-dark">{months}개월 실부담</p>
+                <p className="num text-[13.5px] font-extrabold text-brand">
                   {formatMan(depositTotalCost)}
                 </p>
               </div>
@@ -287,17 +284,15 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
 
             {/* 선납형 */}
             <div className="rounded-[14px] border border-public-border bg-public-bg p-3 flex flex-col gap-1">
-              <p className="text-[10px] text-ink-caption">선납 30%</p>
-              <p className="public-finance-number text-[20px] leading-none text-ink">
-                {formatMonthly(scenarios.aggressive.monthlyPayment)}
-              </p>
-              <p className="text-[10px] text-ink-caption">
+              <p className="text-[12px] text-ink-caption">선납 30%</p>
+              <TossPrice won={scenarios.aggressive.monthlyPayment} size="sm" tone="ink" />
+              <p className="text-[12px] text-ink-caption">
                 선납 {formatCurrency(scenarios.aggressive.prepayAmount)}
               </p>
-              <p className="text-[10px] text-ink-caption">↳ 매월 나눠서 차감</p>
+              <p className="text-[12px] text-ink-caption">↳ 매월 나눠서 차감</p>
               <div className="mt-1.5 pt-1.5 border-t border-neutral-200">
-                <p className="text-[10px] text-ink-caption">{months}개월 실부담</p>
-                <p className="text-[12px] font-medium text-ink">
+                <p className="text-[12px] text-ink-caption">{months}개월 실부담</p>
+                <p className="text-[13.5px] font-medium text-ink">
                   {formatMan(prepayTotalCost)}
                 </p>
               </div>
@@ -308,16 +303,16 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
 
           {/* 선납금이 낮아 보이는 이유 안내 */}
           <div className="mt-2.5 rounded-[12px] bg-public-bg border border-public-border px-3 py-2.5">
-            <p className="text-[10px] text-ink-label leading-relaxed">
+            <p className="text-[12px] text-ink-label leading-relaxed">
               <span className="font-medium">선납금형</span>은 미리 낸 목돈이 매월 나뉘어
               차감되어 월 납입금이 크게 낮아 보일 뿐, 실제로 내는 총액은 무보증과 비슷해요.
               <br />
-              <span className="font-medium text-primary">보증금형</span>은 보증금을 계약
+              <span className="font-bold text-brand">보증금형</span>은 보증금을 계약
               종료 시 돌려받아 {months}개월 실부담이 가장 낮습니다.
             </p>
           </div>
 
-          <p className="text-[10px] text-ink-caption mt-2">
+          <p className="text-[12px] text-ink-caption mt-2">
             * 실부담 = 월 납입금 합계 + 환급되지 않는 선납금 (보증금 제외). 실제 견적은
             금융사·신용도에 따라 달라질 수 있어요
           </p>
@@ -329,7 +324,7 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
           <button
             type="button"
             onClick={handleQuote}
-            className="public-touch-button w-full bg-primary text-white shadow-[0_10px_22px_rgba(0,6,102,0.18)]"
+            className="public-touch-button w-full bg-brand text-white font-extrabold shadow-lift hover:bg-brand-dark"
           >
             월 납입금 확인하기
           </button>

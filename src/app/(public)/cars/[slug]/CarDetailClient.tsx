@@ -6,7 +6,6 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
-  Sparkles,
   Check,
   ChevronRight,
   Images,
@@ -26,6 +25,7 @@ import {
   Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AiBadge } from "@/components/ui/AiBadge";
 import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { SpecDiagramModal, hasSpecDiagram, SPEC_TEXT_DESC } from "@/components/cars/SpecDiagram";
@@ -135,25 +135,25 @@ function SpecCard({
       onClick={clickable ? onClick : undefined}
       onKeyDown={clickable ? (e) => e.key === "Enter" && onClick?.() : undefined}
       className={cn(
-        "rounded-[10px] p-3.5 transition-all duration-150",
+        "rounded-[14px] p-3.5 transition-all duration-150",
         highlight
-          ? "bg-primary-100 border border-primary-200"
-          : "bg-neutral border border-[#EBEBEB]",
-        clickable && "cursor-pointer hover:border-primary/40 hover:shadow-sm active:scale-[0.98]",
+          ? "bg-brand-soft border-[1.5px] border-brand"
+          : "bg-sec border border-line2",
+        clickable && "cursor-pointer hover:border-brand/40 hover:shadow-soft active:scale-[0.98]",
       )}
     >
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] font-medium text-ink-caption uppercase tracking-wider">
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[11px] font-bold text-g2">
           {label}
         </p>
         {clickable && (
-          <Info size={11} className="text-ink-caption opacity-50 shrink-0" />
+          <Info size={12} className="text-g3 shrink-0" />
         )}
       </div>
       <p
         className={cn(
-          "text-[14px] font-semibold",
-          highlight ? "text-primary" : "text-ink",
+          "text-[15px] font-extrabold tracking-[-0.01em]",
+          highlight ? "text-brand" : "text-ink",
         )}
       >
         {value}
@@ -204,38 +204,36 @@ function DetailedSpecsSection({ specs }: { specs: VehicleDetailedSpecs }) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.37 }}
-        className="overflow-hidden rounded-[22px] border border-public-border bg-white shadow-[0_14px_34px_rgba(18,24,40,0.06)] md:rounded-[24px]"
+        className="t-card overflow-hidden shadow-[0_14px_34px_rgba(18,24,40,0.06)]"
       >
         {/* 섹션 헤더 */}
-        <div className="flex items-center gap-2.5 px-6 py-4 border-b border-[#F4F4F4] bg-neutral">
-          <Settings2 size={14} className="text-primary" />
-          <p className="text-[12px] font-semibold text-ink">상세 제원</p>
-          <span className="ml-auto text-[10px] text-ink-caption flex items-center gap-1">
-            <Info size={10} />
-            항목을 클릭하면 설명을 볼 수 있어요
+        <div className="flex items-center gap-2.5 px-5 py-4 border-b border-line bg-sec md:px-6">
+          <span className="t-iconbtn h-8 w-8 bg-brand-soft text-brand">
+            <Settings2 size={15} />
+          </span>
+          <p className="text-[15px] font-extrabold tracking-[-0.02em] text-ink">상세 제원</p>
+          <span className="ml-auto text-[11px] text-g2 flex items-center gap-1">
+            <Info size={11} />
+            클릭 시 설명
           </span>
         </div>
 
-        <div className="px-6 py-5 space-y-7">
+        <div className="px-5 py-5 space-y-7 md:px-6">
 
           {/* ── 엔진 제원 ── */}
           {engineVariants.length > 0 && currentEngineSpecs && (
             <div>
-              <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
-                엔진 제원
-              </p>
+              <p className="t-kick mb-3">엔진 제원</p>
               {engineVariants.length > 1 && (
-                <div className="flex gap-1.5 mb-4 flex-wrap">
+                <div className="flex gap-2 mb-4 flex-wrap">
                   {engineVariants.map((key) => (
                     <button
                       key={key}
                       type="button"
                       onClick={() => setActiveEngine(key)}
                       className={cn(
-                        "px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150",
-                        (currentEngine === key)
-                          ? "bg-primary text-white"
-                          : "bg-neutral border border-[#E0E0E0] text-ink-label hover:border-primary/30"
+                        "chip !px-3.5 !py-2 !text-[12.5px]",
+                        currentEngine === key && "chip-on",
                       )}
                     >
                       {engineVariantLabel(key)}
@@ -269,9 +267,7 @@ function DetailedSpecsSection({ specs }: { specs: VehicleDetailedSpecs }) {
           {/* ── 차체 치수 ── */}
           {dimensions && (
             <div>
-              <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
-                차체 치수
-              </p>
+              <p className="t-kick mb-3">차체 치수</p>
               <div className="grid grid-cols-2 gap-2.5">
                 {Object.entries(dimensions).map(([k, v]) => (
                   <SpecCard
@@ -293,9 +289,7 @@ function DetailedSpecsSection({ specs }: { specs: VehicleDetailedSpecs }) {
             const sectionLabel = TECH_SECTION_LABEL[sectionKey] ?? sectionKey;
             return (
               <div key={sectionKey}>
-                <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
-                  {sectionLabel}
-                </p>
+                <p className="t-kick mb-3">{sectionLabel}</p>
                 <div className="grid grid-cols-2 gap-2.5">
                   {Object.entries(sectionData).map(([k, v]) => (
                     <SpecCard
@@ -390,10 +384,13 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
           />
         )}
 
-        {/* 다중 오버레이: 하단에서 올라오는 어두운 그라디언트 */}
-        <div className="absolute inset-0 bg-black/30" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/5" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
+        {/* 다중 오버레이: 하단에서 올라오는 brand→purple 그라디언트 */}
+        <div className="absolute inset-0 bg-black/25" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-black/5" />
+        <div
+          className="absolute inset-0 opacity-55 mix-blend-multiply"
+          style={{ background: "linear-gradient(135deg,#27368A,#172357 55%,#5A3DB0)" }}
+        />
 
         {/* 콘텐츠 */}
         <div className="relative z-10 h-full flex flex-col justify-between page-container">
@@ -428,56 +425,55 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
             >
               {/* 배지 행 */}
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-semibold text-white/50 uppercase tracking-[0.18em]">
+                <span className="text-[12px] font-extrabold text-white/65 uppercase tracking-[0.14em]">
                   {vehicle.brand}
                 </span>
                 <span className="text-white/25">·</span>
-                <span className="text-[11px] text-white/45">{vehicle.category}</span>
-                <span className="text-[10px] font-semibold bg-white/15 text-white/80 px-2 py-0.5 rounded-[4px] ml-1 backdrop-blur-sm">
+                <span className="text-[12px] text-white/55">{vehicle.category}</span>
+                <span className="inline-flex items-center text-[11px] font-bold bg-white/18 text-white px-2.5 py-1 rounded-pill ml-1 backdrop-blur-sm">
                   {ENGINE_LABEL[engineType]}
                 </span>
                 {vehicle.isPopular && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-white/15 text-white/80 px-2 py-0.5 rounded-[4px] backdrop-blur-sm">
-                    <Sparkles size={9} />
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-white/18 text-white px-2.5 py-1 rounded-pill backdrop-blur-sm">
                     인기
                   </span>
                 )}
               </div>
 
               {/* 차량명 */}
-              <h1 className="mb-2.5 text-[30px] font-semibold leading-none tracking-normal text-white drop-shadow-md md:font-display md:text-[54px] md:font-light">
+              <h1 className="mb-2.5 text-[28px] font-extrabold leading-[1.1] tracking-[-0.04em] text-white drop-shadow-md md:text-[52px]">
                 {vehicle.name}
               </h1>
 
               {/* 설명 */}
               {vehicle.description && (
-                <p className="hidden text-white/55 text-[14px] leading-relaxed max-w-lg sm:block">
+                <p className="hidden text-white/60 text-[14px] leading-relaxed max-w-lg sm:block">
                   {vehicle.description}
                 </p>
               )}
 
               {/* 공통 스펙 배지 */}
               <div className="scrollbar-hide -mx-4 mt-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-                <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
-                  <span className="text-[10px] text-white/45 uppercase tracking-wide">기본가</span>
-                  <span className="text-[12px] font-semibold text-white">{formatWon(vehicle.basePrice)}~</span>
+                <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/12 backdrop-blur-sm border border-white/20 rounded-pill px-3.5 py-2">
+                  <span className="text-[11px] text-white/55">기본가</span>
+                  <span className="text-[13px] font-extrabold text-white">{formatWon(vehicle.basePrice)}~</span>
                 </div>
                 <EvSubsidyNotice range={vehicle.evSubsidyRange} tone="onDark" />
                 {vehicle.defaultTrim?.engineType && (
-                  <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
-                    <span className="text-[10px] text-white/45 uppercase tracking-wide">연료</span>
-                    <span className="text-[12px] font-semibold text-white">{vehicle.defaultTrim.engineType}</span>
+                  <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/12 backdrop-blur-sm border border-white/20 rounded-pill px-3.5 py-2">
+                    <span className="text-[11px] text-white/55">연료</span>
+                    <span className="text-[13px] font-extrabold text-white">{vehicle.defaultTrim.engineType}</span>
                   </div>
                 )}
                 {vehicle.defaultTrim?.fuelEfficiency && (
-                  <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5">
-                    <span className="text-[10px] text-white/45 uppercase tracking-wide">연비</span>
-                    <span className="text-[12px] font-semibold text-white">{vehicle.defaultTrim.fuelEfficiency}km/L~</span>
+                  <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/12 backdrop-blur-sm border border-white/20 rounded-pill px-3.5 py-2">
+                    <span className="text-[11px] text-white/55">연비</span>
+                    <span className="text-[13px] font-extrabold text-white">{vehicle.defaultTrim.fuelEfficiency}km/L~</span>
                   </div>
                 )}
-                <div className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/10 backdrop-blur-sm border border-white/15 rounded-[6px] px-3 py-1.5 sm:flex">
-                  <span className="text-[10px] text-white/45 uppercase tracking-wide">트림</span>
-                  <span className="text-[12px] font-semibold text-white">{vehicle.trims.length}종</span>
+                <div className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap bg-white/12 backdrop-blur-sm border border-white/20 rounded-pill px-3.5 py-2 sm:flex">
+                  <span className="text-[11px] text-white/55">트림</span>
+                  <span className="text-[13px] font-extrabold text-white">{vehicle.trims.length}종</span>
                 </div>
               </div>
             </motion.div>
@@ -487,7 +483,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.15 }}
-              className="hidden min-w-[260px] shrink-0 rounded-[24px] border border-white/20 bg-white/12 p-6 shadow-[0_18px_44px_rgba(0,0,0,0.18)] backdrop-blur-md md:block"
+              className="hidden min-w-[260px] shrink-0 rounded-[22px] border border-white/20 bg-white/12 p-6 shadow-[0_18px_44px_rgba(0,0,0,0.18)] backdrop-blur-md md:block"
             >
               <RepresentativeQuotePrice
                 quotes={representativeQuotes}
@@ -497,8 +493,8 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 emptyText="견적 준비중"
                 className="mb-4"
               />
-              <div className="flex items-center gap-1.5 text-[11px] text-white/45">
-                <Check size={11} strokeWidth={2.5} />
+              <div className="flex items-center gap-1.5 text-[12px] text-white/55">
+                <Check size={12} strokeWidth={2.5} />
                 개인정보 없이 견적 확인 가능
               </div>
             </motion.div>
@@ -512,7 +508,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
       <div className="page-container -mt-8 py-5 md:mt-0 md:py-10">
         {/* 모바일 전용 월납입 카드 — Hero 아래 풀폭 */}
         <div className="relative z-20 block md:hidden mb-4">
-          <div className="public-mobile-section p-4">
+          <div className="t-card p-4 shadow-soft">
             <div className="flex items-start justify-between gap-3">
               <RepresentativeQuotePrice
                 quotes={representativeQuotes}
@@ -525,26 +521,26 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 vehicleName={vehicle.name}
                 label="상담"
                 size="sm"
-                className="shrink-0 rounded-full border border-public-border bg-white px-3.5 py-2 text-[12px] font-semibold text-ink-label hover:bg-public-bg hover:opacity-100"
+                className="shrink-0 rounded-pill border border-line2 bg-white px-3.5 py-2 text-[12.5px] font-bold text-g1 hover:bg-sec hover:opacity-100"
               />
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 rounded-[12px] bg-public-bg px-3 py-2.5">
-              <p className="flex items-center gap-1.5 text-[11px] font-medium text-public-muted">
-                <Check size={12} className="text-primary" />
+            <div className="mt-3 grid grid-cols-2 gap-2 rounded-[14px] bg-sec px-3 py-2.5">
+              <p className="flex items-center gap-1.5 text-[12px] font-bold text-g1">
+                <Check size={13} className="text-brand" />
                 개인정보 없이 확인
               </p>
-              <p className="flex items-center gap-1.5 text-[11px] font-medium text-public-muted">
-                <Check size={12} className="text-primary" />
+              <p className="flex items-center gap-1.5 text-[12px] font-bold text-g1">
+                <Check size={13} className="text-brand" />
                 상담 압박 없음
               </p>
             </div>
           </div>
         </div>
 
-        <div className="fixed left-0 right-0 z-40 px-4 md:hidden" style={{ bottom: "calc(66px + env(safe-area-inset-bottom, 0px))" }}>
-          <div className="public-floating-action-shell gap-3">
-            <div className="min-w-0 flex-1 pl-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-public-muted">
+        <div className="fixed left-0 right-0 z-40 px-3 md:hidden" style={{ bottom: "calc(66px + env(safe-area-inset-bottom, 0px))" }}>
+          <div className="flex items-center gap-3 rounded-[18px] border border-line2 bg-white/95 px-4 py-3 shadow-[0_-2px_24px_rgba(18,24,40,0.12)] backdrop-blur-md">
+            <div className="min-w-0 flex-1 pl-1">
+              <p className="text-[11px] font-bold text-g2">
                 예상 월 납입금
               </p>
               <RepresentativeQuotePrice
@@ -556,9 +552,9 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
             </div>
             <Link
               href={`/quote?vehicle=${vehicle.slug}`}
-              className="inline-flex min-h-[46px] shrink-0 items-center justify-center gap-1.5 rounded-[13px] bg-primary px-4 text-[14px] font-semibold text-white transition-all duration-150 active:scale-[0.98]"
+              className="inline-flex min-h-[48px] shrink-0 items-center justify-center gap-1.5 rounded-btn bg-brand px-5 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-dark active:bg-brand-dark"
             >
-              <Calculator size={15} strokeWidth={2.3} />
+              <Calculator size={16} strokeWidth={2.3} />
               견적 내기
             </Link>
           </div>
@@ -577,18 +573,18 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.25 }}
-                className="overflow-hidden rounded-[22px] border border-public-border bg-white shadow-[0_14px_34px_rgba(18,24,40,0.06)] md:rounded-[24px]"
+                className="t-card overflow-hidden shadow-[0_14px_34px_rgba(18,24,40,0.06)]"
               >
-                <div className="flex items-center gap-2 px-6 pt-5 pb-4">
-                  <Images size={14} className="text-ink-caption" />
-                  <h2 className="text-[15px] font-semibold text-ink">차량 이미지</h2>
-                  <span className="text-[11px] text-ink-caption ml-auto">
+                <div className="flex items-center gap-2 px-5 pt-5 pb-4 md:px-6">
+                  <Images size={15} className="text-g2" />
+                  <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-ink">차량 이미지</h2>
+                  <span className="text-[12px] font-bold text-g2 ml-auto">
                     {activeImageIdx + 1} / {allImages.length}
                   </span>
                 </div>
 
                 {/* 메인 이미지 */}
-                <div className="relative aspect-video bg-neutral overflow-hidden">
+                <div className="relative aspect-video bg-sec overflow-hidden">
                   <AnimatePresence mode="wait">
                     <motion.img
                       key={activeImageIdx}
@@ -605,16 +601,16 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
 
                 {/* 썸네일 스트립 (2장 이상일 때) */}
                 {allImages.length > 1 && (
-                  <div className="flex gap-2 px-6 py-4 overflow-x-auto">
+                  <div className="flex gap-2 px-5 py-4 overflow-x-auto md:px-6">
                     {allImages.map((url, i) => (
                       <button
                         key={url}
                         type="button"
                         onClick={() => setActiveImageIdx(i)}
                         className={cn(
-                          "shrink-0 w-20 aspect-video rounded-[8px] overflow-hidden border-2 transition-all duration-150",
+                          "shrink-0 w-20 aspect-video rounded-[10px] overflow-hidden border-2 transition-all duration-150",
                           i === activeImageIdx
-                            ? "border-primary"
+                            ? "border-brand"
                             : "border-transparent opacity-60 hover:opacity-90",
                         )}
                       >
@@ -642,24 +638,21 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.35 }}
-              className="overflow-hidden rounded-[22px] border border-public-border bg-white shadow-[0_14px_34px_rgba(18,24,40,0.06)] md:rounded-[24px]"
+              className="t-card overflow-hidden shadow-[0_14px_34px_rgba(18,24,40,0.06)]"
             >
               {/* 헤더 바 */}
-              <div className="flex items-center gap-2.5 px-6 py-4 border-b border-[#F4F4F4] bg-neutral">
-                <Users size={14} className="text-primary" />
-                <p className="text-[12px] font-semibold text-ink">이런 분께 추천드려요</p>
+              <div className="flex items-center gap-2.5 px-5 py-4 border-b border-line bg-sec md:px-6">
+                <span className="t-iconbtn h-8 w-8 bg-brand-soft text-brand">
+                  <Users size={15} />
+                </span>
+                <p className="text-[15px] font-extrabold tracking-[-0.02em] text-ink">이런 분께 추천드려요</p>
               </div>
 
-              <div className="px-6 py-5">
+              <div className="px-5 py-5 md:px-6">
                 {/* 추천 태그 */}
                 <div className="flex flex-wrap gap-2 mb-5">
                   {derivedTags.map(({ icon, label }) => (
-                    <span
-                      key={label}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5
-                                 bg-primary/6 border border-primary/15 rounded-full
-                                 text-[12px] font-medium text-primary"
-                    >
+                    <span key={label} className="t-tag gap-1.5">
                       {icon}
                       {label}
                     </span>
@@ -672,12 +665,12 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                     {vehicle.highlights.map((h, i) => (
                       <div
                         key={i}
-                        className="flex items-start gap-2.5 p-3 rounded-[10px] bg-neutral border border-[#EBEBEB]"
+                        className="flex items-start gap-2.5 p-3.5 rounded-[14px] bg-sec border border-line2"
                       >
-                        <span className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0 mt-0.5">
-                          <Check size={8} strokeWidth={3} className="text-white" />
+                        <span className="w-[18px] h-[18px] rounded-full bg-brand flex items-center justify-center shrink-0 mt-0.5">
+                          <Check size={9} strokeWidth={3} className="text-white" />
                         </span>
-                        <p className="text-[12px] text-ink-label leading-snug">{h}</p>
+                        <p className="text-[12.5px] text-g1 leading-snug">{h}</p>
                       </div>
                     ))}
                   </div>
@@ -690,19 +683,19 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.4 }}
-              className="overflow-hidden rounded-[22px] shadow-[0_14px_34px_rgba(0,6,102,0.14)] md:rounded-[24px]"
+              className="overflow-hidden rounded-[22px] shadow-[0_14px_34px_rgba(0,6,102,0.14)]"
               style={{
-                background: "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
+                background: "linear-gradient(135deg,#27368A,#172357 55%,#5A3DB0)",
               }}
             >
-              <div className="px-7 pt-6 pb-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <ShieldCheck size={14} className="text-white/55" />
-                  <p className="text-[11px] font-semibold text-white/55 uppercase tracking-wider">
+              <div className="px-6 pt-6 pb-2 md:px-7">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <ShieldCheck size={15} className="text-white/60" />
+                  <p className="text-[12px] font-extrabold text-white/60 uppercase tracking-[0.08em]">
                     장기렌트 핵심 혜택
                   </p>
                 </div>
-                <p className="text-[18px] font-light text-white mb-5">
+                <p className="text-[20px] font-extrabold tracking-[-0.03em] text-white mb-5">
                   이 차를 렌트로 타면 달라지는 것들
                 </p>
               </div>
@@ -744,9 +737,9 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                     key={title}
                     className="flex flex-col gap-2 px-5 py-5 bg-white/5 hover:bg-white/10 transition-colors duration-150"
                   >
-                    <span className="text-white/50">{icon}</span>
-                    <p className="text-[13px] font-semibold text-white leading-snug">{title}</p>
-                    <p className="text-[11px] text-white/50 leading-relaxed whitespace-pre-line">{desc}</p>
+                    <span className="text-white/60">{icon}</span>
+                    <p className="text-[13.5px] font-extrabold text-white leading-snug">{title}</p>
+                    <p className="text-[11.5px] text-white/55 leading-relaxed whitespace-pre-line">{desc}</p>
                   </div>
                 ))}
               </div>
@@ -763,7 +756,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.45, delay: 0.25 }}
-                className="rounded-[24px] border border-public-border bg-white p-5 shadow-[0_16px_40px_rgba(18,24,40,0.08)]"
+                className="t-card p-5 shadow-[0_16px_40px_rgba(18,24,40,0.08)]"
               >
                 <div className="mb-1">
                   <RepresentativeQuotePrice
@@ -772,28 +765,25 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                     size="lg"
                     captionText="월 납입금 (초기 비용 0원)"
                   />
-                  <p className="text-[11px] text-ink-caption mt-0.5">
+                  <p className="text-[11.5px] text-g2 mt-0.5">
                     60개월 · 연 2만km · 반납형 기준
                   </p>
                 </div>
-                <div className="h-px bg-[#F0F0F0] my-4" />
+                <div className="h-px bg-line my-4" />
 
                 {/* 견적 내기 */}
                 <Link
                   href={`/quote?vehicle=${vehicle.slug}`}
-                  className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[13px] py-3
-                             bg-primary text-white text-[14px] font-semibold
-                             hover:bg-primary/90 active:scale-[0.98]
-                             transition-all duration-150 mb-2.5"
+                  className="cta mb-2.5 hover:bg-brand-dark"
                 >
-                  <Calculator size={15} strokeWidth={2} />
+                  <Calculator size={16} strokeWidth={2} />
                   견적 내기
                 </Link>
 
                 {/* 상담하기 */}
                 <ChannelTalkButton vehicleName={vehicle.name} label="상담하기" size="md" />
 
-                <p className="text-[11px] text-ink-caption text-center mt-3">
+                <p className="text-[11.5px] text-g2 text-center mt-3">
                   상담 전 이름·전화번호 요구 없음
                 </p>
               </motion.div>
@@ -815,22 +805,20 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.45, delay: 0.39 }}
-                className="rounded-[20px] border border-public-border bg-white p-4 shadow-[0_12px_28px_rgba(18,24,40,0.05)]"
+                className="t-card p-4 shadow-[0_12px_28px_rgba(18,24,40,0.05)]"
               >
-                <p className="text-[11px] font-semibold text-ink-caption uppercase tracking-wider mb-3">
-                  아임딜러 약속
-                </p>
-                <ul className="space-y-2">
+                <p className="t-kick mb-3">아임딜러 약속</p>
+                <ul className="space-y-2.5">
                   {TRUST_ITEMS.map((item) => (
                     <li
                       key={item}
-                      className="flex items-center gap-2 text-[12px] text-ink-label"
+                      className="flex items-center gap-2 text-[12.5px] text-g1"
                     >
-                      <span className="w-4 h-4 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+                      <span className="w-[18px] h-[18px] rounded-full bg-brand-soft flex items-center justify-center shrink-0">
                         <Check
-                          size={9}
+                          size={10}
                           strokeWidth={2.5}
-                          className="text-primary"
+                          className="text-brand"
                         />
                       </span>
                       {item}
@@ -847,7 +835,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
               >
                 <Link
                   href="/cars"
-                  className="flex items-center justify-between w-full text-[13px] text-ink-label
+                  className="flex items-center justify-between w-full text-[13px] font-bold text-g1
                              hover:text-ink transition-colors duration-150 group"
                 >
                   <span>다른 차량 탐색하기</span>
@@ -866,35 +854,35 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.5 }}
-          className="mt-12 rounded-card overflow-hidden"
+          className="mt-12 rounded-[22px] overflow-hidden"
           style={{
             background:
-              "linear-gradient(135deg, #000666 0%, #1A1A6E 60%, #3333CC 100%)",
+              "linear-gradient(135deg,#27368A,#172357 55%,#5A3DB0)",
           }}
         >
           <div className="px-6 md:px-12 py-8 md:py-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 md:gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={14} className="text-white/60" />
-                <span className="text-[11px] font-semibold text-white/60 uppercase tracking-wider">
-                  AI 추천
+                <AiBadge tone="onDark" />
+                <span className="text-[12px] font-extrabold text-white/65 uppercase tracking-[0.08em]">
+                  추천
                 </span>
               </div>
-              <h3 className="font-display text-[20px] md:text-[22px] font-light text-white mb-1.5">
+              <h3 className="text-[21px] md:text-[23px] font-extrabold tracking-[-0.03em] text-white mb-1.5">
                 나에게 맞는 차량이 따로 있을 수 있어요
               </h3>
-              <p className="text-[13px] text-white/60">
+              <p className="text-[13.5px] text-white/65">
                 업종·목적·예산·성향 4가지로 최적 차량을 찾아드려요
               </p>
             </div>
             <Link
               href="/"
-              className="w-full md:w-auto shrink-0 flex items-center justify-center gap-2 px-6 py-3 rounded-btn
-                         bg-white text-primary text-[13px] font-semibold
+              className="w-full md:w-auto shrink-0 flex items-center justify-center gap-2 px-6 py-3.5 rounded-btn
+                         bg-white text-brand text-[14px] font-extrabold
                          hover:bg-white/90 transition-colors duration-150"
             >
               AI 추천 받기
-              <ChevronRight size={13} strokeWidth={2.5} />
+              <ChevronRight size={14} strokeWidth={2.5} />
             </Link>
           </div>
         </motion.section>

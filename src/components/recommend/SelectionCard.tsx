@@ -24,54 +24,33 @@ export function SelectionCard({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "w-full min-h-[72px] rounded-[14px] border p-4 text-left transition-all duration-200 md:min-h-[84px] md:p-5",
-        "flex items-center gap-3 active:scale-[0.99] md:gap-4",
-        selected
-          ? "border-primary bg-primary/[0.06] shadow-[0_8px_20px_rgba(0,6,102,0.07)]"
-          : "border-public-border bg-white shadow-[0_6px_18px_rgba(18,24,40,0.035)] hover:border-primary/25"
-      )}
+      className={cn("tile active:scale-[0.99]", selected && "tile-on")}
     >
-      {icon && (
-        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-public-bg text-[20px] leading-none md:h-10 md:w-10 md:text-[22px]">
-          {icon}
-        </span>
-      )}
+      {icon && <span className="ic text-[20px] leading-none">{icon}</span>}
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span
-            className={cn(
-              "text-sm font-medium md:text-[15px]",
-              selected ? "text-primary" : "text-ink"
-            )}
-          >
-            {label}
-          </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={cn("nm", selected && "text-brand")}>{label}</span>
           {recommended && !selected && (
-            <span className="text-[10px] font-medium text-primary bg-primary-100 px-2 py-0.5 rounded-pill">
+            <span className="rounded-pill bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand">
               추천
             </span>
           )}
         </div>
         {desc && (
-          <p className={cn("mt-0.5 text-[12px] leading-relaxed md:text-[13px]", selected ? "text-primary/70" : "text-public-muted")}>
-            {desc}
-          </p>
+          <p className={cn("ds mt-0.5", selected && "text-brand/70")}>{desc}</p>
         )}
-        {detail && (
-          <p className="mt-1 text-[11px] text-public-muted">{detail}</p>
-        )}
+        {detail && <p className="mt-1 text-[11px] text-g2">{detail}</p>}
       </div>
 
-      <div
+      <span
         className={cn(
-          "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border transition-all",
-          selected ? "border-primary bg-primary" : "border-public-border bg-white"
+          "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border transition-colors",
+          selected ? "border-brand bg-brand" : "border-line2 bg-white"
         )}
       >
         {selected && <Check size={13} className="text-white" strokeWidth={3} />}
-      </div>
+      </span>
     </button>
   );
 }

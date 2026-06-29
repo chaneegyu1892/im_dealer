@@ -119,17 +119,17 @@ function InitialCostControl({
   };
 
   return (
-    <div className="space-y-3 bg-white border border-[#F0F0F0] rounded-[12px] p-4">
+    <div className="space-y-3 bg-white border border-line2 rounded-card p-4">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
-        <p className="text-[12px] font-semibold text-[#4A5270] uppercase tracking-wider">
+        <p className="text-[12px] font-bold text-[#4A5270] uppercase tracking-wider">
           초기비용 설정
         </p>
         <span className={cn(
           "flex items-center gap-1.5 text-[11px] text-[#9BA4C0] transition-opacity duration-200",
           isRecalculating ? "opacity-100" : "opacity-0 pointer-events-none"
         )}>
-          <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="inline-block w-3 h-3 border-2 border-brand border-t-transparent rounded-full animate-spin" />
           재계산 중…
         </span>
       </div>
@@ -144,16 +144,16 @@ function InitialCostControl({
               type="button"
               onClick={() => switchMode(mode)}
               className={cn(
-                "py-3 px-3 rounded-[12px] border-2 text-left transition-all duration-150",
+                "py-3 px-3 rounded-card border-2 text-left transition-all duration-150",
                 isActive
-                  ? "border-primary bg-primary/5"
-                  : "border-[#E8E8E8] bg-white hover:border-primary/30"
+                  ? "border-brand bg-brand-soft"
+                  : "border-line2 bg-white hover:border-brand/30"
               )}
             >
               <span className="block text-[10px] font-medium uppercase tracking-wider text-[#9BA4C0] mb-0.5">
                 초기비용
               </span>
-              <span className={cn("block text-[14px] font-semibold", isActive ? "text-primary" : "text-[#1A1A2E]")}>
+              <span className={cn("block text-[14px] font-bold", isActive ? "text-brand" : "text-[#1A1A2E]")}>
                 {mode === "none" ? "없음" : "있음"}
               </span>
               <span className="block text-[11px] text-[#9BA4C0] mt-0.5">
@@ -188,11 +188,11 @@ function InitialCostControl({
                       className={cn(
                         "flex-1 py-2 px-3 rounded-[10px] border text-left transition-all duration-150",
                         isActive
-                          ? "border-primary bg-primary/5"
-                          : "border-[#E8E8E8] bg-[#F8F9FC] hover:border-primary/30"
+                          ? "border-brand bg-brand-soft"
+                          : "border-line2 bg-sec hover:border-brand/30"
                       )}
                     >
-                      <span className={cn("block text-[13px] font-semibold", isActive ? "text-primary" : "text-[#1A1A2E]")}>
+                      <span className={cn("block text-[13px] font-bold", isActive ? "text-brand" : "text-[#1A1A2E]")}>
                         {info.label}
                       </span>
                       <span className="block text-[10px] text-[#9BA4C0]">{info.subLabel}</span>
@@ -217,8 +217,8 @@ function InitialCostControl({
                   </p>
                   {/* 현재 값 표시 */}
                   <span className={cn(
-                    "text-[14px] font-bold tabular-nums transition-colors",
-                    activeRate > 0 ? "text-primary" : "text-[#9BA4C0]"
+                    "num text-[14px] font-extrabold tabular-nums transition-colors",
+                    activeRate > 0 ? "text-brand" : "text-[#9BA4C0]"
                   )}>
                     {activeRate}%
                   </span>
@@ -244,10 +244,10 @@ function InitialCostControl({
                       type="button"
                       onClick={() => applyRate(r)}
                       className={cn(
-                        "px-3 py-1.5 rounded-full border text-[12px] font-medium transition-all duration-150",
+                        "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
                         activeRate === r
-                          ? "bg-primary text-white border-primary"
-                          : "bg-white text-[#6B7399] border-[#E0E0E0] hover:border-primary/40"
+                          ? "bg-brand text-white border-brand"
+                          : "bg-white text-[#6B7399] border-line2 hover:border-brand/40"
                       )}
                     >
                       {r}%
@@ -264,7 +264,7 @@ function InitialCostControl({
                         style={{
                           // 썸 중심 위치까지 채움 — 썸 이동 범위 보정과 동일 식
                           width: `calc(${(activeRate / SLIDER_MAX)} * (100% - 20px) + 10px)`,
-                          background: "linear-gradient(90deg, #000666 0%, #6066EE 100%)",
+                          background: "linear-gradient(90deg, #27368A 0%, #5A3DB0 100%)",
                         }}
                       />
                     </div>
@@ -283,8 +283,8 @@ function InitialCostControl({
                       style={{
                         left: `calc(${(activeRate / SLIDER_MAX)} * (100% - 20px) + 10px)`,
                         background: "#fff",
-                        border: "2.5px solid #000666",
-                        boxShadow: activeRate > 0 ? "0 1px 8px rgba(0,6,102,0.3)" : "0 1px 4px rgba(0,0,0,0.15)",
+                        border: "2.5px solid #27368A",
+                        boxShadow: activeRate > 0 ? "0 1px 8px rgba(39,54,138,0.3)" : "0 1px 4px rgba(0,0,0,0.15)",
                       }}
                     />
                   </div>
@@ -298,8 +298,8 @@ function InitialCostControl({
                         className={cn(
                           "text-[10px] font-medium transition-colors px-0.5",
                           activeRate === tick
-                            ? "text-primary font-bold"
-                            : "text-[#9BA4C0] hover:text-primary"
+                            ? "text-brand font-bold"
+                            : "text-[#9BA4C0] hover:text-brand"
                         )}
                       >
                         {tick}%
@@ -310,7 +310,7 @@ function InitialCostControl({
               </div>
 
               {(depositRate > 0 || prepayRate > 0) && (
-                <p className="text-[12px] text-primary font-medium">
+                <p className="text-[12px] text-brand font-bold">
                   두 차량 모두{" "}
                   {depositRate > 0 ? `보증금 ${depositRate}%` : `선납금 ${prepayRate}%`} 적용
                 </p>
@@ -615,19 +615,19 @@ export function ComparisonSection({
   const p2Meta = allVehicles.find((v) => v.slug === p2Slug);
 
   return (
-    <div className="bg-white rounded-card border border-[#F0F0F0] shadow-card overflow-hidden mb-4 max-w-full">
+    <div className="bg-white rounded-card border border-line2 shadow-soft overflow-hidden mb-4 max-w-full">
       {/* 섹션 헤더 */}
       <button
         type="button"
         onClick={handleOpen}
-        className="w-full max-w-full box-border flex items-center gap-2.5 px-4 py-4 text-left transition-colors hover:bg-neutral sm:gap-3 sm:px-5"
+        className="w-full max-w-full box-border flex items-center gap-2.5 px-4 py-4 text-left transition-colors hover:bg-sec sm:gap-3 sm:px-5"
         aria-expanded={isOpen}
       >
-        <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
-          <GitCompare size={15} className="text-primary" />
+        <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
+          <GitCompare size={15} className="text-brand" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="flex min-w-0 items-center gap-1.5 text-[14px] font-medium text-ink">
+          <p className="flex min-w-0 items-center gap-1.5 text-[14px] font-bold text-ink">
             <span className="min-w-0 truncate">다른 차량과 비교하기</span>
             {locked && <Lock size={12} className="text-ink-caption shrink-0" />}
           </p>
@@ -639,7 +639,7 @@ export function ComparisonSection({
         </div>
         <ChevronDown
           size={16}
-          className={cn("text-primary shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
+          className={cn("text-brand shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
         />
       </button>
 
@@ -659,10 +659,10 @@ export function ComparisonSection({
                 type="button"
                 onClick={() => setActiveTab(tab)}
                 className={cn(
-                  "flex-1 py-2.5 text-[13px] font-medium transition-colors",
+                  "flex-1 py-2.5 text-[13px] font-bold transition-colors",
                   activeTab === tab
-                    ? "text-primary border-b-2 border-primary bg-primary/5"
-                    : "text-[#6B7399] hover:bg-neutral"
+                    ? "text-brand border-b-2 border-brand bg-brand-soft"
+                    : "text-[#6B7399] hover:bg-sec"
                 )}
               >
                 {tab === "primary" ? "현재 차량" : "비교 차량"}
@@ -747,10 +747,10 @@ export function ComparisonSection({
               onClick={() => void fetchBothQuotes(sharedRates, true)}
               disabled={!canCompare || isComparing}
               className={cn(
-                "w-full py-3 rounded-[10px] text-[14px] font-bold transition-all",
+                "w-full py-3 rounded-btn text-[14px] font-bold transition-all",
                 canCompare && !isComparing
-                  ? "bg-primary text-white hover:opacity-90 shadow-md shadow-primary/20"
-                  : "bg-neutral text-[#9BA4C0] cursor-not-allowed"
+                  ? "bg-brand text-white hover:bg-brand-dark shadow-lift"
+                  : "bg-sec text-[#9BA4C0] cursor-not-allowed"
               )}
             >
               {isComparing ? (
