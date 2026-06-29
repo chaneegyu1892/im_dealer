@@ -17,8 +17,8 @@ test.describe("공개 견적 골든패스", () => {
   test("홈 → 인기 차량 → 차량 상세 → 견적 시나리오 노출", async ({ page }) => {
     await page.goto("/");
 
-    // Hero 섹션이 로드되었는지: 핵심 카피로 확인
-    await expect(page.getByText("AI 기반 진짜견적", { exact: false }).first()).toBeVisible();
+    // Hero 섹션이 로드되었는지: 핵심 헤드라인 카피로 확인
+    await expect(page.getByText("차 뽑기 전에", { exact: false }).first()).toBeVisible();
 
     // 인기 차량 카드 — /cars/<slug> 로 향하는 링크 (목록 /cars 자체는 제외)
     const carLinks = page.locator('a[href^="/cars/"]:not([href="/cars"])');
