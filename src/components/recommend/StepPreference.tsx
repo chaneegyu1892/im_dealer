@@ -38,6 +38,39 @@ export function StepPreference({
     : [];
   const detailQuestion = situation ? PREFERENCE_DETAIL_QUESTION[situation] : null;
 
+  const feelOptions = PREFERENCE_OPTIONS.filter((o) => o.kind === "feel");
+  const situationOptions = PREFERENCE_OPTIONS.filter((o) => o.kind === "situation");
+
+  const renderCard = (opt: (typeof PREFERENCE_OPTIONS)[number]) => {
+    const isSelected = selected.includes(opt.value);
+    // 상황형(가족/화물)은 1개만 — 다른 상황형이 이미 선택되면 중복 선택 불가
+    const situationBlocked =
+      opt.kind === "situation" && !isSelected && situation !== undefined;
+    // 미선택 + 이미 2개 선택됨 → 추가 불가
+    const maxBlocked = !isSelected && atMax;
+    const blocked = situationBlocked || maxBlocked;
+    const note = maxBlocked && !situationBlocked ? "최대 2개까지 선택돼요" : undefined;
+    return (
+      <div
+        key={opt.value}
+        className={blocked ? "opacity-45" : undefined}
+        aria-disabled={blocked || undefined}
+      >
+        <SelectionCard
+          label={opt.label}
+          desc={opt.desc}
+          detail={note}
+          icon={opt.icon}
+          selected={isSelected}
+          onClick={() => {
+            if (blocked) return;
+            onToggle(opt.value);
+          }}
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-3">
       <div className="mb-6">
@@ -51,25 +84,20 @@ export function StepPreference({
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {PREFERENCE_OPTIONS.map((opt) => {
-          const isSelected = selected.includes(opt.value);
-          // 미선택 + 이미 2개 선택됨 → 추가 불가 (시각적으로 흐리게)
-          const blocked = !isSelected && atMax;
-          return (
-            <div key={opt.value} className={blocked ? "opacity-40" : undefined}>
-              <SelectionCard
-                label={opt.label}
-                desc={opt.desc}
-                icon={opt.icon}
-                selected={isSelected}
-                onClick={() => {
-                  if (blocked) return;
-                  onToggle(opt.value);
-                }}
-              />
-            </div>
-          );
-        })}
+        {feelOptions.map(renderCard)}
+      </div>
+
+      {/* 상황형 — 둘 중 하나만 선택 (누르기 전에도 안내) */}
+      <div className="pt-2">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="t-kick text-[11px]">아이·짐</span>
+          <span className="rounded-pill bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand">
+            둘 중 하나만 선택돼요
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {situationOptions.map(renderCard)}
+        </div>
       </div>
 
       {situation && detailQuestion && (
