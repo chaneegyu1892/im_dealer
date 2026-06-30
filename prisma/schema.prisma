@@ -397,6 +397,10 @@ model RecommendationLog {
   // 새로고침/뒤로 시 재계산·LLM 없이 그대로 반환. null = 옛 로그(재계산 폴백).
   result                Json?
   industryDetail        String?
+  // 「원하는 차」 선호 특징 (신규 흐름). 옛 세션은 purpose/purposeDetail 사용.
+  preferences           String[]
+  childDetail           String?
+  cargoDetail           String?
   purposeDetail         String?
   budgetDetail          String?
   fuelPreference        String?

@@ -1,7 +1,8 @@
 import type { VehicleAttrs } from "./vehicle-attributes";
 import {
   INDUSTRY_RULES,
-  PURPOSE_RULES,
+  PREFERENCE_RULES,
+  FAMILY_RULES,
   MILEAGE_FUEL_RULES,
   CARGO_RULES,
   CHILD_RULES,
@@ -26,8 +27,11 @@ const MILEAGE_KEYS = [10000, 20000, 30000] as const;
 
 export interface ScoreInput {
   industry: string;
-  purpose: string;
-  purposeDetail?: string;
+  // 「원하는 차」 선호 특징 1~2개 (느낌형/상황형 혼합)
+  preferences: string[];
+  // 상황형 상세 — "가족" 선택 시 자녀연령 / "화물" 선택 시 소형·대형
+  childDetail?: string;
+  cargoDetail?: string;
   annualMileage: number;
   residenceRegion?: string;
   fuelPreference?: string;
@@ -78,12 +82,15 @@ export function scoreVehicle(
   let score = BASE_SCORE;
   const reasons: string[] = [];
 
+  const preferences = input.preferences ?? [];
+
   const rctx: RuleContext = {
     category: ctx.category,
     price: ctx.price,
     fuelEfficiency: ctx.fuelEfficiency,
     annualMileage: input.annualMileage,
-    purposeDetail: input.purposeDetail,
+    // 화물 상세 — CARGO_RULES가 참조 (가족 상세는 CHILD_RULES 키로 직접 조회)
+    detail: input.cargoDetail,
   };
 
   // 규칙 배열 적용 내부 헬퍼 (클로저로 score/reasons 공유)
@@ -101,20 +108,25 @@ export function scoreVehicle(
   // 1. 업종 규칙
   apply(INDUSTRY_RULES[input.industry] ?? []);
 
-  // 2. 목적 규칙
-  apply(PURPOSE_RULES[input.purpose] ?? []);
+  // 2. 선호 특징 규칙 (느낌형 — 선택한 preference 누적 합산)
+  for (const pref of preferences) {
+    apply(PREFERENCE_RULES[pref] ?? []);
+  }
 
   // 3. 주행거리×연비 규칙
   apply(MILEAGE_FUEL_RULES[nearestMileage(input.annualMileage)] ?? []);
 
-  // 4. 화물 규칙 (화물·배달 목적 시 전용)
-  if (input.purpose === "화물·배달") {
-    apply(CARGO_RULES);
+  // 4. 가족(상황형) — 기본 규칙 + 자녀연령 상세
+  if (preferences.includes("가족")) {
+    apply(FAMILY_RULES);
+    if (input.childDetail) {
+      apply(CHILD_RULES[input.childDetail] ?? []);
+    }
   }
 
-  // 5. 자녀연령 규칙 (가정용 + purposeDetail 존재 시)
-  if (input.purpose === "가정용" && input.purposeDetail) {
-    apply(CHILD_RULES[input.purposeDetail] ?? []);
+  // 5. 화물(상황형) — 화물 규칙 (cargoDetail은 rctx.detail로 전달)
+  if (preferences.includes("화물")) {
+    apply(CARGO_RULES);
   }
 
   // 6. 충전환경 가점 (전기차 선호 + EV 차량일 때만)
@@ -153,6 +165,7 @@ export function scoreVehicle(
 
   return {
     score: Math.min(MAX_SCORE, score),
-    reasons,
+    // 복수 선호 선택 시 같은 이유가 중복될 수 있어 제거 (노출 상한은 호출부에서 3개로 컷)
+    reasons: [...new Set(reasons)],
   };
 }

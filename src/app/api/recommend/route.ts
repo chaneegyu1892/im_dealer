@@ -3,19 +3,36 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { recommend } from "@/lib/ai-recommender";
+import { PREFERENCE_OPTIONS, MAX_PREFERENCES } from "@/constants/recommend-options";
 import { randomUUID } from "crypto";
+
+const PREFERENCE_VALUES = PREFERENCE_OPTIONS.map((o) => o.value) as [string, ...string[]];
+const SITUATION_VALUES = new Set<string>(
+  PREFERENCE_OPTIONS.filter((o) => o.kind === "situation").map((o) => o.value)
+);
 
 const recommendSchema = z.object({
   industry: z.string().min(1),
-  purpose: z.string().min(1),
+  // 「원하는 차」 선호 특징 1~2개. 상황형(가족/화물)은 1개만 허용.
+  preferences: z
+    .array(z.enum(PREFERENCE_VALUES))
+    .min(1)
+    .max(MAX_PREFERENCES)
+    .refine(
+      (arr) => arr.filter((p) => SITUATION_VALUES.has(p)).length <= 1,
+      { message: "상황형(가족/화물)은 하나만 선택할 수 있습니다." }
+    ),
+  childDetail: z.string().optional(),
+  cargoDetail: z.string().optional(),
   annualMileage: z.number().int().min(0),
   returnType: z.enum(["인수형", "반납형", "미정"]),
   industryDetail: z.string().optional(),
-  purposeDetail: z.string().optional(),
   fuelPreference: z.string().optional(),
   chargingEnvironment: z.enum(["자택", "직장", "외부", "없음"]).optional(),
   residenceRegion: z.enum(["일반", "강원·산간", "제주"]).optional(),
   // 옛 세션 호환 — 새 추천 흐름에서는 사용 안 함. 받으면 DB 저장만.
+  purpose: z.string().optional(),
+  purposeDetail: z.string().optional(),
   budgetMin: z.number().int().min(0).optional(),
   budgetMax: z.number().int().min(0).optional(),
   paymentStyle: z.enum(["보수형", "표준형", "공격형"]).optional(),
@@ -39,7 +56,12 @@ export async function POST(request: NextRequest) {
       data: {
         sessionId,
         industry: input.industry,
-        purpose: input.purpose,
+        // 신규 흐름은 preferences 기준. purpose(NOT NULL)는 하위호환용으로
+        // 선택 value 들을 join 해 채운다(옛 세션이 보낸 purpose 가 있으면 그대로 보존).
+        purpose: input.purpose ?? input.preferences.join(", "),
+        preferences: input.preferences,
+        childDetail: input.childDetail,
+        cargoDetail: input.cargoDetail,
         budgetMin: input.budgetMin ?? 0,
         budgetMax: input.budgetMax ?? 0,
         paymentStyle: input.paymentStyle ?? "표준형",

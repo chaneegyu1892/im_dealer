@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { StepIndicator, STEPS, type StepId } from "./StepIndicator";
 import { StepIndustry } from "./StepIndustry";
-import { StepPurpose } from "./StepPurpose";
+import { StepPreference } from "./StepPreference";
 import { StepMileage } from "./StepMileage";
 import { StepFuelPreference } from "./StepFuelPreference";
 import { StepRegion } from "./StepRegion";
 import { ChevronLeft } from "lucide-react";
-import { CHARGING_OPTIONS } from "@/constants/recommend-options";
+import { CHARGING_OPTIONS, MAX_PREFERENCES } from "@/constants/recommend-options";
 import { SelectionCard } from "./SelectionCard";
 import type { RecommendInput } from "@/types/recommendation";
 
@@ -20,8 +20,9 @@ type ChargingEnv = "자택" | "직장" | "외부" | "없음" | "";
 interface FlowState {
   industry: string;
   industryDetail: string;
-  purpose: string;
-  purposeDetail: string;
+  preferences: string[];
+  childDetail: string;
+  cargoDetail: string;
   annualMileage: number;
   fuelPreference: string;
   chargingEnvironment: ChargingEnv;
@@ -31,8 +32,9 @@ interface FlowState {
 const INITIAL_STATE: FlowState = {
   industry: "",
   industryDetail: "",
-  purpose: "",
-  purposeDetail: "",
+  preferences: [],
+  childDetail: "",
+  cargoDetail: "",
   annualMileage: 0,
   fuelPreference: "",
   chargingEnvironment: "",
@@ -44,7 +46,11 @@ function isStepValid(step: StepId, state: FlowState): boolean {
     case 1:
       return state.industry !== "" && state.industryDetail !== "";
     case 2:
-      return state.purpose !== "" && state.purposeDetail !== "";
+      // 선호 1개 이상 + 상황형 선택 시 상세 답변 필수
+      if (state.preferences.length === 0) return false;
+      if (state.preferences.includes("가족") && state.childDetail === "") return false;
+      if (state.preferences.includes("화물") && state.cargoDetail === "") return false;
+      return true;
     case 3:
       return (
         state.annualMileage !== 0 &&
@@ -80,11 +86,16 @@ export function RecommendFlow() {
     try {
       const input: RecommendInput = {
         industry: state.industry,
-        purpose: state.purpose,
+        preferences: state.preferences,
         annualMileage: state.annualMileage,
         returnType: "미정",
         industryDetail: state.industryDetail,
-        purposeDetail: state.purposeDetail,
+        ...(state.preferences.includes("가족") && state.childDetail !== ""
+          ? { childDetail: state.childDetail }
+          : {}),
+        ...(state.preferences.includes("화물") && state.cargoDetail !== ""
+          ? { cargoDetail: state.cargoDetail }
+          : {}),
         fuelPreference: state.fuelPreference,
         ...(state.fuelPreference === "전기차" && state.chargingEnvironment !== ""
           ? { chargingEnvironment: state.chargingEnvironment }
@@ -117,6 +128,38 @@ export function RecommendFlow() {
 
   const handleBack = () => {
     if (step > 1) setStep((s) => (s - 1) as StepId);
+  };
+
+  const togglePreference = (value: string) => {
+    setState((s) => {
+      const isSituation = value === "가족" || value === "화물";
+
+      // 이미 선택됨 → 해제 (상황형이면 상세도 초기화)
+      if (s.preferences.includes(value)) {
+        return {
+          ...s,
+          preferences: s.preferences.filter((p) => p !== value),
+          childDetail: value === "가족" ? "" : s.childDetail,
+          cargoDetail: value === "화물" ? "" : s.cargoDetail,
+        };
+      }
+
+      // 추가 — 상황형은 1개만 허용하므로 기존 상황형 제거
+      let next = isSituation
+        ? s.preferences.filter((p) => p !== "가족" && p !== "화물")
+        : [...s.preferences];
+
+      if (next.length >= MAX_PREFERENCES) return s; // 최대치 (UI에서 차단됨)
+      next = [...next, value];
+
+      return {
+        ...s,
+        preferences: next,
+        // 다른 상황형을 밀어냈다면 그 상세값 초기화
+        childDetail: value === "화물" ? "" : s.childDetail,
+        cargoDetail: value === "가족" ? "" : s.cargoDetail,
+      };
+    });
   };
 
   const handleFuelChange = (v: string) => {
@@ -174,15 +217,16 @@ export function RecommendFlow() {
           />
         )}
         {step === 2 && (
-          <StepPurpose
-            industry={state.industry}
-            value={state.purpose}
-            onChange={(v) =>
-              setState((s) => ({ ...s, purpose: v, purposeDetail: "" }))
+          <StepPreference
+            selected={state.preferences}
+            onToggle={togglePreference}
+            childDetail={state.childDetail}
+            onChildDetailChange={(v) =>
+              setState((s) => ({ ...s, childDetail: v }))
             }
-            detail={state.purposeDetail}
-            onDetailChange={(v) =>
-              setState((s) => ({ ...s, purposeDetail: v }))
+            cargoDetail={state.cargoDetail}
+            onCargoDetailChange={(v) =>
+              setState((s) => ({ ...s, cargoDetail: v }))
             }
           />
         )}

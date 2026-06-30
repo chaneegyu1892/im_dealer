@@ -18,6 +18,7 @@ import {
   type CalcInput,
 } from "@/lib/quote-calculator";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { PREFERENCE_OPTIONS } from "@/constants/recommend-options";
 import type {
   RecommendInput,
   RecommendedVehicle,
@@ -93,7 +94,14 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
   // 3) 차량별 점수 계산
   const scored: ScoredVehicle[] = [];
 
-  const isOfficial = input.purpose === "임원용·의전";
+  const preferences = input.preferences ?? [];
+  // "고급"(구 임원용·의전)은 6천만원 미만 제외 + 최상위 트림 노출 게이트를 유지한다.
+  const isOfficial = preferences.includes("고급");
+  // LLM 추천 이유용 라벨 — 신규는 선호 라벨, 옛 세션은 목적 문자열
+  const preferenceLabel =
+    preferences.length > 0
+      ? preferences.map((p) => PREFERENCE_OPTIONS.find((o) => o.value === p)?.label ?? p).join(", ")
+      : input.purpose ?? "";
 
   for (const v of vehicles) {
     let defaultTrim = v.trims.find((t) => t.isDefault) ?? v.trims[0];
@@ -141,8 +149,9 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     const { score, reasons } = scoreVehicle(
       {
         industry: input.industry,
-        purpose: input.purpose,
-        purposeDetail: input.purposeDetail,
+        preferences,
+        childDetail: input.childDetail,
+        cargoDetail: input.cargoDetail,
         annualMileage: input.annualMileage,
         residenceRegion: input.residenceRegion,
         fuelPreference: input.fuelPreference,
@@ -246,7 +255,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
     top.map((s) =>
       generateReason({
         industry: input.industry,
-        purpose: input.purpose,
+        purpose: preferenceLabel,
         budgetMax: 0,
         annualMileage: input.annualMileage,
         vehicleName: s.detail.name,
