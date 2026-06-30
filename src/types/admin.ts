@@ -18,6 +18,7 @@ export interface AdminVehicle {
   slidingDoorOverride: boolean | null;
   advancedSafetyOverride: boolean | null;
   displayOrder: number;
+  tags: string[];
   description: string | null;
   createdAt: string;
   updatedAt: string;

@@ -8,6 +8,7 @@ import type { BrandSignal } from "@/lib/brand-sort";
 import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
 import { lowestMonthly } from "@/lib/representative-quote";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
+import { deriveHashtags } from "@/lib/vehicle-hashtags";
 import { CarsClientPage } from "./CarsClientPage";
 
 async function getVehicles(): Promise<VehicleListItem[]> {
@@ -75,6 +76,20 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       monthlyFrom,
       representativeQuotes,
       highlights: v.recConfigs?.highlights ?? [],
+      hashtags: deriveHashtags({
+        category: v.category as "SUV" | "세단" | "밴" | "트럭",
+        isPopular: v.isPopular,
+        vehicleName: v.name,
+        basePrice: v.basePrice,
+        defaultTrim: defaultTrim
+          ? {
+              name: defaultTrim.name,
+              engineType: defaultTrim.engineType as EngineType,
+              fuelEfficiency: defaultTrim.fuelEfficiency,
+            }
+          : null,
+        manualTags: v.tags,
+      }),
       tags: v.tags,
       hasAvailableInventory,
     };

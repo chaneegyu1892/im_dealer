@@ -36,7 +36,23 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
     slug: vehicle.slug,
     slidingDoorOverride: vehicle.slidingDoorOverride ?? null,
     advancedSafetyOverride: vehicle.advancedSafetyOverride ?? null,
+    tags: vehicle.tags ?? [],
   });
+
+  const [tagInput, setTagInput] = useState("");
+
+  const addTag = () => {
+    const t = tagInput.trim().replace(/^#+/, "").trim();
+    if (!t) return;
+    setData((prev) =>
+      prev.tags.includes(t) ? prev : { ...prev, tags: [...prev.tags, t] }
+    );
+    setTagInput("");
+  };
+
+  const removeTag = (t: string) => {
+    setData((prev) => ({ ...prev, tags: prev.tags.filter((x) => x !== t) }));
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -155,6 +171,49 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
               className={inputClass}
               placeholder="예: 압도적인 품격과 가치"
             />
+          </FormField>
+
+          <FormField label="특징 태그 (자동 해시태그 보정 · 비워두면 100% 자동)">
+            <div className="flex gap-2">
+              <input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addTag();
+                  }
+                }}
+                placeholder="예: 프리미엄 (Enter로 추가)"
+                className={inputClass}
+              />
+              <button
+                type="button"
+                onClick={addTag}
+                className="shrink-0 px-3 py-2 text-[13px] font-semibold text-white bg-[#000666] rounded-[6px] hover:bg-[#1A1A6E] transition-colors"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+            {data.tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {data.tags.map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[12px] font-semibold text-[#000666] bg-[#EEF0FF] rounded-[6px]"
+                  >
+                    #{t}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(t)}
+                      className="text-[#6066EE] hover:text-[#000666]"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </FormField>
 
           <div className="pt-2 flex justify-end">

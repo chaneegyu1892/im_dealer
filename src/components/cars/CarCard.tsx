@@ -9,7 +9,6 @@ import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { formatSubsidyManwon } from "@/lib/ev-subsidy";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
-import { summarizeVehicleDescription } from "@/lib/public-ui-text";
 
 interface CarCardProps {
   vehicle: VehicleListItem;
@@ -54,7 +53,6 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
   const engine = ENGINE_BADGE[engineType];
   const EngineIcon = engine.icon;
   const brandColor = BRAND_COLORS[vehicle.brand] ?? BRAND_COLORS["현대"];
-  const description = summarizeVehicleDescription(vehicle.description, 36);
 
   return (
     <motion.div
@@ -139,10 +137,17 @@ export function CarCard({ vehicle, index = 0 }: CarCardProps) {
             {vehicle.name}
           </h3>
 
-          {description && (
-            <p className="mb-3 min-h-[18px] text-[12.5px] leading-relaxed text-g1">
-              {description}
-            </p>
+          {vehicle.hashtags && vehicle.hashtags.length > 0 && (
+            <div className="mb-3 flex min-h-[18px] flex-wrap gap-1.5">
+              {vehicle.hashtags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-pill bg-brand-soft px-2 py-0.5 text-[11.5px] font-bold text-brand"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
           )}
 
           {vehicle.evSubsidyRange ? (
