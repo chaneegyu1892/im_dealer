@@ -32,6 +32,8 @@ export interface VehicleListItem {
   /** 60개월·무보증·2만km 기준 productType(장기렌트/리스)별 대표 견적가. */
   representativeQuotes?: RepresentativeQuote[];
   highlights: string[];
+  /** 차량 특징 해시태그 (자동 산출 + 어드민 수동 보정, 최대 3개). '#' 접두 포함. /cars 전용 보강 필드. */
+  hashtags?: string[];
   tags: string[];
   hasAvailableInventory?: boolean;
 }
