@@ -34,6 +34,53 @@ export function getPurposeOptionsForIndustry(
   return PURPOSE_OPTIONS_BY_INDUSTRY[industry] ?? PURPOSE_OPTIONS;
 }
 
+// ─────────────────────────────────────────────
+// 「원하는 차」 선호 특징 — 목적 질문 대체 (복수 선택, 최대 2개)
+// 느낌형 4(즉시 점수) + 상황형 2(상세질문 펼침). 상황형은 1개만 선택 가능.
+// value 는 scoring-rules.ts 의 PREFERENCE_RULES / SCORING_PREFERENCES 와 1:1.
+// ─────────────────────────────────────────────
+
+export type PreferenceKind = "feel" | "situation";
+
+export const PREFERENCE_OPTIONS = [
+  { value: "안정감", label: "크고 안정감 있는 차", desc: "든든한 주행감", icon: "🚙", kind: "feel" },
+  { value: "주차편의", label: "작고 주차 편한 차", desc: "좁은 길도 편하게", icon: "🅿️", kind: "feel" },
+  { value: "경제성", label: "유지비 경제적인 차", desc: "연비·유류비 절감", icon: "🌿", kind: "feel" },
+  { value: "고급", label: "품격 있는 고급차", desc: "임원·의전용", icon: "💎", kind: "feel" },
+  { value: "가족", label: "아이와 함께 타요", desc: "가족·안전 우선", icon: "👨‍👩‍👧", kind: "situation" },
+  { value: "화물", label: "짐을 많이 실어요", desc: "화물·적재 위주", icon: "📦", kind: "situation" },
+] as const satisfies ReadonlyArray<{
+  value: string;
+  label: string;
+  desc: string;
+  icon: string;
+  kind: PreferenceKind;
+}>;
+
+export const MAX_PREFERENCES = 2;
+
+// 상황형 상세질문 선택지. value 는 CHILD_RULES / CARGO_RULES 키와 1:1 일치해야 한다.
+export const PREFERENCE_DETAIL_OPTIONS: Record<
+  string,
+  Array<{ value: string; label: string; desc?: string; icon?: string }>
+> = {
+  가족: [
+    { value: "영유아", label: "영유아 (0~3세)", desc: "유모차·카시트 환경", icon: "👶" },
+    { value: "미취학", label: "미취학 (4~7세)", desc: "카시트 환경", icon: "🧒" },
+    { value: "초등", label: "초등학생 (8~13세)", desc: "넉넉한 실내 공간", icon: "🎒" },
+    { value: "중학생+", label: "중학생 이상 (14세~)", desc: "성인 위주 이용", icon: "🧑" },
+  ],
+  화물: [
+    { value: "소형 박스", label: "소형 박스·소화물", desc: "택배, 소형 물품 위주예요", icon: "📦" },
+    { value: "대형 화물", label: "대형 화물·자재", desc: "적재 용량이 정말 중요해요", icon: "🏗️" },
+  ],
+};
+
+export const PREFERENCE_DETAIL_QUESTION: Record<string, { title: string; subtitle: string }> = {
+  가족: { title: "자녀 연령대는 어떻게 되나요?", subtitle: "연령에 맞는 안전·편의 기능을 우선으로 추천해요." },
+  화물: { title: "주로 어떤 물량을 운반하시나요?", subtitle: "적재 용량에 맞는 차종을 추천해 드려요." },
+};
+
 export const BUDGET_RANGE_OPTIONS = [
   { value: "~50", label: "50만원 이하", budgetMin: 0, budgetMax: 500_000 },
   { value: "50~100", label: "50 – 100만원", budgetMin: 500_000, budgetMax: 1_000_000 },

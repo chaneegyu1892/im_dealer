@@ -1,17 +1,21 @@
 export interface RecommendInput {
   industry: string;        // 업종
-  purpose: string;         // 사용 목적
+  // 「원하는 차」 선호 특징 1~2개 (느낌형 안정감/주차편의/경제성/고급 + 상황형 가족/화물)
+  preferences: string[];
   annualMileage: number;
   returnType: ReturnType;
   // 조건부 추가 질문 답변 (optional)
   industryDetail?: string;
-  purposeDetail?: string;
+  childDetail?: string;    // "가족" 선택 시 자녀연령
+  cargoDetail?: string;    // "화물" 선택 시 소형/대형
   fuelPreference?: string;
   // 전기차 선택 시 충전 환경 (3단계+없음)
   chargingEnvironment?: "자택" | "직장" | "외부" | "없음";
   // 거주지역 (선택, 기본 일반)
   residenceRegion?: "일반" | "강원·산간" | "제주";
   // 옛 세션 호환용 (옵셔널) — 새 입력에서는 사용하지 않음
+  purpose?: string;
+  purposeDetail?: string;
   budgetMin?: number;
   budgetMax?: number;
   paymentStyle?: PaymentStyle;
@@ -89,7 +93,9 @@ export interface RecommendResultResponse {
   sessionId: string;
   input: {
     industry: string;
+    // 결과 요약 칩 표기용 — 신규 흐름은 선택한 선호 라벨, 옛 세션은 목적 문자열
     purpose: string;
+    preferences?: string[];
     annualMileage: number;
     returnType: ReturnType;
     fuelPreference?: string;

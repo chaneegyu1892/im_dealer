@@ -56,6 +56,7 @@ export async function GET(
     const input = {
       industry: log.industry,
       purpose: log.purpose,
+      preferences: log.preferences ?? undefined,
       budgetMin: log.budgetMin,
       budgetMax: log.budgetMax,
       paymentStyle: log.paymentStyle as "보수형" | "표준형" | "공격형",
@@ -96,6 +97,9 @@ export async function GET(
     // 최신 데이터 기준으로 재계산하되, LLM 이유는 저장된 값 재사용.
     const vehicles = await recommend({
       industry: log.industry,
+      preferences: log.preferences ?? [],
+      childDetail: log.childDetail ?? undefined,
+      cargoDetail: log.cargoDetail ?? undefined,
       purpose: log.purpose,
       budgetMin: log.budgetMin,
       budgetMax: log.budgetMax,

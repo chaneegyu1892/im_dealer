@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 const STEPS = [
   { id: 1, label: "업종" },
-  { id: 2, label: "목적" },
+  { id: 2, label: "원하는 차" },
   { id: 3, label: "주행·연료" },
 ] as const;
 
