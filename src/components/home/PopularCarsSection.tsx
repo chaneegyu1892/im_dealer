@@ -68,7 +68,7 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
             <RepresentativeQuotePrice
               quotes={vehicle.representativeQuotes}
               tone="brand"
-              size="sm"
+              size="lg"
             />
             <span className="text-[12px] text-brand font-extrabold flex items-center gap-1
                              opacity-0 group-hover:opacity-100 transition-opacity duration-300">
