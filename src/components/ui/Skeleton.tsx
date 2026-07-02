@@ -8,8 +8,7 @@ export function Skeleton({ className }: SkeletonProps) {
   return (
     <div
       className={cn(
-        "rounded-[6px] bg-[length:200%_100%] animate-shimmer",
-        "bg-gradient-to-r from-[#f0f0f0] via-[#e0e0e0] to-[#f0f0f0]",
+        "rounded-[6px] bg-surface bg-[length:200%_100%] bg-skeleton-shimmer motion-safe:animate-shimmer",
         className
       )}
     />
@@ -18,9 +17,9 @@ export function Skeleton({ className }: SkeletonProps) {
 
 export function RecommendCardSkeleton() {
   return (
-    <div className="bg-white border border-[#F0F0F0] rounded-card shadow-card overflow-hidden">
+    <div className="bg-surface border border-line2 rounded-card shadow-card overflow-hidden">
       {/* 순위 배지 */}
-      <div className="bg-neutral px-4 py-2.5">
+      <div className="bg-surface-soft px-4 py-2.5">
         <Skeleton className="h-3 w-20" />
       </div>
 
@@ -36,7 +35,7 @@ export function RecommendCardSkeleton() {
         </div>
 
         {/* AI 해설 */}
-        <div className="rounded-btn p-4 border border-neutral-800 space-y-2">
+        <div className="rounded-btn p-4 border border-line space-y-2">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-3/4" />

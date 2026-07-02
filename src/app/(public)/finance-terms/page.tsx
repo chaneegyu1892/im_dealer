@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ChevronRight, ClipboardList, Info, ShieldAlert } from "lucide-react";
 import {
   FINANCE_PRODUCTS,
   type FinanceProduct,
@@ -11,20 +12,20 @@ export const metadata: Metadata = {
     "(주)메타키움 아임딜러(IM DEALER) 서비스 법적 고지 및 제휴 금융사별 상품 안내",
 };
 
-const TABLE = "w-full border-collapse text-xs sm:text-sm";
+const TABLE = "w-full min-w-[640px] border-collapse text-xs sm:text-sm";
 const TH =
-  "border border-[#E8EAF2] bg-[#F8F9FC] px-3 py-2 text-left font-semibold text-[#1A1A2E] whitespace-nowrap";
-const TD = "border border-[#E8EAF2] px-3 py-2 align-top text-[#1A1A2E]/80";
+  "border border-border-subtle bg-surface-soft px-3 py-2 text-left font-semibold text-text-strong whitespace-nowrap";
+const TD = "border border-border-subtle px-3 py-2 align-top text-text-body";
 const TD_HEAD =
-  "border border-[#E8EAF2] bg-[#FBFBFE] px-3 py-2 align-top font-medium text-[#1A1A2E] whitespace-nowrap";
+  "border border-border-subtle bg-surface-soft px-3 py-2 align-top font-medium text-text-strong whitespace-nowrap";
 
 function DataTable({ caption, headers, rows }: FinanceTable) {
   return (
     <div className="mt-3">
       {caption && (
-        <p className="mb-2 text-[13px] font-medium text-[#1A1A2E]">{caption}</p>
+        <p className="mb-2 text-[13px] font-medium text-text-strong">{caption}</p>
       )}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-[14px] border border-border-subtle bg-surface">
         <table className={TABLE}>
           <thead>
             <tr>
@@ -55,8 +56,9 @@ function DataTable({ caption, headers, rows }: FinanceTable) {
 function ProductCard({ product }: { product: FinanceProduct }) {
   return (
     <div className="pt-2">
-      <h3 className="text-[15px] font-semibold text-[#000666] mb-1">
-        ▶ {product.title}
+      <h3 className="mb-1 flex items-center gap-1.5 text-[15px] font-semibold text-brand">
+        <ChevronRight size={16} aria-hidden="true" />
+        {product.title}
       </h3>
       <DataTable {...product.table} />
 
@@ -65,7 +67,7 @@ function ProductCard({ product }: { product: FinanceProduct }) {
           {product.formulas.map((formula, i) => (
             <p
               key={i}
-              className="rounded-md border border-[#E8EAF2] bg-[#F8F9FC] px-3 py-2 text-[13px] text-[#1A1A2E]/80"
+              className="rounded-[12px] border border-border-subtle bg-surface-soft px-3 py-2 text-[13px] text-text-body"
             >
               {formula}
             </p>
@@ -76,7 +78,7 @@ function ProductCard({ product }: { product: FinanceProduct }) {
       {product.subTable && <DataTable {...product.subTable} />}
 
       {product.notes && product.notes.length > 0 && (
-        <ul className="list-disc pl-5 space-y-1 mt-3 text-[13px] text-[#1A1A2E]/75">
+        <ul className="list-disc pl-5 space-y-1 mt-3 text-[13px] text-text-body">
           {product.notes.map((note, i) => (
             <li key={i}>{note}</li>
           ))}
@@ -86,7 +88,7 @@ function ProductCard({ product }: { product: FinanceProduct }) {
       {product.approvals && product.approvals.length > 0 && (
         <div className="mt-3 space-y-0.5">
           {product.approvals.map((approval, i) => (
-            <p key={i} className="text-[11px] text-[#9BA4C0]">
+            <p key={i} className="text-[11px] text-text-muted">
               {approval}
             </p>
           ))}
@@ -121,43 +123,46 @@ const COMMON_CAUTIONS: string[] = [
 
 export default function FinanceTermsPage() {
   return (
-    <main className="max-w-3xl mx-auto px-6 py-16">
-      <h1 className="text-2xl font-bold text-[#1A1A2E] mb-2">
-        아임딜러 서비스 법적 고지 및 금융상품 안내
-      </h1>
-      <p className="text-sm text-[#9BA4C0] mb-10">
-        (주)메타키움 | 아임딜러(IM DEALER)
-      </p>
+    <main className="public-app-page min-h-screen">
+      <div className="page-container mx-auto max-w-3xl px-5 pt-12 pb-[calc(128px+env(safe-area-inset-bottom,0px))] md:py-16">
+        <h1 className="mb-2 text-[26px] font-extrabold leading-tight text-text-strong md:text-[32px]">
+          아임딜러 서비스 법적 고지 및 금융상품 안내
+        </h1>
+        <p className="mb-10 text-sm text-text-muted">
+          (주)메타키움 | 아임딜러(IM DEALER)
+        </p>
 
-      <section className="space-y-10">
-        <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-3">
-            📌 서비스 공통 안내사항
-          </h2>
-          <ul className="list-disc pl-5 space-y-2 text-[13px] text-[#1A1A2E]/80 leading-relaxed">
-            {COMMON_NOTICES.map((notice, i) => (
-              <li key={i}>{notice}</li>
-            ))}
-            <li>
-              대출모집법인 조회(
-              <a
-                href="https://www.loanconsultant.or.kr"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#6066EE] underline"
-              >
-                www.loanconsultant.or.kr
-              </a>
-              ) 및 대출성 상품 금융상품 판매대리·중개업 등록증표를 통해 신원 확인이 가능합니다.
-            </li>
-          </ul>
-        </div>
+        <section className="space-y-10">
+          <div>
+            <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-text-strong">
+              <Info size={18} className="text-brand" aria-hidden="true" />
+              서비스 공통 안내사항
+            </h2>
+            <ul className="list-disc pl-5 space-y-2 text-[13px] leading-relaxed text-text-body">
+              {COMMON_NOTICES.map((notice, i) => (
+                <li key={i}>{notice}</li>
+              ))}
+              <li>
+                대출모집법인 조회(
+                <a
+                  href="https://www.loanconsultant.or.kr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-brand underline"
+                >
+                  www.loanconsultant.or.kr
+                </a>
+                ) 및 대출성 상품 금융상품 판매대리·중개업 등록증표를 통해 신원 확인이 가능합니다.
+              </li>
+            </ul>
+          </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-3">
-            📋 제휴 금융사별 상품 안내
+          <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-text-strong">
+            <ClipboardList size={18} className="text-brand" aria-hidden="true" />
+            제휴 금융사별 상품 안내
           </h2>
-          <div className="divide-y divide-[#E8EAF2] space-y-6">
+          <div className="space-y-6 divide-y divide-border-subtle">
             {FINANCE_PRODUCTS.map((product, i) => (
               <ProductCard key={i} product={product} />
             ))}
@@ -165,23 +170,25 @@ export default function FinanceTermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-3">
-            📌 공통 유의사항
+          <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-text-strong">
+            <ShieldAlert size={18} className="text-status-warning" aria-hidden="true" />
+            공통 유의사항
           </h2>
-          <p className="text-[13px] text-[#1A1A2E]/80 mb-2">
+          <p className="text-[13px] text-text-body mb-2">
             모든 금융상품에 공통으로 적용되는 사항입니다.
           </p>
-          <ul className="list-disc pl-5 space-y-2 text-[13px] text-[#1A1A2E]/80 leading-relaxed">
+          <ul className="list-disc pl-5 space-y-2 text-[13px] text-text-body leading-relaxed">
             {COMMON_CAUTIONS.map((caution, i) => (
               <li key={i}>{caution}</li>
             ))}
           </ul>
         </div>
 
-        <div className="pt-4 border-t border-[#E8EAF2]">
-          <p className="text-xs text-[#9BA4C0]">시행일: 2026년 6월 17일</p>
-        </div>
-      </section>
+          <div className="border-t border-border-subtle pt-4">
+            <p className="text-xs text-text-muted">시행일: 2026년 6월 17일</p>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

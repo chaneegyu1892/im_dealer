@@ -40,7 +40,7 @@ export function ChannelTalkButton({
       onClick={handleClick}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-btn font-bold",
-        "bg-[#1A1A2E] text-white transition-opacity duration-200 hover:opacity-90",
+        "bg-text-strong text-surface transition-opacity duration-200 hover:opacity-90",
         size === "md" ? "px-6 py-3 text-sm w-full" : "px-4 py-2 text-[13px]",
         className
       )}

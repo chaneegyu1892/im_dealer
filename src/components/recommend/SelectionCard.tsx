@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 
 interface SelectionCardProps {
   label: string;
@@ -26,7 +26,11 @@ export function SelectionCard({
       onClick={onClick}
       className={cn("tile active:scale-[0.99]", selected && "tile-on")}
     >
-      {icon && <span className="ic text-[20px] leading-none">{icon}</span>}
+      {icon && (
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-soft text-brand">
+          <Sparkles size={16} aria-hidden />
+        </span>
+      )}
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -40,13 +44,13 @@ export function SelectionCard({
         {desc && (
           <p className={cn("ds mt-0.5", selected && "text-brand/70")}>{desc}</p>
         )}
-        {detail && <p className="mt-1 text-[11px] text-g2">{detail}</p>}
+        {detail && <p className="mt-1 text-[11px] text-text-muted">{detail}</p>}
       </div>
 
       <span
         className={cn(
           "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border transition-colors",
-          selected ? "border-brand bg-brand" : "border-line2 bg-white"
+          selected ? "border-brand bg-brand" : "border-border-strong bg-surface"
         )}
       >
         {selected && <Check size={13} className="text-white" strokeWidth={3} />}

@@ -38,7 +38,7 @@ describe("MemberGate", () => {
     expect(
       screen.getByText("월 납입금을 낮추고 싶으시다면 로그인 해주세요")
     ).toBeInTheDocument();
-    expect(screen.getByText("카카오로 로그인 →")).toBeInTheDocument();
+    expect(screen.getByText("카카오로 로그인")).toBeInTheDocument();
   });
 
   it("커스텀 message 를 오버레이에 반영한다", () => {

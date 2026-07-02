@@ -134,7 +134,7 @@ export function RecommendFlow() {
     setState((s) => {
       const isSituation = value === "가족" || value === "화물";
 
-      // 이미 선택됨 → 해제 (상황형이면 상세도 초기화)
+      // 이미 선택됨: 해제 (상황형이면 상세도 초기화)
       if (s.preferences.includes(value)) {
         return {
           ...s,
@@ -192,7 +192,7 @@ export function RecommendFlow() {
           )}
           <span className="t truncate">{stepLabel}</span>
         </div>
-        <span className="num text-[15px] font-extrabold text-g2">
+        <span className="num text-[15px] font-extrabold text-text-muted">
           <span className="text-brand">{step}</span>
           {" / "}
           {STEPS.length}
@@ -238,17 +238,17 @@ export function RecommendFlow() {
                 setState((s) => ({ ...s, annualMileage: v }))
               }
             />
-            <div className="border-t border-line pt-7">
+            <div className="border-t border-border-subtle pt-7">
               <StepFuelPreference
                 value={state.fuelPreference}
                 onChange={handleFuelChange}
               />
               {state.fuelPreference === "전기차" && (
                 <div className="mt-5 rounded-[16px] border border-brand/15 bg-brand-soft p-4 transition-all duration-200">
-                  <h3 className="text-[15px] font-extrabold text-ink">
+                  <h3 className="text-[15px] font-extrabold text-text-strong">
                     충전 환경이 있나요?
                   </h3>
-                  <p className="mt-1 text-[12.5px] leading-relaxed text-g2">
+                  <p className="mt-1 text-[12.5px] leading-relaxed text-text-muted">
                     집·회사·아파트 등 일상 충전이 가능한지에 따라 추천이
                     달라져요.
                   </p>
@@ -272,7 +272,7 @@ export function RecommendFlow() {
                 </div>
               )}
             </div>
-            <div className="border-t border-line pt-7">
+            <div className="border-t border-border-subtle pt-7">
               <StepRegion
                 value={state.residenceRegion}
                 onChange={(v) => setState((s) => ({ ...s, residenceRegion: v }))}
@@ -283,7 +283,7 @@ export function RecommendFlow() {
       </div>
 
       {error && (
-        <div className="mt-5 rounded-[12px] border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+        <div className="mt-5 rounded-[12px] border border-status-danger/25 bg-status-danger-soft px-4 py-3 text-[13px] font-medium text-status-danger">
           {error}
         </div>
       )}
@@ -311,10 +311,10 @@ export function RecommendFlow() {
                 ? "조건을 분석 중입니다"
                 : step === TOTAL_STEPS
                 ? "추천 결과 확인하기"
-                : "다음 →"}
+                : "다음"}
             </button>
           </div>
-          <p className="mt-2.5 text-center text-[12px] text-g2">
+          <p className="mt-2.5 text-center text-[12px] text-text-muted">
             개인정보 입력 없이 추천 결과를 확인할 수 있습니다
           </p>
         </div>

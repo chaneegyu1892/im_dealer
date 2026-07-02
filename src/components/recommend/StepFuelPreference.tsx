@@ -14,7 +14,7 @@ export function StepFuelPreference({ value, onChange, budgetMax }: StepFuelPrefe
   return (
     <div className="space-y-3">
       <div className="mb-5">
-        <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.03em] text-ink">연료 방식에 <span className="text-brand">선호</span>가 있으신가요?</h2>
+        <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.03em] text-text-strong">연료 방식에 <span className="text-brand">선호</span>가 있으신가요?</h2>
         <p className="t-sub mt-1.5">선호하는 연료 방식이 있다면 그에 맞게 추천해 드려요.</p>
       </div>
 
@@ -32,8 +32,8 @@ export function StepFuelPreference({ value, onChange, budgetMax }: StepFuelPrefe
       </div>
 
       {showEvBudgetWarning && (
-        <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 p-3">
-          <p className="text-[12px] leading-relaxed text-amber-800">
+        <div className="mt-3 rounded-card border border-status-warning/25 bg-status-warning/10 p-3">
+          <p className="text-[12px] leading-relaxed text-status-warning">
             전기차는 일반 차량 대비 예산이 더 필요할 수 있어요. 추천 결과가 조건과 다를 수 있습니다.
           </p>
         </div>

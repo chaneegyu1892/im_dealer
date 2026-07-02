@@ -4,21 +4,174 @@
 
 @layer base {
   :root {
+    /* Legacy/admin compatibility: fixed values required by docs/admin-spec.md. */
     --color-primary: #000666;
     --color-secondary: #71749A;
     --color-tertiary: #5C1800;
     --color-bg: #F8F9FA;
-    --public-app-bg: #F5F6FA;
-    --public-surface: #FFFFFF;
-    --public-surface-raised: #FFFFFF;
-    --public-border: #E7EAF2;
-    --public-muted: #6F7590;
-    --public-trust-bg: #EEF2FF;
+    --color-admin-primary: #000666;
+    --color-admin-accent: #6066EE;
+    --color-admin-bg: #F8F9FC;
+    --color-admin-dark-text: #1A1A2E;
+    --color-admin-muted-text: #9BA4C0;
+    --color-admin-shell-dark: #0D0D1F;
+
+    /* Customer semantic color tokens from DESIGN.md. RGB pairs support Tailwind opacity modifiers. */
+    --color-app-bg: #F5F6FA;
+    --color-app-bg-rgb: 245 246 250;
+    --color-surface: #FFFFFF;
+    --color-surface-rgb: 255 255 255;
+    --color-surface-raised: #FFFFFF;
+    --color-surface-raised-rgb: 255 255 255;
+    --color-surface-soft: #F7F8FA;
+    --color-surface-soft-rgb: 247 248 250;
+    --color-text-strong: #191F28;
+    --color-text-strong-rgb: 25 31 40;
+    --color-text-body: #4E5968;
+    --color-text-body-rgb: 78 89 104;
+    --color-text-muted: #8B95A1;
+    --color-text-muted-rgb: 139 149 161;
+    --color-border-subtle: #E5E8EB;
+    --color-border-subtle-rgb: 229 232 235;
+    --color-border-strong: #D7DCE2;
+    --color-border-strong-rgb: 215 220 226;
+    --color-brand-primary: #27368A;
+    --color-brand-primary-rgb: 39 54 138;
+    --color-brand-pressed: #172357;
+    --color-brand-pressed-rgb: 23 35 87;
+    --color-brand-soft: #ECEEF9;
+    --color-brand-soft-rgb: 236 238 249;
+    --color-accent-purple: #5A3DB0;
+    --color-accent-purple-rgb: 90 61 176;
+    --color-accent-purple-soft: #F0EAFB;
+    --color-accent-purple-soft-rgb: 240 234 251;
+    --color-status-positive: #1FC26B;
+    --color-status-positive-rgb: 31 194 107;
+    --color-status-positive-soft: #E8F8EF;
+    --color-status-positive-soft-rgb: 232 248 239;
+    --color-status-warning: #EC7E00;
+    --color-status-warning-rgb: 236 126 0;
+    --color-status-warning-soft: #FFF4E6;
+    --color-status-warning-soft-rgb: 255 244 230;
+    --color-status-danger: #E23B4A;
+    --color-status-danger-rgb: 226 59 74;
+    --color-status-danger-soft: #FFECEF;
+    --color-status-danger-soft-rgb: 255 236 239;
+    --color-status-info: #376CD5;
+    --color-status-info-rgb: 55 108 213;
+    --color-status-info-soft: #EEF3FF;
+    --color-status-info-soft-rgb: 238 243 255;
+    --color-focus-ring: #6066EE;
+    --color-focus-ring-rgb: 96 102 238;
+
+    /* Public aliases kept for existing classes while customer code migrates to semantic names. */
+    --public-app-bg: var(--color-app-bg);
+    --public-surface: var(--color-surface);
+    --public-surface-raised: var(--color-surface-raised);
+    --public-border: var(--color-border-subtle);
+    --public-muted: var(--color-text-muted);
+    --public-trust-bg: var(--color-brand-soft);
+
+    --shadow-none: none;
+    --shadow-card: 0 6px 18px rgba(18,24,40,0.04);
+    --shadow-card-hover: 0 8px 24px rgba(39,54,138,0.12);
+    --shadow-float: 0 16px 36px rgba(18,24,40,0.12);
+    --shadow-modal: 0 24px 64px rgba(18,24,40,0.20);
+    --shadow-focus: 0 0 0 4px rgba(96,102,238,0.18);
+    --surface-glass: rgba(255,255,255,0.88);
+    --gradient-hero: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-pressed) 60%, var(--color-focus-ring) 100%);
+    --gradient-skeleton-shimmer: linear-gradient(90deg, var(--color-surface-soft) 25%, var(--color-border-subtle) 50%, var(--color-surface-soft) 75%);
+    --radius-card: 16px;
+    --radius-card-lg: 20px;
+    --radius-button: 13px;
+    --radius-tooltip: 8px;
+    --radius-toast: 10px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+    --space-24: 96px;
+    --duration-tap: 120ms;
+    --duration-state: 200ms;
+    --duration-sheet: 280ms;
+    --duration-page: 360ms;
+    --ease-tap: cubic-bezier(0.2, 0, 0, 1);
+    --ease-state: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-sheet: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-page: cubic-bezier(0.16, 1, 0.3, 1);
+    --scrollbar-thumb: rgba(0,0,0,0.08);
+    --scrollbar-thumb-hover: rgba(0,0,0,0.15);
     --mobile-fixed-action-height: 88px;
+  }
+
+  .dark {
+    --color-app-bg: #101216;
+    --color-app-bg-rgb: 16 18 22;
+    --color-surface: #171A20;
+    --color-surface-rgb: 23 26 32;
+    --color-surface-raised: #20242C;
+    --color-surface-raised-rgb: 32 36 44;
+    --color-surface-soft: #252A33;
+    --color-surface-soft-rgb: 37 42 51;
+    --color-text-strong: #F8FAFC;
+    --color-text-strong-rgb: 248 250 252;
+    --color-text-body: #D7DCE5;
+    --color-text-body-rgb: 215 220 229;
+    --color-text-muted: #9AA4B2;
+    --color-text-muted-rgb: 154 164 178;
+    --color-border-subtle: #333A46;
+    --color-border-subtle-rgb: 51 58 70;
+    --color-border-strong: #4B5565;
+    --color-border-strong-rgb: 75 85 101;
+    --color-brand-primary: #7D8CFF;
+    --color-brand-primary-rgb: 125 140 255;
+    --color-brand-pressed: #A7B0FF;
+    --color-brand-pressed-rgb: 167 176 255;
+    --color-brand-soft: #242A52;
+    --color-brand-soft-rgb: 36 42 82;
+    --color-accent-purple: #BCA7FF;
+    --color-accent-purple-rgb: 188 167 255;
+    --color-accent-purple-soft: #30264D;
+    --color-accent-purple-soft-rgb: 48 38 77;
+    --color-status-positive: #42D987;
+    --color-status-positive-rgb: 66 217 135;
+    --color-status-positive-soft: #19382A;
+    --color-status-positive-soft-rgb: 25 56 42;
+    --color-status-warning: #FFB45C;
+    --color-status-warning-rgb: 255 180 92;
+    --color-status-warning-soft: #3D2C18;
+    --color-status-warning-soft-rgb: 61 44 24;
+    --color-status-danger: #FF7A86;
+    --color-status-danger-rgb: 255 122 134;
+    --color-status-danger-soft: #44212A;
+    --color-status-danger-soft-rgb: 68 33 42;
+    --color-status-info: #7FA8FF;
+    --color-status-info-rgb: 127 168 255;
+    --color-status-info-soft: #202E4F;
+    --color-status-info-soft-rgb: 32 46 79;
+    --color-focus-ring: #A7ADFF;
+    --color-focus-ring-rgb: 167 173 255;
+    --shadow-card: 0 10px 24px rgba(0,0,0,0.18);
+    --shadow-card-hover: 0 12px 30px rgba(0,0,0,0.28);
+    --shadow-float: 0 18px 44px rgba(0,0,0,0.32);
+    --shadow-modal: 0 30px 72px rgba(0,0,0,0.45);
+    --shadow-focus: 0 0 0 4px rgba(167,173,255,0.22);
+    --surface-glass: rgba(23,26,32,0.84);
+    --scrollbar-thumb: rgba(255,255,255,0.14);
+    --scrollbar-thumb-hover: rgba(255,255,255,0.24);
   }
 
   body {
     @apply bg-neutral text-ink-body antialiased font-sans;
+    background-color: var(--color-app-bg);
+    color: var(--color-text-body);
   }
 
   * {
@@ -58,7 +211,7 @@
 
   /* ── 카드 ─────────────────────────────── */
   .card {
-    @apply bg-white border border-[#F0F0F0] rounded-card shadow-card p-6;
+    @apply bg-surface border border-border-subtle rounded-card shadow-card p-6;
   }
 
   .card-hover {
@@ -88,9 +241,9 @@
 
   /* ── 폼 인풋 ──────────────────────────── */
   .input-field {
-    @apply w-full bg-white border border-neutral-800 rounded-btn
-           px-4 py-3 text-body placeholder:text-ink-caption
-           focus:outline-none focus:border-primary transition-colors duration-200;
+    @apply w-full bg-surface border border-border-strong rounded-btn
+           px-4 py-3 text-body text-text-body placeholder:text-text-muted
+           focus:outline-none focus:border-focus-ring transition-colors duration-state;
   }
 
   .input-search {
@@ -133,16 +286,16 @@
   .t-kick { @apply inline-flex items-center gap-1.5 text-[12.5px] font-extrabold uppercase tracking-[0.08em] text-brand; }
 
   /* 큰 헤드라인 */
-  .t-h1  { @apply text-[27px] md:text-[30px] font-extrabold leading-[1.25] tracking-[-0.04em] text-ink; }
-  .t-sub { @apply text-[14px] text-g1 leading-[1.55]; }
+  .t-h1  { @apply text-[27px] md:text-[30px] font-extrabold leading-[1.25] tracking-[-0.04em] text-text-strong; }
+  .t-sub { @apply text-[14px] text-text-body leading-[1.55]; }
 
   /* 태그 (soft pill) */
   .t-tag    { @apply inline-flex items-center rounded-pill bg-brand-soft px-[13px] py-[6px] text-[13px] font-bold text-brand; }
   .t-tag-pp { @apply bg-purple-soft text-purple; }
 
   /* 카드 / 회색 정보블록 */
-  .t-card { @apply rounded-[18px] border border-line2 bg-white; }
-  .t-gray { @apply rounded-[16px] bg-sec; }
+  .t-card { @apply rounded-[18px] border border-line2 bg-surface; }
+  .t-gray { @apply rounded-[16px] border border-border-subtle bg-surface-soft; }
 
   /* 리스트 행(조건요약 등) */
   .t-lrow   { @apply flex items-center justify-between py-[10px] text-[14px]; }
@@ -150,21 +303,21 @@
   .t-lrow .v { @apply font-bold text-ink; }
 
   /* 별점 */
-  .t-stars { color: #FFB020; letter-spacing: 1px; }
+  .t-stars { color: var(--color-status-warning); letter-spacing: 1px; }
 
   /* 아이콘 버튼 / 앱바 */
   .t-iconbtn { @apply flex h-9 w-9 items-center justify-center rounded-[11px] bg-sec text-ink; }
   .t-appbar  { @apply flex items-center gap-2.5 py-2; }
-  .t-appbar .t { @apply text-[16px] font-extrabold text-ink; }
+  .t-appbar .t { @apply text-[16px] font-extrabold text-text-strong; }
 
   /* 칩(필터/카테고리) */
-  .chip    { @apply inline-flex items-center px-[15px] py-[10px] rounded-pill text-[13.5px] font-bold bg-white border border-line2 text-g1 transition-colors; }
+  .chip    { @apply inline-flex items-center px-[15px] py-[10px] rounded-pill text-[13.5px] font-bold bg-surface border border-line2 text-g1 transition-colors; }
   .chip-on { @apply bg-brand border-brand text-white; }
 
   /* 세그먼티드 컨트롤 */
   .seg        { @apply grid gap-1 bg-sec p-1 rounded-[13px]; }
   .seg button { @apply py-[12px] rounded-[10px] text-[13.5px] font-extrabold text-g2 transition-all; }
-  .seg .on    { @apply bg-white text-ink shadow-soft; }
+  .seg .on    { @apply bg-surface text-ink shadow-soft; }
 
   /* 진행 바 */
   .t-progress     { @apply h-1.5 w-full overflow-hidden rounded-pill bg-line2; }
@@ -174,12 +327,12 @@
   .listrow { @apply flex items-center justify-between py-4; }
 
   /* 선택 타일(라디오 카드) — 아이콘 박스 포함 */
-  .tile      { @apply flex items-center gap-3 p-4 rounded-[14px] border-[1.5px] border-line2 bg-white w-full text-left transition-colors; }
+  .tile      { @apply flex items-center gap-3 p-4 rounded-[14px] border-[1.5px] border-border-subtle bg-surface w-full text-left transition-colors; }
   .tile-on   { @apply border-brand bg-brand-soft; }
-  .tile .ic  { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-sec text-g1; }
+  .tile .ic  { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-surface-soft text-text-body; }
   .tile-on .ic { @apply bg-brand text-white; }
-  .tile .nm  { @apply text-[15px] font-extrabold text-ink; }
-  .tile .ds  { @apply text-[12.5px] text-g2; }
+  .tile .nm  { @apply text-[15px] font-extrabold text-text-strong; }
+  .tile .ds  { @apply text-[12.5px] text-text-muted; }
 
   /* 메인 CTA */
   .cta        { @apply w-full flex items-center justify-center gap-2 bg-brand text-white text-[16px] font-extrabold py-[15px] rounded-btn transition-colors; }
@@ -188,7 +341,7 @@
   .cta-gho    { @apply bg-sec text-ink; }
 
   /* 하단 고정 CTA 도크 */
-  .dock { @apply sticky bottom-0 px-[18px] pt-[10px] pb-4 border-t border-line bg-white; }
+  .dock { @apply sticky bottom-0 px-[18px] pt-[10px] pb-4 border-t border-line bg-surface; }
 
   /* 화면 래퍼: 토스식 좁은 자간 */
   .toss-page { letter-spacing: -0.02em; -webkit-font-smoothing: antialiased; }
@@ -196,17 +349,52 @@
   /* ── Public mobile app surfaces ───────────────── */
   .public-app-page {
     background:
-      linear-gradient(180deg, #FFFFFF 0%, var(--public-app-bg) 280px),
+      linear-gradient(180deg, var(--color-surface) 0%, var(--public-app-bg) 280px),
       var(--public-app-bg);
   }
 
+  .home-showroom-scope {
+    --color-app-bg: #F5F6FA;
+    --color-app-bg-rgb: 245 246 250;
+    --color-surface: #FFFFFF;
+    --color-surface-rgb: 255 255 255;
+    --color-surface-raised: #FFFFFF;
+    --color-surface-raised-rgb: 255 255 255;
+    --color-surface-soft: #F7F8FA;
+    --color-surface-soft-rgb: 247 248 250;
+    --color-text-strong: #191F28;
+    --color-text-strong-rgb: 25 31 40;
+    --color-text-body: #4E5968;
+    --color-text-body-rgb: 78 89 104;
+    --color-text-muted: #8B95A1;
+    --color-text-muted-rgb: 139 149 161;
+    --color-border-subtle: #E5E8EB;
+    --color-border-subtle-rgb: 229 232 235;
+    --color-border-strong: #D7DCE2;
+    --color-border-strong-rgb: 215 220 226;
+    --color-brand-primary: #27368A;
+    --color-brand-primary-rgb: 39 54 138;
+    --color-brand-pressed: #172357;
+    --color-brand-pressed-rgb: 23 35 87;
+    --color-brand-soft: #ECEEF9;
+    --color-brand-soft-rgb: 236 238 249;
+    --public-app-bg: var(--color-app-bg);
+    --public-surface: var(--color-surface);
+    --public-surface-raised: var(--color-surface-raised);
+    --public-border: var(--color-border-subtle);
+    --public-muted: var(--color-text-muted);
+    --public-trust-bg: var(--color-brand-soft);
+    --surface-glass: rgba(255,255,255,0.9);
+    color-scheme: light;
+  }
+
   .public-mobile-section {
-    @apply rounded-[18px] border bg-white shadow-[0_8px_24px_rgba(18,24,40,0.05)];
+    @apply rounded-[18px] border bg-surface shadow-card;
     border-color: var(--public-border);
   }
 
   .public-mobile-card {
-    @apply rounded-[16px] border bg-white shadow-[0_6px_18px_rgba(18,24,40,0.04)];
+    @apply rounded-[16px] border bg-surface shadow-card;
     border-color: var(--public-border);
   }
 
@@ -221,17 +409,17 @@
   }
 
   .public-fixed-action {
-    @apply fixed left-0 right-0 z-40 border-t bg-white/95 px-4 pt-3 backdrop-blur-md md:hidden;
+    @apply fixed left-0 right-0 z-40 border-t bg-surface/95 px-4 pt-3 backdrop-blur-md md:hidden;
     bottom: 0;
     padding-bottom: max(14px, env(safe-area-inset-bottom, 14px));
     border-color: var(--public-border);
-    box-shadow: 0 -12px 30px rgba(18, 24, 40, 0.08);
+    box-shadow: var(--shadow-float);
   }
 
   .public-floating-action-shell {
-    @apply mx-auto flex w-full max-w-[480px] items-center rounded-[18px] border bg-white/95 p-2 backdrop-blur-md;
+    @apply mx-auto flex w-full max-w-[480px] items-center rounded-[18px] border bg-surface/95 p-2 backdrop-blur-md;
     border-color: var(--public-border);
-    box-shadow: 0 14px 34px rgba(18, 24, 40, 0.16), 0 2px 8px rgba(18, 24, 40, 0.08);
+    box-shadow: var(--shadow-float);
   }
 
   .public-touch-button {
@@ -261,17 +449,17 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.08);
+    background: var(--scrollbar-thumb);
     border-radius: 10px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.15);
+    background: var(--scrollbar-thumb-hover);
   }
 
   /* Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.08) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 }

@@ -28,23 +28,23 @@ const APPROVAL_COPY: Record<ApprovalPreviewLevel, {
   high: {
     label: "유리",
     message: "이 조건은 심사에 유리한 편입니다",
-    badgeClass: "bg-[#ECFDF5] text-[#047857]",
-    containerClass: "bg-[#F0FDF4] border-[#BBF7D0]",
-    iconClass: "text-[#059669]",
+    badgeClass: "bg-status-positive-soft text-status-positive",
+    containerClass: "bg-status-positive-soft border-status-positive/25",
+    iconClass: "text-status-positive",
   },
   medium: {
     label: "보완 권장",
     message: "보증금을 추가하면 심사 가능성이 높아질 수 있습니다",
-    badgeClass: "bg-[#FFFBEB] text-[#B45309]",
-    containerClass: "bg-[#FFFBEB] border-[#FDE68A]",
-    iconClass: "text-[#D97706]",
+    badgeClass: "bg-status-warning-soft text-status-warning",
+    containerClass: "bg-status-warning-soft border-status-warning/25",
+    iconClass: "text-status-warning",
   },
   low: {
     label: "증빙 필요",
     message: "소득 증빙 또는 보증금 확대를 권장합니다",
-    badgeClass: "bg-[#FFF7ED] text-[#C2410C]",
-    containerClass: "bg-[#FFF7ED] border-[#FED7AA]",
-    iconClass: "text-[#EA580C]",
+    badgeClass: "bg-status-danger-soft text-status-danger",
+    containerClass: "bg-status-danger-soft border-status-danger/25",
+    iconClass: "text-status-danger",
   },
 };
 
@@ -189,9 +189,9 @@ export function QuoteBreakdownTabs({
         <div className="grid grid-cols-2 gap-2.5 -mb-2">
           <div aria-hidden />
           <div className="flex justify-center">
-            <div className="relative animate-nudge bg-[#FEE500] text-[#3A1D1D] text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap">
+            <div className="relative animate-nudge whitespace-nowrap rounded-full bg-status-warning-soft px-3 py-1.5 text-[11px] font-semibold text-status-warning shadow-sm">
               초기비용으로 월 납입금 조정
-              <span className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2.5 h-2.5 bg-[#FEE500] rotate-45" />
+              <span className="absolute -bottom-1 left-1/2 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-status-warning-soft" />
             </div>
           </div>
         </div>
@@ -221,7 +221,7 @@ export function QuoteBreakdownTabs({
                 "min-h-[92px] py-3.5 px-3.5 rounded-card border text-left transition-all duration-200",
                 isActive
                   ? "border-brand bg-brand-soft shadow-soft"
-                  : "border-line2 bg-white hover:border-brand/30"
+                  : "border-border-subtle bg-surface hover:border-brand/30"
               )}
             >
               <span className="block text-[10px] font-medium uppercase tracking-wider text-ink-caption mb-0.5">
@@ -239,7 +239,7 @@ export function QuoteBreakdownTabs({
       {/* ② 초기비용 설정 — 비회원은 블러 + 카카오 로그인 유도 */}
       {costMode === "initial" && onCustomRatesChange && (
         <MemberGate locked={locked} onLogin={onMemberLogin}>
-        <div className="rounded-card border border-line2 bg-white p-4 space-y-4 shadow-soft">
+        <div className="space-y-4 rounded-card border border-border-subtle bg-surface p-4 shadow-card">
 
           {/* 헤더 */}
           <div className="flex items-center justify-between">
@@ -265,7 +265,7 @@ export function QuoteBreakdownTabs({
                   onClick={() => switchCostType(type)}
                   className={cn(
                     "flex-1 py-2.5 px-3 rounded-[12px] border text-left transition-all duration-150",
-                    isActive ? "border-brand bg-brand-soft" : "border-line2 bg-sec hover:border-brand/30"
+                    isActive ? "border-brand bg-brand-soft" : "border-border-subtle bg-surface-soft hover:border-brand/30"
                   )}
                 >
                   <span className={cn("block text-[13px] font-bold", isActive ? "text-brand" : "text-ink")}>
@@ -278,7 +278,7 @@ export function QuoteBreakdownTabs({
             <button
               type="button"
               title={COST_TYPE_INFO[costType].tooltip}
-              className="p-2 rounded-full text-ink-caption hover:text-ink hover:bg-sec transition-colors shrink-0"
+              className="shrink-0 rounded-full p-2 text-text-muted transition-colors hover:bg-surface-soft hover:text-text-strong"
               onClick={() => alert(COST_TYPE_INFO[costType].tooltip)}
             >
               <HelpCircle size={16} />
@@ -297,8 +297,8 @@ export function QuoteBreakdownTabs({
                 className={cn(
                   "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
                   activeRate === 0 && !directMode
-                    ? "bg-ink text-white border-ink"
-                    : "bg-white text-ink-label border-line2 hover:border-ink/40"
+                    ? "border-text-strong bg-text-strong text-surface"
+                    : "border-border-subtle bg-surface text-text-body hover:border-text-strong/40"
                 )}
               >
                 없음
@@ -311,8 +311,8 @@ export function QuoteBreakdownTabs({
                   className={cn(
                     "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
                     activeRate === r && !directMode
-                      ? "bg-brand text-white border-brand"
-                      : "bg-white text-ink-label border-line2 hover:border-brand/40"
+                      ? "border-brand bg-brand text-surface"
+                      : "border-border-subtle bg-surface text-text-body hover:border-brand/40"
                   )}
                 >
                   {r}%
@@ -324,8 +324,8 @@ export function QuoteBreakdownTabs({
                 className={cn(
                   "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
                   directMode
-                    ? "bg-brand text-white border-brand"
-                    : "bg-white text-ink-label border-line2 hover:border-brand/40"
+                    ? "border-brand bg-brand text-surface"
+                    : "border-border-subtle bg-surface text-text-body hover:border-brand/40"
                 )}
               >
                 직접입력
@@ -336,7 +336,7 @@ export function QuoteBreakdownTabs({
           {/* 직접 입력 필드 */}
           {directMode && (
             <div className="flex items-center gap-2">
-              <div className="flex items-center border border-line2 rounded-[10px] overflow-hidden bg-white focus-within:border-brand/50 transition-colors">
+              <div className="flex items-center overflow-hidden rounded-[10px] border border-border-subtle bg-surface transition-colors focus-within:border-brand/50">
                 <input
                   type="number"
                   min={0}
@@ -355,7 +355,7 @@ export function QuoteBreakdownTabs({
                   applyRate(v);
                   setDirectValue(String(v));
                 }}
-                className="px-4 py-2 rounded-[10px] bg-brand text-white text-[12px] font-bold hover:bg-brand-dark transition-colors"
+                className="rounded-[10px] bg-brand px-4 py-2 text-[12px] font-bold text-surface transition-colors hover:bg-brand-dark"
               >
                 적용
               </button>
@@ -365,13 +365,13 @@ export function QuoteBreakdownTabs({
           {/* 슬라이더 */}
           <div className="space-y-1">
             <div className="relative h-5 flex items-center">
-              <div className="absolute inset-x-0 h-[6px] rounded-full bg-[#E2E8F0] overflow-hidden">
+              <div className="absolute inset-x-0 h-[6px] overflow-hidden rounded-full bg-border-subtle">
                 <div
                   className="h-full rounded-full transition-all duration-300"
                   style={{
                     // 썸 중심 위치까지 채움 — 썸 이동 범위 보정과 동일 식
                     width: `calc(${(activeRate / RATE_MAX)} * (100% - 20px) + 10px)`,
-                    background: "linear-gradient(90deg, #27368A 0%, #5A3DB0 100%)",
+                    background: "linear-gradient(90deg, var(--color-brand-primary) 0%, var(--color-accent-purple) 100%)",
                   }}
                 />
               </div>
@@ -392,9 +392,9 @@ export function QuoteBreakdownTabs({
                 className="absolute w-5 h-5 rounded-full -translate-x-1/2 pointer-events-none transition-all duration-300 shadow-md"
                 style={{
                   left: `calc(${(activeRate / RATE_MAX)} * (100% - 20px) + 10px)`,
-                  background: "#fff",
-                  border: "2.5px solid #27368A",
-                  boxShadow: activeRate > 0 ? "0 1px 8px rgba(39,54,138,0.3)" : "0 1px 4px rgba(0,0,0,0.15)",
+                  background: "var(--color-surface)",
+                  border: "2.5px solid var(--color-brand-primary)",
+                  boxShadow: "var(--shadow-card-hover)",
                 }}
               />
             </div>
@@ -459,7 +459,7 @@ export function QuoteBreakdownTabs({
             <TossPrice won={data.monthlyPayment} size="xl" tone="brand" />
           </div>
           {data.bestFinanceCompany && (
-            <span className="inline-flex w-fit items-center gap-1.5 text-[11px] font-bold text-brand bg-white border border-brand/15 rounded-full px-2.5 py-1 shadow-sm sm:mb-1.5">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-brand/15 bg-surface px-2.5 py-1 text-[11px] font-bold text-brand shadow-sm sm:mb-1.5">
               <Building2 size={10} className="text-brand" />
               {data.bestFinanceCompany}
             </span>
@@ -563,7 +563,7 @@ function FinanceSection({
             )}
           </button>
           {expanded && (
-            <div className="divide-y divide-line bg-white border-t border-line">
+            <div className="divide-y divide-border-subtle border-t border-border-subtle bg-surface">
               {rest.map((r, i) => (
                 <FinanceRow key={`${r.financeCompanyName}-${i}`} result={r} rank={i + 2} best={best} />
               ))}
@@ -575,11 +575,11 @@ function FinanceSection({
   );
 }
 
-const RANK_STYLE: Record<number, { color: string; bg: string; label: string }> = {
-  0: { color: "#27368A", bg: "#ECEEF9", label: "최저가" },
-  1: { color: "#059669", bg: "#ECFDF5", label: "2순위" },
-  2: { color: "#D97706", bg: "#FFFBEB", label: "3순위" },
-  3: { color: "#9BA4C0", bg: "#F4F5F8", label: "기타" },
+const RANK_STYLE: Record<number, { badgeClass: string; label: string }> = {
+  0: { badgeClass: "bg-brand-soft text-brand", label: "최저가" },
+  1: { badgeClass: "bg-status-positive-soft text-status-positive", label: "2순위" },
+  2: { badgeClass: "bg-status-warning-soft text-status-warning", label: "3순위" },
+  3: { badgeClass: "bg-surface-soft text-text-muted", label: "기타" },
 };
 
 function FinanceRow({
@@ -597,10 +597,7 @@ function FinanceRow({
 
   return (
       <div className={cn("flex items-center gap-3 px-4 py-3", isBest && "bg-brand-soft")}>
-      <span
-        className="text-[10px] font-bold px-2 py-0.5 rounded-[4px] shrink-0 w-[46px] text-center"
-        style={{ color: style.color, background: style.bg }}
-      >
+      <span className={cn("w-[46px] shrink-0 rounded-[4px] px-2 py-0.5 text-center text-[10px] font-bold", style.badgeClass)}>
         {style.label}
       </span>
       <span className={cn("flex-1 text-[13px] truncate min-w-0", isBest ? "font-bold text-brand" : "text-ink-body")}>
@@ -626,13 +623,13 @@ function BreakdownSection({
   if (!bd) return null;
 
   return (
-    <div className="rounded-card border border-line2 overflow-hidden bg-white">
+    <div className="overflow-hidden rounded-card border border-border-subtle bg-surface">
       {/* 요약 */}
-      <div className="px-4 py-3 bg-sec space-y-2.5">
+      <div className="space-y-2.5 bg-surface-soft px-4 py-3">
         <p className="text-[11px] font-bold text-ink-label uppercase tracking-wider">견적 산출 내역</p>
         <CalcRow label="차량가격" value={formatCurrency(bd.vehiclePrice)} />
         <CalcRow label="기준 대여료" value={formatCurrency(bd.baseMonthly)} bold />
-        <div className="flex items-center justify-between pt-2 border-t border-line2 mt-0.5">
+        <div className="mt-0.5 flex items-center justify-between border-t border-border-subtle pt-2">
           <span className="text-[13px] font-bold text-brand">최종 월 납입금</span>
           <TossPrice won={data.monthlyPayment} size="md" tone="brand" />
         </div>
@@ -710,7 +707,7 @@ function CostCheckpoint({ contractType, customerType }: { contractType: string; 
     : [];
 
   return (
-    <div className="rounded-[14px] bg-public-bg p-3.5 space-y-1.5 border border-[#EEF0F5]">
+    <div className="space-y-1.5 rounded-[14px] border border-border-subtle bg-surface-soft p-3.5">
       <p className="text-[11px] font-semibold text-ink-label">체크포인트</p>
       {points.map((p) => (
         <p key={p} className="text-[12px] text-ink-caption flex items-start gap-1.5">
@@ -719,7 +716,7 @@ function CostCheckpoint({ contractType, customerType }: { contractType: string; 
         </p>
       ))}
       {customerPoints.length > 0 && (
-        <div className="pt-2 mt-1 border-t border-[#E1E4EE] space-y-1.5">
+        <div className="mt-1 space-y-1.5 border-t border-border-subtle pt-2">
           <p className="text-[11px] font-semibold text-ink-label">고객 유형 안내</p>
           {customerPoints.map((p) => (
             <p key={p} className="text-[12px] text-ink-caption flex items-start gap-1.5">

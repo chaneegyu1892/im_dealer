@@ -51,18 +51,18 @@ export default async function ReviewDetailPage({ params }: PageProps) {
   const related = (await relatedPromise).filter((r) => r.id !== review.id).slice(0, 4);
 
   return (
-    <div className="page-container py-10 md:py-14 space-y-10">
+    <div className="page-container space-y-10 py-10 md:py-14">
       <div>
         <Link
           href="/reviews"
-          className="inline-flex items-center gap-1 text-[13px] text-ink-caption hover:text-ink"
+          className="inline-flex min-h-11 items-center gap-1 text-[13px] font-bold text-text-muted transition-colors hover:text-text-strong"
         >
           <ChevronLeft size={14} />
           전체 후기
         </Link>
       </div>
 
-      <article className="bg-white rounded-card border border-[#F0F0F0] p-6 md:p-10 space-y-6">
+      <article className="space-y-6 rounded-card border border-border-subtle bg-surface p-6 shadow-card md:p-10">
         <header className="space-y-3">
           <div className="flex items-center gap-0.5">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -71,32 +71,32 @@ export default async function ReviewDetailPage({ params }: PageProps) {
                 size={18}
                 className={
                   i < review.rating
-                    ? "fill-primary text-primary"
-                    : "text-neutral-600"
+                    ? "fill-status-warning text-status-warning"
+                    : "text-border-strong"
                 }
               />
             ))}
-            <span className="ml-2 text-[14px] text-ink-caption">
+            <span className="ml-2 text-[14px] text-text-muted">
               {review.rating}/5
             </span>
             {review.isBest && (
-              <span className="ml-3 inline-flex items-center text-[11px] font-semibold bg-primary text-white px-2 py-0.5 rounded-full">
+              <span className="ml-3 inline-flex items-center rounded-full bg-brand px-2 py-0.5 text-[11px] font-semibold text-white">
                 BEST
               </span>
             )}
           </div>
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-[15px] font-medium text-ink">
+              <p className="text-[15px] font-medium text-text-strong">
                 {review.displayName}
               </p>
               {review.vehicleName && (
-                <p className="text-[13px] text-ink-caption mt-0.5">
+                <p className="mt-0.5 text-[13px] text-text-muted">
                   {review.vehicleName}
                 </p>
               )}
             </div>
-            <p className="text-[13px] text-ink-caption">{review.reviewDate}</p>
+            <p className="text-[13px] text-text-muted">{review.reviewDate}</p>
           </div>
         </header>
 
@@ -105,7 +105,7 @@ export default async function ReviewDetailPage({ params }: PageProps) {
 
       {related.length > 0 && (
         <section className="space-y-5">
-          <h2 className="font-display text-headline-sm text-ink">
+          <h2 className="font-display text-headline-sm text-text-strong">
             {review.vehicleName
               ? `${review.vehicleName} 후기 더 보기`
               : "다른 베스트 후기"}

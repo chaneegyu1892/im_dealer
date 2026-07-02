@@ -12,10 +12,11 @@ import { prisma } from "@/lib/prisma";
 import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
 import type { RepresentativeQuote } from "@/lib/representative-quote";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
+import { buildCarJsonLd } from "@/lib/car-json-ld";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
-import { notFound } from "next/navigation";
 import { CarDetailClient } from "./CarDetailClient";
+import { CarNotFoundView } from "@/components/cars/CarNotFoundView";
 import {
   getPublicReviewsByVehicleId,
   getBestReviews,
@@ -57,7 +58,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const v = await getVehicleMeta(slug);
   if (!v || !v.isVisible) {
-    return { title: "차량을 찾을 수 없습니다" };
+    return { title: "차량을 찾을 수 없습니다", robots: { index: false, follow: false } };
   }
 
   const lowestPrice = v.trims[0]?.price ?? v.basePrice;
@@ -90,58 +91,6 @@ export async function generateMetadata({
       images: v.thumbnailUrl ? [v.thumbnailUrl] : undefined,
     },
   };
-}
-
-interface CarJsonLdInput {
-  slug: string;
-  name: string;
-  brand: string;
-  category: string;
-  description: string | null;
-  thumbnailUrl: string | null;
-  trims: { price: number }[];
-  basePrice: number;
-}
-
-function buildCarJsonLd(v: CarJsonLdInput): Record<string, unknown>[] {
-  const url = `${SITE_URL}/cars/${v.slug}`;
-  const prices = v.trims.length > 0 ? v.trims.map((t) => t.price) : [v.basePrice];
-  const lowPrice = Math.min(...prices);
-  const highPrice = Math.max(...prices);
-  const offerCount = prices.length;
-
-  const product: Record<string, unknown> = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: `${v.brand} ${v.name}`,
-    description: v.description ?? `${v.brand} ${v.name} 장기렌트·리스 견적`,
-    brand: { "@type": "Brand", name: v.brand },
-    category: v.category,
-    url,
-    ...(v.thumbnailUrl ? { image: v.thumbnailUrl } : {}),
-    offers: {
-      "@type": "AggregateOffer",
-      priceCurrency: "KRW",
-      lowPrice,
-      highPrice,
-      offerCount,
-      url,
-      availability: "https://schema.org/InStock",
-    },
-  };
-
-  const breadcrumb: Record<string, unknown> = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "홈", item: SITE_URL },
-      { "@type": "ListItem", position: 2, name: "차량", item: `${SITE_URL}/cars` },
-      { "@type": "ListItem", position: 3, name: v.brand },
-      { "@type": "ListItem", position: 4, name: v.name, item: url },
-    ],
-  };
-
-  return [product, breadcrumb];
 }
 
 async function getVehicle(slug: string): Promise<VehicleDetail | null> {
@@ -238,7 +187,7 @@ export default async function CarDetailPage({
 }) {
   const { slug } = await params;
   const vehicle = await getVehicle(slug);
-  if (!vehicle) notFound();
+  if (!vehicle) return <CarNotFoundView />;
 
   const [reviews, bestReviews] = await Promise.all([
     getPublicReviewsByVehicleId(vehicle.id, 10),
@@ -246,6 +195,7 @@ export default async function CarDetailPage({
   ]);
 
   const jsonLd = buildCarJsonLd({
+    siteUrl: SITE_URL,
     slug: vehicle.slug,
     name: vehicle.name,
     brand: vehicle.brand,

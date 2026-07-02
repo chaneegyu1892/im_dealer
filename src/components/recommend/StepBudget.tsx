@@ -46,7 +46,7 @@ export function StepBudget({ value, onChange }: StepBudgetProps) {
               "rounded-[14px] border-[1.5px] px-4 py-4 text-[15px] font-extrabold transition-colors",
               value.rangeKey === opt.value
                 ? "border-brand bg-brand-soft text-brand"
-                : "border-line2 bg-white text-ink"
+                : "border-border-subtle bg-surface text-text-strong"
             )}
           >
             {opt.label}

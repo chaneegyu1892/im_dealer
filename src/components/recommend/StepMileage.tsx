@@ -37,7 +37,7 @@ export function StepMileage({ value, onChange }: StepMileageProps) {
                 "relative rounded-[14px] border-[1.5px] p-4 text-left transition-colors active:scale-[0.99] md:min-h-[96px] md:p-5",
                 value === opt.value
                   ? "border-brand bg-brand-soft"
-                  : "border-line2 bg-white"
+                  : "border-border-subtle bg-surface"
               )}
             >
               {isRecommended && (
@@ -48,12 +48,12 @@ export function StepMileage({ value, onChange }: StepMileageProps) {
               <p
                 className={cn(
                   "text-[15px] font-extrabold",
-                  value === opt.value ? "text-brand" : "text-ink"
+                  value === opt.value ? "text-brand" : "text-text-strong"
                 )}
               >
                 {opt.label}
               </p>
-              <p className="mt-0.5 text-[12.5px] text-g2">{opt.desc}</p>
+              <p className="mt-0.5 text-[12.5px] text-text-muted">{opt.desc}</p>
             </button>
           );
         })}

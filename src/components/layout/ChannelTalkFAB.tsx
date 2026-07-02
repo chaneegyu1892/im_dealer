@@ -1,20 +1,27 @@
 "use client";
 
 import { MessageCircle } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export function ChannelTalkFAB() {
+  const pathname = usePathname() ?? "";
+
   const handleClick = () => {
     if (typeof window !== "undefined" && window.ChannelIO) {
       window.ChannelIO("openChat");
     }
   };
 
+  if (pathname === "/") {
+    return null;
+  }
+
   return (
     <button
       type="button"
       onClick={handleClick}
       aria-label="채널톡 상담하기"
-      className="hidden md:flex fixed bottom-6 right-6 z-50 items-center gap-2.5 pl-4 pr-5 py-3.5 rounded-full shadow-lg bg-[#1A1A2E] text-white hover:bg-[#2A2A4E] active:scale-95 transition-all duration-200"
+      className="fixed bottom-6 right-6 z-50 hidden min-h-11 items-center gap-2.5 rounded-pill bg-brand px-5 py-3.5 text-white shadow-float transition-all duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] md:flex"
     >
       <MessageCircle size={20} strokeWidth={2} />
       <span className="text-[14px] font-semibold">상담하기</span>

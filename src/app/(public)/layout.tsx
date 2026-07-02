@@ -11,12 +11,16 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-neutral flex flex-col">
+    <div className="home-showroom-scope flex min-h-[100dvh] flex-col bg-app-bg text-text-body">
       <ChannelTalk />
-      <Suspense fallback={<div className="h-[72px] bg-white border-b border-[#F0F0F0]" />}>
+      <Suspense
+        fallback={
+          <div className="h-[56px] border-b border-border-subtle bg-surface/95 backdrop-blur-xl lg:h-[72px]" />
+        }
+      >
         <Header />
       </Suspense>
-      <main className="flex-1 pb-[calc(62px+env(safe-area-inset-bottom,0px))] md:pb-0">
+      <main className="flex-1">
         {children}
       </main>
       <Footer />

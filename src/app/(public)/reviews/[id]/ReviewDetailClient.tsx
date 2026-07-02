@@ -18,7 +18,7 @@ export function ReviewDetailClient({ review }: ReviewDetailClientProps) {
   useEffect(() => {
     const anonId = getOrCreateAnonId();
     if (!anonId) {
-      setLikedResolved(true);
+      void Promise.resolve().then(() => setLikedResolved(true));
       return;
     }
     let cancelled = false;
@@ -34,7 +34,11 @@ export function ReviewDetailClient({ review }: ReviewDetailClientProps) {
         };
         if (!cancelled && json.success) setInitialLiked(json.data.liked);
       })
-      .catch(() => {})
+      .catch((fetchError: unknown) => {
+        if (!cancelled && fetchError instanceof Error) {
+          setInitialLiked(false);
+        }
+      })
       .finally(() => {
         if (!cancelled) setLikedResolved(true);
       });
@@ -45,13 +49,13 @@ export function ReviewDetailClient({ review }: ReviewDetailClientProps) {
 
   return (
     <div className="space-y-6">
-      <p className="text-[15px] text-g1 leading-[1.75] whitespace-pre-wrap break-words">
+      <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.75] text-text-body">
         {review.content}
       </p>
 
       {review.imageUrls.length > 0 && (
         <div className="space-y-3">
-          <div className="aspect-[16/10] w-full bg-sec rounded-[14px] overflow-hidden border border-line2">
+          <div className="aspect-[16/10] w-full overflow-hidden rounded-[14px] border border-border-subtle bg-surface-soft">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={review.imageUrls[activeIdx]}
@@ -70,7 +74,7 @@ export function ReviewDetailClient({ review }: ReviewDetailClientProps) {
                     "shrink-0 w-20 h-20 rounded-[10px] overflow-hidden border-2 transition-colors",
                     idx === activeIdx
                       ? "border-brand"
-                      : "border-transparent opacity-70 hover:opacity-100"
+                      : "border-transparent opacity-70 hover:border-border-subtle hover:opacity-100"
                   )}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -86,8 +90,8 @@ export function ReviewDetailClient({ review }: ReviewDetailClientProps) {
         </div>
       )}
 
-      <div className="t-gray flex items-center justify-between gap-4 p-4">
-        <span className="text-[13.5px] font-bold text-g1">
+      <div className="flex items-center justify-between gap-4 rounded-card border border-border-subtle bg-surface-soft p-4">
+        <span className="text-[13.5px] font-bold text-text-body">
           이 후기가 도움이 되었나요?
         </span>
         {likedResolved ? (
@@ -99,7 +103,7 @@ export function ReviewDetailClient({ review }: ReviewDetailClientProps) {
             variant="filled"
           />
         ) : (
-          <div className="h-10 w-20 rounded-pill bg-line2 animate-pulse" />
+          <div className="h-10 w-20 animate-pulse rounded-pill bg-border-subtle" />
         )}
       </div>
     </div>
