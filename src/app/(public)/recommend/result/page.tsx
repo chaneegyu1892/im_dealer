@@ -11,17 +11,17 @@ export const metadata: Metadata = {
 export default function RecommendResultPage() {
   return (
     <div className="public-app-page min-h-screen pb-24 md:pb-0">
-      <div className="border-b border-public-border bg-white">
+      <div className="border-b border-border-subtle bg-surface">
         <div className="page-container max-w-3xl mx-auto py-3.5 md:py-6">
           <div className="mb-1 flex items-center gap-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-public-muted">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted">
               AI 추천
             </span>
           </div>
-          <h1 className="text-[20px] font-semibold leading-tight text-ink md:text-title-sm">
+          <h1 className="text-[20px] font-semibold leading-tight text-text-strong md:text-title-sm">
             추천 결과
           </h1>
-          <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-label">
+          <p className="mt-1 text-[12px] leading-relaxed text-text-muted md:text-label">
             입력하신 조건에 맞는 차량과 월 납입금을 정리했습니다.
           </p>
         </div>

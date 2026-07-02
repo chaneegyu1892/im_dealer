@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronLeft, Shield, FileText, Building2, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, Shield, FileText, Building2, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SelectionCard } from "@/components/recommend/SelectionCard";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,7 @@ interface FormState {
   phone: string;
 }
 
-// 주민번호 → 생년월일 YYYYMMDD (홈택스 loginIdentity 용)
+// 주민번호에서 생년월일 YYYYMMDD 생성 (홈택스 loginIdentity 용)
 function rrnToBirthDate(rrn: string): string {
   if (rrn.length < 7) return "";
   const yy = rrn.slice(0, 2);
@@ -77,7 +78,7 @@ function VerifyStepIndicator({ currentStep }: { currentStep: Step }) {
             <div
               className={cn(
                 "h-1.5 rounded-full transition-colors duration-300",
-                step.id <= activeNum ? "bg-primary" : "bg-[#DDE1EC]"
+                step.id <= activeNum ? "bg-primary" : "bg-border-subtle"
               )}
             />
             <div className="mt-2 flex items-center gap-1.5">
@@ -87,7 +88,7 @@ function VerifyStepIndicator({ currentStep }: { currentStep: Step }) {
                   "text-[11px] font-semibold transition-all duration-300",
                   isDone && "bg-primary text-white",
                   isActive && "bg-primary text-white",
-                  !isDone && !isActive && "bg-[#E8EBF3] text-public-muted"
+                  !isDone && !isActive && "bg-surface-soft text-public-muted"
                 )}
               >
                 {isDone ? <Check size={11} strokeWidth={3} /> : <span>{step.id}</span>}
@@ -158,7 +159,7 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
         <div className="space-y-3">
           {items.map((item) => (
             <div key={item.title} className="flex items-start gap-3">
-              <div className="mt-0.5 w-7 h-7 rounded-full bg-white border border-[#F0F0F0] flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="mt-0.5 w-7 h-7 rounded-full bg-white border border-border-subtle flex items-center justify-center flex-shrink-0 shadow-sm">
                 {item.icon}
               </div>
               <div>
@@ -201,7 +202,7 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
               <div
                 className={cn(
                   "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all",
-                  consents[key] ? "border-primary bg-primary" : "border-[#D0D0D0] bg-white"
+                  consents[key] ? "border-primary bg-primary" : "border-border-strong bg-white"
                 )}
               >
                 {consents[key] && <Check size={10} strokeWidth={3} className="text-white" />}
@@ -239,13 +240,12 @@ interface Step2Props {
 
 const CUSTOMER_TYPE_OPTIONS: {
   type: CustomerType;
-  icon: string;
   label: string;
   desc: string;
 }[] = [
-  { type: "individual", icon: "👔", label: "개인", desc: "근로소득 원천징수영수증" },
-  { type: "self_employed", icon: "💼", label: "개인사업자", desc: "사업자등록증명 · 부가가치세 과세표준증명" },
-  { type: "corporate", icon: "🏢", label: "법인", desc: "사업자등록증명 · 재무제표 · 부가가치세 과세표준증명" },
+  { type: "individual", label: "개인", desc: "근로소득 원천징수영수증" },
+  { type: "self_employed", label: "개인사업자", desc: "사업자등록증명 · 부가가치세 과세표준증명" },
+  { type: "corporate", label: "법인", desc: "사업자등록증명 · 재무제표 · 부가가치세 과세표준증명" },
 ];
 
 function Step2CustomerType({ value, onChange, onNext, onBack }: Step2Props) {
@@ -260,7 +260,6 @@ function Step2CustomerType({ value, onChange, onNext, onBack }: Step2Props) {
         {CUSTOMER_TYPE_OPTIONS.map((opt) => (
           <SelectionCard
             key={opt.type}
-            icon={opt.icon}
             label={opt.label}
             desc={opt.desc}
             selected={value === opt.type}
@@ -480,6 +479,41 @@ function DoneScreen() {
   );
 }
 
+function NoSessionScreen() {
+  return (
+    <div className="mx-auto w-full max-w-md px-5 py-8">
+      <div className="rounded-[28px] border border-border-subtle bg-surface p-5 shadow-card">
+        <span className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-brand-soft text-brand">
+          <Shield size={22} />
+        </span>
+        <h2 className="mt-5 break-keep text-[24px] font-extrabold leading-[1.22] text-text-strong">
+          견적을 선택한 뒤
+          <br />
+          서류 확인을 진행해요
+        </h2>
+        <p className="mt-3 break-keep text-[14px] font-medium leading-relaxed text-text-body">
+          서류 확인은 선택한 차량과 견적 조건에 연결됩니다. 먼저 차량을 고르고 월 납입 구조를 확인해주세요.
+        </p>
+        <div className="mt-6 grid gap-2">
+          <Link
+            href="/cars"
+            className="inline-flex min-h-12 items-center justify-center rounded-pill bg-text-strong px-5 text-[14px] font-extrabold text-surface transition-colors duration-state hover:bg-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
+          >
+            차량 탐색하기
+          </Link>
+          <Link
+            href="/recommend"
+            className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-pill border border-border-subtle bg-surface px-5 text-[14px] font-extrabold text-text-strong transition-colors duration-state hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
+          >
+            AI 추천으로 시작하기
+            <ArrowRight size={15} />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── 메인 클라이언트 컴포넌트 ─────────────────────────────
 function formatVehicleSlug(slug: string): string {
   return slug
@@ -489,11 +523,10 @@ function formatVehicleSlug(slug: string): string {
 }
 
 export function VerifyClient() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get("sessionId");
-  const vehicleSlug = searchParams.get("vehicle");
-  const customerTypeParam = searchParams.get("customerType");
+  const sessionId = searchParams?.get("sessionId") ?? null;
+  const vehicleSlug = searchParams?.get("vehicle") ?? null;
+  const customerTypeParam = searchParams?.get("customerType") ?? null;
   const presetCustomerType = isCustomerType(customerTypeParam) ? customerTypeParam : null;
 
   const [step, setStep] = useState<Step>(1);
@@ -511,13 +544,6 @@ export function VerifyClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // sessionId 없으면 홈으로 redirect
-  useEffect(() => {
-    if (!sessionId) {
-      router.replace("/");
-    }
-  }, [sessionId, router]);
-
   const toggleConsent = (key: "privacy" | "codef") => {
     setConsents((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -531,7 +557,7 @@ export function VerifyClient() {
     setLoading(true);
     setError(null);
     try {
-      // 동의 저장 → verificationId 발급 후 간편인증 단계로 진입
+      // 동의 저장 후 verificationId 발급, 간편인증 단계로 진입
       const consentRes = await fetch("/api/verification/consent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -559,7 +585,7 @@ export function VerifyClient() {
     }
   };
 
-  // 간편인증 문서수집 완료 → 견적 초안 저장 후 완료 화면
+  // 간편인증 문서수집 완료 후 견적 초안 저장, 완료 화면
   const handleEasyAuthDone = async () => {
     if (!sessionId) {
       setStep("done");
@@ -613,7 +639,7 @@ export function VerifyClient() {
     }
   };
 
-  if (!sessionId) return null;
+  if (!sessionId) return <NoSessionScreen />;
 
   return (
     <div className="page-container max-w-md mx-auto py-4 md:py-8">

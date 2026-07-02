@@ -20,6 +20,12 @@ interface RepresentativeQuotePriceProps {
   showCaption?: boolean;
   /** 캡션 문구 override */
   captionText?: string;
+  /** 캡션 스타일 override */
+  captionClassName?: string;
+  /** 금액 숫자 스타일 override */
+  numberClassName?: string;
+  /** 금액 단위 스타일 override */
+  unitClassName?: string;
   /** 견적 없을 때 문구 */
   emptyText?: string;
   className?: string;
@@ -46,18 +52,18 @@ const TONE_CLASS: Record<
   { caption: string; label: string; number: string; unit: string; empty: string }
 > = {
   light: {
-    caption: "text-ink-caption",
-    label: "text-ink-caption",
-    number: "text-ink",
-    unit: "text-ink-label",
-    empty: "text-ink-label",
+    caption: "text-text-muted",
+    label: "text-text-muted",
+    number: "text-text-strong",
+    unit: "text-text-body",
+    empty: "text-text-muted",
   },
   brand: {
-    caption: "text-g2",
-    label: "text-g2",
+    caption: "text-text-muted",
+    label: "text-text-muted",
     number: "text-brand",
-    unit: "text-g1",
-    empty: "text-g2",
+    unit: "text-text-body",
+    empty: "text-text-muted",
   },
   dark: {
     caption: "text-white/40",
@@ -78,6 +84,9 @@ export function RepresentativeQuotePrice({
   size = "md",
   showCaption = true,
   captionText = DEFAULT_CAPTION,
+  captionClassName,
+  numberClassName,
+  unitClassName,
   emptyText = "견적 준비중",
   className,
 }: RepresentativeQuotePriceProps) {
@@ -88,7 +97,7 @@ export function RepresentativeQuotePrice({
   return (
     <div className={className}>
       {showCaption && (
-        <span className={cn("block mb-1 text-[10px]", t.caption)}>
+        <span className={cn("mb-1 block text-[10px]", t.caption, captionClassName)}>
           {captionText}
         </span>
       )}
@@ -106,14 +115,15 @@ export function RepresentativeQuotePrice({
               )}
               <span
                 className={cn(
-                  "num font-extrabold leading-none",
-                  NUMBER_SIZE[size],
-                  t.number,
-                )}
-              >
-                {toManwon(q.monthlyPayment).toLocaleString("ko-KR")}
-              </span>
-              <span className={cn("font-medium", UNIT_SIZE[size], t.unit)}>
+                "num font-extrabold leading-none",
+                NUMBER_SIZE[size],
+                t.number,
+                numberClassName,
+              )}
+            >
+              {toManwon(q.monthlyPayment).toLocaleString("ko-KR")}
+            </span>
+              <span className={cn("font-medium", UNIT_SIZE[size], t.unit, unitClassName)}>
                 만원~
               </span>
             </div>

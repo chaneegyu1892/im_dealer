@@ -132,7 +132,7 @@ function QuotationsContent() {
   // URL 파라미터(?id=... 또는 ?search=...) 연동
   useEffect(() => {
     if (loading) return;
-    const id = searchParams.get("id");
+    const id = searchParams?.get("id");
     if (id) {
       const target = quotes.find(q => q.id === id);
       if (target) {
@@ -141,7 +141,7 @@ function QuotationsContent() {
     }
     
     // 검색어 파라미터 처리
-    const s = searchParams.get("search");
+    const s = searchParams?.get("search");
     if (s) {
       setSearch(s);
     }

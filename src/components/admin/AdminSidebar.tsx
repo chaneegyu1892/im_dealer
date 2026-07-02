@@ -80,7 +80,7 @@ interface AdminSidebarProps {
 }
 
 export function AdminSidebar({ admin, mobileOpen = false, onClose }: AdminSidebarProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const router = useRouter();
 
   const isActive = (href: string, exact?: boolean) =>

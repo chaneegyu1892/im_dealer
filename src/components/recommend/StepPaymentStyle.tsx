@@ -46,11 +46,11 @@ export function StepPaymentStyle({ value, onChange, detail, onDetailChange }: St
       </div>
 
       {value && detailQuestion && (
-        <div key={value} className="animate-slide-down border-t border-line pt-5">
+        <div key={value} className="animate-slide-down border-t border-border-subtle pt-5">
           <div className="mb-4">
             <span className="t-kick text-[11px]">추가 질문</span>
-            <h3 className="mt-1.5 text-[18px] font-extrabold leading-snug tracking-[-0.03em] text-ink">{detailQuestion.title}</h3>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-g2">{detailQuestion.subtitle}</p>
+            <h3 className="mt-1.5 text-[18px] font-extrabold leading-snug tracking-[-0.03em] text-text-strong">{detailQuestion.title}</h3>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-text-muted">{detailQuestion.subtitle}</p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {detailOptions.map((opt) => (

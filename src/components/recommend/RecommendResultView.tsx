@@ -27,7 +27,7 @@ const LABEL_MAP: Record<string, string> = {
 export function RecommendResultView() {
   const params = useSearchParams();
   const router = useRouter();
-  const sessionId = params.get("session");
+  const sessionId = params?.get("session") ?? null;
 
   const [result, setResult] = useState<RecommendResultResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,11 +57,11 @@ export function RecommendResultView() {
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-[480px] px-4 py-5 md:max-w-[760px] md:px-6 md:py-9 space-y-4">
-        <div className="flex items-center gap-3 rounded-[16px] border border-line2 bg-white p-4 shadow-soft">
+        <div className="flex items-center gap-3 rounded-[16px] border border-border-subtle bg-surface p-4 shadow-card">
           <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-brand animate-pulse">
             <Lightbulb size={15} className="text-white" />
           </span>
-          <p className="text-[13px] font-bold text-g1">조건에 맞는 차량을 분석 중입니다</p>
+          <p className="text-[13px] font-bold text-text-body">조건에 맞는 차량을 분석 중입니다</p>
         </div>
         {[1, 2, 3].map((i) => (
           <RecommendCardSkeleton key={i} />
@@ -77,8 +77,8 @@ export function RecommendResultView() {
         <div className="w-14 h-14 rounded-full bg-brand-soft flex items-center justify-center mx-auto mb-4">
           <Lightbulb size={24} className="text-brand" />
         </div>
-        <h2 className="text-[18px] font-semibold text-ink">추천 결과를 불러올 수 없어요</h2>
-        <p className="mt-2 text-[13px] text-public-muted">
+        <h2 className="text-[18px] font-semibold text-text-strong">추천 결과를 불러올 수 없어요</h2>
+        <p className="mt-2 text-[13px] text-text-muted">
           잠시 후 다시 시도해 주세요.
         </p>
         <Button
@@ -101,8 +101,8 @@ export function RecommendResultView() {
         <div className="w-14 h-14 rounded-full bg-brand-soft flex items-center justify-center mx-auto mb-4">
           <Lightbulb size={24} className="text-brand" />
         </div>
-        <h2 className="text-[18px] font-semibold text-ink">추천 결과가 없어요</h2>
-        <p className="mt-2 text-[13px] text-public-muted">
+        <h2 className="text-[18px] font-semibold text-text-strong">추천 결과가 없어요</h2>
+        <p className="mt-2 text-[13px] text-text-muted">
           조건을 조금 바꿔보면 더 많은 차량을 찾을 수 있어요.
         </p>
         <Button
@@ -138,7 +138,7 @@ export function RecommendResultView() {
             추천 결과
           </span>
         </div>
-        <h1 className="mt-2.5 text-[28px] font-extrabold leading-[1.25] tracking-[-0.04em] text-ink md:text-[34px]">
+        <h1 className="mt-2.5 text-[28px] font-extrabold leading-[1.25] tracking-[-0.04em] text-text-strong md:text-[34px]">
           AI가 <span className="num text-brand">{vehicles.length}대</span>를 찾았어요
         </h1>
         {/* 입력 요약 태그 */}
@@ -173,7 +173,7 @@ export function RecommendResultView() {
       <button
         type="button"
         onClick={() => router.push("/recommend")}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-btn bg-sec py-[14px] text-[14px] font-bold text-g1 transition-colors hover:bg-line2"
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-btn bg-surface-soft py-[14px] text-[14px] font-bold text-text-body transition-colors hover:bg-brand-soft hover:text-brand"
       >
         <RotateCcw size={14} />
         조건 바꿔서 다시 추천받기

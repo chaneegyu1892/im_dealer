@@ -21,10 +21,11 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
   const updateEdges = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
+    const edgeTolerance = 16;
     const max = el.scrollWidth - el.clientWidth;
     setScrollable(max > 4);
-    setAtStart(el.scrollLeft <= 4);
-    setAtEnd(el.scrollLeft >= max - 4);
+    setAtStart(el.scrollLeft <= edgeTolerance);
+    setAtEnd(el.scrollLeft >= max - edgeTolerance);
   }, []);
 
   useEffect(() => {
@@ -50,7 +51,7 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
   if (vehicles.length === 0) return null;
 
   return (
-    <div className="relative">
+    <div className="relative overflow-visible">
       {/* 이전 버튼 */}
       {scrollable && (
         <button
@@ -59,31 +60,31 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
           disabled={atStart}
           aria-label="이전 차량"
           className={cn(
-            "hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-30",
-            "w-11 h-11 items-center justify-center rounded-full bg-white shadow-soft border border-line2",
+            "absolute left-3 top-1/2 z-30 hidden -translate-y-1/2 md:flex",
+            "h-11 w-11 items-center justify-center rounded-full border border-border-subtle bg-surface-raised text-text-strong shadow-float",
             "transition-all duration-200",
-            atStart ? "opacity-0 pointer-events-none" : "opacity-100 hover:scale-105 hover:shadow-card-hover",
+            atStart ? "pointer-events-none opacity-0" : "opacity-100 hover:scale-105 hover:border-brand/35 hover:text-brand",
           )}
         >
-          <ChevronLeft size={20} className="text-ink" strokeWidth={2} />
+          <ChevronLeft size={20} strokeWidth={2} />
         </button>
       )}
 
       {/* 트랙 (가로 스크롤 + snap). py-4 로 호버 확대 시 세로 클리핑 방지 */}
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto snap-x snap-mandatory py-4 -my-1 [&::-webkit-scrollbar]:hidden"
+        className="-mx-2 flex snap-x snap-mandatory gap-5 overflow-x-auto px-2 py-5 scrollbar-hide"
         style={{ scrollbarWidth: "none" }}
       >
-        {vehicles.map((vehicle, i) => (
+        {vehicles.map((vehicle) => (
           <div
             key={vehicle.id}
             className={cn(
-              "snap-start shrink-0 transition-transform duration-300 ease-out hover:scale-[1.03] hover:z-10",
+              "snap-start shrink-0 transition-transform duration-300 ease-out hover:z-10",
               "w-[82%] sm:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)]",
             )}
           >
-            <FeaturedCard vehicle={vehicle} size="small" index={i} />
+            <FeaturedCard vehicle={vehicle} size="small" />
           </div>
         ))}
       </div>
@@ -96,13 +97,13 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
           disabled={atEnd}
           aria-label="다음 차량"
           className={cn(
-            "hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30",
-            "w-11 h-11 items-center justify-center rounded-full bg-white shadow-soft border border-line2",
+            "absolute right-3 top-1/2 z-30 hidden -translate-y-1/2 md:flex",
+            "h-11 w-11 items-center justify-center rounded-full border border-border-subtle bg-surface-raised text-text-strong shadow-float",
             "transition-all duration-200",
-            atEnd ? "opacity-0 pointer-events-none" : "opacity-100 hover:scale-105 hover:shadow-card-hover",
+            atEnd ? "pointer-events-none opacity-0" : "opacity-100 hover:scale-105 hover:border-brand/35 hover:text-brand",
           )}
         >
-          <ChevronRight size={20} className="text-ink" strokeWidth={2} />
+          <ChevronRight size={20} strokeWidth={2} />
         </button>
       )}
     </div>

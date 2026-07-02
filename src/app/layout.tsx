@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import type { ReactNode } from "react";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import "./globals.css";
 
 const pretendard = localFont({
@@ -15,7 +17,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: "#000666",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5F6FA" },
+    { media: "(prefers-color-scheme: dark)", color: "#101216" },
+  ],
 };
 
 // 절대 URL 생성용 베이스. 개별 페이지의 OG 이미지·canonical 등이 이 값을 기준으로 절대화된다.
@@ -46,11 +51,13 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
-    <html lang="ko" className={pretendard.variable}>
-      <body>{children}</body>
+    <html lang="ko" className={pretendard.variable} suppressHydrationWarning>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

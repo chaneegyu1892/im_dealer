@@ -5,30 +5,31 @@ export const metadata: Metadata = {
   description: "(주)메타키움 아임딜러(IM DEALER) 개인정보처리방침",
 };
 
-const TABLE = "w-full border-collapse text-xs sm:text-sm";
+const TABLE = "w-full min-w-[640px] border-collapse text-xs sm:text-sm";
 const TH =
-  "border border-[#E8EAF2] bg-[#F8F9FC] px-3 py-2 text-left font-semibold text-[#1A1A2E] whitespace-nowrap";
-const TD = "border border-[#E8EAF2] px-3 py-2 align-top text-[#1A1A2E]/80";
+  "border border-border-subtle bg-surface-soft px-3 py-2 text-left font-semibold text-text-strong whitespace-nowrap";
+const TD = "border border-border-subtle px-3 py-2 align-top text-text-body";
 
 export default function PrivacyPage() {
   return (
-    <main className="max-w-3xl mx-auto px-6 py-16">
-      <h1 className="text-2xl font-bold text-[#1A1A2E] mb-2">
-        (주)메타키움 개인정보처리방침
-      </h1>
-      <p className="text-sm text-[#9BA4C0] mb-6">시행일: 2026년 6월 17일</p>
+    <main className="public-app-page min-h-screen">
+      <div className="page-container mx-auto max-w-3xl px-5 pt-12 pb-[calc(128px+env(safe-area-inset-bottom,0px))] md:py-16">
+        <h1 className="mb-2 text-[26px] font-extrabold leading-tight text-text-strong md:text-[32px]">
+          (주)메타키움 개인정보처리방침
+        </h1>
+        <p className="mb-6 text-sm text-text-muted">시행일: 2026년 6월 17일</p>
 
-      <p className="text-sm text-[#1A1A2E]/80 mb-10 leading-relaxed">
-        (주)메타키움(이하 &ldquo;회사&rdquo;라 함)는 이용자의 개인정보를 중요하게
-        생각하며, 개인정보 보호법, 정보통신망 이용 촉진 및 정보보호 등에 관한 법률 등 관련
-        법령을 성실히 준수합니다. 이에 개인정보 보호법 제30조에 따라 이용자가 개인정보 처리
-        절차 및 기준을 명확히 이해하고, 관련 고충을 신속하게 처리받을 수 있도록 다음과 같이
-        개인정보처리방침을 수립하여 공개합니다.
-      </p>
+        <p className="mb-10 text-sm leading-relaxed text-text-body">
+          (주)메타키움(이하 &ldquo;회사&rdquo;라 함)는 이용자의 개인정보를 중요하게
+          생각하며, 개인정보 보호법, 정보통신망 이용 촉진 및 정보보호 등에 관한 법률 등 관련
+          법령을 성실히 준수합니다. 이에 개인정보 보호법 제30조에 따라 이용자가 개인정보 처리
+          절차 및 기준을 명확히 이해하고, 관련 고충을 신속하게 처리받을 수 있도록 다음과 같이
+          개인정보처리방침을 수립하여 공개합니다.
+        </p>
 
-      <section className="prose prose-sm max-w-none text-[#1A1A2E]/80 space-y-8">
-        <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+        <section className="max-w-none space-y-8 text-[14px] leading-7 text-text-body">
+          <div>
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제1조 개인정보의 처리 목적
           </h2>
           <p>
@@ -79,7 +80,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제2조 개인정보의 수집 항목
           </h2>
           <p>
@@ -87,7 +88,7 @@ export default function PrivacyPage() {
             불가피한 경우 별도의 동의를 받아 동의 목적 범위 내에서만 처리합니다.
           </p>
 
-          <p className="mt-3 font-medium text-[#1A1A2E]">〈필수 항목〉</p>
+          <p className="mt-3 font-medium text-text-strong">〈필수 항목〉</p>
           <div className="overflow-x-auto mt-2">
             <table className={TABLE}>
               <thead>
@@ -116,7 +117,7 @@ export default function PrivacyPage() {
             </table>
           </div>
 
-          <p className="mt-4 font-medium text-[#1A1A2E]">〈선택 항목〉</p>
+          <p className="mt-4 font-medium text-text-strong">〈선택 항목〉</p>
           <div className="overflow-x-auto mt-2">
             <table className={TABLE}>
               <thead>
@@ -146,7 +147,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제3조 개인정보의 처리 및 보유 기간
           </h2>
           <p>
@@ -154,7 +155,7 @@ export default function PrivacyPage() {
             개인정보를 처리하며, 해당 기간이 종료되면 지체 없이 파기합니다.
           </p>
 
-          <p className="mt-3 font-medium text-[#1A1A2E]">〈서비스별 보유 기간〉</p>
+          <p className="mt-3 font-medium text-text-strong">〈서비스별 보유 기간〉</p>
           <div className="overflow-x-auto mt-2">
             <table className={TABLE}>
               <thead>
@@ -180,7 +181,7 @@ export default function PrivacyPage() {
             </table>
           </div>
 
-          <p className="mt-4 font-medium text-[#1A1A2E]">〈관련 법령에 따른 보유 기간〉</p>
+          <p className="mt-4 font-medium text-text-strong">〈관련 법령에 따른 보유 기간〉</p>
           <div className="overflow-x-auto mt-2">
             <table className={TABLE}>
               <thead>
@@ -229,7 +230,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제4조 개인정보의 제3자 제공
           </h2>
           <p>
@@ -251,7 +252,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제5조 개인정보 처리 위탁
           </h2>
           <p>
@@ -267,7 +268,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제6조 개인정보의 파기 절차 및 방법
           </h2>
           <p>
@@ -286,7 +287,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제7조 개인정보의 안전성 확보 조치
           </h2>
           <p>
@@ -311,7 +312,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제8조 개인정보 자동 수집 장치의 설치·운영 및 거부에 관한 사항
           </h2>
           <p>
@@ -339,7 +340,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제9조 가명정보의 처리</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제9조 가명정보의 처리</h2>
           <p>
             ① 회사는 통계 작성, 과학적 연구, 공익적 기록 보전 등의 목적으로 가명정보를 처리할 수
             있으며, 가명 처리 계획 수립 시 정한 목적 달성 기간까지만 보유·이용합니다.
@@ -356,7 +357,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제10조 개인정보 보호책임자
           </h2>
           <p>
@@ -394,7 +395,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제11조 권익침해 구제 방법
           </h2>
           <p>
@@ -409,7 +410,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제12조 본 개인정보처리방침의 적용 범위
           </h2>
           <p>
@@ -421,7 +422,7 @@ export default function PrivacyPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제13조 개인정보처리방침의 변경에 관한 사항
           </h2>
           <p>
@@ -431,10 +432,11 @@ export default function PrivacyPage() {
           </p>
         </div>
 
-        <div className="pt-4 border-t border-[#E8EAF2]">
-          <p className="text-xs text-[#9BA4C0]">시행일: 2026년 6월 17일</p>
+        <div className="pt-4 border-t border-border-subtle">
+          <p className="text-xs text-text-muted">시행일: 2026년 6월 17일</p>
         </div>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }

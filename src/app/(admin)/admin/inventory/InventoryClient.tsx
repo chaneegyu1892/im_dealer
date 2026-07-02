@@ -209,7 +209,7 @@ export function InventoryClient({
     const t = setTimeout(() => setNotice(null), 4000);
     return () => clearTimeout(t);
   }, [notice]);
-  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const [search, setSearch] = useState(searchParams?.get("search") ?? "");
   const [finances, setFinances] = useState<string[]>(
     Array.from(new Set([...financeCompanies, ...initialItems.map((item) => item.financeCompany)]))
   );

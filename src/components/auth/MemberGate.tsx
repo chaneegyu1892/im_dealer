@@ -40,7 +40,7 @@ export function MemberGate({
       onLogin();
       return;
     }
-    // path + query 전체를 next 로 보존 → 로그인 후 정확히 같은 견적/추천 화면으로 복귀.
+    // path + query 전체를 next 로 보존해 로그인 후 정확히 같은 견적/추천 화면으로 복귀.
     const next =
       typeof window !== "undefined"
         ? window.location.pathname + window.location.search
@@ -73,8 +73,8 @@ export function MemberGate({
           <span className="text-[12px] font-semibold leading-snug text-ink">
             {message}
           </span>
-          <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-[#FEE500] px-3 py-1.5 text-[12px] font-semibold text-[#1A1A2E]">
-            카카오로 로그인 →
+          <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-status-warning-bg px-3 py-1.5 text-[12px] font-semibold text-text-strong">
+            카카오로 로그인
           </span>
         </button>
       )}

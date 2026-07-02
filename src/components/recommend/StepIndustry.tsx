@@ -41,8 +41,8 @@ export function StepIndustry({ value, onChange, detail, onDetailChange }: StepIn
         <div key={value} className="t-gray mt-6 animate-slide-down p-4">
           <div className="mb-4">
             <span className="t-kick text-[11px]">추가 질문</span>
-            <h3 className="mt-1.5 text-[18px] font-extrabold leading-snug tracking-[-0.03em] text-ink">{detailQuestion.title}</h3>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-g2">{detailQuestion.subtitle}</p>
+            <h3 className="mt-1.5 text-[18px] font-extrabold leading-snug tracking-[-0.03em] text-text-strong">{detailQuestion.title}</h3>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-text-muted">{detailQuestion.subtitle}</p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {detailOptions.map((opt) => (
@@ -58,8 +58,8 @@ export function StepIndustry({ value, onChange, detail, onDetailChange }: StepIn
           </div>
 
           {value === "개인사업자" && detail === "2대 이상" && (
-            <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 p-3">
-              <p className="text-[12px] leading-relaxed text-amber-800">
+            <div className="mt-3 rounded-card border border-status-warning/25 bg-status-warning/10 p-3">
+              <p className="text-[12px] leading-relaxed text-status-warning">
                 사업자 명의 차량을 2대 이상 운용하시는 경우 <span className="font-semibold">임직원 전용 보험</span>이 필요합니다.
                 자세한 안내가 필요하시면 상담을 이용해 주세요.
               </p>

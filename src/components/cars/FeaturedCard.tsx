@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,89 +12,99 @@ import { summarizeVehicleDescription } from "@/lib/public-ui-text";
 interface FeaturedCardProps {
   vehicle: VehicleListItem;
   size?: "large" | "small";
-  index?: number;
 }
 
 /**
- * 차량 탐색 "주목할 차량" 카드 — 다크 배경 + 호버 시 이미지 줌·CTA 강조.
+ * 차량 탐색 "주목할 차량" 카드 — 가격과 CTA를 먼저 읽히게 하는 앱형 카드.
  * 단독(large/small) 및 슬라이더(FeaturedCarsSlider) 양쪽에서 사용.
  */
-export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCardProps) {
+export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
   const specs = vehicle.defaultTrim?.specs ?? {};
   const description = summarizeVehicleDescription(vehicle.description);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: index * 0.05, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative h-full cursor-pointer overflow-hidden rounded-[20px] bg-neutral-900 shadow-[0_16px_36px_rgba(18,24,40,0.14)] transition-shadow duration-200 hover:shadow-[0_20px_46px_rgba(18,24,40,0.18)]"
+      initial={false}
+      className={cn(
+        "group relative h-full cursor-pointer overflow-hidden rounded-[28px] bg-surface transition-all duration-state",
+        "hover:-translate-y-1 hover:scale-[1.012] hover:bg-surface-raised",
+      )}
     >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[linear-gradient(135deg,rgb(var(--color-brand-soft-rgb)/0.95),transparent_62%)]" />
       <Link href={`/cars/${vehicle.slug}`} className="block h-full">
-        {vehicle.thumbnailUrl && (
-          <div
-            className="absolute inset-0 bg-cover bg-center scale-105 group-hover:scale-110 transition-transform duration-700"
-            style={{ backgroundImage: `url(${vehicle.thumbnailUrl})` }}
-          />
-        )}
-        <div className="absolute inset-0 bg-black/68" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/20" />
         <div
           className={cn(
-            "relative z-10 flex h-full flex-col justify-between",
+            "relative flex h-full flex-col",
             size === "large"
-              ? "p-5 md:p-10 min-h-[220px] md:min-h-[340px]"
-              : "p-5 md:p-8 min-h-[220px] md:min-h-[340px]",
+              ? "min-h-[260px] p-5 md:min-h-[320px] md:p-7"
+              : "min-h-[230px] p-5 md:min-h-[280px] md:p-6",
           )}
         >
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[12px] font-bold bg-white/15 text-white/95 px-3 py-1 rounded-pill backdrop-blur-sm">
-                {vehicle.brand}
-              </span>
-              {vehicle.isPopular && (
-                <span className="inline-flex items-center gap-1 text-[12px] font-bold bg-brand text-white px-3 py-1 rounded-pill">
-                  인기
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="rounded-pill bg-surface-soft px-3 py-1 text-[12px] font-bold text-text-body">
+                  {vehicle.brand}
                 </span>
-              )}
-              {vehicle.hasAvailableInventory && (
-                <span className="text-[12px] font-bold bg-pos text-white px-3 py-1 rounded-pill">
-                  즉시출고
-                </span>
+                {vehicle.isPopular && (
+                  <span className="inline-flex items-center gap-1 rounded-pill bg-brand-soft px-3 py-1 text-[12px] font-bold text-brand">
+                    인기
+                  </span>
+                )}
+                {vehicle.hasAvailableInventory && (
+                  <span className="rounded-pill bg-status-positive-soft px-3 py-1 text-[12px] font-bold text-status-positive">
+                    즉시출고
+                  </span>
+                )}
+              </div>
+              <h2
+                className={cn(
+                  "font-extrabold leading-tight tracking-[-0.03em] text-text-strong",
+                  size === "large"
+                    ? "text-[25px] md:text-[34px]"
+                    : "text-[22px] md:text-[28px]",
+                )}
+              >
+                {vehicle.name}
+              </h2>
+              {description && (
+                <p className="mt-2 line-clamp-2 max-w-sm text-[13px] leading-relaxed text-text-muted md:text-[14px]">
+                  {description}
+                </p>
               )}
             </div>
-            <h2
-              className={cn(
-                "font-extrabold text-white leading-tight mb-2 tracking-[-0.03em] drop-shadow-sm",
-                size === "large"
-                  ? "text-[24px] md:text-[40px]"
-                  : "text-[22px] md:text-[30px]",
-              )}
-            >
-              {vehicle.name}
-            </h2>
-            {description && (
-              <p className="max-w-sm text-[13px] leading-relaxed text-white/80 drop-shadow-sm md:text-[14px]">
-                {description}
-              </p>
-            )}
+
+            <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-[20px] bg-surface-soft transition-transform duration-state group-hover:-translate-y-0.5 group-hover:scale-[1.02] md:h-24 md:w-32">
+              {vehicle.thumbnailUrl ? (
+                <Image
+                  src={vehicle.thumbnailUrl}
+                  alt={vehicle.name}
+                  fill
+                  sizes="160px"
+                  unoptimized
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : null}
+            </div>
           </div>
-          <div>
-            {size === "large" && Object.entries(specs).length > 0 && (
-              <div className="hidden md:flex gap-5 mb-6">
-                {Object.entries(specs)
-                  .slice(0, 3)
-                  .map(([label, value]) => (
-                    <div key={label}>
-                      <div className="text-[10px] text-white/35 mb-0.5">{label}</div>
-                      <div className="text-[13px] font-medium text-white/85">{value}</div>
-                    </div>
-                  ))}
+
+          {size === "large" && Object.entries(specs).length > 0 && (
+            <div className="mb-5 hidden gap-2 md:grid md:grid-cols-3">
+              {Object.entries(specs)
+                .slice(0, 3)
+                .map(([label, value]) => (
+                  <div key={label} className="rounded-[14px] bg-surface-soft px-3 py-2.5">
+                    <div className="mb-0.5 text-[10px] font-bold text-text-muted">{label}</div>
+                    <div className="truncate text-[13px] font-extrabold text-text-strong">{value}</div>
+                  </div>
+                ))}
               </div>
-            )}
+          )}
+
+          <div className="mt-auto rounded-[20px] bg-surface-soft/75 px-4 py-3.5 transition-colors duration-state group-hover:bg-surface-raised">
             <RepresentativeQuotePrice
               quotes={vehicle.representativeQuotes}
-              tone="dark"
+              tone="brand"
               size={size === "large" ? "xl" : "lg"}
             />
           </div>
@@ -102,7 +113,8 @@ export function FeaturedCard({ vehicle, size = "large", index = 0 }: FeaturedCar
       <Link
         href={`/quote?vehicle=${vehicle.slug}`}
         className={cn(
-          "absolute z-20 flex min-h-[42px] items-center gap-1.5 rounded-btn bg-white text-[13px] font-extrabold text-brand transition-all duration-200 group-hover:gap-2.5 group-hover:shadow-lg md:min-h-[46px] md:px-5 md:text-[13.5px]",
+          "absolute z-20 flex min-h-[42px] items-center gap-1.5 rounded-pill bg-brand text-[13px] font-extrabold text-white transition-all duration-state group-hover:gap-2.5 group-hover:-translate-y-0.5 md:min-h-[46px] md:px-5 md:text-[13.5px]",
+          "hover:bg-brand-pressed active:translate-y-0 active:scale-[0.98]",
           "px-4 py-2",
           size === "large"
             ? "bottom-5 right-5 md:bottom-10 md:right-10"

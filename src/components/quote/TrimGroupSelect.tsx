@@ -95,23 +95,23 @@ export function TrimGroupSelect<T extends GroupableTrim>({
       >
         {selected ? (
           <span className="flex items-baseline gap-2 min-w-0">
-            <span className="font-medium text-[#1A1A2E] truncate">
+            <span className="font-medium text-text-strong truncate">
               {selected.displayName}
               {selected.extra ? (
-                <span className="text-[#9BA4C0] font-normal"> ({selected.extra})</span>
+                <span className="text-text-muted font-normal"> ({selected.extra})</span>
               ) : null}
             </span>
-            <span className="shrink-0 text-[#4A5270] tabular-nums">
+            <span className="shrink-0 text-text-secondary tabular-nums">
               {priceLabel(selected)}
             </span>
           </span>
         ) : (
-          <span className="text-[#9BA4C0]">{placeholder}</span>
+          <span className="text-text-muted">{placeholder}</span>
         )}
         <ChevronDown
           size={14}
           className={cn(
-            "shrink-0 text-[#9BA4C0] transition-transform duration-200",
+            "shrink-0 text-text-muted transition-transform duration-200",
             isOpen && "rotate-180"
           )}
         />
@@ -131,12 +131,12 @@ export function TrimGroupSelect<T extends GroupableTrim>({
               ref={listRef}
               role="listbox"
               aria-label="트림 선택"
-              className="mt-1.5 max-h-[300px] overflow-y-auto rounded-[10px] border border-[#E8EAF0] bg-white"
+              className="mt-1.5 max-h-[300px] overflow-y-auto rounded-[10px] border border-border-subtle bg-surface"
             >
               {groups.map((group, gi) => (
                 <div key={group.lineup ?? `flat-${gi}`}>
                   {group.lineup !== null && (
-                    <p className="sticky top-0 z-10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#6B7399] bg-[#F8F9FC] border-b border-[#F0F2F8]">
+                    <p className="sticky top-0 z-10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-app border-b border-border-subtle">
                       {group.lineup || "기타"}
                     </p>
                   )}
@@ -157,7 +157,7 @@ export function TrimGroupSelect<T extends GroupableTrim>({
                           "w-full flex items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition-colors",
                           isSelected
                             ? "bg-brand-soft text-brand"
-                            : "text-[#1A1A2E] hover:bg-sec"
+                            : "text-text-strong hover:bg-sec"
                         )}
                       >
                         <span className="min-w-0">
@@ -165,7 +165,7 @@ export function TrimGroupSelect<T extends GroupableTrim>({
                             {g.displayName}
                           </span>
                           {g.extra && (
-                            <span className="block text-[11px] text-[#9BA4C0] truncate">
+                            <span className="block text-[11px] text-text-muted truncate">
                               {g.extra}
                             </span>
                           )}
@@ -173,13 +173,13 @@ export function TrimGroupSelect<T extends GroupableTrim>({
                         <span className="shrink-0 flex items-center gap-1.5 tabular-nums">
                           {g.trim.discountPrice ? (
                             <>
-                              <span className="text-[11px] text-[#9BA4C0] line-through">
+                              <span className="text-[11px] text-text-muted line-through">
                                 {fmtMan(g.trim.price)}
                               </span>
                               <span className="font-medium">{fmtMan(g.trim.discountPrice)}</span>
                             </>
                           ) : (
-                            <span className={cn(isSelected ? "font-semibold" : "text-[#4A5270]")}>
+                            <span className={cn(isSelected ? "font-semibold" : "text-text-secondary")}>
                               {fmtMan(g.trim.price)}
                             </span>
                           )}

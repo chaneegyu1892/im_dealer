@@ -7,15 +7,16 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <main className="max-w-3xl mx-auto px-6 py-16">
-      <h1 className="text-2xl font-bold text-[#1A1A2E] mb-2">
-        (주)메타키움 서비스 이용약관
-      </h1>
-      <p className="text-sm text-[#9BA4C0] mb-10">시행일: 2026년 6월 17일</p>
+    <main className="public-app-page min-h-screen">
+      <div className="page-container mx-auto max-w-3xl px-5 pt-12 pb-[calc(128px+env(safe-area-inset-bottom,0px))] md:py-16">
+        <h1 className="mb-2 text-[26px] font-extrabold leading-tight text-text-strong md:text-[32px]">
+          (주)메타키움 서비스 이용약관
+        </h1>
+        <p className="mb-10 text-sm text-text-muted">시행일: 2026년 6월 17일</p>
 
-      <section className="prose prose-sm max-w-none text-[#1A1A2E]/80 space-y-8">
-        <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제1조 (목적)</h2>
+        <section className="max-w-none space-y-8 text-[14px] leading-7 text-text-body">
+          <div>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제1조 (목적)</h2>
           <p>
             이 약관은 (주)메타키움(이하 &ldquo;회사&rdquo;라 함)이 운영하는
             아임딜러(IM DEALER) 서비스를 이용하는 고객(이하 &ldquo;이용자&rdquo;라 함)
@@ -24,7 +25,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제2조 (용어의 정의)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제2조 (용어의 정의)</h2>
           <p>① 이 약관에서 사용하는 주요 용어의 정의는 다음과 같습니다.</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>
@@ -58,7 +59,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제3조 (이용계약의 성립)
           </h2>
           <p>
@@ -79,7 +80,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제4조 (서비스의 내용)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제4조 (서비스의 내용)</h2>
           <p>
             ① 회사가 이용자에게 제공하는 아임딜러 서비스의 주요 내용은 다음과 같으며, 제휴
             금융회사와의 위탁 계약 범위에 따라 세부 내용이 달라질 수 있습니다.
@@ -102,7 +103,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제5조 (서비스의 이용)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제5조 (서비스의 이용)</h2>
           <p>
             ① 이용자는 아임딜러 플랫폼을 통해 서비스를 이용할 수 있습니다. 다만, 비회원의 경우
             실시간 견적 저장, 계약 이력 조회 등 일부 기능이 제한될 수 있습니다.
@@ -114,7 +115,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제6조 (서비스의 변경 및 중단)
           </h2>
           <p>
@@ -142,7 +143,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제7조 (개인정보의 보호 및 처리)
           </h2>
           <p>
@@ -163,7 +164,7 @@ export default function TermsPage() {
           </p>
           <p className="mt-2">
             ④ 개인(신용)정보의 보호 및 처리에 관한 구체적인 사항은 아임딜러 플랫폼 내{" "}
-            <a href="/privacy" className="text-[#6066EE] underline">
+            <a href="/privacy" className="text-brand underline">
               개인정보처리방침
             </a>
             을 통해 안내합니다.
@@ -175,7 +176,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제8조 (이용자에 대한 통지)
           </h2>
           <p>
@@ -205,7 +206,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제9조 (회사의 의무)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제9조 (회사의 의무)</h2>
           <p>
             ① 회사는 관련 법령과 이 약관이 금지하는 행위를 하지 않으며, 안정적인 서비스 제공을 위해
             최선을 다합니다.
@@ -221,7 +222,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제9조의2 (금융상품판매대리·중개업자의 고지의무)
           </h2>
           <p>
@@ -247,7 +248,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제10조 (이용자의 의무)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제10조 (이용자의 의무)</h2>
           <p>
             ① 이용자는 관련 법령, 본 약관, 서비스 이용안내 및 회사가 공지하는 사항을 준수하여야
             하며, 이를 위반하여 발생하는 손해에 대해 책임을 부담합니다.
@@ -277,7 +278,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제11조 (정보의 제공 및 광고 게재)
           </h2>
           <p>
@@ -296,7 +297,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제12조 (서비스 해지 및 이용 제한)
           </h2>
           <p>
@@ -329,7 +330,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제13조 (손해배상)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제13조 (손해배상)</h2>
           <p>
             ① 이용자는 서비스 이용과 관련하여 「금융소비자 보호에 관한 법률」 제44조 및 제45조에
             따라 제휴 금융회사 또는 회사에 손해배상을 청구할 수 있습니다.
@@ -346,7 +347,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제14조 (책임의 제한)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제14조 (책임의 제한)</h2>
           <p>
             ① 회사는 금융상품 계약의 체결 권한이 없으며, 금융상품에 관한 심사, 승인, 계약 실행, 이자
             수취 등 제반 금융 업무는 제휴 금융회사가 수행합니다.
@@ -370,7 +371,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">
+          <h2 className="text-base font-semibold text-text-strong mb-2">
             제15조 (지식재산권의 귀속)
           </h2>
           <p>
@@ -384,7 +385,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제16조 (약관의 변경)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제16조 (약관의 변경)</h2>
           <p>
             ① 회사가 이 약관을 변경하는 경우, 변경 사유와 적용 일자를 명시하여 적용일 7일 전부터
             아임딜러 플랫폼을 통해 공지합니다. 다만, 이용자에게 불리하거나 중요한 사항을 변경하는
@@ -402,7 +403,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제17조 (준거 규정)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제17조 (준거 규정)</h2>
           <p>
             ① 회사는 개별 서비스에 적용될 별도의 약관 또는 이용정책을 운영할 수 있으며, 이 약관과
             개별 약관이 충돌하는 경우 아임딜러 서비스에 관하여는 이 약관이 우선 적용됩니다.
@@ -414,7 +415,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제18조 (이의신청)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제18조 (이의신청)</h2>
           <p>
             ① 이용자는 서비스 이용과 관련하여 다음의 방법으로 회사에 이의를 제기할 수 있습니다.
           </p>
@@ -430,7 +431,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="text-base font-semibold text-[#1A1A2E] mb-2">제19조 (분쟁의 해결)</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-2">제19조 (분쟁의 해결)</h2>
           <p>
             ① 아임딜러 서비스 이용과 관련하여 회사와 이용자 사이에 분쟁이 발생한 경우, 양 당사자는
             원만한 해결을 위해 성실하게 협의합니다.
@@ -445,10 +446,11 @@ export default function TermsPage() {
           </p>
         </div>
 
-        <div className="pt-4 border-t border-[#E8EAF2]">
-          <p className="text-xs text-[#9BA4C0]">시행일: 2026년 6월 17일</p>
+        <div className="pt-4 border-t border-border-subtle">
+          <p className="text-xs text-text-muted">시행일: 2026년 6월 17일</p>
         </div>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }

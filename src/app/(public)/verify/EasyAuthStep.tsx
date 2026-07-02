@@ -1,18 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, Smartphone, CheckCircle2, XCircle, Loader2, Clock } from "lucide-react";
+import {
+  type LucideIcon,
+  BadgeCheck,
+  CheckCircle2,
+  ChevronLeft,
+  CircleDot,
+  Clock,
+  Loader2,
+  MessageCircle,
+  Smartphone,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import type { CustomerType } from "@/constants/customer-types";
 import { DOC_TYPES, docTypesForCustomer, type DocType } from "@/lib/codef/doc-types";
 
 // ─── 간편인증 제공자 (loginTypeLevel) ─────────────────────
-const PROVIDERS: { level: string; label: string; icon: string }[] = [
-  { level: "1", label: "카카오", icon: "💬" },
-  { level: "5", label: "통신사 PASS", icon: "📱" },
-  { level: "6", label: "네이버", icon: "🟢" },
-  { level: "8", label: "토스", icon: "🔵" },
+const PROVIDERS: { level: string; label: string; icon: LucideIcon }[] = [
+  { level: "1", label: "카카오", icon: MessageCircle },
+  { level: "5", label: "통신사 PASS", icon: Smartphone },
+  { level: "6", label: "네이버", icon: CircleDot },
+  { level: "8", label: "토스", icon: BadgeCheck },
 ];
 
 const TELECOMS: { value: string; label: string }[] = [
@@ -29,7 +40,7 @@ export interface EasyAuthInfo {
 
 // 부가세 과세기간(기수 코드 yyyyMM): 가장 최근 신고완료 기수.
 // 1기(상반기) 신고기한 ~7/25, 2기(하반기) 신고기한 ~익년 1/25 기준 보수적 선택.
-// ⚠️ 데모 실호출로 발급 가능 기수 재확인 필요(미신고 기수는 CF 오류).
+// 데모 실호출로 발급 가능 기수 재확인 필요(미신고 기수는 CF 오류).
 function vatPeriod(): string {
   const now = new Date();
   const y = now.getFullYear();
@@ -40,8 +51,8 @@ function vatPeriod(): string {
 }
 
 // 재무제표 사업종료년월(yyyyMM): 12월 결산법인 가정, 최근 신고완료 사업연도.
-// 법인세 신고기한 ~익년 3/31 + 전산반영 익월말 → 5월부터 작년분 안전.
-// ⚠️ 비(非)12월 결산법인은 값이 달라질 수 있어 데모 검증 필요.
+// 법인세 신고기한은 익년 3/31이고 전산반영 익월말 기준이므로 5월부터 작년분 안전.
+// 비(非)12월 결산법인은 값이 달라질 수 있어 데모 검증 필요.
 function corpFiscalEndMonth(): string {
   const now = new Date();
   const y = now.getFullYear();
@@ -111,7 +122,7 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
   const setDoc = (i: number, patch: Partial<DocState>) =>
     setDocs((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
 
-  // 문서 i 의 1차 요청 → 간편인증 푸시 발송
+  // 문서 i 의 1차 요청으로 간편인증 푸시 발송
   async function startDoc(i: number) {
     setBusy(true);
     setDoc(i, { phase: "running", error: undefined });
@@ -140,7 +151,7 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
     }
   }
 
-  // 사용자 인증 완료 후 2차 요청 → 문서 수신
+  // 사용자 인증 완료 후 2차 요청으로 문서 수신
   async function confirmDoc(i: number) {
     if (!twoWay) return;
     setBusy(true);
@@ -191,7 +202,7 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
           </p>
         </div>
 
-        <div className="rounded-[14px] border border-public-border bg-[#FAFBFE] p-3">
+        <div className="rounded-[14px] border border-public-border bg-surface-soft p-3">
           <p className="public-quiet-label mb-2">받을 서류</p>
           <div className="space-y-1.5">
             {docTypes.map((d) => (
@@ -207,20 +218,7 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
           <p className="public-quiet-label mb-2">간편인증 수단</p>
           <div className="grid grid-cols-2 gap-2">
             {PROVIDERS.map((p) => (
-              <button
-                key={p.level}
-                type="button"
-                onClick={() => setProvider(p.level)}
-                className={cn(
-                  "flex items-center gap-2 rounded-[12px] border p-3 text-left transition-all active:scale-[0.99]",
-                  provider === p.level
-                    ? "border-primary bg-primary/[0.06]"
-                    : "border-public-border bg-white hover:border-primary/30"
-                )}
-              >
-                <span className="text-[18px]">{p.icon}</span>
-                <span className="text-[13px] font-medium text-ink">{p.label}</span>
-              </button>
+              <ProviderButton key={p.level} provider={p} selected={provider === p.level} onSelect={setProvider} />
             ))}
           </div>
         </div>
@@ -332,6 +330,34 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
         </div>
       )}
     </div>
+  );
+}
+
+function ProviderButton({
+  provider,
+  selected,
+  onSelect,
+}: {
+  provider: (typeof PROVIDERS)[number];
+  selected: boolean;
+  onSelect: (level: string) => void;
+}) {
+  const Icon = provider.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(provider.level)}
+      className={cn(
+        "flex items-center gap-2 rounded-[12px] border p-3 text-left transition-all active:scale-[0.99]",
+        selected
+          ? "border-primary bg-primary/[0.06]"
+          : "border-public-border bg-white hover:border-primary/30"
+      )}
+    >
+      <Icon size={18} className={selected ? "text-primary" : "text-public-muted"} />
+      <span className="text-[13px] font-medium text-ink">{provider.label}</span>
+    </button>
   );
 }
 

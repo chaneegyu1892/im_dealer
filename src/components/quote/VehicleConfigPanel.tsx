@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, X, Check, Search, Car, Copy } from "lucide-react";
@@ -130,15 +130,15 @@ function VehiclePickerModal({
         transition={{ type: "spring", damping: 22, stiffness: 280 }}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#F0F2F8] shrink-0">
+        <div className="flex shrink-0 items-center justify-between border-b border-border-subtle px-5 pb-4 pt-5">
           <div>
-            <p className="text-[16px] font-bold text-[#1A1A2E]">비교 차량 선택</p>
-            <p className="text-[12px] text-[#9BA4C0] mt-0.5">비교하고 싶은 차량을 선택하세요</p>
+            <p className="text-[16px] font-bold text-text-strong">비교 차량 선택</p>
+            <p className="mt-0.5 text-[12px] text-text-muted">비교하고 싶은 차량을 선택하세요</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F0F2F8] transition-colors text-[#9BA4C0]"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-soft"
           >
             <X size={18} />
           </button>
@@ -147,7 +147,7 @@ function VehiclePickerModal({
         {/* 검색 */}
         <div className="px-5 py-3 shrink-0">
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA4C0]" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               autoFocus
               type="text"
@@ -162,7 +162,7 @@ function VehiclePickerModal({
         {/* 차량 그리드 */}
         <div className="overflow-y-auto flex-1 px-4 pb-5">
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-[#9BA4C0]">
+            <div className="flex flex-col items-center justify-center py-12 text-text-muted">
               <Car size={32} className="mb-3 opacity-40" />
               <p className="text-[13px]">검색 결과가 없습니다</p>
             </div>
@@ -183,11 +183,11 @@ function VehiclePickerModal({
                       "relative rounded-[12px] border-2 overflow-hidden text-left transition-all",
                       isSelected
                         ? "border-brand shadow-lift"
-                        : "border-line2 hover:border-[#C8CEDC]"
+                        : "border-border-subtle hover:border-border-strong"
                     )}
                   >
                     {/* 차량 이미지 */}
-                    <div className="w-full aspect-[4/3] bg-[#F0F2F8] relative overflow-hidden">
+                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface-soft">
                       {v.thumbnailUrl ? (
                         <Image
                           src={v.thumbnailUrl}
@@ -198,7 +198,7 @@ function VehiclePickerModal({
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Car size={28} className="text-[#C8CEDC]" />
+                          <Car size={28} className="text-border-strong" />
                         </div>
                       )}
                       {isSelected && (
@@ -211,10 +211,10 @@ function VehiclePickerModal({
                     </div>
                     {/* 차량 정보 */}
                     <div className="px-2.5 py-2">
-                      <p className="text-[10px] text-[#9BA4C0] leading-none mb-0.5">{v.brand}</p>
+                      <p className="mb-0.5 text-[10px] leading-none text-text-muted">{v.brand}</p>
                       <p className={cn(
                         "text-[13px] font-bold leading-snug",
-                        isSelected ? "text-brand" : "text-[#1A1A2E]"
+                        isSelected ? "text-brand" : "text-text-strong"
                       )}>
                         {v.name}
                       </p>
@@ -262,7 +262,11 @@ function OptionsAccordion({
   const toggle = (cat: string) =>
     setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(cat) ? next.delete(cat) : next.add(cat);
+      if (next.has(cat)) {
+        next.delete(cat);
+      } else {
+        next.add(cat);
+      }
       return next;
     });
 
@@ -274,25 +278,25 @@ function OptionsAccordion({
         const isOpen = expanded.has(cat);
         const selectedCount = opts.filter((o) => selectedOptionIds.has(o.id)).length;
         return (
-          <div key={cat} className="border border-[#E8EAF0] rounded-[8px] overflow-hidden">
+          <div key={cat} className="overflow-hidden rounded-[8px] border border-border-subtle">
             <button
               type="button"
               onClick={() => toggle(cat)}
-              className="w-full flex items-center justify-between px-3 py-2.5 bg-[#F8F9FC] hover:bg-[#F0F2F8] transition-colors"
+              className="flex w-full items-center justify-between bg-surface-soft px-3 py-2.5 transition-colors hover:bg-border-subtle/50"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[12px] font-semibold text-[#4A5270] truncate">{cat}</span>
+                <span className="truncate text-[12px] font-semibold text-text-body">{cat}</span>
                 {selectedCount > 0 && (
-                  <span className="shrink-0 text-[10px] font-bold text-white bg-brand px-1.5 py-0.5 rounded-full">
+                  <span className="shrink-0 rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-surface">
                     {selectedCount}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                <span className="text-[11px] text-[#9BA4C0]">{opts.length}개</span>
+                <span className="text-[11px] text-text-muted">{opts.length}개</span>
                 <ChevronDown
                   size={14}
-                  className={cn("text-[#9BA4C0] transition-transform duration-200", isOpen && "rotate-180")}
+                  className={cn("text-text-muted transition-transform duration-200", isOpen && "rotate-180")}
                 />
               </div>
             </button>
@@ -305,7 +309,7 @@ function OptionsAccordion({
                   transition={{ duration: 0.18 }}
                   className="overflow-hidden"
                 >
-                  <div className="divide-y divide-[#F0F2F8]">
+                  <div className="divide-y divide-border-subtle">
                     {opts.map((opt) => {
                       const isSelected = selectedOptionIds.has(opt.id);
                       return (
@@ -315,24 +319,24 @@ function OptionsAccordion({
                           onClick={() => onToggle(opt.id)}
                           className={cn(
                             "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors",
-                            isSelected ? "bg-brand/[0.04] hover:bg-brand/[0.08]" : "bg-white hover:bg-sec"
+                            isSelected ? "bg-brand-soft hover:bg-brand-soft/80" : "bg-surface hover:bg-surface-soft"
                           )}
                         >
                           <div
                             className={cn(
                               "w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors",
-                              isSelected ? "bg-brand border-brand" : "border-[#C8CEDC] bg-white"
+                              isSelected ? "border-brand bg-brand" : "border-border-strong bg-surface"
                             )}
                           >
-                            {isSelected && <Check size={10} strokeWidth={3} className="text-white" />}
+                            {isSelected && <Check size={10} strokeWidth={3} className="text-surface" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-medium text-[#1A1A2E] leading-snug truncate">{opt.name}</p>
+                            <p className="truncate text-[12px] font-medium leading-snug text-text-strong">{opt.name}</p>
                             {opt.description && (
-                              <p className="text-[11px] text-[#9BA4C0] truncate mt-0.5">{opt.description}</p>
+                              <p className="mt-0.5 truncate text-[11px] text-text-muted">{opt.description}</p>
                             )}
                           </div>
-                          <span className={cn("text-[12px] font-bold shrink-0", isSelected ? "text-brand" : "text-[#4A5270]")}>
+                          <span className={cn("shrink-0 text-[12px] font-bold", isSelected ? "text-brand" : "text-text-body")}>
                             +{fmtMan(opt.price)}
                           </span>
                         </button>
@@ -373,7 +377,6 @@ export function VehicleConfigPanel({
   onColorChange,
   productType,
   onProductTypeChange,
-  primarySlug,
   onCopyPrimary,
 }: VehicleConfigPanelProps) {
   const isPrimary = mode === "primary";
@@ -427,12 +430,12 @@ export function VehicleConfigPanel({
               ) : (
                 <motion.div
                   key="empty"
-                  className="absolute inset-0 bg-[#F0F2F8] flex items-center justify-center"
+                  className="absolute inset-0 flex items-center justify-center bg-surface-soft"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <Car size={40} className="text-[#C8CEDC]" />
+                  <Car size={40} className="text-border-strong" />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -475,7 +478,7 @@ export function VehicleConfigPanel({
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                   {/* 호버 시 변경 힌트 */}
                   <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <span className="opacity-0 hover:opacity-100 transition-opacity bg-white/90 text-[#1A1A2E] text-[12px] font-semibold px-3 py-1.5 rounded-[8px] shadow">
+                    <span className="rounded-[8px] bg-surface/90 px-3 py-1.5 text-[12px] font-semibold text-text-strong opacity-0 shadow transition-opacity hover:opacity-100">
                       차량 변경
                     </span>
                   </div>
@@ -484,16 +487,16 @@ export function VehicleConfigPanel({
                 /* 차량 미선택 — 클릭 유도 플레이스홀더 */
                 <motion.div
                   key="empty"
-                  className="absolute inset-0 bg-[#F0F2F8] flex flex-col items-center justify-center gap-2 hover:bg-[#E8EBF4] transition-colors"
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface-soft transition-colors hover:bg-border-subtle/50"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <div className="w-12 h-12 rounded-full bg-white border-2 border-dashed border-[#C8CEDC] flex items-center justify-center">
-                    <Car size={22} className="text-[#9BA4C0]" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-border-strong bg-surface">
+                    <Car size={22} className="text-text-muted" />
                   </div>
-                  <p className="text-[13px] font-semibold text-[#4A5270]">차량 선택하기</p>
-                  <p className="text-[11px] text-[#9BA4C0]">클릭하여 비교할 차량을 선택하세요</p>
+                  <p className="text-[13px] font-semibold text-text-body">차량 선택하기</p>
+                  <p className="text-[11px] text-text-muted">클릭하여 비교할 차량을 선택하세요</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -518,8 +521,8 @@ export function VehicleConfigPanel({
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {/* 트림 로딩 */}
           {trimsLoading && (
-            <div className="flex items-center gap-2 py-4 text-[13px] text-[#9BA4C0]">
-              <span className="w-3.5 h-3.5 border-2 border-line2 border-t-brand rounded-full animate-spin" />
+            <div className="flex items-center gap-2 py-4 text-[13px] text-text-muted">
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-border-subtle border-t-brand" />
               트림 정보 불러오는 중...
             </div>
           )}
@@ -529,7 +532,7 @@ export function VehicleConfigPanel({
             <button
               type="button"
               onClick={onCopyPrimary}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[10px] border border-[#E8EAF0] bg-[#F8F9FC] hover:bg-[#F0F2F8] transition-colors text-[13px] text-[#4A5270]"
+              className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-border-subtle bg-surface-soft py-2.5 text-[13px] text-text-body transition-colors hover:bg-border-subtle/50"
             >
               <Copy size={13} />
               현재 차량 그대로 비교하기
@@ -539,7 +542,7 @@ export function VehicleConfigPanel({
           {/* 트림 선택 — 인라인 아코디언 (네이티브 select 는 펼침 위치 제어 불가로 차량 사진을 덮음) */}
           {trims.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">트림 선택</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">트림 선택</p>
               <TrimGroupSelect
                 trims={trims}
                 selectedTrimId={selectedTrimId ?? null}
@@ -556,13 +559,13 @@ export function VehicleConfigPanel({
             <motion.div
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center justify-between px-3 py-2 bg-[#F0F2F8] rounded-[8px] text-[12px]"
+              className="flex items-center justify-between rounded-[8px] bg-surface-soft px-3 py-2 text-[12px]"
             >
-              <span className="text-[#4A5270]">
+              <span className="text-text-body">
                 {selectedTrim.engineType}
                 {selectedTrim.fuelEfficiency ? ` · 연비 ${selectedTrim.fuelEfficiency}km/L` : ""}
               </span>
-              <span className="num font-bold text-[#1A1A2E]">
+              <span className="num font-bold text-text-strong">
                 {fmtMan((selectedTrim.discountPrice ?? selectedTrim.price) + optionsTotalPrice)}
               </span>
             </motion.div>
@@ -572,15 +575,15 @@ export function VehicleConfigPanel({
           {selectedTrim && selectedTrim.options.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
                   옵션 선택
-                  <span className="text-[10px] font-normal text-[#B0B8D0] normal-case tracking-normal ml-1">· 선택 사항</span>
+                  <span className="ml-1 text-[10px] font-normal normal-case tracking-normal text-text-muted">· 선택 사항</span>
                 </p>
                 {selectedOptionIds.size > 0 && (
                   <button
                     type="button"
                     onClick={onOptionsClear}
-                    className="flex items-center gap-1 text-[11px] text-[#9BA4C0] hover:text-red-400 transition-colors"
+                    className="flex items-center gap-1 text-[11px] text-text-muted transition-colors hover:text-status-danger"
                   >
                     <X size={11} />초기화
                   </button>
@@ -623,7 +626,7 @@ export function VehicleConfigPanel({
               transition={{ delay: 0.1 }}
               className="space-y-1.5"
             >
-              <p className="text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">계약 유형</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">계약 유형</p>
               <div className="grid grid-cols-2 gap-2">
                 {(["장기렌트", "리스"] as const).map((type) => (
                   <button
@@ -634,7 +637,7 @@ export function VehicleConfigPanel({
                       "py-2.5 px-3 rounded-[10px] border-2 text-[13px] font-bold transition-all",
                       productType === type
                         ? "border-brand bg-brand-soft text-brand"
-                        : "border-line2 bg-white text-[#4A5270] hover:border-brand/30"
+                        : "border-border-subtle bg-surface text-text-body hover:border-brand/30"
                     )}
                   >
                     {type}

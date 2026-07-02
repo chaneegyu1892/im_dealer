@@ -166,7 +166,7 @@ function DesktopTable({ columns, totalCosts }: RowProps) {
   const hasConfig = columns.some((c) => c.config);
 
   return (
-    <div className="grid grid-cols-[minmax(130px,max-content)_1fr_1fr] divide-x divide-[#F0F0F0]">
+    <div className="grid grid-cols-[minmax(130px,max-content)_1fr_1fr] divide-x divide-border-subtle">
       {/* Header */}
       <div className="bg-sec" />
       {columns.map((col, i) => (
@@ -298,7 +298,7 @@ function MobileStack({ columns, totalCosts }: RowProps) {
   const baseTotal = totalCosts[0];
 
   return (
-    <div className="divide-y divide-[#F0F0F0]">
+    <div className="divide-y divide-border-subtle">
       {columns.map((col, i) => (
         <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-white")}>
           <div className="flex items-start gap-2 mb-3">
@@ -368,7 +368,7 @@ function MobileStack({ columns, totalCosts }: RowProps) {
           </dl>
 
           {/* 예상 총 비용 */}
-          <div className="mt-3 pt-3 border-t border-[#F0F0F0] flex items-center justify-between flex-wrap gap-1">
+          <div className="mt-3 pt-3 border-t border-border-subtle flex items-center justify-between flex-wrap gap-1">
             <div>
               <p className="text-[12px] text-ink-label">예상 총 비용</p>
               <p className="text-[10px] text-ink-caption">

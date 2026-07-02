@@ -46,7 +46,7 @@ export function StepPreference({
     // 상황형(가족/화물)은 1개만 — 다른 상황형이 이미 선택되면 중복 선택 불가
     const situationBlocked =
       opt.kind === "situation" && !isSelected && situation !== undefined;
-    // 미선택 + 이미 2개 선택됨 → 추가 불가
+    // 미선택 + 이미 2개 선택됨: 추가 불가
     const maxBlocked = !isSelected && atMax;
     const blocked = situationBlocked || maxBlocked;
     const note = maxBlocked && !situationBlocked ? "최대 2개까지 선택돼요" : undefined;
@@ -104,10 +104,10 @@ export function StepPreference({
         <div key={situation} className="t-gray mt-6 animate-slide-down p-4">
           <div className="mb-4">
             <span className="t-kick text-[11px]">추가 질문</span>
-            <h3 className="mt-1.5 text-[18px] font-extrabold leading-snug tracking-[-0.03em] text-ink">
+            <h3 className="mt-1.5 text-[18px] font-extrabold leading-snug tracking-[-0.03em] text-text-strong">
               {detailQuestion.title}
             </h3>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-g2">
+            <p className="mt-1 text-[12.5px] leading-relaxed text-text-muted">
               {detailQuestion.subtitle}
             </p>
           </div>

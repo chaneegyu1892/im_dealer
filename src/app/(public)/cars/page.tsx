@@ -15,18 +15,31 @@ async function getVehicles(): Promise<VehicleListItem[]> {
   const vehicles = await prisma.vehicle.findMany({
     where: { isVisible: true },
     orderBy: { displayOrder: "asc" },
-    include: {
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      brand: true,
+      category: true,
+      basePrice: true,
+      thumbnailUrl: true,
+      isPopular: true,
+      isSpotlight: true,
+      description: true,
+      displayOrder: true,
+      tags: true,
+      surchargeRate: true,
       trims: {
         where: { isVisible: true },
         orderBy: { isDefault: "desc" },
-        include: {
-          inventory: {
-            where: {
-              status: "AVAILABLE",
-              stockCount: { gt: 0 },
-            },
-            select: { id: true },
-          },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          evSubsidy: true,
+          engineType: true,
+          fuelEfficiency: true,
+          specs: true,
         },
       },
       recConfigs: {
@@ -36,9 +49,30 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     },
   });
 
-  // 대표 견적가 산출 — 모든 노출 트림 기준 60개월·무보증·2만km productType별 최저 (목록·상세 공통)
+  const availableInventory = await prisma.inventory.findMany({
+    where: {
+      status: "AVAILABLE",
+      stockCount: { gt: 0 },
+      trim: {
+        isVisible: true,
+        vehicleId: { in: vehicles.map((vehicle) => vehicle.id) },
+      },
+    },
+    select: {
+      trim: {
+        select: { vehicleId: true },
+      },
+    },
+  });
+  const availableVehicleIds = new Set(
+    availableInventory.map((inventory) => inventory.trim.vehicleId),
+  );
+
+  const spotlightVehicles = vehicles.filter((vehicle) => vehicle.isSpotlight);
+  // 첫 렌더에서는 주목 차량만 대표 견적가를 계산한다.
+  // 필터 선택 후 목록 카드 가격은 /api/vehicles/representative-quotes에서 필요한 ID만 지연 로드한다.
   const quotesByVehicle = await getRepresentativeQuotesByVehicle(
-    vehicles.map((v) => ({
+    spotlightVehicles.map((v) => ({
       vehicleId: v.id,
       vehicleSurchargeRate: v.surchargeRate,
       trims: v.trims.map((t) => ({ trimId: t.id, vehiclePrice: t.price })),
@@ -49,7 +83,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     const defaultTrim = v.trims[0];
     const representativeQuotes = quotesByVehicle.get(v.id) ?? [];
     const monthlyFrom = lowestMonthly(representativeQuotes);
-    const hasAvailableInventory = v.trims.some((trim) => trim.inventory.length > 0);
+    const hasAvailableInventory = availableVehicleIds.has(v.id);
 
     return {
       id: v.id,

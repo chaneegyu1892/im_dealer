@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageSquareText } from "lucide-react";
 import { BestReviewSection } from "@/components/reviews/BestReviewSection";
 import { ReviewCard } from "@/components/reviews/ReviewCard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { InlineAlert } from "@/components/ui/InlineAlert";
 import {
   ReviewFilterBar,
   type ReviewFilterState,
@@ -84,7 +86,7 @@ export function ReviewsGalleryClient({
   const searchParams = useSearchParams();
 
   const initialFilter = useMemo(
-    () => readFilterFromQuery(new URLSearchParams(searchParams.toString()), vehicles),
+    () => readFilterFromQuery(new URLSearchParams(searchParams?.toString() ?? ""), vehicles),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
@@ -207,19 +209,21 @@ export function ReviewsGalleryClient({
         />
 
         {error && (
-          <div className="text-[13px] text-red-600 bg-red-50 border border-red-100 rounded-[16px] px-4 py-3">
+          <InlineAlert variant="danger" title="후기를 불러오지 못했습니다">
             {error}
-          </div>
+          </InlineAlert>
         )}
 
         {loading && items.length === 0 ? (
-          <div className="py-16 flex items-center justify-center text-[13px] font-bold text-g2">
+          <div className="flex min-h-[180px] items-center justify-center rounded-card border border-border-subtle bg-surface text-[13px] font-bold text-text-muted">
             <Loader2 className="animate-spin mr-2" size={18} /> 불러오는 중
           </div>
         ) : items.length === 0 ? (
-          <div className="t-gray py-16 text-center text-[13.5px] font-bold text-g1">
-            조건에 맞는 후기가 없습니다.
-          </div>
+          <EmptyState
+            icon={<MessageSquareText size={26} />}
+            title="조건에 맞는 후기가 없습니다"
+            description="차량, 브랜드, 별점 필터를 줄이면 더 많은 후기를 볼 수 있어요."
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {items.map((review) => (

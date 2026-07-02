@@ -122,11 +122,11 @@ function InitialCostControl({
     <div className="space-y-3 bg-white border border-line2 rounded-card p-4">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
-        <p className="text-[12px] font-bold text-[#4A5270] uppercase tracking-wider">
+        <p className="text-[12px] font-bold text-text-secondary uppercase tracking-wider">
           초기비용 설정
         </p>
         <span className={cn(
-          "flex items-center gap-1.5 text-[11px] text-[#9BA4C0] transition-opacity duration-200",
+          "flex items-center gap-1.5 text-[11px] text-text-muted transition-opacity duration-200",
           isRecalculating ? "opacity-100" : "opacity-0 pointer-events-none"
         )}>
           <span className="inline-block w-3 h-3 border-2 border-brand border-t-transparent rounded-full animate-spin" />
@@ -150,13 +150,13 @@ function InitialCostControl({
                   : "border-line2 bg-white hover:border-brand/30"
               )}
             >
-              <span className="block text-[10px] font-medium uppercase tracking-wider text-[#9BA4C0] mb-0.5">
+              <span className="block text-[10px] font-medium uppercase tracking-wider text-text-muted mb-0.5">
                 초기비용
               </span>
-              <span className={cn("block text-[14px] font-bold", isActive ? "text-brand" : "text-[#1A1A2E]")}>
+              <span className={cn("block text-[14px] font-bold", isActive ? "text-brand" : "text-text-strong")}>
                 {mode === "none" ? "없음" : "있음"}
               </span>
-              <span className="block text-[11px] text-[#9BA4C0] mt-0.5">
+              <span className="block text-[11px] text-text-muted mt-0.5">
                 {mode === "none" ? "보증금·선납금 없이" : "초기 납부로 월납입 절감"}
               </span>
             </button>
@@ -192,10 +192,10 @@ function InitialCostControl({
                           : "border-line2 bg-sec hover:border-brand/30"
                       )}
                     >
-                      <span className={cn("block text-[13px] font-bold", isActive ? "text-brand" : "text-[#1A1A2E]")}>
+                      <span className={cn("block text-[13px] font-bold", isActive ? "text-brand" : "text-text-strong")}>
                         {info.label}
                       </span>
-                      <span className="block text-[10px] text-[#9BA4C0]">{info.subLabel}</span>
+                      <span className="block text-[10px] text-text-muted">{info.subLabel}</span>
                     </button>
                   );
                 })}
@@ -203,7 +203,7 @@ function InitialCostControl({
                   type="button"
                   title={COST_TYPE_INFO[costType].tooltip}
                   onClick={() => alert(COST_TYPE_INFO[costType].tooltip)}
-                  className="p-2 rounded-full text-[#9BA4C0] hover:text-[#4A5270] hover:bg-[#F0F2F8] transition-colors shrink-0 self-center"
+                  className="p-2 rounded-full text-text-muted hover:text-text-secondary hover:bg-sec transition-colors shrink-0 self-center"
                 >
                   <HelpCircle size={15} />
                 </button>
@@ -212,13 +212,13 @@ function InitialCostControl({
               {/* 비율 프리셋 + 슬라이더 */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] text-[#9BA4C0]">
+                  <p className="text-[11px] text-text-muted">
                     {COST_TYPE_INFO[costType].label} 비율 선택
                   </p>
                   {/* 현재 값 표시 */}
                   <span className={cn(
                     "num text-[14px] font-extrabold tabular-nums transition-colors",
-                    activeRate > 0 ? "text-brand" : "text-[#9BA4C0]"
+                    activeRate > 0 ? "text-brand" : "text-text-muted"
                   )}>
                     {activeRate}%
                   </span>
@@ -232,8 +232,8 @@ function InitialCostControl({
                     className={cn(
                       "px-3 py-1.5 rounded-full border text-[12px] font-medium transition-all duration-150",
                       activeRate === 0
-                        ? "bg-[#1A1A2E] text-white border-[#1A1A2E]"
-                        : "bg-white text-[#6B7399] border-[#E0E0E0] hover:border-[#1A1A2E]/40"
+                        ? "bg-text-strong text-surface border-text-strong"
+                        : "bg-surface text-text-secondary border-border-subtle hover:border-text-strong/40"
                     )}
                   >
                     없음
@@ -247,7 +247,7 @@ function InitialCostControl({
                         "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
                         activeRate === r
                           ? "bg-brand text-white border-brand"
-                          : "bg-white text-[#6B7399] border-line2 hover:border-brand/40"
+                          : "bg-surface text-text-secondary border-line2 hover:border-brand/40"
                       )}
                     >
                       {r}%
@@ -258,13 +258,13 @@ function InitialCostControl({
                 {/* 슬라이더 */}
                 <div className="space-y-1">
                   <div className="relative h-5 flex items-center">
-                    <div className="absolute inset-x-0 h-[6px] rounded-full bg-[#E2E8F0] overflow-hidden">
+                    <div className="absolute inset-x-0 h-[6px] rounded-full bg-border-subtle overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-200"
                         style={{
                           // 썸 중심 위치까지 채움 — 썸 이동 범위 보정과 동일 식
                           width: `calc(${(activeRate / SLIDER_MAX)} * (100% - 20px) + 10px)`,
-                          background: "linear-gradient(90deg, #27368A 0%, #5A3DB0 100%)",
+                          background: "linear-gradient(90deg, var(--color-brand-primary) 0%, var(--color-accent-purple) 100%)",
                         }}
                       />
                     </div>
@@ -282,9 +282,9 @@ function InitialCostControl({
                       className="absolute w-5 h-5 rounded-full -translate-x-1/2 pointer-events-none transition-all duration-200 shadow-md"
                       style={{
                         left: `calc(${(activeRate / SLIDER_MAX)} * (100% - 20px) + 10px)`,
-                        background: "#fff",
-                        border: "2.5px solid #27368A",
-                        boxShadow: activeRate > 0 ? "0 1px 8px rgba(39,54,138,0.3)" : "0 1px 4px rgba(0,0,0,0.15)",
+                        background: "var(--color-surface)",
+                        border: "2.5px solid var(--color-brand-primary)",
+                        boxShadow: activeRate > 0 ? "var(--shadow-card-hover)" : "var(--shadow-card)",
                       }}
                     />
                   </div>
@@ -299,7 +299,7 @@ function InitialCostControl({
                           "text-[10px] font-medium transition-colors px-0.5",
                           activeRate === tick
                             ? "text-brand font-bold"
-                            : "text-[#9BA4C0] hover:text-brand"
+                            : "text-text-muted hover:text-brand"
                         )}
                       >
                         {tick}%
@@ -645,14 +645,14 @@ export function ComparisonSection({
 
       {/* 섹션 바디 — 비회원은 블러 + 카카오 로그인 유도 */}
       {isOpen && (
-        <div className="border-t border-[#F0F0F0]">
+        <div className="border-t border-border-subtle">
         <MemberGate
           locked={locked}
           onLogin={onMemberLogin}
           message="비교는 회원 전용입니다. 로그인 해주세요"
         >
           {/* 모바일 탭 */}
-          <div className="md:hidden flex border-b border-[#F0F2F8]">
+          <div className="md:hidden flex border-b border-border-subtle">
             {(["primary", "comparison"] as const).map((tab) => (
               <button
                 key={tab}
@@ -662,7 +662,7 @@ export function ComparisonSection({
                   "flex-1 py-2.5 text-[13px] font-bold transition-colors",
                   activeTab === tab
                     ? "text-brand border-b-2 border-brand bg-brand-soft"
-                    : "text-[#6B7399] hover:bg-sec"
+                    : "text-text-secondary hover:bg-sec"
                 )}
               >
                 {tab === "primary" ? "현재 차량" : "비교 차량"}
@@ -671,7 +671,7 @@ export function ComparisonSection({
           </div>
 
           {/* 두 패널 */}
-          <div className="md:grid md:grid-cols-2 md:divide-x md:divide-[#F0F2F8]">
+          <div className="md:grid md:grid-cols-2 md:divide-x md:divide-border-subtle">
             {/* 패널 1 */}
             <div className={cn("min-h-[320px]", activeTab === "primary" ? "block" : "hidden md:block")}>
               <VehicleConfigPanel
@@ -684,7 +684,15 @@ export function ComparisonSection({
                 onTrimChange={(id) => { setP1TrimId(id); setP1OptionIds(new Set()); setPrimaryResult(null); setCompResult(null); }}
                 selectedOptionIds={p1OptionIds}
                 onOptionToggle={(id) => {
-                  setP1OptionIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+                  setP1OptionIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) {
+                      next.delete(id);
+                    } else {
+                      next.add(id);
+                    }
+                    return next;
+                  });
                   setPrimaryResult(null); setCompResult(null);
                 }}
                 onOptionsClear={() => { setP1OptionIds(new Set()); setPrimaryResult(null); setCompResult(null); }}
@@ -702,7 +710,7 @@ export function ComparisonSection({
             </div>
 
             {/* 패널 2 */}
-            <div className={cn("min-h-[320px] border-t border-[#F0F2F8] md:border-t-0", activeTab === "comparison" ? "block" : "hidden md:block")}>
+            <div className={cn("min-h-[320px] border-t border-border-subtle md:border-t-0", activeTab === "comparison" ? "block" : "hidden md:block")}>
               <VehicleConfigPanel
                 mode="comparison"
                 allVehicles={allVehicles}
@@ -715,7 +723,15 @@ export function ComparisonSection({
                 onTrimChange={(id) => { setP2TrimId(id); setP2OptionIds(new Set()); setPrimaryResult(null); setCompResult(null); }}
                 selectedOptionIds={p2OptionIds}
                 onOptionToggle={(id) => {
-                  setP2OptionIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+                  setP2OptionIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) {
+                      next.delete(id);
+                    } else {
+                      next.add(id);
+                    }
+                    return next;
+                  });
                   setPrimaryResult(null); setCompResult(null);
                 }}
                 onOptionsClear={() => { setP2OptionIds(new Set()); setPrimaryResult(null); setCompResult(null); }}
@@ -736,9 +752,9 @@ export function ComparisonSection({
           </div>
 
           {/* 비교 버튼 */}
-          <div className="px-4 py-4 border-t border-[#F0F2F8] space-y-2">
+          <div className="px-4 py-4 border-t border-border-subtle space-y-2">
             {!canCompare && (
-              <p className="text-[12px] text-[#9BA4C0] text-center">
+              <p className="text-[12px] text-text-muted text-center">
                 {!p1TrimId ? "현재 차량의 트림을 선택해주세요" : !p2Slug ? "비교할 차량을 선택해주세요" : "비교 차량의 트림을 선택해주세요"}
               </p>
             )}
@@ -750,7 +766,7 @@ export function ComparisonSection({
                 "w-full py-3 rounded-btn text-[14px] font-bold transition-all",
                 canCompare && !isComparing
                   ? "bg-brand text-white hover:bg-brand-dark shadow-lift"
-                  : "bg-sec text-[#9BA4C0] cursor-not-allowed"
+                  : "bg-sec text-text-muted cursor-not-allowed"
               )}
             >
               {isComparing ? (

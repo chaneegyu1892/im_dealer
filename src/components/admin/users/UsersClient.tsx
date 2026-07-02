@@ -413,20 +413,20 @@ export default function UsersClient({
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("전체");
   const [selectedUser, setSelectedUser] = useState<AdminUserRecord | null>(null);
   const [tab, setTab] = useState<TabKind>(
-    searchParams.get("tab") === "dormant" ? "dormant" : "all"
+    searchParams?.get("tab") === "dormant" ? "dormant" : "all"
   );
   const [dormantSortKey, setDormantSortKey] = useState<DormantSortKey>("dormancy");
   const [dormantSortDir, setDormantSortDir] = useState<SortDirection>("desc");
 
   // URL ?search=, ?tab= 파라미터 연동
   useEffect(() => {
-    const s = searchParams.get("search");
+    const s = searchParams?.get("search");
     if (s) {
       setSearch(s);
       const match = users.find((u) => u.name === s);
       if (match) setSelectedUser(match);
     }
-    const t = searchParams.get("tab");
+    const t = searchParams?.get("tab");
     if (t === "dormant" || t === "all") {
       setTab(t);
     }

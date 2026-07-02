@@ -9,25 +9,25 @@ export const metadata: Metadata = {
 
 function VerifyLoadingSkeleton() {
   return (
-    <div className="page-container max-w-md mx-auto py-4 md:py-8 animate-pulse">
+    <div className="page-container mx-auto max-w-md animate-pulse py-4 md:py-8">
       <div className="flex justify-center mb-10">
         <div className="flex items-center gap-0">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-center">
-              {i > 1 && <div className="h-[2px] w-16 bg-neutral-800 rounded-sm" />}
+              {i > 1 && <div className="h-[2px] w-16 rounded-sm bg-border-subtle" />}
               <div className="flex flex-col items-center gap-1.5">
-                <div className="w-8 h-8 rounded-full bg-neutral-800" />
-                <div className="w-8 h-2 rounded bg-neutral-800" />
+                <div className="h-8 w-8 rounded-full bg-surface-soft" />
+                <div className="h-2 w-8 rounded bg-surface-soft" />
               </div>
             </div>
           ))}
         </div>
       </div>
       <div className="space-y-4">
-        <div className="h-32 rounded-card bg-neutral-800" />
-        <div className="h-12 rounded-card bg-neutral-800" />
-        <div className="h-12 rounded-card bg-neutral-800" />
-        <div className="h-12 rounded-btn bg-neutral-800 mt-8" />
+        <div className="h-32 rounded-card border border-border-subtle bg-surface" />
+        <div className="h-12 rounded-card bg-surface-soft" />
+        <div className="h-12 rounded-card bg-surface-soft" />
+        <div className="mt-8 h-12 rounded-btn bg-brand-soft" />
       </div>
     </div>
   );
@@ -35,18 +35,18 @@ function VerifyLoadingSkeleton() {
 
 export default function VerifyPage() {
   return (
-    <div className="public-app-page min-h-screen pb-24 md:pb-0">
-      <div className="border-b border-public-border bg-white">
+    <div className="home-showroom-scope min-h-screen bg-app-bg pb-[calc(112px+env(safe-area-inset-bottom,0px))] md:pb-0">
+      <div className="border-b border-border-subtle bg-surface">
         <div className="page-container max-w-md mx-auto py-3.5 md:py-6">
           <div className="mb-1 flex items-center gap-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-public-muted">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted">
               서류 확인
             </span>
           </div>
-          <h1 className="text-[20px] font-semibold leading-tight text-ink md:text-title-sm">
+          <h1 className="text-[20px] font-extrabold leading-tight text-text-strong md:text-title-sm">
             심사 서류 간편 확인
           </h1>
-          <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-label">
+          <p className="mt-1 text-[12px] leading-relaxed text-text-muted md:text-label">
             비대면으로 필요한 서류를 안전하게 확인합니다.
           </p>
         </div>

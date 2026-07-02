@@ -29,8 +29,8 @@ const SIZE: Record<
 };
 
 const TONE: Record<TossPriceTone, { num: string; unit: string }> = {
-  ink: { num: "text-ink", unit: "text-g1" },
-  brand: { num: "text-brand", unit: "text-g1" },
+  ink: { num: "text-text-strong", unit: "text-text-body" },
+  brand: { num: "text-brand", unit: "text-text-body" },
   white: { num: "text-white", unit: "text-white/70" },
 };
 

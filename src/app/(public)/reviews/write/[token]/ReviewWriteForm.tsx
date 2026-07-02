@@ -1,9 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Star, CheckCircle2, ImagePlus, X, Loader2 } from "lucide-react";
+import { Star, CheckCircle2 } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import { Button } from "@/components/ui/Button";
+import { InlineAlert } from "@/components/ui/InlineAlert";
+import { ReviewImageUploader } from "./ReviewImageUploader";
 
 interface ReviewWriteFormProps {
   token: string;
@@ -38,7 +40,6 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
     length <= MAX_LEN &&
     rating >= 1 &&
     rating <= 5;
-  const remainingSlots = MAX_IMAGES - imageUrls.length;
 
   async function uploadOne(file: File): Promise<string | null> {
     if (!ALLOWED_MIME.includes(file.type)) {
@@ -125,7 +126,11 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
         return;
       }
       setSubmitted(true);
-    } catch {
+    } catch (submitError: unknown) {
+      if (submitError instanceof Error) {
+        setError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
       setError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setSubmitting(false);
@@ -134,12 +139,12 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
 
   if (submitted) {
     return (
-      <div className="t-card p-6 text-center">
-        <div className="mx-auto w-12 h-12 rounded-full bg-brand-soft flex items-center justify-center">
+      <div className="rounded-card border border-border-subtle bg-surface p-6 text-center shadow-card">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft">
           <CheckCircle2 size={22} className="text-brand" />
         </div>
-        <p className="mt-4 text-[16px] font-extrabold text-ink">후기가 접수되었어요</p>
-        <p className="mt-2 text-[13px] leading-relaxed text-g1">
+        <p className="mt-4 text-[16px] font-extrabold text-text-strong">후기가 접수되었어요</p>
+        <p className="mt-2 text-[13px] leading-relaxed text-text-body">
           담당 어드민 검토 후 공개됩니다.
           <br />
           소중한 의견 감사합니다.
@@ -151,9 +156,9 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
   const displayRating = hover ?? rating;
 
   return (
-    <div className="t-card p-5 space-y-6">
+    <div className="space-y-6 rounded-card border border-border-subtle bg-surface p-5 shadow-card">
       <div>
-        <label className="block text-[13px] font-extrabold text-ink mb-3">별점</label>
+        <label className="mb-3 block text-[13px] font-extrabold text-text-strong">별점</label>
         <div className="flex items-center gap-1.5">
           {[1, 2, 3, 4, 5].map((n) => {
             const filled = n <= displayRating;
@@ -171,20 +176,20 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
                   size={32}
                   className={
                     filled
-                      ? "fill-[#FFB020] text-[#FFB020]"
-                      : "fill-transparent text-g3"
+                      ? "fill-status-warning text-status-warning"
+                      : "fill-transparent text-border-strong"
                   }
                   strokeWidth={1.5}
                 />
               </button>
             );
           })}
-          <span className="ml-2 text-[13px] font-bold text-g1">{displayRating}점</span>
+          <span className="ml-2 text-[13px] font-bold text-text-body">{displayRating}점</span>
         </div>
       </div>
 
       <div>
-        <label htmlFor="review-content" className="block text-[13px] font-extrabold text-ink mb-2">
+        <label htmlFor="review-content" className="mb-2 block text-[13px] font-extrabold text-text-strong">
           후기 내용
         </label>
         <textarea
@@ -197,16 +202,16 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
               ? `${vehicleName} 이용 경험을 솔직하게 적어주세요. (최소 ${MIN_LEN}자)`
               : `이용 경험을 솔직하게 적어주세요. (최소 ${MIN_LEN}자)`
           }
-          className="w-full rounded-[14px] border border-line2 bg-sec px-4 py-3 text-[14px] text-ink placeholder:text-g2 focus:outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/15 resize-none"
+          className="w-full resize-none rounded-[14px] border border-border-subtle bg-surface-soft px-4 py-3 text-[14px] text-text-strong placeholder:text-text-muted focus:border-brand focus:bg-surface focus:outline-none focus:ring-4 focus:ring-focus-ring/20"
         />
         <div className="mt-1.5 flex items-center justify-between text-[12px]">
           <span
             className={
               tooShort
-                ? "text-[#D17C00]"
+                ? "text-status-warning"
                 : tooLong
-                ? "text-[#C0392B]"
-                : "text-g2"
+                ? "text-status-danger"
+                : "text-text-muted"
             }
           >
             {tooShort
@@ -216,82 +221,26 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
               : `${MIN_LEN}자 이상 ${MAX_LEN}자 이내`}
           </span>
           <span
-            className={tooLong ? "text-[#C0392B] font-bold" : "text-g2"}
+            className={tooLong ? "font-bold text-status-danger" : "text-text-muted"}
           >
             {length}/{MAX_LEN}
           </span>
         </div>
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-[13px] font-extrabold text-ink">
-            사진 (선택)
-          </label>
-          <span className="text-[12px] text-g2">
-            {imageUrls.length}/{MAX_IMAGES}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          {imageUrls.map((url, idx) => (
-            <div
-              key={url}
-              className="relative aspect-square rounded-[12px] overflow-hidden border border-line2 bg-sec"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt={`첨부 이미지 ${idx + 1}`} className="w-full h-full object-cover" />
-              <button
-                type="button"
-                onClick={() => removeImage(idx)}
-                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
-                aria-label="이미지 제거"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-
-          {remainingSlots > 0 && (
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="aspect-square rounded-[12px] border border-dashed border-line2 bg-sec flex flex-col items-center justify-center gap-1 text-g2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-50"
-            >
-              {uploading ? (
-                <>
-                  <Loader2 size={20} className="animate-spin" />
-                  <span className="text-[11px]">처리 중</span>
-                </>
-              ) : (
-                <>
-                  <ImagePlus size={20} />
-                  <span className="text-[11px]">사진 추가</span>
-                </>
-              )}
-            </button>
-          )}
-        </div>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          className="hidden"
-          onChange={onPickFiles}
-        />
-
-        <p className="mt-1.5 text-[11px] text-g2">
-          최대 {MAX_IMAGES}장 · JPG/PNG/WEBP · 큰 사진은 자동으로 줄어 업로드됩니다
-        </p>
-      </div>
+      <ReviewImageUploader
+        fileInputRef={fileInputRef}
+        imageUrls={imageUrls}
+        uploading={uploading}
+        maxImages={MAX_IMAGES}
+        onPickFiles={onPickFiles}
+        onRemoveImage={removeImage}
+      />
 
       {error && (
-        <p className="text-[13px] text-[#C0392B] bg-[#FDECEA] border border-[#F5C6CB] rounded-[12px] px-3 py-2">
+        <InlineAlert variant="danger">
           {error}
-        </p>
+        </InlineAlert>
       )}
 
       <Button
@@ -304,7 +253,7 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
         {submitting ? "제출 중..." : "후기 제출하기"}
       </Button>
 
-      <p className="text-[11px] text-g2 leading-relaxed text-center">
+      <p className="text-center text-[11px] leading-relaxed text-text-muted">
         이름은 &lsquo;{customerDisplayName}&rsquo; 형태로 마스킹되어 표시됩니다.
       </p>
     </div>

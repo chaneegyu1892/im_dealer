@@ -85,17 +85,17 @@ const INVALID_COPY: Record<
 function InvalidNotice({ kind }: { kind: Exclude<TokenState["kind"], "ok"> }) {
   const copy = INVALID_COPY[kind];
   return (
-    <div className="rounded-card border border-[#F0F0F0] bg-white p-6 text-center">
-      <div className="mx-auto w-12 h-12 rounded-full bg-[#FFF4E5] flex items-center justify-center">
-        <AlertTriangle size={22} className="text-[#D17C00]" />
+    <div className="rounded-card border border-border-subtle bg-surface p-6 text-center shadow-card">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-status-warning-soft">
+        <AlertTriangle size={22} className="text-status-warning" />
       </div>
-      <p className="mt-4 text-[16px] font-semibold text-ink">{copy.title}</p>
-      <p className="mt-2 text-[13px] leading-relaxed text-ink-caption">
+      <p className="mt-4 text-[16px] font-semibold text-text-strong">{copy.title}</p>
+      <p className="mt-2 text-[13px] leading-relaxed text-text-body">
         {copy.body}
       </p>
       <Link
         href="/"
-        className="mt-6 inline-flex items-center justify-center rounded-btn border border-[#E0E0E0] bg-white px-4 py-2 text-[13px] font-medium text-ink hover:border-primary/30"
+        className="mt-6 inline-flex min-h-11 items-center justify-center rounded-btn border border-border-subtle bg-surface-soft px-4 py-2 text-[13px] font-bold text-text-strong transition-colors hover:border-brand/40 hover:bg-surface"
       >
         홈으로 돌아가기
       </Link>
@@ -112,35 +112,35 @@ export default async function ReviewWritePage({
   const state = await loadTokenState(token);
 
   return (
-    <div className="bg-[#FAFAFA] min-h-screen">
-      <div className="bg-white border-b border-[#F0F0F0] py-6">
+    <div className="public-app-page min-h-screen">
+      <div className="border-b border-border-subtle bg-surface py-6">
         <div className="page-container max-w-md mx-auto">
-          <h1 className="text-title-sm text-ink font-medium">후기 작성</h1>
-          <p className="text-label text-ink-label mt-1">
+          <h1 className="text-title-sm font-extrabold text-text-strong">후기 작성</h1>
+          <p className="mt-1 text-label text-text-muted">
             차량을 이용하신 경험을 짧게 남겨주세요.
           </p>
         </div>
       </div>
 
-      <div className="page-container max-w-md mx-auto py-8 space-y-4">
+      <div className="page-container mx-auto max-w-md space-y-4 pb-[calc(var(--mobile-fixed-action-height)+env(safe-area-inset-bottom)+32px)] pt-8 md:pb-8">
         {state.kind === "ok" ? (
           <>
-            <div className="rounded-card border border-[#F0F0F0] bg-white p-5">
+            <div className="rounded-card border border-border-subtle bg-surface p-5 shadow-card">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <ShieldCheck size={18} className="text-primary" />
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand-soft">
+                  <ShieldCheck size={18} className="text-brand" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[14px] font-semibold text-ink">
+                  <p className="text-[14px] font-semibold text-text-strong">
                     {state.customerDisplayName} 고객님
                   </p>
-                  <p className="text-[12px] text-ink-caption mt-0.5">
+                  <p className="mt-0.5 text-[12px] text-text-muted">
                     {state.vehicleName ?? "차량"}
                     {state.quoteCreatedAt ? ` · ${state.quoteCreatedAt} 견적` : ""}
                   </p>
                 </div>
               </div>
-              <p className="mt-4 text-[12px] leading-relaxed text-ink-caption">
+              <p className="mt-4 text-[12px] leading-relaxed text-text-body">
                 작성하신 후기는 담당 어드민 검토 후 공개됩니다. 다른 이용자에게 보일 때는 이름이 마스킹 처리돼요.
               </p>
             </div>

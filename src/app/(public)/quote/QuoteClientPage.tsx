@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
   ChevronLeft,
+  ChevronRight,
   Calculator,
   AlertCircle,
   Check,
@@ -115,11 +116,7 @@ function SelectRow({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none rounded-[14px] border border-public-border bg-white
-                     px-4 py-3.5 text-[14px] pr-9 shadow-[0_5px_16px_rgba(18,24,40,0.035)]
-                     focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/10
-                     transition-colors duration-150 cursor-pointer
-                     text-ink disabled:text-ink-caption"
+          className="w-full cursor-pointer appearance-none rounded-[14px] border border-border-subtle bg-surface px-4 py-3.5 pr-9 text-[14px] text-text-strong shadow-card transition-colors duration-state focus:border-brand focus:outline-none focus:ring-4 focus:ring-focus-ring/20 disabled:text-text-muted"
         >
           <option value="">{placeholder}</option>
           {options.map((o) => (
@@ -130,7 +127,7 @@ function SelectRow({
         </select>
         <ChevronDown
           size={15}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-caption pointer-events-none"
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-muted"
         />
       </div>
     </div>
@@ -140,9 +137,9 @@ function SelectRow({
 // ─── 조건 칩 ──────────────────────────────────────────────
 function ConditionChip({ label, sub }: { label: string; sub?: string }) {
   return (
-    <div className="inline-flex flex-col items-center rounded-[10px] border border-public-border bg-public-bg px-3 py-1.5">
-      {sub && <span className="text-[9px] text-ink-caption uppercase tracking-wider mb-0.5">{sub}</span>}
-      <span className="text-[12px] font-semibold text-ink leading-none">{label}</span>
+    <div className="inline-flex flex-col items-center rounded-[10px] border border-border-subtle bg-surface-soft px-3 py-1.5">
+      {sub && <span className="mb-0.5 text-[9px] uppercase tracking-wider text-text-muted">{sub}</span>}
+      <span className="text-[12px] font-bold leading-none text-text-strong">{label}</span>
     </div>
   );
 }
@@ -152,7 +149,7 @@ const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
 
 function StepBar({ currentStep }: { currentStep: number }) {
   return (
-    <div className="mb-7 rounded-[18px] border border-public-border bg-white p-4 shadow-[0_10px_28px_rgba(18,24,40,0.04)] md:rounded-[22px] md:p-5">
+    <div className="mb-7 rounded-card border border-border-subtle bg-surface p-4 shadow-card md:rounded-card-lg md:p-5">
       <div className="mb-3 flex items-center justify-between">
         <span className="public-quiet-label">견적 진행</span>
         <span className="text-[12px] font-bold text-brand">{currentStep} / {STEPS.length}</span>
@@ -165,9 +162,9 @@ function StepBar({ currentStep }: { currentStep: number }) {
         return (
           <div key={step} className="min-w-0 flex-1">
             <div
-              className={cn(
-                "h-1.5 rounded-full transition-colors duration-300",
-                step <= currentStep ? "bg-brand" : "bg-line2"
+                className={cn(
+                  "h-1.5 rounded-full transition-colors duration-300",
+                step <= currentStep ? "bg-brand" : "bg-border-subtle"
               )}
             />
             <div className="mt-2 flex items-center gap-1.5">
@@ -175,10 +172,10 @@ function StepBar({ currentStep }: { currentStep: number }) {
                 className={cn(
                   "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all duration-300",
                   isCompleted
-                    ? "bg-brand text-white"
+                    ? "bg-brand text-surface"
                     : isActive
-                    ? "bg-brand text-white"
-                    : "bg-[#E8EBF3] text-public-muted"
+                    ? "bg-brand text-surface"
+                    : "bg-surface-soft text-text-muted"
                 )}
               >
                 {isCompleted ? <Check size={11} strokeWidth={2.5} /> : step}
@@ -186,7 +183,7 @@ function StepBar({ currentStep }: { currentStep: number }) {
               <span
                 className={cn(
                   "truncate text-[11px]",
-                  isActive ? "text-brand font-bold" : "text-ink-caption"
+                  isActive ? "font-bold text-brand" : "text-text-muted"
                 )}
               >
                 {label}
@@ -217,8 +214,8 @@ function OptionButton({
       className={cn(
         "min-h-[44px] rounded-[12px] border px-4 py-2.5 text-[14px] font-bold transition-all duration-150",
         selected
-          ? "bg-brand text-white border-brand"
-          : "bg-white text-ink-label border-public-border hover:border-brand/30 hover:text-ink"
+          ? "border-brand bg-brand text-surface"
+          : "border-border-subtle bg-surface text-text-body hover:border-brand/30 hover:text-text-strong"
       )}
     >
       {children}
@@ -252,21 +249,21 @@ const CUSTOMER_TYPE_OPTIONS: {
 export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const prefillSlug = searchParams.get("vehicle") ?? undefined;
-  const customerTypeParam = searchParams.get("customerType");
+  const prefillSlug = searchParams?.get("vehicle") ?? undefined;
+  const customerTypeParam = searchParams?.get("customerType") ?? null;
   const initialCustomerType = isCustomerType(customerTypeParam) ? customerTypeParam : null;
   // 세션 id 는 마운트 시 1회만 생성 (렌더 중 crypto.randomUUID()/Date.now() 직접 호출 방지).
   const [quoteSessionId] = useState(() =>
     typeof crypto !== "undefined" ? crypto.randomUUID() : `quote-${Date.now()}`
   );
   // 추천 결과에서 넘어온 TrimOption IDs (pre-select용)
-  const prefillOptionIds = searchParams.get("options")?.split(",").filter(Boolean) ?? [];
+  const prefillOptionIds = searchParams?.get("options")?.split(",").filter(Boolean) ?? [];
 
   // 카카오 로그인 후 견적 결과(step 3)로 복귀하기 위한 복원 플로우.
   // 저장본은 sessionStorage 라 SSR 에서 읽을 수 없으므로:
   //  - 초기 step 은 URL 마커(restore=1)로 서버·클라이언트가 동일하게 결정 → 하이드레이션 불일치 방지
   //  - 실제 데이터(견적결과/트림/옵션 등)는 마운트 후 effect 에서 sessionStorage 를 1회 소비해 채운다.
-  const isRestoreReturn = searchParams.get("restore") === "1";
+  const isRestoreReturn = searchParams?.get("restore") === "1";
   const restoreRef = useRef<QuotePdfRestoreState | null>(null);
 
   const [step, setStep] = useState<1 | 2 | 3>(() =>
@@ -371,6 +368,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     customerType,
     selectedOptionIds,
     contractCategory,
+    exteriorColorId,
+    interiorColorId,
   ]);
 
   // 추천 프리필을 한 번만 적용하기 위한 플래그
@@ -540,7 +539,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
     list.forEach((it) => nameCount.set(it.name, (nameCount.get(it.name) ?? 0) + 1));
     return list.map((it) => ({
       ...it,
-      extra: nameCount.get(it.name)! > 1 ? it.extra : null,
+      extra: (nameCount.get(it.name) ?? 0) > 1 ? it.extra : null,
     }));
   })();
 
@@ -856,7 +855,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
   return (
     <div className="public-app-page min-h-screen pb-[104px] md:pb-0">
       {/* 앱형 페이지 헤더 */}
-      <div className="border-b border-public-border bg-white">
+      <div className="border-b border-border-subtle bg-surface">
         <div className="page-container py-3.5 md:py-10">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -866,15 +865,15 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   실시간 견적
                 </span>
               </div>
-              <h1 className="truncate text-[20px] font-semibold leading-tight text-ink md:font-display md:text-[36px] md:font-light md:tracking-normal">
+              <h1 className="truncate text-[20px] font-extrabold leading-tight text-text-strong md:text-[34px] md:font-extrabold">
                 {stepTitle}
               </h1>
-              <p className="mt-1 text-[12px] leading-relaxed text-public-muted md:text-[15px]">
+              <p className="mt-1 text-[12px] leading-relaxed text-text-body md:text-[15px]">
                 {stepDescription}
               </p>
             </div>
             {selectedVehicle && (
-              <div className="hidden shrink-0 rounded-full border border-brand/15 bg-brand/[0.05] px-3 py-1.5 text-[12px] font-bold text-brand sm:block">
+              <div className="hidden shrink-0 rounded-full border border-brand/15 bg-brand-soft px-3 py-1.5 text-[12px] font-bold text-brand sm:block">
                 {selectedVehicle.name}
               </div>
             )}
@@ -896,11 +895,11 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.25 }}
               >
-                <div className="public-mobile-section mb-4 p-5 md:rounded-[24px] md:p-7">
-                  <h2 className="mb-1.5 text-[19px] font-semibold leading-tight text-ink md:text-[17px] md:font-medium">
+                <div className="public-mobile-section mb-4 max-w-full overflow-hidden p-5 md:rounded-[24px] md:p-7">
+                  <h2 className="mb-1.5 text-[19px] font-extrabold leading-tight text-text-strong md:text-[21px]">
                     계약할 고객 유형을 선택하세요
                   </h2>
-                  <p className="mb-4 text-[12px] leading-relaxed text-public-muted md:text-[13px]">
+                  <p className="mb-4 text-[12px] leading-relaxed text-text-body md:text-[13px]">
                     선택한 유형은 견적 저장과 계약 신청 서류 확인에 사용됩니다.
                   </p>
 
@@ -916,15 +915,15 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             "flex min-h-[74px] items-center gap-3 rounded-card border px-4 py-3 text-left transition-all duration-150 md:min-h-[86px]",
                             selected
                               ? "border-brand bg-brand-soft"
-                              : "border-public-border bg-white hover:border-brand/30 hover:bg-public-bg"
+                              : "border-border-subtle bg-surface hover:border-brand/30 hover:bg-surface-soft"
                           )}
                         >
                           <span
                             className={cn(
                               "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
                               selected
-                                ? "bg-brand text-white"
-                                : "bg-sec text-ink-label"
+                                ? "bg-brand text-surface"
+                                : "bg-surface-soft text-text-body"
                             )}
                           >
                             {option.icon}
@@ -933,12 +932,12 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             <span
                               className={cn(
                                 "block text-[14px] font-bold",
-                                selected ? "text-brand" : "text-ink"
+                                selected ? "text-brand" : "text-text-strong"
                               )}
                             >
                               {CUSTOMER_TYPE_LABELS[option.type]}
                             </span>
-                            <span className="mt-1 block text-[12px] leading-relaxed text-ink-caption">
+                            <span className="mt-1 block text-[12px] leading-relaxed text-text-muted">
                               {option.desc}
                             </span>
                           </span>
@@ -952,7 +951,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   <button
                     type="button"
                     onClick={() => router.push("/cars")}
-                    className="inline-flex items-center gap-1.5 text-[13px] text-ink-caption hover:text-ink transition-colors"
+                    className="inline-flex items-center gap-1.5 text-[13px] text-text-muted transition-colors hover:text-text-strong"
                   >
                     <ChevronLeft size={15} />
                     차량 탐색으로 돌아가기
@@ -960,7 +959,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   <button
                     type="button"
                     onClick={() => goToStep(2)}
-                    className="inline-flex min-h-[46px] items-center gap-2 rounded-btn bg-brand px-6 py-3 text-[14px] font-bold text-white transition-all duration-200 hover:bg-brand-dark"
+                    className="inline-flex min-h-[46px] items-center gap-2 rounded-btn bg-brand px-6 py-3 text-[14px] font-bold text-surface transition-all duration-200 hover:bg-brand-dark"
                   >
                     조건 설정하기
                     <Calculator size={15} />
@@ -971,7 +970,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   <button
                     type="button"
                     onClick={() => goToStep(2)}
-                    className="public-touch-button w-full bg-brand text-white"
+                    className="public-touch-button w-full bg-brand text-surface"
                   >
                     조건 설정하기
                     <Calculator size={16} />
@@ -991,13 +990,13 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
               >
                 <div className="public-mobile-section mb-4 overflow-hidden md:rounded-[24px] md:p-7">
                   <div className="flex justify-center pt-3 md:hidden">
-                    <span className="h-1 w-10 rounded-full bg-[#D9DEE9]" />
+                    <span className="h-1 w-10 rounded-full bg-border-strong" />
                   </div>
                   {/* 선택된 차량 요약 */}
                   {selectedVehicle && (
                     <div className="mx-4 mb-5 mt-3 flex items-center gap-3 rounded-card border border-brand/15 bg-brand-soft p-3.5 md:mx-0 md:mt-0">
-                      <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center shrink-0 shadow-soft">
-                        <Check size={14} className="text-white" />
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand shadow-soft">
+                        <Check size={14} className="text-surface" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-public-muted">
@@ -1013,7 +1012,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       <button
                         type="button"
                         onClick={() => goToStep(1)}
-                        className="ml-auto shrink-0 rounded-full border border-brand/15 bg-white px-3 py-1.5 text-[12px] font-bold text-ink-caption hover:text-brand transition-colors"
+                        className="ml-auto shrink-0 rounded-full border border-brand/15 bg-surface px-3 py-1.5 text-[12px] font-bold text-text-muted transition-colors hover:text-brand"
                       >
                         유형 변경
                       </button>
@@ -1024,7 +1023,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   <div className="px-4 md:px-0">
                   {trimsLoading ? (
                     <div className="mb-5 flex h-11 items-center gap-2 text-[13px] text-public-muted">
-                      <span className="w-3.5 h-3.5 border-2 border-line2 border-t-brand rounded-full animate-spin" />
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-border-subtle border-t-brand" />
                       트림 정보 불러오는 중...
                     </div>
                   ) : trims.length > 0 ? (
@@ -1136,13 +1135,13 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                                 {selectedOptionDetails.slice(0, 4).map((option) => (
                                   <span
                                     key={option.id}
-                                    className="shrink-0 rounded-full border border-brand/15 bg-white px-2.5 py-1 text-[11px] font-bold text-brand"
+                                  className="shrink-0 rounded-full border border-brand/15 bg-surface px-2.5 py-1 text-[11px] font-bold text-brand"
                                   >
                                     {option.name}
                                   </span>
                                 ))}
                                 {selectedOptionDetails.length > 4 && (
-                                  <span className="shrink-0 rounded-full border border-public-border bg-white px-2.5 py-1 text-[11px] font-medium text-public-muted">
+                                  <span className="shrink-0 rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-[11px] font-medium text-text-muted">
                                     +{selectedOptionDetails.length - 4}개
                                   </span>
                                 )}
@@ -1150,7 +1149,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             )}
                           </div>
 
-                          <div className="overflow-hidden rounded-[16px] border border-public-border divide-y divide-[#EEF0F5] shadow-[0_6px_18px_rgba(18,24,40,0.035)]">
+                          <div className="overflow-hidden rounded-[16px] border border-border-subtle divide-y divide-border-subtle shadow-card">
                             {selectedTrim.options.map((opt) => {
                               const isOptSelected = selectedOptionIds.has(opt.id);
                               const isExpanded = expandedOptionId === opt.id;
@@ -1185,7 +1184,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                                   key={opt.id}
                                   className={cn(
                                     "transition-colors duration-100",
-                                    isOptSelected ? "bg-brand-soft" : "bg-white"
+                                    isOptSelected ? "bg-brand-soft" : "bg-surface"
                                   )}
                                 >
                                   {/* 메인 행: 체크박스 + 이름 + 가격 + 설명 토글 */}
@@ -1198,9 +1197,9 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                                     >
                                       <div className={cn(
                                         "w-[18px] h-[18px] rounded-[5px] border-[1.5px] flex items-center justify-center transition-colors",
-                                        isOptSelected ? "bg-brand border-brand" : "border-line2 bg-white"
+                                        isOptSelected ? "border-brand bg-brand" : "border-border-strong bg-surface"
                                       )}>
-                                        {isOptSelected && <Check size={9} strokeWidth={3} className="text-white" />}
+                                        {isOptSelected && <Check size={9} strokeWidth={3} className="text-surface" />}
                                       </div>
                                     </button>
 
@@ -1215,7 +1214,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                                     >
                                       <span>{opt.name}</span>
                                       {opt.badge && (
-                                        <span className="inline-flex items-center shrink-0 text-[10px] font-bold text-brand bg-white px-1.5 py-0.5 rounded-[4px] leading-none">
+                                        <span className="inline-flex shrink-0 items-center rounded-[4px] bg-surface px-1.5 py-0.5 text-[10px] font-bold leading-none text-brand">
                                           {opt.badge}
                                         </span>
                                       )}
@@ -1236,7 +1235,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                                       <button
                                         type="button"
                                         onClick={() => setExpandedOptionId(isExpanded ? null : opt.id)}
-                                        className="shrink-0 p-1 rounded-md hover:bg-black/5 transition-colors"
+                                        className="shrink-0 rounded-md p-1 transition-colors hover:bg-surface-soft"
                                         aria-label="설명 보기"
                                       >
                                         <ChevronDown
@@ -1260,7 +1259,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                                         transition={{ duration: 0.2, ease: "easeInOut" }}
                                         className="overflow-hidden"
                                       >
-                                        <p className="px-11 pb-3 text-[12px] text-ink-label leading-relaxed border-t border-[#F0F0F0] pt-2.5">
+                                        <p className="border-t border-border-subtle px-11 pb-3 pt-2.5 text-[12px] leading-relaxed text-text-body">
                                           {opt.description}
                                         </p>
                                       </motion.div>
@@ -1295,7 +1294,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           </span>
                           <div className="flex items-center gap-2">
                             {selectedTrim.discountPrice && (
-                              <span className="text-[10px] font-semibold text-red-500 line-through">
+                                <span className="text-[10px] font-semibold text-status-danger line-through">
                                 {Math.round(selectedTrim.price / 10000).toLocaleString()}만원
                               </span>
                             )}
@@ -1303,7 +1302,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                               차량가 {Math.round(((selectedTrim.discountPrice ?? selectedTrim.price) + optionsTotalPrice + colorDelta) / 10000).toLocaleString()}만원
                             </span>
                             {selectedTrim.discountPrice && (
-                              <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-[4px]">
+                              <span className="rounded-[4px] bg-status-danger-soft px-1.5 py-0.5 text-[10px] font-bold text-status-danger">
                                 -{Math.round((selectedTrim.price - selectedTrim.discountPrice) / 10000).toLocaleString()}만원 할인
                               </span>
                             )}
@@ -1402,7 +1401,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 </div>
 
                 {/* 안내 메시지 */}
-                <div className="mb-4 flex items-start gap-2 rounded-[14px] border border-public-border bg-white p-4 text-[13px] leading-relaxed text-ink-label">
+                <div className="mb-4 flex items-start gap-2 rounded-[14px] border border-border-subtle bg-surface p-4 text-[13px] leading-relaxed text-text-body shadow-card">
                   <p>
                     초기비용 없음·초기비용 있음 2가지
                     시나리오를 한 번에 확인할 수 있습니다.
@@ -1411,7 +1410,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
 
                 {/* 에러 */}
                 {error && (
-                  <div className="bg-[#FFEBEB] border border-red-100 rounded-[8px] p-4 text-[13px] text-destructive flex items-start gap-2 mb-4">
+                  <div className="mb-4 flex items-start gap-2 rounded-[12px] border border-status-danger/20 bg-status-danger-soft p-4 text-[13px] text-status-danger">
                     <AlertCircle size={14} className="shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium">견적 데이터를 불러올 수 없습니다</p>
@@ -1437,8 +1436,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     className={cn(
                       "inline-flex items-center gap-2 px-6 py-3 rounded-btn text-[14px] font-bold transition-all duration-200",
                       isLoading || !selectedTrim
-                        ? "bg-line2 text-ink-caption cursor-not-allowed"
-                        : "bg-brand text-white hover:bg-brand-dark"
+                        ? "cursor-not-allowed bg-border-subtle text-text-muted"
+                        : "bg-brand text-surface hover:bg-brand-dark"
                     )}
                   >
                     {isLoading ? (
@@ -1462,8 +1461,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     className={cn(
                       "public-touch-button w-full gap-2",
                       isLoading || !selectedTrim
-                        ? "bg-[#E1E5EF] text-public-muted"
-                        : "bg-brand text-white"
+                        ? "bg-border-subtle text-text-muted"
+                        : "bg-brand text-surface"
                     )}
                   >
                     {isLoading ? (
@@ -1509,8 +1508,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   {/* 좌우 2분할: 왼쪽 차량 이미지 / 오른쪽 정보·조건 */}
                   <div className="flex flex-col sm:flex-row">
                     {/* 좌: 차량 이미지 (여백 두고 배치) */}
-                    <div className="flex w-full sm:w-1/2 shrink-0 p-3 md:p-4 bg-neutral/40 border-b sm:border-b-0 sm:border-r border-public-border">
-                      <div className="relative w-full aspect-[16/10] sm:aspect-auto sm:min-h-[180px] rounded-[12px] overflow-hidden bg-neutral">
+                    <div className="hidden w-full shrink-0 border-b border-border-subtle bg-surface-soft p-3 sm:flex sm:w-1/2 sm:border-b-0 sm:border-r md:p-4">
+                      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[12px] bg-surface-soft sm:aspect-auto sm:min-h-[180px]">
                         {selectedVehicle?.thumbnailUrl ? (
                           <Image
                             src={selectedVehicle.thumbnailUrl}
@@ -1520,7 +1519,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                             className="object-cover"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[12px] text-ink-caption">
+                          <div className="flex h-full w-full items-center justify-center text-[12px] text-text-muted">
                             이미지 준비중
                           </div>
                         )}
@@ -1528,7 +1527,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     </div>
 
                     {/* 우: 차량 정보 + 조건 칩 (절반) */}
-                    <div className="flex flex-1 flex-col sm:w-1/2 min-w-0">
+                    <div className="flex flex-1 flex-col min-w-0 sm:w-1/2">
                       <div className="flex items-start gap-3 px-4 py-3.5 md:px-6 md:py-5">
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] text-ink-caption uppercase tracking-wider mb-0.5">
@@ -1566,9 +1565,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         <button
                           type="button"
                           onClick={() => { goToStep(2); setQuoteResult(null); setError(null); }}
-                          className="shrink-0 flex items-center gap-1 text-[12px] font-bold text-ink-label
-                                     border border-public-border hover:border-brand/40 hover:text-brand
-                                     rounded-[10px] px-3 py-2 transition-all duration-150"
+                          className="flex shrink-0 items-center gap-1 rounded-[10px] border border-border-subtle px-3 py-2 text-[12px] font-bold text-text-body transition-all duration-150 hover:border-brand/40 hover:text-brand"
                         >
                           <ChevronLeft size={13} />
                           이전
@@ -1588,7 +1585,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                               "inline-flex flex-col items-center rounded-[8px] px-3 py-1.5 border transition-colors duration-150",
                               showOptionDetail
                                 ? "bg-brand-soft border-brand/30"
-                                : "bg-public-bg border-public-border hover:border-brand/40"
+                                : "border-border-subtle bg-surface-soft hover:border-brand/40"
                             )}
                           >
                             <span className="text-[9px] text-ink-caption uppercase tracking-wider mb-0.5">
@@ -1660,7 +1657,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                               </span>
                             </div>
                           )}
-                          <div className="!mt-2.5 pt-2.5 border-t border-dashed border-[#EBEBEB] flex items-baseline justify-between gap-3 text-[12px]">
+                          <div className="!mt-2.5 flex items-baseline justify-between gap-3 border-t border-dashed border-border-subtle pt-2.5 text-[12px]">
                             <span className="text-ink-caption">
                               총 차량가 (기본 + 옵션 + 색상)
                             </span>
@@ -1704,7 +1701,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         </p>
                       </div>
                     </div>
-                    <div className="rounded-[12px] border border-public-border bg-public-bg p-3 text-[12px] leading-relaxed text-public-muted">
+                    <div className="rounded-[12px] border border-border-subtle bg-surface-soft p-3 text-[12px] leading-relaxed text-text-muted">
                       옵션·계약조건에 따라 캐피탈사별 금액이 크게 달라질 수 있어
                       상담을 통한 견적이 더 정확합니다.
                     </div>
@@ -1737,7 +1734,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         }}
                       />
                       {quoteResult.scenarios?.standard?.rangeExceeded && (
-                        <div className="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12px] text-amber-800 leading-relaxed flex items-start gap-2">
+                        <div className="mt-4 flex items-start gap-2 rounded-[12px] border border-status-warning/25 bg-status-warning-soft px-3 py-2.5 text-[12px] leading-relaxed text-status-warning">
                           <AlertCircle size={13} className="shrink-0 mt-0.5" />
                           <p>
                             선택하신 옵션 조합으로 차량가가 등록 회수율 범위를 초과해 참고용 견적으로 표시됩니다.
@@ -1774,7 +1771,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 )}
 
                 {/* 면책 안내 */}
-                <div className="mb-4 rounded-[16px] border border-public-border bg-white p-4 text-[12px] leading-relaxed text-public-muted shadow-[0_8px_22px_rgba(18,24,40,0.04)]">
+                <div className="mb-4 rounded-[16px] border border-border-subtle bg-surface p-4 text-[12px] leading-relaxed text-text-muted shadow-card">
                   위 견적은 실제 계약 가능한 기준으로 계산되었으나, 최종 금액은
                   차량 상태·옵션·프로모션에 따라 달라질 수 있습니다. 전문가
                   상담을 통해 확정 견적을 받으시길 권장합니다.
@@ -1790,7 +1787,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         조건을 확인한 뒤 심사로 이어가세요
                       </p>
                     </div>
-                    <div className="shrink-0 rounded-full bg-[#FEE500] px-2.5 py-1 text-[11px] font-semibold text-[#3A1D1D] shadow-sm">
+                    <div className="shrink-0 rounded-full bg-status-warning-soft px-2.5 py-1 text-[11px] font-semibold text-status-warning shadow-sm">
                       연락처 입력 전 상담 가능
                     </div>
                   </div>
@@ -1799,7 +1796,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   <button
                     type="button"
                     onClick={handleContractApply}
-                    className="public-touch-button mb-2.5 w-full gap-2 bg-brand text-white shadow-lift hover:bg-brand-dark"
+                    className="public-touch-button mb-2.5 w-full gap-2 bg-brand text-surface shadow-lift hover:bg-brand-dark"
                   >
                     <ClipboardCheck size={16} strokeWidth={2.2} />
                     이 조건으로 심사 요청하기
@@ -1814,8 +1811,8 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       className={cn(
                         "public-touch-button min-h-[46px] w-full gap-1.5 border px-3 text-[13px] font-bold",
                         isPdfDownloading
-                          ? "border-line2 bg-sec text-ink-caption cursor-not-allowed"
-                          : "border-brand/20 bg-white text-brand hover:bg-brand-soft active:scale-[0.98]"
+                          ? "cursor-not-allowed border-border-subtle bg-surface-soft text-text-muted"
+                          : "border-brand/20 bg-surface text-brand hover:bg-brand-soft active:scale-[0.98]"
                       )}
                     >
                       {isPdfDownloading ? (
@@ -1835,18 +1832,18 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                     <ChannelTalkButton
                       vehicleName={selectedVehicle?.name}
                       label="상담하기"
-                      className="min-h-[46px] rounded-[12px] border border-public-border bg-white px-3 py-0 text-[13px] font-semibold text-ink-label hover:bg-public-bg hover:opacity-100"
+                      className="min-h-[46px] rounded-[12px] border border-border-subtle bg-surface px-3 py-0 text-[13px] font-semibold text-text-body hover:bg-surface-soft hover:opacity-100"
                     />
                   </div>
 
                   {pdfError && (
-                    <div className="mt-2 bg-[#FFEBEB] border border-red-100 rounded-[8px] p-3 text-[12px] text-destructive flex items-start gap-2">
+                    <div className="mt-2 flex items-start gap-2 rounded-[12px] border border-status-danger/20 bg-status-danger-soft p-3 text-[12px] text-status-danger">
                       <AlertCircle size={14} className="shrink-0 mt-0.5" />
                       <p>{pdfError}</p>
                     </div>
                   )}
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-[12px] bg-public-bg px-3 py-2.5">
+                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-[12px] bg-surface-soft px-3 py-2.5">
                     <p className="flex items-center gap-1.5 text-[11px] font-medium text-public-muted">
                       <Check size={12} className="text-brand" />
                       개인정보 입력 전 상담 가능
@@ -1859,20 +1856,22 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 </div>
 
                 {/* 하단 링크 */}
-                <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-[#F0F0F0]">
-                  <button
-                    type="button"
-                    onClick={() => router.push("/cars")}
-                    className="text-left text-[13px] text-ink-caption hover:text-ink transition-colors"
-                  >
-                    ← 다른 차량 계산하기
-                  </button>
-                  <Link
-                    href={`/cars/${selectedVehicle?.slug}`}
-                    className="ml-auto text-[13px] text-brand hover:underline"
-                  >
-                    차량 상세 보기 →
-                  </Link>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4">
+	                  <button
+	                    type="button"
+	                    onClick={() => router.push("/cars")}
+	                    className="inline-flex min-h-10 items-center gap-1.5 text-left text-[13px] text-ink-caption transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus/35"
+	                  >
+	                    <ChevronLeft size={14} aria-hidden />
+	                    다른 차량 계산하기
+	                  </button>
+	                  <Link
+	                    href={`/cars/${selectedVehicle?.slug}`}
+	                    className="ml-auto inline-flex min-h-10 items-center gap-1.5 text-[13px] text-brand transition-colors hover:text-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus/35"
+	                  >
+	                    차량 상세 보기
+	                    <ChevronRight size={14} aria-hidden />
+	                  </Link>
                 </div>
               </motion.div>
             )}

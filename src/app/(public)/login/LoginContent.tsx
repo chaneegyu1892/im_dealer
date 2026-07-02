@@ -1,14 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
+import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, CarFront, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "/";
+  const next = params?.get("next") ?? "/";
 
   useEffect(() => {
     const supabase = createClient();
@@ -35,59 +38,82 @@ export default function LoginContent() {
   }
 
   return (
-    <div className="toss-page min-h-screen bg-white flex flex-col justify-center">
-      <div className="t-shell">
-        {/* 로고 + 헤드라인 */}
-        <div className="flex flex-col items-center text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-[16px] bg-brand">
-            <Image
-              src="/images/brand/main-logo.svg"
-              alt="아임딜러"
-              width={195}
-              height={40}
-              priority
-              unoptimized
-              className="h-6 w-auto brightness-0 invert"
-            />
-          </span>
-          <h1 className="t-h1 mt-6">
-            로그인하고
-            <br />
-            견적을 저장하세요
-          </h1>
-          <p className="t-sub mt-3">
-            소셜 계정으로 간편하게 시작하세요
-          </p>
-        </div>
+    <main className="home-showroom-scope min-h-screen bg-app-bg px-4 py-8 pb-[calc(112px+env(safe-area-inset-bottom,0px))] md:py-14 md:pb-16">
+      <div className="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[440px] flex-col justify-center">
+        <section className="overflow-hidden rounded-[28px] border border-border-subtle bg-surface shadow-card">
+          <div className="relative px-5 pb-6 pt-7 sm:px-6">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_28%_8%,rgba(var(--color-brand-soft-rgb),1),transparent_58%)]" />
 
-        {/* 카카오 로그인 버튼 (노란색 유지) */}
-        <div className="mt-9">
-          <button
-            type="button"
-            onClick={handleKakaoLogin}
-            className="cta bg-[#FEE500] text-[#191600] hover:bg-[#FEE500] active:bg-[#F5DC00]"
+            <div className="relative">
+              <Link
+                href="/"
+                aria-label="홈으로 이동"
+                className="inline-flex h-11 items-center rounded-[14px] border border-border-subtle bg-surface px-3 shadow-card transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30"
+              >
+                <Image
+                  src="/images/brand/main-logo.svg"
+                  alt="아임딜러"
+                  width={195}
+                  height={40}
+                  priority
+                  loading="eager"
+                  unoptimized
+                  className="h-6 w-auto"
+                />
+              </Link>
+
+              <div className="mt-8">
+                <p className="mb-3 inline-flex rounded-pill bg-brand-soft px-3 py-1.5 text-[12px] font-extrabold text-brand">
+                  견적 저장
+                </p>
+                <h1 className="break-keep text-[30px] font-extrabold leading-[1.16] tracking-[-0.04em] text-text-strong sm:text-[34px]">
+                  로그인하고
+                  <br />
+                  비교한 조건을 이어서 보세요
+                </h1>
+                <p className="mt-3 break-keep text-[15px] font-semibold leading-[1.65] text-text-body">
+                  상담 전 확인한 차량과 월 납입 조건을 계정에 안전하게 보관합니다.
+                </p>
+              </div>
+
+              <div className="mt-7 grid gap-2.5">
+                <Benefit icon={<CarFront size={17} />} label="선택한 차량과 견적 조건 저장" />
+                <Benefit icon={<ShieldCheck size={17} />} label="본인 확인 뒤 서류 진행 연결" />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleKakaoLogin}
+                className="mt-8 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[16px] border border-status-warning/25 bg-status-warning-soft px-5 text-[16px] font-extrabold text-text-strong shadow-card transition-all duration-state hover:border-status-warning/45 hover:bg-status-warning-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 active:scale-[0.98]"
+              >
+                <KakaoIcon />
+                카카오로 시작하기
+              </button>
+
+              <p className="mt-5 break-keep text-center text-[12px] leading-relaxed text-text-muted">
+                로그인 시{" "}
+                <Link href="/terms" className="font-bold text-text-body underline-offset-4 hover:underline">
+                  이용약관
+                </Link>{" "}
+                및{" "}
+                <Link href="/privacy" className="font-bold text-text-body underline-offset-4 hover:underline">
+                  개인정보처리방침
+                </Link>
+                에 동의한 것으로 간주됩니다.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/cars"
+            className="flex min-h-14 items-center justify-between border-t border-border-subtle bg-surface-soft px-5 text-[14px] font-extrabold text-text-body transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-focus-ring/25 sm:px-6"
           >
-            <KakaoIcon />
-            카카오로 시작하기
-          </button>
-
-          {/* 네이버 (향후 추가) */}
-          {/* <button
-            type="button"
-            disabled
-            className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#03C75A] py-3.5 font-semibold text-white text-[15px] opacity-40 cursor-not-allowed"
-          >
-            네이버로 시작하기
-          </button> */}
-        </div>
-
-        {/* 약관 안내 */}
-        <p className="mt-7 text-center text-[12px] leading-relaxed text-g2">
-          로그인 시 서비스 이용약관 및 개인정보처리방침에
-          <br />동의하는 것으로 간주됩니다.
-        </p>
+            로그인 없이 차량 먼저 둘러보기
+            <ArrowRight size={16} />
+          </Link>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -108,8 +134,19 @@ function KakaoIcon() {
         fillRule="evenodd"
         clipRule="evenodd"
         d="M10 2C5.582 2 2 4.784 2 8.213c0 2.177 1.38 4.09 3.47 5.195l-.88 3.278a.25.25 0 0 0 .375.275L9.1 14.4c.298.035.6.053.9.053 4.418 0 8-2.784 8-6.213S14.418 2 10 2Z"
-        fill="#191600"
+        fill="currentColor"
       />
     </svg>
+  );
+}
+
+function Benefit({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-[16px] border border-border-subtle bg-surface-soft px-3.5 py-3 text-[13px] font-bold text-text-body">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] bg-surface text-brand">
+        {icon}
+      </span>
+      {label}
+    </div>
   );
 }
