@@ -18,7 +18,7 @@ test.describe("공개 견적 골든패스", () => {
     await page.goto("/");
 
     // Hero 섹션이 로드되었는지: 핵심 헤드라인 카피로 확인
-    await expect(page.getByText("차 뽑기 전에", { exact: false }).first()).toBeVisible();
+    await expect(page.getByText("차를 고르기 전에", { exact: false }).first()).toBeVisible();
 
     // 인기 차량 카드 — /cars/<slug> 로 향하는 링크 (목록 /cars 자체는 제외)
     const carLinks = page.locator('a[href^="/cars/"]:not([href="/cars"])');
@@ -45,11 +45,9 @@ test.describe("공개 견적 골든패스", () => {
   });
 
   test("/cars/<invalid-slug> 는 not-found 처리", async ({ page }) => {
-    // Next.js App Router 의 notFound() 는 not-found.tsx 콘텐츠를 200 으로 스트리밍.
-    // 사용자에게 보이는 404 화면의 핵심 heading 이 노출되어야 한다.
     await page.goto("/cars/this-slug-does-not-exist-12345");
     await expect(
-      page.getByRole("heading", { name: "페이지를 찾을 수 없습니다" })
+      page.getByRole("heading", { name: "차량을 찾을 수 없습니다" })
     ).toBeVisible();
   });
 });

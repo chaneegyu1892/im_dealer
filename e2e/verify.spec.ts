@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
  * 골든패스 B — /verify 서류 동의·정보 입력 흐름 (간편인증 문서수집).
  *
  * 검증 포인트:
- *   1) sessionId 없이 접근 시 홈으로 redirect
+ *   1) sessionId 없이 접근 시 견적 선택 안내 화면 노출
  *   2) 동의 단계: 두 동의 체크박스 모두 체크해야 다음 진행
  *   3) 정보입력 단계: 필드(이름·주민등록번호·휴대폰) 노출 +
  *      필수값 충족 전 "간편인증으로 진행" 버튼 비활성
@@ -14,10 +14,12 @@ import { test, expect } from "@playwright/test";
  */
 
 test.describe("/verify 폼 검증", () => {
-  test("sessionId 없이 진입 시 홈으로 redirect", async ({ page }) => {
+  test("sessionId 없이 진입 시 견적 선택 안내 화면 노출", async ({ page }) => {
     await page.goto("/verify");
-    await page.waitForURL("/", { timeout: 10_000 });
-    expect(page.url()).toMatch(/\/$/);
+    await expect(page).toHaveURL(/\/verify$/);
+    await expect(page.getByRole("heading", { name: "심사 서류 간편 확인" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /견적을 선택한 뒤/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: "차량 탐색하기" })).toHaveAttribute("href", "/cars");
   });
 
   test("동의 → 정보입력 폼 노출 + 검증 게이트", async ({ page }) => {

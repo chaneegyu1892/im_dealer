@@ -55,7 +55,16 @@ async function applyVisualContext(page: Page, context: VisualContext): Promise<v
     reducedMotion: context.profile.reducedMotion,
   });
   await page.addInitScript((colorScheme) => {
-    document.documentElement.classList.toggle("dark", colorScheme === "dark");
+    const applyColorScheme = () => {
+      document.documentElement.classList.toggle("dark", colorScheme === "dark");
+    };
+
+    if (document.documentElement === null) {
+      document.addEventListener("DOMContentLoaded", applyColorScheme, { once: true });
+      return;
+    }
+
+    applyColorScheme();
   }, context.profile.colorScheme);
 }
 
@@ -167,7 +176,7 @@ test.describe("customer visual QA route capture harness", () => {
         await captureRoute(page, context, "invalid-vehicle-slug", INVALID_VEHICLE_ROUTE);
 
         const hasNotFoundHeading = await page
-          .getByRole("heading", { name: "페이지를 찾을 수 없습니다" })
+          .getByRole("heading", { name: /페이지를 찾을 수 없습니다|차량을 찾을 수 없습니다/ })
           .isVisible();
 
         if (!hasNotFoundHeading) {
