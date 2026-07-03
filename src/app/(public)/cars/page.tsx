@@ -11,6 +11,18 @@ import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import { deriveHashtags } from "@/lib/vehicle-hashtags";
 import { CarsClientPage } from "./CarsClientPage";
 
+type CarsPageProps = {
+  readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function parseInitialSearchQuery(
+  searchParams: Record<string, string | string[] | undefined>,
+): string {
+  const value = searchParams.query;
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  return (rawValue ?? "").trim().slice(0, 80);
+}
+
 async function getVehicles(): Promise<VehicleListItem[]> {
   const vehicles = await prisma.vehicle.findMany({
     where: { isVisible: true },
@@ -130,9 +142,18 @@ async function getVehicles(): Promise<VehicleListItem[]> {
   });
 }
 
-export default async function CarsPage() {
+export default async function CarsPage({ searchParams }: CarsPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const initialSearchQuery = parseInitialSearchQuery(resolvedSearchParams);
   const [vehicles, signalsMap] = await Promise.all([getVehicles(), getBrandSignals()]);
   // Map은 직렬화 안 되므로 plain object로 변환해 클라이언트 컴포넌트에 전달
   const brandSignals: Record<string, BrandSignal> = Object.fromEntries(signalsMap);
-  return <CarsClientPage vehicles={vehicles} brandSignals={brandSignals} />;
+  return (
+    <CarsClientPage
+      key={initialSearchQuery}
+      vehicles={vehicles}
+      brandSignals={brandSignals}
+      initialSearchQuery={initialSearchQuery}
+    />
+  );
 }

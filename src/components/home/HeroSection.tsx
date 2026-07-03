@@ -1,22 +1,31 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Calculator, CarFront, ClipboardCheck } from "lucide-react";
+import { ArrowRight, Calculator, Search, Sparkles } from "lucide-react";
 import type { VehicleListItem } from "@/types/api";
-import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 
 type HeroSectionProps = {
   readonly featuredVehicle?: VehicleListItem;
 };
 
-const SHOWROOM_LINKS = [
-  { href: "/cars", label: "빠른 출고", desc: "재고 있는 모델부터", icon: BadgeCheck },
-  { href: "/cars", label: "인기 차량", desc: "많이 비교한 차종", icon: CarFront },
-  { href: "/recommend", label: "AI 추천", desc: "용도에 맞게 좁히기", icon: ClipboardCheck },
+const DEFAULT_SEARCH_CHIPS = [
+  { label: "SUV", query: "SUV" },
+  { label: "세단", query: "세단" },
+  { label: "제네시스", query: "제네시스" },
+  { label: "기아", query: "기아" },
 ] as const;
 
 export function HeroSection({ featuredVehicle }: HeroSectionProps) {
-  const heroImage = featuredVehicle?.thumbnailUrl;
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchChips = useMemo(() => {
+    if (!featuredVehicle) return DEFAULT_SEARCH_CHIPS;
+
+    return [
+      { label: featuredVehicle.name, query: featuredVehicle.name },
+      ...DEFAULT_SEARCH_CHIPS,
+    ].slice(0, 5);
+  }, [featuredVehicle]);
 
   return (
     <section className="bg-app-bg">
@@ -56,60 +65,98 @@ export function HeroSection({ featuredVehicle }: HeroSectionProps) {
           </div>
 
           <div className="relative mx-auto w-[calc(100%-28px)] max-w-[360px] sm:max-w-[390px] md:w-full md:max-w-[580px] lg:max-w-none">
-            <div className="overflow-hidden rounded-[34px] bg-surface ring-1 ring-border-subtle">
-              <div className="relative aspect-[255/100] bg-surface-soft sm:aspect-[255/100] md:aspect-[1.7] lg:aspect-[1.34]">
-                {heroImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={heroImage}
-                    alt={featuredVehicle.name}
-                    className="h-full w-full object-contain p-3 sm:p-4 lg:p-2"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-[13px] font-bold text-text-muted">
-                    대표 차량 준비중
-                  </div>
-                )}
-              </div>
-              {featuredVehicle && (
-                <div className="border-t border-border-subtle bg-surface px-4 py-3.5 sm:px-6 sm:py-5">
-                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(178px,auto)] items-start gap-2.5 sm:grid-cols-[minmax(0,1fr)_auto]">
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-extrabold text-text-muted">{featuredVehicle.brand}</p>
-                      <h2 className="mt-1 truncate text-[19px] font-extrabold text-text-strong sm:text-[20px]">
-                        {featuredVehicle.name}
-                      </h2>
-                    </div>
-                    <RepresentativeQuotePrice
-                      quotes={featuredVehicle.representativeQuotes}
-                      tone="brand"
-                      size="md"
-                      captionText="월 납입금 · 60개월 · 초기비용 0원"
-                      captionClassName="mb-1 whitespace-nowrap text-right text-[10.5px] font-semibold leading-tight sm:text-[13px]"
-                      numberClassName="text-[30px]"
-                      unitClassName="text-[14px] font-semibold sm:text-[15px]"
-                      className="ml-auto shrink-0 text-right"
-                    />
-                  </div>
+            <div className="rounded-[30px] bg-surface p-5 shadow-card ring-1 ring-border-subtle sm:p-6 lg:p-7">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[12px] font-extrabold text-brand">간이 차량 탐색</p>
+                  <h2 className="mt-2 break-keep text-[25px] font-extrabold leading-[1.18] text-text-strong sm:text-[30px]">
+                    찾고 싶은 차종을
+                    <br />
+                    바로 검색해보세요
+                  </h2>
                 </div>
-              )}
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[16px] bg-brand-soft text-brand">
+                  <Search size={19} strokeWidth={2.3} />
+                </span>
+              </div>
+
+              <form action="/cars" method="get" className="mt-6">
+                <label htmlFor="home-vehicle-search" className="mb-2 block text-[12px] font-extrabold text-text-muted">
+                  차량명, 브랜드, 용도
+                </label>
+                <div className="flex min-h-[56px] items-center gap-2 rounded-[20px] bg-surface-soft px-4 transition-colors focus-within:bg-surface focus-within:ring-4 focus-within:ring-focus-ring/20">
+                  <Search size={17} className="shrink-0 text-text-muted" />
+                  <input
+                    id="home-vehicle-search"
+                    name="query"
+                    type="text"
+                    autoComplete="off"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="예: G80, 쏘렌토, SUV"
+                    className="min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-text-strong outline-none placeholder:text-text-muted"
+                  />
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {searchChips.map((chip) => (
+                    <Link
+                      key={chip.query}
+                      href={`/cars?query=${encodeURIComponent(chip.query)}`}
+                      className="inline-flex min-h-9 items-center rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand transition-colors duration-state hover:bg-brand hover:text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/35 active:scale-[0.98]"
+                    >
+                      {chip.label}
+                    </Link>
+                  ))}
+                </div>
+
+                <div className="mt-6 grid grid-cols-[1fr_auto] gap-2">
+                  <button
+                    type="submit"
+                    className="group inline-flex min-h-[50px] items-center justify-center gap-1.5 rounded-pill bg-text-strong px-5 text-[14px] font-extrabold text-surface transition-all duration-state hover:bg-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/35 active:scale-[0.98]"
+                  >
+                    검색하기
+                    <ArrowRight size={15} className="transition-transform duration-state group-hover:translate-x-0.5" />
+                  </button>
+                  <Link
+                    href="/cars"
+                    className="inline-flex min-h-[50px] items-center justify-center rounded-pill border border-border-subtle bg-surface px-4 text-[13px] font-extrabold text-text-strong transition-all duration-state hover:border-brand/30 hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/35 active:scale-[0.98]"
+                  >
+                    전체
+                  </Link>
+                </div>
+              </form>
+
+              <Link
+                href="/recommend"
+                className="mt-5 flex min-h-[64px] items-center justify-between gap-4 rounded-[20px] bg-surface-soft px-4 py-3 text-left transition-all duration-state hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/35 active:scale-[0.99]"
+              >
+                <span className="min-w-0">
+                  <span className="flex items-center gap-1.5 text-[13px] font-extrabold text-text-strong">
+                    <Sparkles size={14} className="text-brand" />
+                    잘 모르겠다면 AI 추천
+                  </span>
+                  <span className="mt-1 block text-[12px] font-medium text-text-muted">
+                    용도와 예산으로 먼저 좁히기
+                  </span>
+                </span>
+                <ArrowRight size={15} className="shrink-0 text-text-muted" />
+              </Link>
             </div>
 
-            <div className="mt-4 hidden divide-y divide-border-subtle rounded-[24px] border border-border-subtle bg-surface lg:grid lg:grid-cols-3 lg:divide-x lg:divide-y-0">
-              {SHOWROOM_LINKS.map(({ href, label, desc, icon: Icon }) => (
-                <Link
-                  key={label}
-                  href={href}
-                  className="group flex min-h-[72px] items-center gap-3 px-4 py-3 transition-colors duration-state hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 md:block md:min-h-[104px] md:px-4 md:py-4"
+            <div className="mt-4 hidden grid-cols-3 divide-x divide-border-subtle overflow-hidden rounded-[22px] border border-border-subtle bg-surface sm:grid">
+              {[
+                ["검색", "바로 탐색"],
+                ["비교", "월 납입 확인"],
+                ["추천", "조건 좁히기"],
+              ].map(([title, desc]) => (
+                <div
+                  key={title}
+                  className="min-h-[76px] px-3 py-4"
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-surface-soft text-text-body transition-colors duration-state group-hover:bg-brand-soft group-hover:text-brand md:mb-4">
-                    <Icon size={16} strokeWidth={2.2} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-extrabold text-text-strong">{label}</span>
-                    <span className="mt-1 block text-[11.5px] font-medium leading-snug text-text-muted">{desc}</span>
-                  </span>
-                </Link>
+                  <p className="text-[13px] font-extrabold text-text-strong">{title}</p>
+                  <p className="mt-1 break-keep text-[11.5px] font-medium leading-snug text-text-muted">{desc}</p>
+                </div>
               ))}
             </div>
           </div>
