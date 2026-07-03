@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { StepIndicator, STEPS, type StepId } from "./StepIndicator";
 import { StepIndustry } from "./StepIndustry";
@@ -9,7 +9,11 @@ import { StepMileage } from "./StepMileage";
 import { StepFuelPreference } from "./StepFuelPreference";
 import { StepRegion } from "./StepRegion";
 import { ChevronLeft } from "lucide-react";
-import { CHARGING_OPTIONS, MAX_PREFERENCES } from "@/constants/recommend-options";
+import {
+  CHARGING_OPTIONS,
+  NO_SIMPLE_PREFERENCE_VALUE,
+  NO_SITUATION_PREFERENCE_VALUE,
+} from "@/constants/recommend-options";
 import { SelectionCard } from "./SelectionCard";
 import type { RecommendInput } from "@/types/recommendation";
 
@@ -20,7 +24,8 @@ type ChargingEnv = "자택" | "직장" | "외부" | "없음" | "";
 interface FlowState {
   industry: string;
   industryDetail: string;
-  preferences: string[];
+  simplePreference: string;
+  situationPreference: string;
   childDetail: string;
   cargoDetail: string;
   annualMileage: number;
@@ -32,7 +37,8 @@ interface FlowState {
 const INITIAL_STATE: FlowState = {
   industry: "",
   industryDetail: "",
-  preferences: [],
+  simplePreference: "",
+  situationPreference: "",
   childDetail: "",
   cargoDetail: "",
   annualMileage: 0,
@@ -46,10 +52,10 @@ function isStepValid(step: StepId, state: FlowState): boolean {
     case 1:
       return state.industry !== "" && state.industryDetail !== "";
     case 2:
-      // 선호 1개 이상 + 상황형 선택 시 상세 답변 필수
-      if (state.preferences.length === 0) return false;
-      if (state.preferences.includes("가족") && state.childDetail === "") return false;
-      if (state.preferences.includes("화물") && state.cargoDetail === "") return false;
+      if (state.simplePreference === "") return false;
+      if (state.situationPreference === "") return false;
+      if (state.situationPreference === "가족" && state.childDetail === "") return false;
+      if (state.situationPreference === "화물" && state.cargoDetail === "") return false;
       return true;
     case 3:
       return (
@@ -62,6 +68,7 @@ function isStepValid(step: StepId, state: FlowState): boolean {
 
 export function RecommendFlow() {
   const router = useRouter();
+  const flowRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState<StepId>(1);
   const [state, setState] = useState<FlowState>(INITIAL_STATE);
   const [loading, setLoading] = useState(false);
@@ -70,8 +77,23 @@ export function RecommendFlow() {
   const canProceed = isStepValid(step, state);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (step === 1) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    flowRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [step]);
+
+  const realPreferences = [
+    state.simplePreference,
+    state.situationPreference,
+  ].filter(
+    (preference) =>
+      preference !== "" &&
+      preference !== NO_SIMPLE_PREFERENCE_VALUE &&
+      preference !== NO_SITUATION_PREFERENCE_VALUE
+  );
 
   const handleNext = async () => {
     if (!canProceed) return;
@@ -86,14 +108,22 @@ export function RecommendFlow() {
     try {
       const input: RecommendInput = {
         industry: state.industry,
-        preferences: state.preferences,
+        preferences: realPreferences,
         annualMileage: state.annualMileage,
         returnType: "미정",
         industryDetail: state.industryDetail,
-        ...(state.preferences.includes("가족") && state.childDetail !== ""
+        ...(state.simplePreference !== "" &&
+        state.simplePreference !== NO_SIMPLE_PREFERENCE_VALUE
+          ? { primaryPreference: state.simplePreference }
+          : {}),
+        ...(state.situationPreference !== "" &&
+        state.situationPreference !== NO_SITUATION_PREFERENCE_VALUE
+          ? { situationPreference: state.situationPreference }
+          : {}),
+        ...(state.situationPreference === "가족" && state.childDetail !== ""
           ? { childDetail: state.childDetail }
           : {}),
-        ...(state.preferences.includes("화물") && state.cargoDetail !== ""
+        ...(state.situationPreference === "화물" && state.cargoDetail !== ""
           ? { cargoDetail: state.cargoDetail }
           : {}),
         fuelPreference: state.fuelPreference,
@@ -130,36 +160,20 @@ export function RecommendFlow() {
     if (step > 1) setStep((s) => (s - 1) as StepId);
   };
 
-  const togglePreference = (value: string) => {
-    setState((s) => {
-      const isSituation = value === "가족" || value === "화물";
+  const handleSimplePreferenceChange = (value: string) => {
+    setState((s) => ({
+      ...s,
+      simplePreference: value,
+    }));
+  };
 
-      // 이미 선택됨: 해제 (상황형이면 상세도 초기화)
-      if (s.preferences.includes(value)) {
-        return {
-          ...s,
-          preferences: s.preferences.filter((p) => p !== value),
-          childDetail: value === "가족" ? "" : s.childDetail,
-          cargoDetail: value === "화물" ? "" : s.cargoDetail,
-        };
-      }
-
-      // 추가 — 상황형은 1개만 허용하므로 기존 상황형 제거
-      let next = isSituation
-        ? s.preferences.filter((p) => p !== "가족" && p !== "화물")
-        : [...s.preferences];
-
-      if (next.length >= MAX_PREFERENCES) return s; // 최대치 (UI에서 차단됨)
-      next = [...next, value];
-
-      return {
-        ...s,
-        preferences: next,
-        // 다른 상황형을 밀어냈다면 그 상세값 초기화
-        childDetail: value === "화물" ? "" : s.childDetail,
-        cargoDetail: value === "가족" ? "" : s.cargoDetail,
-      };
-    });
+  const handleSituationPreferenceChange = (value: string) => {
+    setState((s) => ({
+      ...s,
+      situationPreference: value,
+      childDetail: value === "가족" ? s.childDetail : "",
+      cargoDetail: value === "화물" ? s.cargoDetail : "",
+    }));
   };
 
   const handleFuelChange = (v: string) => {
@@ -174,7 +188,10 @@ export function RecommendFlow() {
   const stepLabel = (STEPS.find((s) => s.id === step) ?? STEPS[0]).label;
 
   return (
-    <div className="t-shell pt-3 pb-[120px] md:pb-10">
+    <div
+      ref={flowRef}
+      className="t-shell scroll-mt-[72px] pt-3 pb-[120px] md:scroll-mt-[88px] md:pb-10"
+    >
       {/* 앱바: 뒤로가기 + 단계명 + n/N */}
       <div className="t-appbar justify-between">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -218,8 +235,10 @@ export function RecommendFlow() {
         )}
         {step === 2 && (
           <StepPreference
-            selected={state.preferences}
-            onToggle={togglePreference}
+            simpleValue={state.simplePreference}
+            onSimpleChange={handleSimplePreferenceChange}
+            situationValue={state.situationPreference}
+            onSituationChange={handleSituationPreferenceChange}
             childDetail={state.childDetail}
             onChildDetailChange={(v) =>
               setState((s) => ({ ...s, childDetail: v }))

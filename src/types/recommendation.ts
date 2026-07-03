@@ -1,7 +1,8 @@
 export interface RecommendInput {
   industry: string;        // 업종
-  // 「원하는 차」 선호 특징 1~2개 (느낌형 안정감/주차편의/경제성/고급 + 상황형 가족/화물)
   preferences: string[];
+  primaryPreference?: string;
+  situationPreference?: string;
   annualMileage: number;
   returnType: ReturnType;
   // 조건부 추가 질문 답변 (optional)

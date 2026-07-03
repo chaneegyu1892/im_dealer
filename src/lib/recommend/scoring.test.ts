@@ -416,3 +416,49 @@ describe("거주지역 가점", () => {
     ).toBe(20);
   });
 });
+
+describe("단순 선택 가중치", () => {
+  it("primaryPreference로 지정된 느낌형 선택지는 기존 선호 가점보다 크게 반영된다", () => {
+    const legacyInput: ScoreInput = {
+      industry: "개인",
+      preferences: ["주차편의"],
+      annualMileage: 10000,
+    };
+    const weightedInput: ScoreInput = {
+      ...legacyInput,
+      primaryPreference: "주차편의",
+    };
+    const attrs: VehicleAttrs = { ...BASE_ATTRS };
+    const ctx: ScoreCtx = { category: "세단", price: 20_000_000, fuelEfficiency: 10 };
+
+    const legacyScore = scoreVehicle(legacyInput, attrs, ctx).score;
+    const weightedScore = scoreVehicle(weightedInput, attrs, ctx).score;
+
+    expect(weightedScore - legacyScore).toBe(24);
+  });
+
+  it("단순 차종 기준이 심화 조건과 충돌해도 더 강하게 반영된다", () => {
+    const input: ScoreInput = {
+      industry: "개인",
+      preferences: ["주차편의", "가족"],
+      primaryPreference: "주차편의",
+      situationPreference: "가족",
+      childDetail: "미취학",
+      annualMileage: 10000,
+    };
+    const attrs: VehicleAttrs = { ...BASE_ATTRS };
+
+    const compactSedan = scoreVehicle(input, attrs, {
+      category: "세단",
+      price: 20_000_000,
+      fuelEfficiency: 10,
+    }).score;
+    const familySuv = scoreVehicle(input, attrs, {
+      category: "SUV",
+      price: 35_000_000,
+      fuelEfficiency: 10,
+    }).score;
+
+    expect(compactSedan).toBeGreaterThan(familySuv);
+  });
+});

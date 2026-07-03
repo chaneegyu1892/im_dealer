@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getLineupTier, sortLineups } from "./lineup-sort";
+import { getLineupTier, getLineupYear, latestYearLineupNames, sortLineups } from "./lineup-sort";
 
 describe("getLineupTier", () => {
   it("가솔린 라인업은 최상단(0)", () => {
@@ -98,5 +98,25 @@ describe("sortLineups", () => {
       "2024년형 LPG 3.5 택시",
       "2023년형 LPG 3.5 택시",
     ]);
+  });
+});
+
+describe("getLineupYear", () => {
+  it("4자리 연식과 2자리 연식을 모두 4자리 연도로 반환한다", () => {
+    expect(getLineupYear("2026년형 가솔린 2.5")).toBe(2026);
+    expect(getLineupYear("26년형 가솔린 2.5")).toBe(2026);
+  });
+});
+
+describe("latestYearLineupNames", () => {
+  it("같은 차량군에서 2자리 연식 표기까지 비교해 최신 연식만 남긴다", () => {
+    const latest = latestYearLineupNames([
+      "25년형 가솔린 2.5",
+      "26년형 가솔린 2.5",
+      "2025년형 하이브리드",
+      "2026년형 하이브리드",
+    ]);
+
+    expect(latest).toEqual(new Set(["26년형 가솔린 2.5", "2026년형 하이브리드"]));
   });
 });

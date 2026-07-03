@@ -20,6 +20,7 @@ import {
 const BASE_SCORE = 50;
 const MAX_SCORE = 250;
 const MILEAGE_KEYS = [10000, 20000, 30000] as const;
+const PRIMARY_PREFERENCE_WEIGHT = 2;
 
 // ─────────────────────────────────────────────
 // 입출력 타입
@@ -27,9 +28,9 @@ const MILEAGE_KEYS = [10000, 20000, 30000] as const;
 
 export interface ScoreInput {
   industry: string;
-  // 「원하는 차」 선호 특징 1~2개 (느낌형/상황형 혼합)
   preferences: string[];
-  // 상황형 상세 — "가족" 선택 시 자녀연령 / "화물" 선택 시 소형·대형
+  primaryPreference?: string;
+  situationPreference?: string;
   childDetail?: string;
   cargoDetail?: string;
   annualMileage: number;
@@ -94,10 +95,10 @@ export function scoreVehicle(
   };
 
   // 규칙 배열 적용 내부 헬퍼 (클로저로 score/reasons 공유)
-  const apply = (rules: ScoreRule[]) => {
+  const apply = (rules: ScoreRule[], weight = 1) => {
     for (const rule of rules) {
       if (rule.match(attrs, rctx)) {
-        score += rule.pts;
+        score += Math.round(rule.pts * weight);
         if (rule.reason) {
           reasons.push(rule.reason);
         }
@@ -110,7 +111,10 @@ export function scoreVehicle(
 
   // 2. 선호 특징 규칙 (느낌형 — 선택한 preference 누적 합산)
   for (const pref of preferences) {
-    apply(PREFERENCE_RULES[pref] ?? []);
+    apply(
+      PREFERENCE_RULES[pref] ?? [],
+      pref === input.primaryPreference ? PRIMARY_PREFERENCE_WEIGHT : 1
+    );
   }
 
   // 3. 주행거리×연비 규칙

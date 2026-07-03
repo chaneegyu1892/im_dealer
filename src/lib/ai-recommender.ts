@@ -12,6 +12,13 @@ import { generateReason } from "@/lib/llm-reason";
 import { buildVehicleAttrs } from "@/lib/recommend/vehicle-attributes";
 import { scoreVehicle } from "@/lib/recommend/scoring";
 import {
+  getRecommendationModelKey,
+  getRecommendationModelYear,
+  latestByRecommendationModel,
+  pickRecommendationTrim,
+} from "@/lib/recommend/latest-model";
+import { parseRateSheetRaw } from "@/lib/recommend/rate-sheet";
+import {
   estimateMonthly,
   calculateMultiFinanceQuote,
   type RateConfigData,
@@ -28,6 +35,8 @@ import type {
 
 interface ScoredVehicle {
   vehicleId: string;
+  modelKey: string;
+  modelYear: number;
   score: number;
   reason: string;
   highlights: string[];
@@ -44,7 +53,10 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       trims: {
         where: { isVisible: true },
         orderBy: { isDefault: "desc" },
-        include: { options: { select: { name: true } } },
+        include: {
+          options: { select: { name: true } },
+          lineup: { select: { name: true, isVisible: true } },
+        },
       },
       recConfigs: { where: { isActive: true } },
       popularConfigs: {
@@ -56,7 +68,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
   });
 
   // 2) 활성 capitalRateSheet 전체 조회 (trimId → RateConfigData[] 맵)
-  const allSheets = await (prisma as any).capitalRateSheet.findMany({
+  const allSheets = await prisma.capitalRateSheet.findMany({
     where: { isActive: true, financeCompany: { isActive: true } },
     include: { financeCompany: true },
   });
@@ -72,14 +84,17 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
   // trimId → RateConfigData[] 맵
   const ratesByTrimId = new Map<string, RateConfigData[]>();
   for (const rs of allSheets) {
+    const minRateMatrix = parseRateSheetRaw(rs.minRateMatrix);
+    const maxRateMatrix = parseRateSheetRaw(rs.maxRateMatrix);
+    if (!minRateMatrix || !maxRateMatrix) continue;
     const data: RateConfigData = {
       financeCompanyId: rs.financeCompanyId,
       financeCompanyName: rs.financeCompany.name,
       financeSurchargeRate: rs.financeCompany.surchargeRate,
       minVehiclePrice: rs.minVehiclePrice,
       maxVehiclePrice: rs.maxVehiclePrice,
-      minRateMatrix: rs.minRateMatrix,
-      maxRateMatrix: rs.maxRateMatrix,
+      minRateMatrix,
+      maxRateMatrix,
       depositDiscountRate: rs.depositDiscountRate,
       prepayAdjustRate: rs.prepayAdjustRate,
     };
@@ -104,11 +119,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       : input.purpose ?? "";
 
   for (const v of vehicles) {
-    let defaultTrim = v.trims.find((t) => t.isDefault) ?? v.trims[0];
-    if (isOfficial && v.trims.length > 0) {
-      const mostExpensive = v.trims.reduce((max, t) => (t.price > max.price ? t : max), v.trims[0]);
-      defaultTrim = mostExpensive;
-    }
+    const defaultTrim = pickRecommendationTrim(v.trims, isOfficial);
     if (!defaultTrim) continue;
     // 임원용·의전은 6천만원 미만 차량을 추천 후보에서 하드 제외(노출 안 함).
     // scoring-rules의 의전 가격 패널티(-15/-25)는 이 게이트가 제거될 경우의 방어선.
@@ -150,6 +161,8 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
       {
         industry: input.industry,
         preferences,
+        primaryPreference: input.primaryPreference,
+        situationPreference: input.situationPreference,
         childDetail: input.childDetail,
         cargoDetail: input.cargoDetail,
         annualMileage: input.annualMileage,
@@ -222,6 +235,18 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
 
     scored.push({
       vehicleId: v.id,
+      modelKey: getRecommendationModelKey({
+        brand: v.brand,
+        name: v.name,
+        defaultTrimName: defaultTrim.name,
+        lineupName: defaultTrim.lineup?.name,
+      }),
+      modelYear: getRecommendationModelYear({
+        brand: v.brand,
+        name: v.name,
+        defaultTrimName: defaultTrim.name,
+        lineupName: defaultTrim.lineup?.name,
+      }),
       score,
       reason,
       highlights: highlights.slice(0, 4),
@@ -247,8 +272,9 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
   }
 
   // 4) 점수 정렬 → 상위 3개
-  scored.sort((a, b) => b.score - a.score);
-  const top = scored.slice(0, 3);
+  const latestScored = latestByRecommendationModel(scored);
+  latestScored.sort((a, b) => b.score - a.score);
+  const top = latestScored.slice(0, 3);
 
   // 5) LLM으로 추천 이유 병렬 생성 (실패 시 규칙 기반 reason 사용)
   const llmReasons = await Promise.all(

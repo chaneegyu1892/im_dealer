@@ -35,12 +35,14 @@ export function getPurposeOptionsForIndustry(
 }
 
 // ─────────────────────────────────────────────
-// 「원하는 차」 선호 특징 — 목적 질문 대체 (복수 선택, 최대 2개)
-// 느낌형 4(즉시 점수) + 상황형 2(상세질문 펼침). 상황형은 1개만 선택 가능.
+// 「원하는 차」 선호 특징 — 목적 질문 대체
 // value 는 scoring-rules.ts 의 PREFERENCE_RULES / SCORING_PREFERENCES 와 1:1.
 // ─────────────────────────────────────────────
 
 export type PreferenceKind = "feel" | "situation";
+
+export const NO_SIMPLE_PREFERENCE_VALUE = "__simple_none";
+export const NO_SITUATION_PREFERENCE_VALUE = "__situation_none";
 
 export const PREFERENCE_OPTIONS = [
   { value: "안정감", label: "크고 안정감 있는 차", desc: "든든한 주행감", icon: "🚙", kind: "feel" },

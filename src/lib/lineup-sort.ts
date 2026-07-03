@@ -35,12 +35,14 @@ export function getLineupTier(name: string): LineupTier {
  */
 /** 연식 프리픽스("2024년형 ")를 제거한 차량군 그룹명. */
 export function getLineupGroup(name: string): string {
-  return name.replace(/^\d{4}년형\s*/, "");
+  return name.replace(/^(?:20)?\d{2}년형\s*/, "");
 }
 
-/** 라인업 이름에서 연식(4자리)을 추출. 없으면 0. */
 export function getLineupYear(name: string): number {
-  return parseInt(name.match(/\d{4}/)?.[0] ?? "0", 10);
+  const fullYear = name.match(/20\d{2}/)?.[0];
+  if (fullYear) return parseInt(fullYear, 10);
+  const shortYear = name.match(/(?:^|\s)(\d{2})년형/)?.[1];
+  return shortYear ? 2000 + parseInt(shortYear, 10) : 0;
 }
 
 /**
