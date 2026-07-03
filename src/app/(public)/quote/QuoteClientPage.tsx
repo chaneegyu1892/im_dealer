@@ -26,6 +26,11 @@ import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { ColorSelector, type VehicleColorPublic } from "@/components/quote/ColorSelector";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
+import {
+  LineupTrimPicker,
+  type LineupChoice,
+  type TrimChoice,
+} from "@/components/quote/LineupTrimPicker";
 import type { VehicleListItem } from "@/types/api";
 import type { QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
@@ -91,47 +96,6 @@ interface TrimData {
   rules: TrimRule[];
   lineupId: string | null;
   lineup: { id: string; name: string } | null;
-}
-
-// ─── 캐스케이딩 셀렉트 행 ─────────────────────────────────
-function SelectRow({
-  label,
-  value,
-  placeholder,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  options: { value: string; label: string }[];
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div>
-      <p className="public-quiet-label mb-1.5">
-        {label}
-      </p>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full cursor-pointer appearance-none rounded-[14px] border border-border-subtle bg-surface px-4 py-3.5 pr-9 text-[14px] text-text-strong shadow-card transition-colors duration-state focus:border-brand focus:outline-none focus:ring-4 focus:ring-focus-ring/20 disabled:text-text-muted"
-        >
-          <option value="">{placeholder}</option>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          size={15}
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-muted"
-        />
-      </div>
-    </div>
-  );
 }
 
 // ─── 조건 칩 ──────────────────────────────────────────────
@@ -542,6 +506,27 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
       extra: (nameCount.get(it.name) ?? 0) > 1 ? it.extra : null,
     }));
   })();
+
+  const lineupChoices: LineupChoice[] = availableLineups.map((lineup) => ({
+    name: lineup,
+    trimCount: trims.filter((t) => getLineupName(t) === lineup).length,
+  }));
+
+  const cascadeTrimChoices: TrimChoice[] = availableTrimNames.map((t) => ({
+    id: t.id,
+    name: t.name,
+    extra: t.extra,
+    price: t.price,
+    discountPrice: t.discountPrice ?? null,
+  }));
+
+  const flatTrimChoices: TrimChoice[] = trims.map((t) => ({
+    id: t.id,
+    name: t.name,
+    extra: null,
+    price: t.price,
+    discountPrice: t.discountPrice ?? null,
+  }));
 
   // 최종 선택된 트림 객체 — id 기준 정확 매칭
   const selectedTrim =
@@ -1029,59 +1014,25 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                   ) : trims.length > 0 ? (
                     <div className="mb-5 space-y-3">
 
-                      {hasCascade ? (
-                        <>
-                          {/* 1단계: 라인업 선택 */}
-                          <SelectRow
-                            label="라인업"
-                            value={selectedLineup ?? ""}
-                            placeholder="연식 / 엔진을 선택하세요"
-                            options={availableLineups.map((l) => ({ value: l, label: l }))}
-                            onChange={(v) => {
-                              setSelectedLineup(v || null);
-                              setSelectedTrimId(null);
-                              setSelectedOptionIds(new Set());
-                            }}
-                          />
-
-                          {/* 2단계: 트림명 선택 (라인업 선택 후 노출) */}
-                          {selectedLineup && (
-                            <SelectRow
-                              label="트림"
-                              value={selectedTrimId ?? ""}
-                              placeholder="트림을 선택하세요"
-                              options={availableTrimNames.map((t) => {
-                                const baseLabel = t.extra ? `${t.name} (${t.extra})` : t.name;
-                                const priceLabel = t.discountPrice
-                                  ? `${Math.round(t.discountPrice / 10000).toLocaleString()}만원 (할인 적용)`
-                                  : `${Math.round(t.price / 10000).toLocaleString()}만원`;
-                                return { value: t.id, label: `${baseLabel} — ${priceLabel}` };
-                              })}
-                              onChange={(v) => {
-                                setSelectedTrimId(v || null);
-                                setSelectedOptionIds(new Set());
-                              }}
-                            />
-                          )}
-                        </>
-                      ) : (
-                        /* 라인업 없는 차량: 트림 직접 선택 */
-                        <SelectRow
-                          label="트림"
-                          value={selectedLineup ?? ""}
-                          placeholder="트림을 선택하세요"
-                          options={trims.map((t) => ({
-                            value: t.id,
-                            label: t.discountPrice
-                              ? `${t.name} — ${Math.round(t.discountPrice / 10000).toLocaleString()}만원 (할인 적용)`
-                              : `${t.name} — ${Math.round(t.price / 10000).toLocaleString()}만원`,
-                          }))}
-                          onChange={(v) => {
-                            setSelectedLineup(v || null);
-                            setSelectedOptionIds(new Set());
-                          }}
-                        />
-                      )}
+                      <LineupTrimPicker
+                        hasCascade={hasCascade}
+                        lineups={lineupChoices}
+                        selectedLineup={selectedLineup}
+                        onLineupChange={(lineup) => {
+                          setSelectedLineup(lineup);
+                          setSelectedOptionIds(new Set());
+                        }}
+                        trims={hasCascade ? cascadeTrimChoices : flatTrimChoices}
+                        selectedTrimId={hasCascade ? selectedTrimId : selectedLineup}
+                        onTrimChange={(trimId) => {
+                          if (hasCascade) {
+                            setSelectedTrimId(trimId);
+                          } else {
+                            setSelectedLineup(trimId);
+                          }
+                          setSelectedOptionIds(new Set());
+                        }}
+                      />
 
                       {/* 추가 옵션 — 아코디언 설명 포함 */}
                       {selectedTrim && selectedTrim.options.length > 0 && (
