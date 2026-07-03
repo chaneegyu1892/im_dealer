@@ -6,11 +6,18 @@ import { Calculator, Check, ChevronRight } from "lucide-react";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
-import type { RepresentativeQuote } from "@/lib/representative-quote";
+import { hasRepresentativeQuote, type RepresentativeQuote } from "@/lib/representative-quote";
 
 const TRUST_ITEMS = [
   "허위·낚시 견적 없음",
   "개인정보 없이 견적 확인",
+  "상담 압박 없음",
+  "실제 운영 가능한 조건만",
+];
+
+const CONSULTATION_TRUST_ITEMS = [
+  "허위·낚시 상담 없음",
+  "개인정보 없이 상담 가능",
   "상담 압박 없음",
   "실제 운영 가능한 조건만",
 ];
@@ -47,7 +54,7 @@ export function MobileQuoteSummary({
           <MobileTrust text="상담 압박 없음" />
         </div>
       </div>
-      <MobileStickyQuoteBar vehicleSlug={vehicleSlug} quotes={quotes} />
+      <MobileStickyQuoteBar vehicleName={vehicleName} vehicleSlug={vehicleSlug} quotes={quotes} />
     </div>
   );
 }
@@ -62,12 +69,16 @@ function MobileTrust({ text }: { text: string }) {
 }
 
 function MobileStickyQuoteBar({
+  vehicleName,
   vehicleSlug,
   quotes,
 }: {
+  vehicleName: string;
   vehicleSlug: string;
   quotes: RepresentativeQuote[];
 }) {
+  const hasQuote = hasRepresentativeQuote(quotes);
+
   return (
     <div className="fixed left-0 right-0 z-40 px-3 lg:hidden" style={{ bottom: "calc(66px + env(safe-area-inset-bottom, 0px))" }}>
       <div className="flex items-center gap-3 rounded-[18px] border border-line bg-surface/95 px-4 py-3 shadow-[0_-2px_24px_rgb(var(--color-text-strong-rgb)/0.12)] backdrop-blur-md">
@@ -75,13 +86,22 @@ function MobileStickyQuoteBar({
           <p className="text-[11px] font-bold text-ink-label">예상 월 납입금</p>
           <RepresentativeQuotePrice quotes={quotes} tone="brand" size="sm" showCaption={false} />
         </div>
-        <Link
-          href={`/quote?vehicle=${vehicleSlug}`}
-          className="inline-flex min-h-[48px] shrink-0 items-center justify-center gap-1.5 rounded-btn bg-primary px-5 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-primary-strong"
-        >
-          <Calculator size={16} strokeWidth={2.3} />
-          견적 내기
-        </Link>
+        {hasQuote ? (
+          <Link
+            href={`/quote?vehicle=${vehicleSlug}`}
+            className="inline-flex min-h-[48px] shrink-0 items-center justify-center gap-1.5 rounded-btn bg-primary px-5 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-primary-strong"
+          >
+            <Calculator size={16} strokeWidth={2.3} />
+            견적 내기
+          </Link>
+        ) : (
+          <ChannelTalkButton
+            vehicleName={vehicleName}
+            label="상담하기"
+            size="sm"
+            className="min-h-[48px] shrink-0 rounded-btn bg-primary px-5 py-2 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-primary-strong hover:opacity-100"
+          />
+        )}
       </div>
     </div>
   );
@@ -100,6 +120,9 @@ export function CarDetailSidebar({
   aiReason: string;
   highlights: string[];
 }) {
+  const hasQuote = hasRepresentativeQuote(quotes);
+  const trustItems = hasQuote ? TRUST_ITEMS : CONSULTATION_TRUST_ITEMS;
+
   return (
     <div className="hidden lg:col-span-1 lg:block">
       <div className="sticky top-24 space-y-4">
@@ -119,14 +142,25 @@ export function CarDetailSidebar({
             60개월 · 연 2만km · 반납형 기준
           </p>
           <div className="my-4 h-px bg-line" />
-          <Link
-            href={`/quote?vehicle=${vehicleSlug}`}
-            className="cta mb-2.5 hover:bg-primary-strong"
-          >
-            <Calculator size={16} strokeWidth={2} />
-            견적 내기
-          </Link>
-          <ChannelTalkButton vehicleName={vehicleName} label="상담하기" size="md" />
+          {hasQuote ? (
+            <>
+              <Link
+                href={`/quote?vehicle=${vehicleSlug}`}
+                className="cta mb-2.5 hover:bg-primary-strong"
+              >
+                <Calculator size={16} strokeWidth={2} />
+                견적 내기
+              </Link>
+              <ChannelTalkButton vehicleName={vehicleName} label="상담하기" size="md" />
+            </>
+          ) : (
+            <ChannelTalkButton
+              vehicleName={vehicleName}
+              label="상담하기"
+              size="md"
+              className="mb-2.5 bg-primary text-white hover:bg-primary-strong hover:opacity-100"
+            />
+          )}
           <p className="mt-3 text-center text-[11.5px] text-ink-label">
             상담 전 이름·전화번호 요구 없음
           </p>
@@ -137,7 +171,7 @@ export function CarDetailSidebar({
         <div className="t-card p-4 shadow-soft">
           <p className="t-kick mb-3">아임딜러 약속</p>
           <ul className="space-y-2.5">
-            {TRUST_ITEMS.map((item) => (
+            {trustItems.map((item) => (
               <li key={item} className="flex items-center gap-2 text-[12.5px] text-ink-label">
                 <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-primary-soft">
                   <Check size={10} strokeWidth={2.5} className="text-primary" />

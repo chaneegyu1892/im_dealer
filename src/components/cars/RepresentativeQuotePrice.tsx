@@ -1,7 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { RepresentativeQuote } from "@/lib/representative-quote";
+import {
+  availableRepresentativeQuotes,
+  type RepresentativeQuote,
+} from "@/lib/representative-quote";
 
 /**
  * 대표 견적가 표시 — 60개월 / 초기 비용 0원 / 2만km 기준.
@@ -91,7 +94,7 @@ export function RepresentativeQuotePrice({
   className,
 }: RepresentativeQuotePriceProps) {
   const t = TONE_CLASS[tone];
-  const list = quotes ?? [];
+  const list = availableRepresentativeQuotes(quotes);
   const showLabels = list.length > 1; // 둘 다 있을 때만 productType 라벨 노출
 
   return (

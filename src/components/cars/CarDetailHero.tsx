@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Check } from "lucide-react";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
-import type { RepresentativeQuote } from "@/lib/representative-quote";
+import { hasRepresentativeQuote, type RepresentativeQuote } from "@/lib/representative-quote";
 import type { VehicleDetail } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 
@@ -33,6 +33,8 @@ export function CarDetailHero({
   engineType: EngineType;
   representativeQuotes: RepresentativeQuote[];
 }) {
+  const hasQuote = hasRepresentativeQuote(representativeQuotes);
+
   return (
     <section className="relative min-h-[520px] overflow-hidden md:min-h-[620px]">
       {heroImage && (
@@ -119,7 +121,7 @@ export function CarDetailHero({
             />
             <div className="flex items-center gap-1.5 text-[12px] text-white/60">
               <Check size={12} strokeWidth={2.5} />
-              개인정보 없이 견적 확인 가능
+              {hasQuote ? "개인정보 없이 견적 확인 가능" : "상담으로 조건 확인 가능"}
             </div>
           </motion.div>
         </div>

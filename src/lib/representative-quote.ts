@@ -141,9 +141,24 @@ export function mergeLowestByProductType(
 
 /** 대표 견적가 목록에서 가장 낮은 월 납입금(정렬·요약용). 없으면 0. */
 export function lowestMonthly(quotes: RepresentativeQuote[]): number {
-  if (quotes.length === 0) return 0;
-  return quotes.reduce(
+  const availableQuotes = availableRepresentativeQuotes(quotes);
+  if (availableQuotes.length === 0) return 0;
+  return availableQuotes.reduce(
     (min, q) => (q.monthlyPayment < min ? q.monthlyPayment : min),
     Infinity
   );
+}
+
+export function availableRepresentativeQuotes(
+  quotes: readonly RepresentativeQuote[] | undefined
+): RepresentativeQuote[] {
+  return (quotes ?? []).filter(
+    (quote) => Number.isFinite(quote.monthlyPayment) && quote.monthlyPayment > 0
+  );
+}
+
+export function hasRepresentativeQuote(
+  quotes: readonly RepresentativeQuote[] | undefined
+): boolean {
+  return availableRepresentativeQuotes(quotes).length > 0;
 }
