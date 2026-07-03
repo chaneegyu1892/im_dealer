@@ -15,7 +15,7 @@ const BENEFITS = [
   { icon: <Receipt size={16} />, title: "전액 비용처리", desc: "렌트료 100% 경비 처리\n법인·개인사업자" },
   { icon: <Wrench size={16} />, title: "유지보수 포함", desc: "정기점검·소모품\n비용 걱정 없음" },
   { icon: <BadgePercent size={16} />, title: "보험료 절감", desc: "자동차 보험이\n렌트료에 포함" },
-  { icon: <TrendingDown size={16} />, title: "초기비용 최소", desc: "보증금 0%부터\n시작 가능" },
+  { icon: <TrendingDown size={16} />, title: "초기 비용 최소", desc: "보증금 0%부터\n시작 가능" },
   { icon: <RefreshCw size={16} />, title: "잔존가치 부담 없음", desc: "계약 종료 후 반납,\n시세 하락 위험 없음" },
   { icon: <UserX size={16} />, title: "개인정보 없이", desc: "이름·전화번호 요구\n없이 견적 확인" },
 ];

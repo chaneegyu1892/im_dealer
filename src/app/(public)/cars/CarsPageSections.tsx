@@ -25,7 +25,7 @@ export function CarsPageHero({ totalCount }: CarsPageHeroProps) {
             차량 리스트
           </h1>
           <p className="mt-4 max-w-xl break-keep text-[16px] font-semibold leading-relaxed text-text-body md:text-[18px]">
-            관심 차종을 고르면 초기비용과 주행거리 조건별 견적 흐름으로 바로 이어집니다.
+            관심 차종을 고르면 초기 비용과 주행거리 조건별 견적 흐름으로 바로 이어집니다.
           </p>
         </div>
       </div>

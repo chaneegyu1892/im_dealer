@@ -1403,7 +1403,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                 {/* 안내 메시지 */}
                 <div className="mb-4 flex items-start gap-2 rounded-[14px] border border-border-subtle bg-surface p-4 text-[13px] leading-relaxed text-text-body shadow-card">
                   <p>
-                    초기비용 없음·초기비용 있음 2가지
+                    초기 비용 없음·초기 비용 있음 2가지
                     시나리오를 한 번에 확인할 수 있습니다.
                   </p>
                 </div>
@@ -1520,7 +1520,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-[12px] text-text-muted">
-                            이미지 준비중
+                            이미지 준비 중
                           </div>
                         )}
                       </div>
@@ -1712,7 +1712,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                       <div className="flex items-center justify-between gap-3 mb-4">
                         <div className="flex items-center gap-2">
                         <p className="text-[13px] text-ink-label">
-                          초기비용 여부에 따라 월 납입금이 달라집니다
+                          초기 비용 여부에 따라 월 납입금이 달라집니다
                         </p>
                         </div>
                         <span className="hidden sm:inline-flex rounded-full bg-public-bg px-2.5 py-1 text-[11px] font-semibold text-public-muted">

@@ -127,7 +127,7 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-[12px] font-bold text-text-muted">
-                  이미지 준비중
+                  이미지 준비 중
                 </div>
               );
             })()}

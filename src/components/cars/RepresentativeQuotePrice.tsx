@@ -87,7 +87,7 @@ export function RepresentativeQuotePrice({
   captionClassName,
   numberClassName,
   unitClassName,
-  emptyText = "견적 준비중",
+  emptyText = "견적 준비 중",
   className,
 }: RepresentativeQuotePriceProps) {
   const t = TONE_CLASS[tone];
@@ -107,7 +107,7 @@ export function RepresentativeQuotePrice({
       ) : (
         <div className="space-y-0.5">
           {list.map((q) => (
-            <div key={q.productType} className="flex items-baseline gap-1.5">
+            <div key={q.productType} className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
               {showLabels && (
                 <span className={cn("text-[11px] font-medium shrink-0", t.label)}>
                   {q.productType}
@@ -115,15 +115,15 @@ export function RepresentativeQuotePrice({
               )}
               <span
                 className={cn(
-                "num font-extrabold leading-none",
-                NUMBER_SIZE[size],
-                t.number,
-                numberClassName,
-              )}
-            >
-              {toManwon(q.monthlyPayment).toLocaleString("ko-KR")}
-            </span>
-              <span className={cn("font-medium", UNIT_SIZE[size], t.unit, unitClassName)}>
+                  "num shrink-0 font-extrabold leading-none",
+                  NUMBER_SIZE[size],
+                  t.number,
+                  numberClassName,
+                )}
+              >
+                {toManwon(q.monthlyPayment).toLocaleString("ko-KR")}
+              </span>
+              <span className={cn("shrink-0 whitespace-nowrap font-medium", UNIT_SIZE[size], t.unit, unitClassName)}>
                 만원~
               </span>
             </div>

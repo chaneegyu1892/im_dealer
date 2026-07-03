@@ -12,7 +12,7 @@ const PROMISES = [
   {
     icon: ClipboardCheck,
     title: "조건부터 먼저 정리",
-    desc: "월 납입금, 초기비용, 계약기간을 상담 전에 먼저 확인합니다.",
+    desc: "월 납입금, 초기 비용, 계약기간을 상담 전에 먼저 확인합니다.",
   },
   {
     icon: CarFront,
@@ -95,8 +95,8 @@ export default function AboutPage() {
               </div>
               <div className="mt-5 grid grid-cols-2 gap-3">
                 {STATS.map(([value, label]) => (
-                  <div key={label} className="rounded-[16px] bg-surface-soft px-4 py-4">
-                    <p className="text-[24px] font-extrabold leading-none text-brand">{value}</p>
+                  <div key={label} className="rounded-[16px] bg-surface-soft px-2 py-4 min-[375px]:px-3 min-[430px]:px-4 md:px-3 lg:px-4">
+                    <p className="text-[19px] font-extrabold leading-none text-brand min-[375px]:text-[20px] min-[430px]:text-[22px] md:text-[20px] lg:text-[24px]">{value}</p>
                     <p className="mt-2 break-keep text-[12px] font-semibold leading-snug text-text-muted">{label}</p>
                   </div>
                 ))}

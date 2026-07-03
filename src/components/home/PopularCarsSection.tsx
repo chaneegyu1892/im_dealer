@@ -19,10 +19,10 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
     >
       <Link
         href={`/cars/${vehicle.slug}`}
-        className="group relative block overflow-hidden rounded-[26px] bg-surface p-3 ring-1 ring-border-subtle transition-all duration-state hover:-translate-y-0.5 hover:ring-brand/30 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+        className="group relative block rounded-[26px] bg-surface p-3 ring-1 ring-border-subtle transition-all duration-state hover:-translate-y-0.5 hover:ring-brand/30 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
       >
-        <div className="relative flex gap-3.5">
-          <div className="relative h-[104px] w-[134px] shrink-0 overflow-hidden rounded-[20px] bg-surface-soft shadow-[inset_0_0_0_1px_rgba(var(--color-text-strong-rgb),0.05)] sm:h-[122px] sm:w-[158px] lg:h-[128px] lg:w-[168px]">
+        <div className="relative grid grid-cols-[112px_minmax(0,1fr)] gap-3.5 min-[375px]:grid-cols-[120px_minmax(0,1fr)] sm:grid-cols-[150px_minmax(0,1fr)] md:block">
+          <div className="relative h-[96px] w-full overflow-hidden rounded-[20px] bg-surface-soft shadow-[inset_0_0_0_1px_rgba(var(--color-text-strong-rgb),0.05)] sm:h-[116px] md:h-[168px] md:rounded-[22px] lg:h-[176px]">
             {vehicle.thumbnailUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -32,7 +32,7 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-[12px] font-bold text-text-muted">
-                이미지 준비중
+                이미지 준비 중
               </div>
             )}
             <div className="absolute left-2 top-2 flex items-center gap-1">
@@ -49,11 +49,11 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
             </div>
           </div>
 
-          <div className="min-w-0 flex-1 py-1">
+          <div className="min-w-0 py-1 md:px-1 md:pt-4">
             <p className="truncate text-[12px] font-extrabold text-text-muted">
               {vehicle.brand}
             </p>
-            <h3 className="mt-1 line-clamp-2 text-[17px] font-extrabold leading-tight text-text-strong transition-colors duration-state group-hover:text-brand sm:text-[18px]">
+            <h3 className="mt-1 line-clamp-2 text-[16px] font-extrabold leading-tight text-text-strong transition-colors duration-state group-hover:text-brand sm:text-[18px] md:text-[19px]">
               {vehicle.name}
             </h3>
             {vehicle.defaultTrim && (
@@ -62,16 +62,17 @@ function PopularCard({ vehicle, index }: { vehicle: VehicleListItem; index: numb
               </p>
             )}
 
-            <div className="mt-3 flex items-end justify-between gap-3 border-t border-border-subtle pt-3">
+            <div className="mt-3 flex items-end justify-between gap-2 border-t border-border-subtle pt-3 md:mt-4 md:gap-3">
               <RepresentativeQuotePrice
                 quotes={vehicle.representativeQuotes}
                 tone="brand"
                 size="lg"
-                captionClassName="mb-2 text-[14px] font-semibold leading-snug"
-                numberClassName="text-[34px]"
-                unitClassName="text-[16px] font-semibold"
+                captionText="월 납입금"
+                captionClassName="mb-1.5 text-[12px] font-bold leading-none"
+                numberClassName="text-[30px] sm:text-[32px] md:text-[34px]"
+                unitClassName="text-[13px] font-bold sm:text-[14px]"
               />
-              <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-pill bg-surface-soft px-3 text-[11.5px] font-extrabold text-text-body transition-colors duration-state group-hover:bg-brand group-hover:text-white">
+              <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-pill bg-surface-soft px-2.5 text-[11px] font-extrabold text-text-body transition-colors duration-state group-hover:bg-brand group-hover:text-white md:px-3 md:text-[11.5px]">
                 비교
                 <ArrowRight size={12} strokeWidth={2.5} />
               </span>
@@ -98,7 +99,7 @@ export function PopularCarsSection({ vehicles }: { vehicles: VehicleListItem[] }
             </div>
             <h2 className="break-keep text-[27px] font-extrabold leading-[1.18] tracking-[-0.03em] text-text-strong md:text-[36px]">
               많이 찾는 차종부터
-              <br className="hidden sm:block" />
+              <br />
               부담 없이 비교해보세요
             </h2>
           </div>

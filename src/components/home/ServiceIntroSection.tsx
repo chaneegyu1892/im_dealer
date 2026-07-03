@@ -8,7 +8,7 @@ const STEPS = [
   {
     icon: ClipboardCheck,
     title: "조건을 먼저 정리해요",
-    descLines: ["용도와 초기비용 기준을", "견적 전에 분명히 맞춥니다."],
+    descLines: ["용도와 초기 비용 기준을", "견적 전에 분명히 맞춥니다."],
   },
   {
     icon: Calculator,
@@ -35,7 +35,7 @@ export function ServiceIntroSection() {
               알아야 할 것만 먼저.
             </h2>
             <p className="break-keep text-[14px] leading-[1.7] text-text-body md:text-[15px]">
-              차종을 고르기 전에 월 납입 구조와 초기비용 차이를 먼저 확인할 수 있게 정리했습니다.
+              차종을 고르기 전에 월 납입 구조와 초기 비용 차이를 먼저 확인할 수 있게 정리했습니다.
             </p>
 
             <Link

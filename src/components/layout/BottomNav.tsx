@@ -17,7 +17,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "홈", icon: Home, exact: true },
   { href: "/recommend", label: "AI 추천", icon: ClipboardCheck, exact: false },
-  { href: "/cars", label: "차량탐색", icon: CarFront, exact: false },
+  { href: "/cars", label: "차량 탐색", icon: CarFront, exact: false },
   { label: "상담", icon: MessageCircle, exact: false, channelTalk: true },
 ];
 

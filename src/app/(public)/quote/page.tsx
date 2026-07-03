@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "견적 계산기",
-  description: "장기렌트·리스 실시간 견적 계산기. 차량·트림·옵션을 선택하고 초기비용 유무에 따른 2가지 시나리오로 비교하세요.",
+  description: "장기렌트·리스 실시간 견적 계산기. 차량·트림·옵션을 선택하고 초기 비용 유무에 따른 2가지 시나리오로 비교하세요.",
   openGraph: {
     title: "견적 계산기 | 아임딜러",
     description: "장기렌트·리스 실시간 견적 계산기. 2가지 시나리오로 비교하세요.",

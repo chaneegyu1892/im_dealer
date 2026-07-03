@@ -114,7 +114,7 @@ export function CarDetailHero({
               tone="dark"
               size="xl"
               captionText="60개월 · 초기 비용 0원 · 2만km 기준"
-              emptyText="견적 준비중"
+              emptyText="견적 준비 중"
               className="mb-4"
             />
             <div className="flex items-center gap-1.5 text-[12px] text-white/60">

@@ -42,17 +42,17 @@ export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
         >
           <div className="mb-5 flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="mb-3 flex items-center gap-2">
-                <span className="rounded-pill bg-surface-soft px-3 py-1 text-[12px] font-bold text-text-body">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="shrink-0 whitespace-nowrap rounded-pill bg-surface-soft px-3 py-1 text-[12px] font-bold text-text-body">
                   {vehicle.brand}
                 </span>
                 {vehicle.isPopular && (
-                  <span className="inline-flex items-center gap-1 rounded-pill bg-brand-soft px-3 py-1 text-[12px] font-bold text-brand">
+                  <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-pill bg-brand-soft px-3 py-1 text-[12px] font-bold text-brand">
                     인기
                   </span>
                 )}
                 {vehicle.hasAvailableInventory && (
-                  <span className="rounded-pill bg-status-positive-soft px-3 py-1 text-[12px] font-bold text-status-positive">
+                  <span className="shrink-0 whitespace-nowrap rounded-pill bg-status-positive-soft px-3 py-1 text-[12px] font-bold text-status-positive">
                     즉시출고
                   </span>
                 )}

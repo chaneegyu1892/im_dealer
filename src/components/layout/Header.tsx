@@ -13,7 +13,7 @@ import { ADMIN_ROLES, type AdminRole } from "@/lib/admin-roles";
 const NAV_LINKS = [
   { href: "/", label: "홈", icon: Home, exact: true },
   { href: "/recommend", label: "AI 추천", icon: ClipboardCheck, exact: false },
-  { href: "/cars", label: "차량탐색", icon: CarFront, exact: false },
+  { href: "/cars", label: "차량 탐색", icon: CarFront, exact: false },
   { href: "/about", label: "소개", icon: Info, exact: false },
 ] as const;
 

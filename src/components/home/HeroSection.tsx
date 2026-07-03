@@ -43,7 +43,7 @@ export function HeroSection({ featuredVehicle }: HeroSectionProps) {
             </h1>
 
             <p className="mt-5 max-w-[520px] break-keep text-[15px] font-medium leading-[1.78] text-text-body md:text-[17px]">
-              <span className="block">월 납입금과 초기비용을 먼저 확인하세요.</span>
+              <span className="block">월 납입금과 초기 비용을 먼저 확인하세요.</span>
               <span className="block">상담은 원할 때만 이어갑니다.</span>
             </p>
 
@@ -166,7 +166,7 @@ export function HeroSection({ featuredVehicle }: HeroSectionProps) {
           {[
             ["상담 전 확인", "개인정보 입력 없이 주요 조건을 먼저 봅니다."],
             ["월 납입 비교", "무보증, 보증금, 선납 조건을 한 화면에서 비교합니다."],
-            ["계약 전 안내", "초기비용과 주행거리 조건을 숨기지 않습니다."],
+            ["계약 전 안내", "초기 비용과 주행거리 조건을 숨기지 않습니다."],
           ].map(([title, desc]) => (
             <div key={title} className="flex items-start gap-3 px-1 py-2 sm:px-0">
               <Calculator size={16} className="mt-0.5 shrink-0 text-brand" />
