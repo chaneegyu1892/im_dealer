@@ -9,7 +9,6 @@ import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { formatSubsidyManwon } from "@/lib/ev-subsidy";
 import { hasRepresentativeQuote } from "@/lib/representative-quote";
-import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 
 interface CarCardProps {
@@ -146,22 +145,13 @@ export function CarCard({ vehicle }: CarCardProps) {
         </div>
       </Link>
 
-      {hasQuote ? (
-        <Link
-          href={`/quote?vehicle=${vehicle.slug}`}
-          className="relative mx-4 mb-4 flex min-h-[46px] items-center justify-center gap-2 rounded-pill bg-brand text-[13.5px] font-extrabold text-white shadow-[0_10px_22px_rgba(var(--color-brand-rgb),0.22)] transition-all duration-state hover:bg-brand-pressed hover:shadow-float active:scale-[0.98]"
-        >
-          바로 견적 보기
-          <ArrowRight size={14} strokeWidth={2.5} />
-        </Link>
-      ) : (
-        <ChannelTalkButton
-          vehicleName={vehicle.name}
-          label="상담하기"
-          size="sm"
-          className="relative mx-4 mb-4 flex min-h-[46px] w-[calc(100%-2rem)] rounded-pill bg-brand px-4 py-2 text-[13.5px] font-extrabold text-white shadow-[0_10px_22px_rgba(var(--color-brand-rgb),0.22)] transition-all duration-state hover:bg-brand-pressed hover:opacity-100 hover:shadow-float active:scale-[0.98]"
-        />
-      )}
+      <Link
+        href={`/quote?vehicle=${vehicle.slug}`}
+        className="relative mx-4 mb-4 flex min-h-[46px] items-center justify-center gap-2 rounded-pill bg-brand text-[13.5px] font-extrabold text-white shadow-[0_10px_22px_rgba(var(--color-brand-rgb),0.22)] transition-all duration-state hover:bg-brand-pressed hover:shadow-float active:scale-[0.98]"
+      >
+        {hasQuote ? "바로 견적 보기" : "견적 내기"}
+        <ArrowRight size={14} strokeWidth={2.5} />
+      </Link>
     </motion.div>
   );
 }

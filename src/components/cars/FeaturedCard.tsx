@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import type { VehicleListItem } from "@/types/api";
 import { hasRepresentativeQuote } from "@/lib/representative-quote";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
-import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { summarizeVehicleDescription } from "@/lib/public-ui-text";
 
 interface FeaturedCardProps {
@@ -113,35 +112,20 @@ export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
           </div>
         </div>
       </Link>
-      {hasQuote ? (
-        <Link
-          href={`/quote?vehicle=${vehicle.slug}`}
-          className={cn(
-            "absolute z-20 flex min-h-[42px] items-center gap-1.5 rounded-pill bg-brand text-[13px] font-extrabold text-white transition-all duration-state group-hover:gap-2.5 group-hover:-translate-y-0.5 md:min-h-[46px] md:px-5 md:text-[13.5px]",
-            "hover:bg-brand-pressed active:translate-y-0 active:scale-[0.98]",
-            "px-4 py-2",
-            size === "large"
-              ? "bottom-5 right-5 md:bottom-10 md:right-10"
-              : "bottom-5 right-5 md:bottom-8 md:right-8",
-          )}
-        >
-          견적 보기
-          <ArrowRight size={13} strokeWidth={2.5} />
-        </Link>
-      ) : (
-        <ChannelTalkButton
-          vehicleName={vehicle.name}
-          label="상담하기"
-          size="sm"
-          className={cn(
-            "absolute z-20 min-h-[42px] rounded-pill bg-brand px-4 py-2 text-[13px] font-extrabold text-white transition-all duration-state group-hover:-translate-y-0.5 md:min-h-[46px] md:px-5 md:text-[13.5px]",
-            "hover:bg-brand-pressed hover:opacity-100 active:translate-y-0 active:scale-[0.98]",
-            size === "large"
-              ? "bottom-5 right-5 md:bottom-10 md:right-10"
-              : "bottom-5 right-5 md:bottom-8 md:right-8",
-          )}
-        />
-      )}
+      <Link
+        href={`/quote?vehicle=${vehicle.slug}`}
+        className={cn(
+          "absolute z-20 flex min-h-[42px] items-center gap-1.5 rounded-pill bg-brand text-[13px] font-extrabold text-white transition-all duration-state group-hover:gap-2.5 group-hover:-translate-y-0.5 md:min-h-[46px] md:px-5 md:text-[13.5px]",
+          "hover:bg-brand-pressed active:translate-y-0 active:scale-[0.98]",
+          "px-4 py-2",
+          size === "large"
+            ? "bottom-5 right-5 md:bottom-10 md:right-10"
+            : "bottom-5 right-5 md:bottom-8 md:right-8",
+        )}
+      >
+        {hasQuote ? "견적 보기" : "견적 내기"}
+        <ArrowRight size={13} strokeWidth={2.5} />
+      </Link>
     </motion.div>
   );
 }

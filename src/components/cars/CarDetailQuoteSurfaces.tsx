@@ -16,13 +16,6 @@ const TRUST_ITEMS = [
   "실제 운영 가능한 조건만",
 ];
 
-const CONSULTATION_TRUST_ITEMS = [
-  "허위·낚시 상담 없음",
-  "개인정보 없이 상담 가능",
-  "상담 압박 없음",
-  "실제 운영 가능한 조건만",
-];
-
 const MOBILE_STICKY_SUMMARY_SCROLL_Y = 180;
 
 export function MobileQuoteSummary({
@@ -34,8 +27,6 @@ export function MobileQuoteSummary({
   vehicleSlug: string;
   quotes: RepresentativeQuote[];
 }) {
-  const hasQuote = hasRepresentativeQuote(quotes);
-
   return (
     <div className="relative z-20 mb-4 block lg:hidden">
       <div className="t-card p-4 shadow-soft">
@@ -54,33 +45,16 @@ export function MobileQuoteSummary({
             className="shrink-0 rounded-pill border border-line bg-surface px-3.5 py-2 text-[12.5px] font-bold text-ink hover:bg-surface-muted hover:opacity-100"
           />
         </div>
-        {hasQuote && (
-          <Link
-            href={`/quote?vehicle=${vehicleSlug}`}
-            className="mt-3 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-btn bg-primary px-5 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-primary-strong"
-          >
-            <Calculator size={17} strokeWidth={2.3} />
-            견적 내기
-          </Link>
-        )}
-        {!hasQuote && (
-          <div className="mt-3 grid grid-cols-2 gap-2 rounded-[16px] bg-surface-muted px-3 py-2.5">
-            <MobileTrust text="개인정보 없이 확인" />
-            <MobileTrust text="상담 압박 없음" />
-          </div>
-        )}
+        <Link
+          href={`/quote?vehicle=${vehicleSlug}`}
+          className="mt-3 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-btn bg-primary px-5 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-primary-strong"
+        >
+          <Calculator size={17} strokeWidth={2.3} />
+          견적 내기
+        </Link>
       </div>
       <MobileStickyQuoteBar vehicleName={vehicleName} vehicleSlug={vehicleSlug} quotes={quotes} />
     </div>
-  );
-}
-
-function MobileTrust({ text }: { text: string }) {
-  return (
-    <p className="flex items-center gap-1.5 text-[12px] font-bold text-ink">
-      <Check size={13} className="text-primary" />
-      {text}
-    </p>
   );
 }
 
@@ -167,12 +141,18 @@ function MobileStickyQuoteBar({
                 </Link>
               </div>
             ) : (
-              <ChannelTalkButton
-                vehicleName={vehicleName}
-                label="상담하기"
-                size="sm"
-                className="min-h-[48px] w-full rounded-btn bg-primary px-5 py-2 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-primary-strong hover:opacity-100"
-              />
+              <div className="space-y-2">
+                <p className="px-1 text-[12px] font-medium leading-relaxed text-ink-label">
+                  조건을 선택하면 상담 필요 여부를 바로 확인할 수 있어요.
+                </p>
+                <Link
+                  href={`/quote?vehicle=${vehicleSlug}`}
+                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-btn bg-primary px-3 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-primary-strong"
+                >
+                  <Calculator size={16} strokeWidth={2.3} />
+                  견적 내기
+                </Link>
+              </div>
             )}
           </div>
         </motion.div>
@@ -195,7 +175,6 @@ export function CarDetailSidebar({
   highlights: string[];
 }) {
   const hasQuote = hasRepresentativeQuote(quotes);
-  const trustItems = hasQuote ? TRUST_ITEMS : CONSULTATION_TRUST_ITEMS;
 
   return (
     <div className="hidden lg:col-span-1 lg:block">
@@ -228,12 +207,18 @@ export function CarDetailSidebar({
               <ChannelTalkButton vehicleName={vehicleName} label="상담하기" size="md" />
             </>
           ) : (
-            <ChannelTalkButton
-              vehicleName={vehicleName}
-              label="상담하기"
-              size="md"
-              className="mb-2.5 bg-primary text-white hover:bg-primary-strong hover:opacity-100"
-            />
+            <>
+              <Link
+                href={`/quote?vehicle=${vehicleSlug}`}
+                className="cta mb-2.5 hover:bg-primary-strong"
+              >
+                <Calculator size={16} strokeWidth={2} />
+                견적 내기
+              </Link>
+              <p className="rounded-[12px] bg-surface-soft px-3 py-2 text-center text-[12px] leading-relaxed text-ink-label">
+                조건 선택 후 상담 필요 여부를 안내해드려요
+              </p>
+            </>
           )}
           <p className="mt-3 text-center text-[11.5px] text-ink-label">
             상담 전 이름·전화번호 요구 없음
@@ -245,7 +230,7 @@ export function CarDetailSidebar({
         <div className="t-card p-4 shadow-soft">
           <p className="t-kick mb-3">아임딜러 약속</p>
           <ul className="space-y-2.5">
-            {trustItems.map((item) => (
+            {TRUST_ITEMS.map((item) => (
               <li key={item} className="flex items-center gap-2 text-[12.5px] text-ink-label">
                 <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-primary-soft">
                   <Check size={10} strokeWidth={2.5} className="text-primary" />

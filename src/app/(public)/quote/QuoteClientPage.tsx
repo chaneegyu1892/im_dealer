@@ -26,6 +26,7 @@ import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { ColorSelector, type VehicleColorPublic } from "@/components/quote/ColorSelector";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
+import { RequiresConsultationNotice } from "@/components/quote/RequiresConsultationNotice";
 import {
   LineupTrimPicker,
   type LineupChoice,
@@ -1636,27 +1637,7 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
 
                 {/* 견적 결과 또는 별도 상담 안내 */}
                 {quoteResult.requiresConsultation ? (
-                  <div className="public-mobile-section mb-4 p-5 md:p-6">
-                    <div className="flex items-start gap-3 mb-4">
-                      <div className="shrink-0 w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center">
-                        <AlertCircle size={20} className="text-brand" />
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-semibold text-ink leading-snug">
-                          이 차량은 별도 상담이 필요합니다
-                        </p>
-                        <p className="text-[13px] text-ink-label mt-1 leading-relaxed">
-                          현재 자동 견적에 필요한 회수율 데이터가 등록되지 않아
-                          정확한 금액을 즉시 산출하기 어렵습니다. 전문 상담을 통해
-                          맞춤 견적을 받아보실 수 있습니다.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="rounded-[12px] border border-border-subtle bg-surface-soft p-3 text-[12px] leading-relaxed text-text-muted">
-                      옵션·계약조건에 따라 캐피탈사별 금액이 크게 달라질 수 있어
-                      상담을 통한 견적이 더 정확합니다.
-                    </div>
-                  </div>
+                  <RequiresConsultationNotice vehicleName={selectedVehicle?.name} />
                 ) : (
                   <>
                     <div className="public-mobile-section mb-4 p-4 md:p-6">
@@ -1718,93 +1699,93 @@ export function QuoteClientPage({ vehicles }: { vehicles: VehicleListItem[] }) {
                         onMemberLogin={handleGateLogin}
                       />
                     )}
+
+                    {/* 면책 안내 */}
+                    <div className="mb-4 rounded-[16px] border border-border-subtle bg-surface p-4 text-[12px] leading-relaxed text-text-muted shadow-card">
+                      위 견적은 실제 계약 가능한 기준으로 계산되었으나, 최종 금액은
+                      차량 상태·옵션·프로모션에 따라 달라질 수 있습니다. 전문가
+                      상담을 통해 확정 견적을 받으시길 권장합니다.
+                    </div>
+
+                    <div className="public-mobile-section mb-4 p-4 md:rounded-[24px] md:p-6">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand/65">
+                            다음 단계
+                          </p>
+                          <p className="mt-0.5 text-[15px] font-semibold text-ink">
+                            조건을 확인한 뒤 심사로 이어가세요
+                          </p>
+                        </div>
+                        <div className="shrink-0 rounded-full bg-status-warning-soft px-2.5 py-1 text-[11px] font-semibold text-status-warning shadow-sm">
+                          연락처 입력 전 상담 가능
+                        </div>
+                      </div>
+
+                      {/* 계약 신청하기 */}
+                      <button
+                        type="button"
+                        onClick={handleContractApply}
+                        className="public-touch-button mb-2.5 w-full gap-2 bg-brand text-surface shadow-lift hover:bg-brand-dark"
+                      >
+                        <ClipboardCheck size={16} strokeWidth={2.2} />
+                        이 조건으로 심사 요청하기
+                      </button>
+
+                      {/* 견적서 카카오톡으로 받기 */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={handlePdfDownload}
+                          disabled={isPdfDownloading}
+                          className={cn(
+                            "public-touch-button min-h-[46px] w-full gap-1.5 border px-3 text-[13px] font-bold",
+                            isPdfDownloading
+                              ? "cursor-not-allowed border-border-subtle bg-surface-soft text-text-muted"
+                              : "border-brand/20 bg-surface text-brand hover:bg-brand-soft active:scale-[0.98]"
+                          )}
+                        >
+                          {isPdfDownloading ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-brand/20 border-t-brand rounded-full animate-spin" />
+                              준비 중
+                            </>
+                          ) : (
+                            <>
+                              <Download size={14} strokeWidth={2.2} />
+                              견적서 받기
+                            </>
+                          )}
+                        </button>
+
+                        {/* 상담 버튼 */}
+                        <ChannelTalkButton
+                          vehicleName={selectedVehicle?.name}
+                          label="상담하기"
+                          className="min-h-[46px] rounded-[12px] border border-border-subtle bg-surface px-3 py-0 text-[13px] font-semibold text-text-body hover:bg-surface-soft hover:opacity-100"
+                        />
+                      </div>
+
+                      {pdfError && (
+                        <div className="mt-2 flex items-start gap-2 rounded-[12px] border border-status-danger/20 bg-status-danger-soft p-3 text-[12px] text-status-danger">
+                          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                          <p>{pdfError}</p>
+                        </div>
+                      )}
+
+                      <div className="mt-3 grid grid-cols-2 gap-2 rounded-[12px] bg-surface-soft px-3 py-2.5">
+                        <p className="flex items-center gap-1.5 text-[11px] font-medium text-public-muted">
+                          <Check size={12} className="text-brand" />
+                          개인정보 입력 전 상담 가능
+                        </p>
+                        <p className="flex items-center gap-1.5 text-[11px] font-medium text-public-muted">
+                          <Check size={12} className="text-brand" />
+                          최종 조건 상담 후 확정
+                        </p>
+                      </div>
+                    </div>
                   </>
                 )}
-
-                {/* 면책 안내 */}
-                <div className="mb-4 rounded-[16px] border border-border-subtle bg-surface p-4 text-[12px] leading-relaxed text-text-muted shadow-card">
-                  위 견적은 실제 계약 가능한 기준으로 계산되었으나, 최종 금액은
-                  차량 상태·옵션·프로모션에 따라 달라질 수 있습니다. 전문가
-                  상담을 통해 확정 견적을 받으시길 권장합니다.
-                </div>
-
-                <div className="public-mobile-section mb-4 p-4 md:rounded-[24px] md:p-6">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand/65">
-                        다음 단계
-                      </p>
-                      <p className="mt-0.5 text-[15px] font-semibold text-ink">
-                        조건을 확인한 뒤 심사로 이어가세요
-                      </p>
-                    </div>
-                    <div className="shrink-0 rounded-full bg-status-warning-soft px-2.5 py-1 text-[11px] font-semibold text-status-warning shadow-sm">
-                      연락처 입력 전 상담 가능
-                    </div>
-                  </div>
-
-                  {/* 계약 신청하기 */}
-                  <button
-                    type="button"
-                    onClick={handleContractApply}
-                    className="public-touch-button mb-2.5 w-full gap-2 bg-brand text-surface shadow-lift hover:bg-brand-dark"
-                  >
-                    <ClipboardCheck size={16} strokeWidth={2.2} />
-                    이 조건으로 심사 요청하기
-                  </button>
-
-                  {/* 견적서 카카오톡으로 받기 */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={handlePdfDownload}
-                      disabled={isPdfDownloading}
-                      className={cn(
-                        "public-touch-button min-h-[46px] w-full gap-1.5 border px-3 text-[13px] font-bold",
-                        isPdfDownloading
-                          ? "cursor-not-allowed border-border-subtle bg-surface-soft text-text-muted"
-                          : "border-brand/20 bg-surface text-brand hover:bg-brand-soft active:scale-[0.98]"
-                      )}
-                    >
-                      {isPdfDownloading ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-brand/20 border-t-brand rounded-full animate-spin" />
-                          준비 중
-                        </>
-                      ) : (
-                        <>
-                          <Download size={14} strokeWidth={2.2} />
-                          견적서 받기
-                        </>
-                      )}
-                    </button>
-
-                    {/* 상담 버튼 */}
-                    <ChannelTalkButton
-                      vehicleName={selectedVehicle?.name}
-                      label="상담하기"
-                      className="min-h-[46px] rounded-[12px] border border-border-subtle bg-surface px-3 py-0 text-[13px] font-semibold text-text-body hover:bg-surface-soft hover:opacity-100"
-                    />
-                  </div>
-
-                  {pdfError && (
-                    <div className="mt-2 flex items-start gap-2 rounded-[12px] border border-status-danger/20 bg-status-danger-soft p-3 text-[12px] text-status-danger">
-                      <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                      <p>{pdfError}</p>
-                    </div>
-                  )}
-
-                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-[12px] bg-surface-soft px-3 py-2.5">
-                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-public-muted">
-                      <Check size={12} className="text-brand" />
-                      개인정보 입력 전 상담 가능
-                    </p>
-                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-public-muted">
-                      <Check size={12} className="text-brand" />
-                      최종 조건 상담 후 확정
-                    </p>
-                  </div>
-                </div>
 
                 {/* 하단 링크 */}
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-4">
