@@ -264,7 +264,7 @@ function InitialCostControl({
                         style={{
                           // 썸 중심 위치까지 채움 — 썸 이동 범위 보정과 동일 식
                           width: `calc(${(activeRate / SLIDER_MAX)} * (100% - 20px) + 10px)`,
-                          background: "linear-gradient(90deg, var(--color-brand-primary) 0%, var(--color-accent-purple) 100%)",
+                          background: "var(--color-brand-primary)",
                         }}
                       />
                     </div>
