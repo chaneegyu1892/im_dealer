@@ -32,7 +32,6 @@ export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
         "hover:-translate-y-1 hover:scale-[1.012] hover:bg-surface-raised",
       )}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[linear-gradient(135deg,rgb(var(--color-brand-soft-rgb)/0.95),transparent_62%)]" />
       <Link href={`/cars/${vehicle.slug}`} className="block h-full">
         <div
           className={cn(

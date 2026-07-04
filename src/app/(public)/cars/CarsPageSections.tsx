@@ -11,9 +11,7 @@ type FeaturedVehiclesSectionProps = {
 
 export function CarsPageHero({ totalCount }: CarsPageHeroProps) {
   return (
-    <section className="relative overflow-hidden bg-surface">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_18%_14%,rgba(var(--color-brand-soft-rgb),1),transparent_42%),radial-gradient(circle_at_84%_0%,rgba(var(--color-status-info-soft-rgb),0.9),transparent_36%)]" />
-      <div className="pointer-events-none absolute bottom-0 left-1/2 h-28 w-[min(760px,90vw)] -translate-x-1/2 rounded-[100%] bg-brand/10 blur-3xl" />
+    <section className="relative bg-surface">
       <div className="page-container relative py-9 md:py-14">
         <div className="max-w-3xl">
           <p className="mb-3 inline-flex rounded-pill bg-brand-soft px-3 py-1.5 text-[12px] font-extrabold tracking-[0.02em] text-brand">

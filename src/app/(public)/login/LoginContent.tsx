@@ -42,8 +42,6 @@ export default function LoginContent() {
       <div className="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[440px] flex-col justify-center">
         <section className="overflow-hidden rounded-[28px] border border-border-subtle bg-surface shadow-card">
           <div className="relative px-5 pb-6 pt-7 sm:px-6">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_28%_8%,rgba(var(--color-brand-soft-rgb),1),transparent_58%)]" />
-
             <div className="relative">
               <Link
                 href="/"

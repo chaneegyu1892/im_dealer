@@ -54,7 +54,6 @@ export function CarCard({ vehicle }: CarCardProps) {
       whileHover={{ y: -2, transition: { duration: 0.18 } }}
       className="group relative overflow-hidden rounded-[26px] bg-surface shadow-card ring-1 ring-border-subtle/80 transition-all duration-state hover:ring-brand/25 hover:shadow-float"
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[linear-gradient(135deg,rgba(var(--color-brand-soft-rgb),0.86),transparent_62%)] opacity-80" />
       <Link
         href={`/cars/${vehicle.slug}`}
         className="relative block p-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30"

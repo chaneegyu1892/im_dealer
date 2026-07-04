@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, CarFront, Search, Sparkles, Tags, X } from "lucide-react";
+import { ArrowRight, CarFront, Search, Tags, X } from "lucide-react";
 import { CarCard } from "@/components/cars/CarCard";
+import { AiBadge } from "@/components/ui/AiBadge";
 import type { CategoryFilter } from "@/components/cars/CarsFilterPanel";
 import type { VehicleListItem } from "@/types/api";
 
@@ -43,7 +44,6 @@ export function CarsResultsSection({
   if (!isBrowsing) {
     return (
       <section className="relative overflow-hidden rounded-[30px] bg-surface p-2 shadow-float ring-1 ring-border-subtle/80">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgb(var(--color-brand-soft-rgb)/0.95),transparent_34%),radial-gradient(circle_at_86%_0%,rgb(var(--color-brand-primary-rgb)/0.08),transparent_32%)]" />
         <div className="relative rounded-[24px] bg-surface-soft/80 px-5 py-6 md:px-8 md:py-8">
           <div className="mb-6 max-w-xl">
             <p className="mb-2 inline-flex rounded-pill bg-brand-soft px-3 py-1.5 text-[12px] font-extrabold text-brand">
@@ -96,8 +96,9 @@ export function CarsResultsSection({
               href="/recommend"
               className="group flex min-h-[128px] flex-col items-start justify-between rounded-[22px] border border-brand/20 bg-brand p-4 text-left shadow-float transition-all duration-state hover:-translate-y-0.5 hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/35"
             >
-              <span className="grid h-10 w-10 place-items-center rounded-[14px] bg-white/14 text-white">
-                <Sparkles size={18} strokeWidth={2.2} />
+              <span className="inline-flex items-center gap-1.5">
+                <AiBadge tone="onDark" />
+                <span className="text-[12px] font-extrabold uppercase tracking-[0.06em] text-white/80">추천</span>
               </span>
               <span className="flex w-full items-end justify-between gap-3">
                 <span>
