@@ -76,7 +76,6 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
   const [current, setCurrent] = useState(0);
   const [twoWay, setTwoWay] = useState<TwoWayInfo | null>(null);
   const [busy, setBusy] = useState(false);
-  const [fatal, setFatal] = useState<string | null>(null);
 
   const body = (docType: DocType) => {
     const base = {
@@ -166,7 +165,6 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
   }
 
   function begin() {
-    setFatal(null);
     setPhase("run");
     setCurrent(0);
     void startDoc(0);
@@ -202,18 +200,32 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
 
       {/* 문서별 진행 상태 */}
       <div className="space-y-2">
-        {docs.map((d, i) => (
-          <div
-            key={d.docType}
-            className={cn(
-              "flex items-center justify-between rounded-[12px] border px-4 py-3",
-              i === current ? "border-primary/40 bg-primary/[0.04]" : "border-public-border bg-white"
-            )}
-          >
-            <span className="text-[13px] font-medium text-ink">{DOC_TYPES[d.docType].label}</span>
-            <DocBadge phase={d.phase} error={d.error} />
-          </div>
-        ))}
+        {docs.map((d, i) => {
+          const isFailed = d.phase === "failed";
+          return (
+            <div
+              key={d.docType}
+              className={cn(
+                "rounded-[12px] border px-4 py-3",
+                isFailed
+                  ? "border-red-200 bg-red-50/60"
+                  : i === current
+                    ? "border-primary/40 bg-primary/[0.04]"
+                    : "border-public-border bg-white"
+              )}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[13px] font-medium text-ink">{DOC_TYPES[d.docType].label}</span>
+                <DocBadge phase={d.phase} />
+              </div>
+              {isFailed && d.error && (
+                <p className="mt-1.5 text-[11.5px] leading-relaxed text-red-600">
+                  {d.error}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* 현재 문서 액션 */}
@@ -225,17 +237,11 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
           onConfirm={() => confirmDoc(current)}
         />
       )}
-
-      {fatal && (
-        <div className="rounded-[12px] border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-700">
-          {fatal}
-        </div>
-      )}
     </div>
   );
 }
 
-function DocBadge({ phase, error }: { phase: DocPhase; error?: string }) {
+function DocBadge({ phase }: { phase: DocPhase }) {
   if (phase === "done")
     return (
       <span className="inline-flex items-center gap-1 text-[12px] font-medium text-emerald-600">
@@ -244,7 +250,7 @@ function DocBadge({ phase, error }: { phase: DocPhase; error?: string }) {
     );
   if (phase === "failed")
     return (
-      <span className="inline-flex items-center gap-1 text-[12px] font-medium text-red-500" title={error}>
+      <span className="inline-flex items-center gap-1 text-[12px] font-medium text-red-500">
         <XCircle size={14} /> 실패
       </span>
     );
