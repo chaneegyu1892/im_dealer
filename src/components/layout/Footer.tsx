@@ -24,7 +24,7 @@ function FooterLink({ href, label }: { readonly href: string; readonly label: st
   return (
     <Link
       href={href}
-      className="inline-flex min-h-9 items-center rounded-btn text-[13px] font-bold text-text-body transition-colors duration-state hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
+      className="inline-flex min-h-11 items-center rounded-btn text-[13px] font-bold text-text-body transition-colors duration-state hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
     >
       {label}
     </Link>
@@ -53,11 +53,11 @@ export function Footer() {
             <div className="mt-4 flex flex-wrap gap-2 lg:mt-5">
               <a
                 href="mailto:contact@metakium.co.kr"
-                className="inline-flex min-h-8 items-center rounded-pill bg-surface-soft px-3 text-[12px] font-bold text-text-body transition-colors duration-state hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 lg:min-h-9 lg:text-[12.5px]"
+                className="inline-flex min-h-10 items-center rounded-pill bg-surface-soft px-3 text-[12px] font-bold text-text-body transition-colors duration-state hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 lg:min-h-9 lg:text-[12.5px]"
               >
                 contact@metakium.co.kr
               </a>
-              <span className="inline-flex min-h-8 items-center rounded-pill bg-surface-soft px-3 text-[12px] font-bold text-text-muted lg:min-h-9 lg:text-[12.5px]">
+              <span className="inline-flex min-h-10 items-center rounded-pill bg-surface-soft px-3 text-[12px] font-bold text-text-muted lg:min-h-9 lg:text-[12.5px]">
                 평일 08:30-17:30
               </span>
             </div>
@@ -121,7 +121,7 @@ export function Footer() {
               </p>
               <Link
                 href="/finance-terms"
-                className="inline-flex min-h-8 items-center font-extrabold text-brand underline underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
+                className="inline-flex min-h-10 items-center font-extrabold text-brand underline underline-offset-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
               >
                 법적 고지 전문 보기
               </Link>

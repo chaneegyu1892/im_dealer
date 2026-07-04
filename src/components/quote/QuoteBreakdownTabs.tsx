@@ -295,7 +295,7 @@ export function QuoteBreakdownTabs({
                 type="button"
                 onClick={() => applyRate(0)}
                 className={cn(
-                  "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
+                  "px-3.5 py-2 rounded-full border text-[12px] font-bold transition-all duration-150",
                   activeRate === 0 && !directMode
                     ? "border-text-strong bg-text-strong text-surface"
                     : "border-border-subtle bg-surface text-text-body hover:border-text-strong/40"
@@ -309,7 +309,7 @@ export function QuoteBreakdownTabs({
                   type="button"
                   onClick={() => applyRate(r)}
                   className={cn(
-                    "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
+                    "px-3.5 py-2 rounded-full border text-[12px] font-bold transition-all duration-150",
                     activeRate === r && !directMode
                       ? "border-brand bg-brand text-surface"
                       : "border-border-subtle bg-surface text-text-body hover:border-brand/40"
@@ -322,7 +322,7 @@ export function QuoteBreakdownTabs({
                 type="button"
                 onClick={() => { setDirectMode(true); setDirectValue(String(activeRate)); }}
                 className={cn(
-                  "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
+                  "px-3.5 py-2 rounded-full border text-[12px] font-bold transition-all duration-150",
                   directMode
                     ? "border-brand bg-brand text-surface"
                     : "border-border-subtle bg-surface text-text-body hover:border-brand/40"

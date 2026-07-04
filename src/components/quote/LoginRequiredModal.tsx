@@ -42,7 +42,7 @@ export function LoginRequiredModal({ open, onClose, onKakaoLogin }: LoginRequire
           type="button"
           onClick={onClose}
           aria-label="닫기"
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-soft"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-soft"
         >
           <X size={18} />
         </button>

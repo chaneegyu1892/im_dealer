@@ -230,7 +230,7 @@ function InitialCostControl({
                     type="button"
                     onClick={() => applyRate(0)}
                     className={cn(
-                      "px-3 py-1.5 rounded-full border text-[12px] font-medium transition-all duration-150",
+                      "px-3.5 py-2 rounded-full border text-[12px] font-medium transition-all duration-150",
                       activeRate === 0
                         ? "bg-text-strong text-surface border-text-strong"
                         : "bg-surface text-text-secondary border-border-subtle hover:border-text-strong/40"
@@ -244,7 +244,7 @@ function InitialCostControl({
                       type="button"
                       onClick={() => applyRate(r)}
                       className={cn(
-                        "px-3 py-1.5 rounded-full border text-[12px] font-bold transition-all duration-150",
+                        "px-3.5 py-2 rounded-full border text-[12px] font-bold transition-all duration-150",
                         activeRate === r
                           ? "bg-brand text-white border-brand"
                           : "bg-surface text-text-secondary border-line2 hover:border-brand/40"
