@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -76,6 +76,13 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
   const [current, setCurrent] = useState(0);
   const [twoWay, setTwoWay] = useState<TwoWayInfo | null>(null);
   const [busy, setBusy] = useState(false);
+  // 컴포넌트가 언마운트된 뒤에도 setTimeout 콜백이 state/요청을 건드리지 않도록 가드한다.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const body = (docType: DocType) => {
     const base = {
@@ -157,11 +164,15 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
   function advance(i: number) {
     const next = i + 1;
     if (next >= docs.length) {
-      window.setTimeout(onDone, 600);
+      window.setTimeout(() => {
+        if (mountedRef.current) onDone();
+      }, 600);
       return;
     }
     setCurrent(next);
-    window.setTimeout(() => startDoc(next), 300);
+    window.setTimeout(() => {
+      if (mountedRef.current) startDoc(next);
+    }, 300);
   }
 
   function begin() {
