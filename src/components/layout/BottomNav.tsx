@@ -37,11 +37,12 @@ export function BottomNav() {
     : { y: 0, scale: 1 };
 
   // 견적·추천·후기작성 플로우는 단일 작업 화면이므로 탭바와 겹침 방지
+  // /recommend/result(추천 결과)는 완료 화면이라 하단 CTA가 잘 보이도록 숨김.
   if (
     pathname.startsWith("/quote") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/verify") ||
-    pathname === "/recommend" ||
+    pathname.startsWith("/recommend") ||
     pathname.startsWith("/reviews/write")
   ) {
     return null;
