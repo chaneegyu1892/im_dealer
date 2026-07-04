@@ -11,26 +11,37 @@ import {
   User,
   Check,
   ArrowRight,
+  ClipboardCheck,
+  Download,
+  AlertCircle,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { sortLineups } from "@/lib/lineup-sort";
 import { TossPrice } from "@/components/ui/TossPrice";
+import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import {
   CUSTOMER_TYPE_LABELS,
   type CustomerType,
   isCustomerType,
 } from "@/constants/customer-types";
 import type { VehicleListItem, QuoteResponse } from "@/types/api";
+import type { QuoteScenarioDetail } from "@/types/quote";
+import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
 import {
   type LineupChoice,
   type TrimChoice,
 } from "@/components/quote/LineupTrimPicker";
 import {
+  QUOTE_DRAFT_STORAGE_PREFIX,
   readQuotePdfRestore,
+  saveQuotePdfRestore,
   type QuotePdfRestoreState,
+  type QuoteDraft,
 } from "@/lib/quote-draft";
 import { Step2ConditionV2, type TrimDataV2 } from "./Step2ConditionV2";
+import { InitialCostPanelV2, type CostMode } from "./InitialCostPanelV2";
 
 // ─── 상수 ────────────────────────────────────────────────
 const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
@@ -154,6 +165,17 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ─── 보증금/선납/CTA 상태 (v1 계약 그대로) ─────────────
+  const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
+  const [costMode, setCostMode] = useState<CostMode>("none");
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
+  const recalculateRequestId = useRef(0);
+  const lastQuotedSlug = useRef<string | null>(null);
+  const pendingRatesReapply = useRef(false);
+
   const hasPrefilled = useRef(false);
 
   // ─── 트림/색상 fetch (v1 계약 그대로) ──────────────────
@@ -258,12 +280,17 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     const restored = readQuotePdfRestore();
     if (restored && restored.vehicleSlug === prefillSlug) {
       restoreRef.current = restored;
+      baseStandardScenario.current =
+        restored.baseStandard ?? restored.quoteResult.scenarios.standard;
       setCustomerType(restored.customerType);
       setContractCategory(restored.contractCategory);
       setConditions({
         contractMonths: restored.conditions.contractMonths,
         annualMileage: restored.conditions.annualMileage,
       });
+      setCustomRates(restored.customRates);
+      setCostMode(restored.costMode ?? "none");
+      lastQuotedSlug.current = restored.vehicleSlug;
       setQuoteResult(restored.quoteResult);
       setStep(3);
     } else {
@@ -389,7 +416,22 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         setError(json.error ?? "견적 계산에 실패했습니다.");
         return;
       }
-      setQuoteResult(json.data as QuoteResponse);
+      const nextResult = json.data as QuoteResponse;
+      recalculateRequestId.current += 1;
+      baseStandardScenario.current = nextResult.scenarios.standard;
+
+      // 같은 차량 재계산이면 초기비용 설정 유지, 다른 차량이면 초기화 (v1 계약)
+      const preserveRates =
+        lastQuotedSlug.current === selectedVehicle.slug &&
+        (customRates.depositRate !== 0 || customRates.prepayRate !== 0);
+      if (preserveRates) {
+        pendingRatesReapply.current = true;
+      } else {
+        setCustomRates({ depositRate: 0, prepayRate: 0 });
+        setCostMode("none");
+      }
+      lastQuotedSlug.current = selectedVehicle.slug;
+      setQuoteResult(nextResult);
       goToStep(3);
     } catch {
       setError("네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
@@ -397,6 +439,232 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       setIsLoading(false);
     }
   }
+
+  // ─── 보증금/선납 재계산 (v1 계약 그대로) ───────────────
+  async function recalculateStandard(rates: { depositRate: number; prepayRate: number }) {
+    if (!selectedVehicle || !quoteResult) return;
+    const requestId = recalculateRequestId.current + 1;
+    recalculateRequestId.current = requestId;
+
+    if (rates.depositRate === 0 && rates.prepayRate === 0) {
+      restoreBaseStandardScenario();
+      return;
+    }
+
+    setIsRecalculating(true);
+    try {
+      const res = await fetch(`/api/vehicles/${selectedVehicle.slug}/quote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trimId: selectedTrim?.id,
+          selectedOptionIds: Array.from(selectedOptionIds),
+          contractMonths: conditions.contractMonths,
+          annualMileage: conditions.annualMileage,
+          contractType: "반납형",
+          productType: contractCategory,
+          customDepositRate: rates.depositRate,
+          customPrepayRate: rates.prepayRate,
+          customerType,
+          exteriorColorId,
+          interiorColorId,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) return;
+      if (requestId !== recalculateRequestId.current) return;
+
+      setQuoteResult((prev) =>
+        prev
+          ? { ...prev, scenarios: { ...prev.scenarios, standard: json.data.scenarios.standard } }
+          : prev
+      );
+    } finally {
+      if (requestId === recalculateRequestId.current) {
+        setIsRecalculating(false);
+      }
+    }
+  }
+
+  const restoreBaseStandardScenario = useCallback(() => {
+    recalculateRequestId.current += 1;
+    setIsRecalculating(false);
+    const standard = baseStandardScenario.current;
+    if (!standard) return;
+    setQuoteResult((prev) =>
+      prev ? { ...prev, scenarios: { ...prev.scenarios, standard } } : prev
+    );
+  }, []);
+
+  // 슬라이더 변경 시 500ms 디바운스 재계산 (v1 계약 그대로)
+  useEffect(() => {
+    if (!quoteResult || !selectedVehicle) return;
+    const rates = customRates;
+    const handle = setTimeout(() => { recalculateStandard(rates); }, 500);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customRates.depositRate, customRates.prepayRate]);
+
+  // 같은 차량 재계산 직후 보존된 비율 재적용 (v1 계약 그대로)
+  useEffect(() => {
+    if (!pendingRatesReapply.current || !quoteResult) return;
+    pendingRatesReapply.current = false;
+    recalculateStandard(customRates);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteResult, customRates]);
+
+  // ─── 견적 초안 저장 + /verify 이동 (v1 계약 그대로) ────
+  const handleContractApply = useCallback(async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (quoteResult) {
+      const quoteDraft: QuoteDraft = {
+        schemaVersion: 1,
+        sessionId: quoteSessionId,
+        vehicleSlug: quoteResult.vehicleSlug,
+        trimId: quoteResult.trimId,
+        selectedOptionIds: Array.from(selectedOptionIds),
+        contractMonths: quoteResult.contractMonths,
+        annualMileage: quoteResult.annualMileage,
+        contractType: "반납형",
+        productType: contractCategory,
+        customerType,
+        scenarios: quoteResult.scenarios,
+        optionsTotalPrice: quoteResult.optionsTotalPrice,
+        totalVehiclePrice: quoteResult.totalVehiclePrice,
+        customRates: { depositRate: 0, prepayRate: 0 },
+        exteriorColorId,
+        interiorColorId,
+      };
+      localStorage.setItem(
+        `${QUOTE_DRAFT_STORAGE_PREFIX}${quoteSessionId}`,
+        JSON.stringify(quoteDraft)
+      );
+    }
+
+    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}&customerType=${customerType}`;
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+      return;
+    }
+    router.push(target);
+  }, [
+    router, quoteSessionId, selectedVehicle?.slug, quoteResult, customerType,
+    selectedOptionIds, contractCategory, exteriorColorId, interiorColorId,
+  ]);
+
+  // ─── PDF 다운로드 (v1 계약 그대로) ─────────────────────
+  async function handlePdfDownload() {
+    if (!quoteResult || !selectedVehicle) return;
+    setIsPdfDownloading(true);
+    setPdfError(null);
+
+    const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({ name, price }));
+    const payload: Partial<PDFQuoteData> = {
+      vehicleName: selectedVehicle.name,
+      vehicleBrand: selectedVehicle.brand,
+      trimName: quoteResult.trimName,
+      trimPrice: quoteResult.trimPrice,
+      selectedOptions,
+      totalVehiclePrice:
+        quoteResult.totalVehiclePrice ??
+        quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? optionsTotalPrice) + colorDelta,
+      productType: contractCategory,
+      contractMonths: quoteResult.contractMonths,
+      annualMileage: quoteResult.annualMileage,
+      contractType: "반납형",
+      scenarios: quoteResult.scenarios,
+      exteriorColor: selectedExteriorColor
+        ? { name: selectedExteriorColor.name, hexCode: selectedExteriorColor.hexCode, priceDelta: selectedExteriorColor.priceDelta }
+        : null,
+      interiorColor: selectedInteriorColor
+        ? { name: selectedInteriorColor.name, hexCode: selectedInteriorColor.hexCode, priceDelta: selectedInteriorColor.priceDelta }
+        : null,
+    };
+
+    try {
+      const response = await fetch("/api/quote/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const json = await response.json().catch(() => null);
+        setPdfError(json?.error ?? "PDF 다운로드에 실패했습니다.");
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/)?.[1];
+      const fallbackName = `아임딜러_견적서_${selectedVehicle.name}.pdf`;
+      const filename = encodedFilename ? decodeURIComponent(encodedFilename) : fallbackName;
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setPdfError("PDF 다운로드 중 네트워크 오류가 발생했습니다.");
+    } finally {
+      setIsPdfDownloading(false);
+    }
+  }
+
+  // ─── 복원 저장본 생성 + 게이트 로그인 (v1 계약 그대로) ──
+  const buildRestoreState = useCallback((): QuotePdfRestoreState | null => {
+    if (!quoteResult || !selectedVehicle) return null;
+    return {
+      vehicleSlug: selectedVehicle.slug,
+      customerType,
+      selectedLineup,
+      selectedTrimName: selectedTrim?.name ?? null,
+      selectedOptionIds: Array.from(selectedOptionIds),
+      contractCategory,
+      conditions: {
+        contractMonths: conditions.contractMonths,
+        annualMileage: conditions.annualMileage,
+        contractType: "반납형",
+      },
+      customRates,
+      exteriorColorId,
+      interiorColorId,
+      costMode,
+      baseStandard: baseStandardScenario.current,
+      quoteResult,
+    };
+  }, [quoteResult, selectedVehicle, customerType, selectedLineup, selectedTrim, selectedOptionIds, contractCategory, conditions, customRates, exteriorColorId, interiorColorId, costMode]);
+
+  const handleGateLogin = useCallback(() => {
+    const state = buildRestoreState();
+    if (state) saveQuotePdfRestore(state);
+    const params = new URLSearchParams({
+      vehicle: selectedVehicle?.slug ?? "",
+      customerType,
+      restore: "1",
+    });
+    router.push(`/login?next=${encodeURIComponent(`/quote?${params.toString()}`)}`);
+  }, [buildRestoreState, router, selectedVehicle, customerType]);
+
+  // 결과(step 3) 도달 시 저장본 localStorage 저장 + restore 마커 동기화 (v1 계약)
+  useEffect(() => {
+    if (step === 3 && quoteResult && selectedVehicle) {
+      const state = buildRestoreState();
+      if (state) saveQuotePdfRestore(state);
+      // restore 마커 동기화
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        params.set("vehicle", selectedVehicle.slug);
+        if (customerType) params.set("customerType", customerType);
+        params.set("restore", "1");
+        window.history.replaceState(null, "", `/quote?${params.toString()}`);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, quoteResult, costMode, customRates]);
 
   // quoteSessionId 는 3회차(견적 초안 저장)에서 사용.
   void quoteSessionId;
@@ -541,6 +809,17 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               selectedOptionDetails={selectedOptionDetails}
               selectedExteriorColor={selectedExteriorColor}
               selectedInteriorColor={selectedInteriorColor}
+              customRates={customRates}
+              costMode={costMode}
+              isRecalculating={isRecalculating}
+              isPdfDownloading={isPdfDownloading}
+              pdfError={pdfError}
+              onCustomRatesChange={setCustomRates}
+              onCostModeChange={setCostMode}
+              onReset={restoreBaseStandardScenario}
+              onMemberLogin={handleGateLogin}
+              onContractApply={handleContractApply}
+              onPdfDownload={handlePdfDownload}
               onPrev={() => {
                 setQuoteResult(null);
                 setError(null);
@@ -656,6 +935,17 @@ function Step3ResultHeader({
   selectedOptionDetails,
   selectedExteriorColor,
   selectedInteriorColor,
+  customRates,
+  costMode,
+  isRecalculating,
+  isPdfDownloading,
+  pdfError,
+  onCustomRatesChange,
+  onCostModeChange,
+  onReset,
+  onMemberLogin,
+  onContractApply,
+  onPdfDownload,
   onPrev,
 }: {
   quoteResult: QuoteResponse;
@@ -665,6 +955,17 @@ function Step3ResultHeader({
   selectedOptionDetails: { id: string; name: string; price: number }[];
   selectedExteriorColor: { name: string; priceDelta: number } | null;
   selectedInteriorColor: { name: string; priceDelta: number } | null;
+  customRates: { depositRate: number; prepayRate: number };
+  costMode: CostMode;
+  isRecalculating: boolean;
+  isPdfDownloading: boolean;
+  pdfError: string | null;
+  onCustomRatesChange: (rates: { depositRate: number; prepayRate: number }) => void;
+  onCostModeChange: (mode: CostMode) => void;
+  onReset: () => void;
+  onMemberLogin: () => void;
+  onContractApply: () => void;
+  onPdfDownload: () => void;
   onPrev: () => void;
 }) {
   const monthly = quoteResult.scenarios.standard.monthlyPayment;
@@ -773,24 +1074,98 @@ function Step3ResultHeader({
 
       {/* ── 2) 월 납입금 대형 강조 (실제 데이터) ── */}
       <div className="rounded-[24px] bg-brand p-6 text-white md:p-7">
-        <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
+        <div className="flex items-center justify-between">
+          <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
+          {isRecalculating && (
+            <span className="flex items-center gap-1.5 text-[11.5px] text-white/70">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              재계산 중…
+            </span>
+          )}
+        </div>
         <div className="mt-2">
           <TossPrice won={monthly} size="xl" tone="white" />
         </div>
         <p className="mt-3 text-[13.5px] text-white/75">
-          {CUSTOMER_TYPE_LABELS[customerType]} · 초기비용 없이 시작
+          {CUSTOMER_TYPE_LABELS[customerType]} · {contractCategory}
         </p>
       </div>
 
-      {/* ── 3) 보증금/선납 패널 + CTA 자리 (3회차) ── */}
-      <div className="flex min-h-[140px] flex-col items-center justify-center rounded-[20px] border border-dashed border-[#E5E8EB] bg-white p-6 text-center">
-        <p className="text-[13px] font-bold text-text-strong">초기비용 패널 · CTA 영역</p>
-        <p className="mt-1 text-[12.5px] text-text-body">
-          다음 회차: 보증금/선납 프리셋+슬라이더, 심사 요청/PDF/상담 CTA
-        </p>
+      {/* ── 3) 초기비용(보증금/선납금) 패널 ── */}
+      <InitialCostPanelV2
+        data={quoteResult.scenarios.standard}
+        customRates={customRates}
+        onCustomRatesChange={onCustomRatesChange}
+        isRecalculating={isRecalculating}
+        costMode={costMode}
+        onCostModeChange={onCostModeChange}
+        onMemberLogin={onMemberLogin}
+        onReset={onReset}
+      />
+
+      {/* ── 4) 안내 + CTA ── */}
+      <div className="rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
+        위 견적은 실제 계약 가능한 기준이나, 최종 금액은 차량 상태·옵션·프로모션에 따라
+        달라질 수 있어요. 전문가 상담으로 확정 견적을 받아보세요.
       </div>
 
-      <FixedCTA onClick={onPrev} label="이전 단계로" icon={<ChevronLeft size={16} strokeWidth={2.4} />} />
+      {/* 메인 CTA: 심사 요청 */}
+      <button
+        type="button"
+        onClick={onContractApply}
+        className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15.5px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99]"
+      >
+        <ClipboardCheck size={17} strokeWidth={2.2} />
+        이 조건으로 심사 요청하기
+      </button>
+
+      {/* 보조 CTA 2분할: PDF / 상담 */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          onClick={onPdfDownload}
+          disabled={isPdfDownloading}
+          className={cn(
+            "flex h-[48px] items-center justify-center gap-1.5 rounded-[14px] border text-[13.5px] font-bold transition-all",
+            isPdfDownloading
+              ? "cursor-not-allowed border-[#E5E8EB] bg-[#F8FAFC] text-text-muted"
+              : "border-brand/20 bg-white text-brand hover:bg-brand-soft active:scale-[0.99]"
+          )}
+        >
+          {isPdfDownloading ? (
+            <>
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand/20 border-t-brand" />
+              준비 중
+            </>
+          ) : (
+            <>
+              <Download size={14} strokeWidth={2.2} />
+              견적서 받기
+            </>
+          )}
+        </button>
+        <ChannelTalkButton
+          vehicleName={selectedVehicle?.name}
+          label="상담하기"
+          className="h-[48px] rounded-[14px] border border-[#E5E8EB] bg-white px-3 text-[13.5px] font-bold text-text-body hover:bg-[#F8FAFC]"
+        />
+      </div>
+
+      {pdfError && (
+        <div className="flex items-start gap-2 rounded-[12px] border border-status-danger/20 bg-status-danger-soft p-3 text-[12px] text-status-danger">
+          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+          <p>{pdfError}</p>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={onPrev}
+        className="mx-auto flex items-center gap-1 text-[13px] font-bold text-text-muted transition-colors hover:text-text-strong"
+      >
+        <ChevronLeft size={14} />
+        조건 다시 설정하기
+      </button>
     </motion.section>
   );
 }

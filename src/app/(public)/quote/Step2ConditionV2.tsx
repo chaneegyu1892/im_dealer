@@ -173,9 +173,19 @@ export function Step2ConditionV2({
       transition={{ duration: 0.22 }}
       className="space-y-8"
     >
-      {/* ─── 1. 라인업 + 트림 ─── */}
+      {/* ─── 1. 라인업 + 트림 (최우선 — 트림 선택 전엔 다른 섹션 숨김) ─── */}
       <section className="space-y-3">
-        <SectionTitle title="트림 선택" />
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-[12px] font-extrabold text-white">1</span>
+            <SectionTitle title="트림 선택" />
+          </div>
+          {!selectedTrim && !trimsLoading && (
+            <p className="mt-1.5 text-[13.5px] font-medium leading-snug text-brand">
+              먼저 차량 트림을 골라주세요. 트림 선택 후 옵션·색상·계약조건이 열려요.
+            </p>
+          )}
+        </div>
         {trimsLoading ? (
           <div className="flex h-[54px] items-center gap-2 rounded-[14px] bg-[#F8FAFC] px-4 text-[14px] text-text-muted">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#E5E8EB] border-t-brand" />
@@ -234,8 +244,17 @@ export function Step2ConditionV2({
         )}
       </section>
 
+      {/* ─── 2~4: 옵션 · 색상 · 계약조건 — 트림 선택 후 fade-in ─── */}
+      {selectedTrim && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-8"
+        >
+
       {/* ─── 2. 추가 옵션 ─── */}
-      {selectedTrim && selectedTrim.options.length > 0 && (
+      {selectedTrim.options.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <SectionTitle title="추가 옵션" />
@@ -322,7 +341,7 @@ export function Step2ConditionV2({
       )}
 
       {/* ─── 3. 색상 ─── */}
-      {colors.length > 0 && (exteriorColors.length > 0 || interiorColors.length > 0) && (
+      {colors.length > 0 && (exteriorColors.length > 0 || interiorColors.length > 0) && selectedTrim && (
         <section className="space-y-3">
           <SectionTitle title="색상 선택" />
           {exteriorColors.length > 0 && (
@@ -389,6 +408,8 @@ export function Step2ConditionV2({
           </div>
         </div>
       </section>
+      </motion.div>
+      )}
 
       {/* ─── 에러 ─── */}
       {error && (
