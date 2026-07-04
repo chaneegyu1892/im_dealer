@@ -63,7 +63,7 @@ export function CustomerReviewsSection({
         </div>
         <Link
           href="/reviews"
-          className="hidden min-h-11 items-center gap-1 rounded-pill px-1 text-[13px] font-bold text-text-muted transition-colors hover:text-text-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 sm:inline-flex"
+          className="inline-flex min-h-11 items-center gap-1 rounded-pill px-1 text-[13px] font-bold text-text-muted transition-colors hover:text-text-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
         >
           전체 후기 보기
           <ArrowRight size={14} />
@@ -91,7 +91,7 @@ export function CustomerReviewsSection({
           type="button"
           aria-label="이전 후기"
           onClick={() => nudge(STEP)}
-          className="absolute left-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-surface/80 text-text-strong opacity-0 shadow-card backdrop-blur-sm transition-all duration-state hover:scale-105 hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 group-hover/reviews:opacity-100"
+          className="absolute left-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-surface/80 text-text-strong opacity-100 shadow-card backdrop-blur-sm transition-all duration-state hover:scale-105 hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 sm:opacity-0 sm:group-hover/reviews:opacity-100"
         >
           <ChevronLeft size={18} />
         </button>
@@ -99,7 +99,7 @@ export function CustomerReviewsSection({
           type="button"
           aria-label="다음 후기"
           onClick={() => nudge(-STEP)}
-          className="absolute right-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-surface/80 text-text-strong opacity-0 shadow-card backdrop-blur-sm transition-all duration-state hover:scale-105 hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 group-hover/reviews:opacity-100"
+          className="absolute right-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-surface/80 text-text-strong opacity-100 shadow-card backdrop-blur-sm transition-all duration-state hover:scale-105 hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 sm:opacity-0 sm:group-hover/reviews:opacity-100"
         >
           <ChevronRight size={18} />
         </button>
