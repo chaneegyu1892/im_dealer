@@ -567,14 +567,15 @@ export function VerifyClient() {
           consentedAt: new Date().toISOString(),
         }),
       });
-      if (!consentRes.ok) {
-        const data = (await consentRes.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "동의 저장에 실패했습니다.");
-      }
-      const { data: consentData } = (await consentRes.json()) as {
-        data: { verificationId: string };
+      // 응답 body는 한 번만 읽을 수 있다 — 에러/성공 경로 모두 단일 파싱으로 분기.
+      const consentData = (await consentRes.json().catch(() => ({}))) as {
+        error?: string;
+        data?: { verificationId: string };
       };
-      setVerificationId(consentData.verificationId);
+      if (!consentRes.ok || !consentData.data) {
+        throw new Error(consentData.error ?? "동의 저장에 실패했습니다.");
+      }
+      setVerificationId(consentData.data.verificationId);
       setStep("easyauth");
     } catch (err) {
       setError(
