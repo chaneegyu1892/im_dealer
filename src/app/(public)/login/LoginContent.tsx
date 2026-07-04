@@ -82,7 +82,7 @@ export default function LoginContent() {
               <button
                 type="button"
                 onClick={handleKakaoLogin}
-                className="mt-8 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[16px] border border-status-warning/25 bg-status-warning-soft px-5 text-[16px] font-extrabold text-text-strong shadow-card transition-all duration-state hover:border-status-warning/45 hover:bg-status-warning-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 active:scale-[0.98]"
+                className="mt-8 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-[#FEE500] px-5 text-[16px] font-extrabold text-[#191919] shadow-card transition-all duration-state hover:brightness-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 active:scale-[0.98]"
               >
                 <KakaoIcon />
                 카카오로 시작하기

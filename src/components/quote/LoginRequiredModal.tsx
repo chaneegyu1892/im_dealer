@@ -65,10 +65,10 @@ export function LoginRequiredModal({ open, onClose, onKakaoLogin }: LoginRequire
         <button
           type="button"
           onClick={onKakaoLogin}
-          className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-[13px] bg-status-warning-soft py-3.5 text-[15px] font-extrabold text-status-warning transition-all duration-150 hover:bg-status-warning-soft/80 active:scale-[0.98]"
+          className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-[13px] bg-[#FEE500] py-3.5 text-[15px] font-extrabold text-[#191919] transition-all duration-150 hover:brightness-[0.97] active:scale-[0.98]"
         >
           <KakaoIcon />
-          카카오톡으로 로그인하기
+          카카오또로 로그인하기
         </button>
 
         <p className="mt-4 text-center text-[11px] leading-relaxed text-text-muted">
