@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Calculator, Search, Sparkles } from "lucide-react";
+import { ArrowRight, Calculator, Search } from "lucide-react";
+import { AiBadge } from "@/components/ui/AiBadge";
 import type { VehicleListItem } from "@/types/api";
 
 type HeroSectionProps = {
@@ -65,7 +66,7 @@ export function HeroSection({ featuredVehicle }: HeroSectionProps) {
           </div>
 
           <div className="relative mx-auto w-[calc(100%-28px)] max-w-[360px] sm:max-w-[390px] md:w-full md:max-w-[580px] lg:max-w-none">
-            <div className="rounded-[30px] bg-surface p-5 shadow-card ring-1 ring-border-subtle sm:p-6 lg:p-7">
+            <div className="rounded-card-lg bg-surface p-5 shadow-card ring-1 ring-border-subtle sm:p-6 lg:p-7">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <p className="text-[12px] font-extrabold text-brand">간이 차량 탐색</p>
@@ -133,7 +134,7 @@ export function HeroSection({ featuredVehicle }: HeroSectionProps) {
               >
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 text-[13px] font-extrabold text-text-strong">
-                    <Sparkles size={14} className="text-brand" />
+                    <AiBadge tone="soft" />
                     잘 모르겠다면 AI 추천
                   </span>
                   <span className="mt-1 block text-[12px] font-medium text-text-muted">
@@ -144,7 +145,7 @@ export function HeroSection({ featuredVehicle }: HeroSectionProps) {
               </Link>
             </div>
 
-            <div className="mt-4 hidden grid-cols-3 divide-x divide-border-subtle overflow-hidden rounded-[22px] border border-border-subtle bg-surface sm:grid">
+            <div className="mt-4 hidden grid-cols-3 divide-x divide-border-subtle overflow-hidden rounded-card-lg border border-border-subtle bg-surface sm:grid">
               {[
                 ["검색", "바로 탐색"],
                 ["비교", "월 납입 확인"],

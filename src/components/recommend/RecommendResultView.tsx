@@ -139,7 +139,7 @@ export function RecommendResultView() {
           </span>
         </div>
         <h1 className="mt-2.5 text-[28px] font-extrabold leading-[1.25] tracking-[-0.04em] text-text-strong md:text-[34px]">
-          AI가 <span className="num text-brand">{vehicles.length}대</span>를 찾았어요
+          조건에 맞는 추천 차량 <span className="num text-brand">{vehicles.length}대</span>
         </h1>
         {/* 입력 요약 태그 */}
         <div className="mt-3.5 flex flex-wrap gap-2">
