@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import { ArrowRight, Check, ChevronLeft, Shield, FileText, Building2, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SelectionCard } from "@/components/recommend/SelectionCard";
@@ -603,7 +604,9 @@ export function VerifyClient() {
 
       if (quoteDraft) {
         const scenario = quoteDraft.scenarios.standard ?? quoteDraft.scenarios.conservative;
-        await fetch("/api/quotes", {
+        // 저장 결과를 검사한다. 실패해도 서류는 이미 수집됐으므로 고객은 완료 화면으로 진행하지만,
+        // 딜러가 누락을 감지할 수 있도록 Sentry로 반드시 보고한다.
+        const saveRes = await fetch("/api/quotes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -630,11 +633,19 @@ export function VerifyClient() {
             phone: form.phone || "연락처 미입력",
           }),
         });
+        if (!saveRes.ok) {
+          Sentry.captureException(
+            new Error(`Quote draft save failed: HTTP ${saveRes.status}`),
+            { tags: { area: "verify", customerType } }
+          );
+        }
         localStorage.removeItem(draftKey);
         sessionStorage.removeItem(legacyKey);
       }
-    } catch {
+    } catch (err) {
       // 견적 저장 실패는 치명적이지 않다 — 서류는 이미 수집됨. 완료로 진행.
+      // 단 네트워크/파싱 에러도 놓치지 않도록 Sentry에 보고한다.
+      Sentry.captureException(err, { tags: { area: "verify", customerType } });
     } finally {
       setStep("done");
     }
