@@ -20,6 +20,10 @@ import { cn } from "@/lib/utils";
 import { sortLineups } from "@/lib/lineup-sort";
 import { TossPrice } from "@/components/ui/TossPrice";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
+import { ComparisonSection } from "@/components/quote/ComparisonSection";
+import { type ComparisonTrimData } from "@/components/quote/VehicleConfigPanel";
+import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
+import { RequiresConsultationNotice } from "@/components/quote/RequiresConsultationNotice";
 import {
   CUSTOMER_TYPE_LABELS,
   type CustomerType,
@@ -42,6 +46,12 @@ import {
 } from "@/lib/quote-draft";
 import { Step2ConditionV2, type TrimDataV2 } from "./Step2ConditionV2";
 import { InitialCostPanelV2, type CostMode } from "./InitialCostPanelV2";
+import {
+  ApprovalPreviewV2,
+  FinanceSectionV2,
+  BreakdownSectionV2,
+  CostCheckpointV2,
+} from "./QuoteInfoSectionsV2";
 
 // ─── 상수 ────────────────────────────────────────────────
 const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
@@ -96,6 +106,7 @@ interface TrimData {
   name: string;
   price: number;
   discountPrice: number | null;
+  evSubsidy: number | null;
   engineType: string;
   fuelEfficiency: number | null;
   isDefault: boolean;
@@ -809,6 +820,11 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               selectedOptionDetails={selectedOptionDetails}
               selectedExteriorColor={selectedExteriorColor}
               selectedInteriorColor={selectedInteriorColor}
+              selectedTrim={selectedTrim}
+              trims={trims}
+              vehicles={vehicles}
+              conditions={conditions}
+              selectedOptionIds={selectedOptionIds}
               customRates={customRates}
               costMode={costMode}
               isRecalculating={isRecalculating}
@@ -935,6 +951,11 @@ function Step3ResultHeader({
   selectedOptionDetails,
   selectedExteriorColor,
   selectedInteriorColor,
+  selectedTrim,
+  trims,
+  vehicles,
+  conditions,
+  selectedOptionIds,
   customRates,
   costMode,
   isRecalculating,
@@ -955,6 +976,11 @@ function Step3ResultHeader({
   selectedOptionDetails: { id: string; name: string; price: number }[];
   selectedExteriorColor: { name: string; priceDelta: number } | null;
   selectedInteriorColor: { name: string; priceDelta: number } | null;
+  selectedTrim: { id: string; name: string; price: number; discountPrice: number | null; evSubsidy: number | null } | null;
+  trims: { id: string; name: string; price: number; discountPrice: number | null }[];
+  vehicles: VehicleListItem[];
+  conditions: { contractMonths: number; annualMileage: number };
+  selectedOptionIds: Set<string>;
   customRates: { depositRate: number; prepayRate: number };
   costMode: CostMode;
   isRecalculating: boolean;
@@ -972,6 +998,29 @@ function Step3ResultHeader({
   const totalVehiclePrice =
     quoteResult.totalVehiclePrice ??
     quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? 0);
+
+  // 별도 상담 필요 차량 — 견적 대신 상담 안내만
+  if (quoteResult.requiresConsultation) {
+    return (
+      <motion.section
+        initial={{ opacity: 0, x: 16 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -16 }}
+        transition={{ duration: 0.22 }}
+        className="space-y-5"
+      >
+        <RequiresConsultationNotice vehicleName={selectedVehicle?.name} />
+        <button
+          type="button"
+          onClick={onPrev}
+          className="mx-auto flex items-center gap-1 text-[13px] font-bold text-text-muted transition-colors hover:text-text-strong"
+        >
+          <ChevronLeft size={14} />
+          조건 다시 설정하기
+        </button>
+      </motion.section>
+    );
+  }
 
   return (
     <motion.section
@@ -1083,8 +1132,14 @@ function Step3ResultHeader({
             </span>
           )}
         </div>
-        <div className="mt-2">
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <TossPrice won={monthly} size="xl" tone="white" />
+          {quoteResult.scenarios.standard.bestFinanceCompany && (
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-white/85">
+              <Building2 size={11} />
+              {quoteResult.scenarios.standard.bestFinanceCompany}
+            </span>
+          )}
         </div>
         <p className="mt-3 text-[13.5px] text-white/75">
           {CUSTOMER_TYPE_LABELS[customerType]} · {contractCategory}
@@ -1103,7 +1158,62 @@ function Step3ResultHeader({
         onReset={onReset}
       />
 
-      {/* ── 4) 안내 + CTA ── */}
+      {/* ── 4) EV 보조금 안내 (견적 미반영, 표시 전용) ── */}
+      {selectedTrim?.evSubsidy ? (
+        <EvSubsidyNotice amount={selectedTrim.evSubsidy} />
+      ) : null}
+
+      {/* ── 5) 심사 가능성 미리보기 ── */}
+      <ApprovalPreviewV2 data={quoteResult.scenarios.standard} />
+
+      {/* ── 6) 금융사별 견적 ── */}
+      {quoteResult.scenarios.standard.allFinanceResults &&
+        quoteResult.scenarios.standard.allFinanceResults.length >= 1 && (
+          <FinanceSectionV2 results={quoteResult.scenarios.standard.allFinanceResults} />
+        )}
+
+      {/* ── 7) 견적 산출 내역 ── */}
+      <BreakdownSectionV2 data={quoteResult.scenarios.standard} />
+
+      {/* ── 8) rangeExceeded 안내 (옵션 초과 시) ── */}
+      {quoteResult.scenarios.standard.rangeExceeded && (
+        <div className="flex items-start gap-2 rounded-[14px] border border-status-warning/25 bg-status-warning-soft px-4 py-3 text-[12px] leading-relaxed text-status-warning">
+          <AlertCircle size={13} className="mt-0.5 shrink-0" />
+          <p>
+            선택하신 옵션 조합으로 차량가가 등록 회수율 범위를 초과해 참고용 견적으로 표시돼요.
+            정확한 금액은 상담을 통해 확인해 주세요.
+          </p>
+        </div>
+      )}
+
+      {/* ── 9) 다른 차량과 비교 (ComparisonSection 인라인) ── */}
+      {selectedVehicle && (
+        <ComparisonSection
+          primary={{
+            slug: selectedVehicle.slug,
+            brand: selectedVehicle.brand,
+            name: selectedVehicle.name,
+            result: quoteResult,
+            thumbnailUrl: selectedVehicle.thumbnailUrl,
+            trims: trims as ComparisonTrimData[],
+            currentTrimId: selectedTrim?.id ?? null,
+            currentOptionIds: selectedOptionIds,
+          }}
+          conditions={{
+            contractMonths: conditions.contractMonths as 36 | 48 | 60,
+            annualMileage: conditions.annualMileage as 10000 | 20000 | 30000,
+            contractType: "반납형",
+            productType: contractCategory,
+          }}
+          allVehicles={vehicles}
+          onMemberLogin={onMemberLogin}
+        />
+      )}
+
+      {/* ── 10) 체크포인트 ── */}
+      <CostCheckpointV2 contractType="반납형" customerType={customerType} />
+
+      {/* ── 11) 안내 + CTA ── */}
       <div className="rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
         위 견적은 실제 계약 가능한 기준이나, 최종 금액은 차량 상태·옵션·프로모션에 따라
         달라질 수 있어요. 전문가 상담으로 확정 견적을 받아보세요.
