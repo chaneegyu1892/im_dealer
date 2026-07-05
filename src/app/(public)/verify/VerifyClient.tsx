@@ -65,8 +65,8 @@ function VerifyStepIndicator({ currentStep }: { currentStep: Step }) {
   return (
     <div className="w-full">
       <div className="mb-3 flex items-center justify-between">
-        <span className="public-quiet-label">심사 진행</span>
-        <span className="text-[12px] font-semibold text-primary">
+        <span className="text-[12px] font-bold text-text-muted">심사 진행</span>
+        <span className="text-[12px] font-semibold text-brand">
           {currentStep === "done" ? "완료" : `${stepToNum(currentStep)} / ${VERIFY_STEPS.length}`}
         </span>
       </div>
@@ -79,7 +79,7 @@ function VerifyStepIndicator({ currentStep }: { currentStep: Step }) {
             <div
               className={cn(
                 "h-1.5 rounded-full transition-colors duration-300",
-                step.id <= activeNum ? "bg-primary" : "bg-border-subtle"
+                step.id <= activeNum ? "bg-brand" : "bg-border-subtle"
               )}
             />
             <div className="mt-2 flex items-center gap-1.5">
@@ -87,9 +87,9 @@ function VerifyStepIndicator({ currentStep }: { currentStep: Step }) {
                 className={cn(
                   "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full",
                   "text-[11px] font-semibold transition-all duration-300",
-                  isDone && "bg-primary text-white",
-                  isActive && "bg-primary text-white",
-                  !isDone && !isActive && "bg-surface-soft text-public-muted"
+                  isDone && "bg-brand text-white",
+                  isActive && "bg-brand text-white",
+                  !isDone && !isActive && "bg-surface-soft text-text-muted"
                 )}
               >
                 {isDone ? <Check size={11} strokeWidth={3} /> : <span>{step.id}</span>}
@@ -97,7 +97,7 @@ function VerifyStepIndicator({ currentStep }: { currentStep: Step }) {
               <span
                 className={cn(
                   "truncate text-[11px] leading-none",
-                  isActive ? "text-primary font-medium" : "text-ink-label"
+                  isActive ? "text-brand font-medium" : "text-ink-label"
                 )}
               >
                 {step.label}
@@ -123,22 +123,22 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
 
   const items = [
     {
-      icon: <FileText size={18} className="text-primary" />,
+      icon: <FileText size={18} className="text-brand" />,
       title: "근로소득 원천징수영수증",
       desc: "국세청 홈택스에서 발급받습니다. (개인)",
     },
     {
-      icon: <Building2 size={18} className="text-primary" />,
+      icon: <Building2 size={18} className="text-brand" />,
       title: "사업자등록증명",
       desc: "국세청 홈택스에서 발급받습니다. (개인사업자·법인)",
     },
     {
-      icon: <FileText size={18} className="text-primary" />,
+      icon: <FileText size={18} className="text-brand" />,
       title: "부가가치세과세표준증명",
       desc: "국세청 홈택스에서 발급받습니다. (개인사업자·법인)",
     },
     {
-      icon: <FileText size={18} className="text-primary" />,
+      icon: <FileText size={18} className="text-brand" />,
       title: "표준재무제표증명",
       desc: "국세청 홈택스에서 발급받습니다. (법인)",
     },
@@ -147,14 +147,14 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
   return (
     <div className="space-y-5">
       {/* 안내 카드 */}
-      <div className="rounded-[16px] border border-primary/15 bg-primary/[0.04] p-4">
+      <div className="rounded-[16px] border border-brand/15 bg-brand/[0.04] p-4">
         <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-9 h-9 rounded-full bg-white border border-primary/15 flex items-center justify-center flex-shrink-0">
-            <Shield size={18} className="text-primary" />
+          <div className="w-9 h-9 rounded-full bg-white border border-brand/15 flex items-center justify-center flex-shrink-0">
+            <Shield size={18} className="text-brand" />
           </div>
           <div>
             <p className="text-[14px] font-semibold text-ink">공공기관 데이터 조회 안내</p>
-            <p className="text-[12px] text-public-muted mt-0.5">Codef를 통해 필요한 서류만 확인합니다</p>
+            <p className="text-[12px] text-text-muted mt-0.5">Codef를 통해 필요한 서류만 확인합니다</p>
           </div>
         </div>
         <div className="space-y-3">
@@ -165,7 +165,7 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
               </div>
               <div>
                 <p className="text-[13px] font-medium text-ink">{item.title}</p>
-                <p className="text-[12px] text-public-muted mt-0.5 leading-relaxed">{item.desc}</p>
+                <p className="text-[12px] text-text-muted mt-0.5 leading-relaxed">{item.desc}</p>
               </div>
             </div>
           ))}
@@ -195,22 +195,22 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
             className={cn(
               "w-full text-left rounded-[14px] border p-4 transition-all duration-200 active:scale-[0.99]",
               consents[key]
-                ? "border-primary bg-primary/[0.06]"
-                : "border-public-border bg-white hover:border-primary/30"
+                ? "border-brand bg-brand/[0.06]"
+                : "border-[#E5E8EB] bg-white hover:border-brand/30"
             )}
           >
             <div className="flex items-start gap-3">
               <div
                 className={cn(
                   "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all",
-                  consents[key] ? "border-primary bg-primary" : "border-border-strong bg-white"
+                  consents[key] ? "border-brand bg-brand" : "border-border-strong bg-white"
                 )}
               >
                 {consents[key] && <Check size={10} strokeWidth={3} className="text-white" />}
               </div>
               <div className="min-w-0">
                 <p className="text-[13px] font-medium text-ink">{label}</p>
-                <p className="text-[12px] text-public-muted mt-1 leading-relaxed">{sub}</p>
+                <p className="text-[12px] text-text-muted mt-1 leading-relaxed">{sub}</p>
               </div>
             </div>
           </button>
@@ -254,7 +254,7 @@ function Step2CustomerType({ value, onChange, onNext, onBack }: Step2Props) {
     <div className="space-y-5">
       <div>
         <p className="mb-1 text-[18px] font-semibold text-ink">고객 유형을 선택하세요</p>
-        <p className="text-[12px] leading-relaxed text-public-muted">유형에 따라 확인할 서류가 달라집니다.</p>
+        <p className="text-[12px] leading-relaxed text-text-muted">유형에 따라 확인할 서류가 달라집니다.</p>
       </div>
 
       <div className="space-y-3">
@@ -274,7 +274,7 @@ function Step2CustomerType({ value, onChange, onNext, onBack }: Step2Props) {
           variant="secondary"
           size="md"
           onClick={onBack}
-          className="min-h-[48px] shrink-0 rounded-[12px] border-public-border bg-white px-4 text-ink-label"
+          className="min-h-[48px] shrink-0 rounded-[12px] border-[#E5E8EB] bg-white px-4 text-ink-label"
         >
           <ChevronLeft size={16} />
           이전
@@ -327,13 +327,13 @@ function InputField({
         placeholder={placeholder}
         autoComplete="off"
         className={cn(
-          "w-full rounded-[12px] border border-public-border bg-white px-4 py-3.5",
+          "w-full rounded-[12px] border border-[#E5E8EB] bg-white px-4 py-3.5",
           "text-[14px] text-ink placeholder:text-ink-caption",
-          "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15",
+          "focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15",
           "transition-all duration-150"
         )}
       />
-      {hint && <p className="text-[11px] text-public-muted">{hint}</p>}
+      {hint && <p className="text-[11px] text-text-muted">{hint}</p>}
     </div>
   );
 }
@@ -356,7 +356,7 @@ function Step3Form({
     <div className="space-y-5">
       <div>
         <p className="mb-1 text-[18px] font-semibold text-ink">본인 정보를 입력하세요</p>
-        <p className="text-[12px] leading-relaxed text-public-muted">
+        <p className="text-[12px] leading-relaxed text-text-muted">
           입력하신 정보는 서류 확인 후 즉시 파기됩니다.
         </p>
       </div>
@@ -378,9 +378,9 @@ function Step3Form({
               onChange={(e) => onChange("rrnFront", e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="앞 6자리"
               className={cn(
-                "w-full rounded-[12px] border border-public-border bg-white px-4 py-3.5",
+                "w-full rounded-[12px] border border-[#E5E8EB] bg-white px-4 py-3.5",
                 "text-[14px] text-ink placeholder:text-ink-caption tracking-wider",
-                "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                "focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
               )}
             />
             <span className="font-semibold text-ink-caption">-</span>
@@ -392,13 +392,13 @@ function Step3Form({
               onChange={(e) => onChange("rrnBack", e.target.value.replace(/\D/g, "").slice(0, 7))}
               placeholder="뒤 7자리"
               className={cn(
-                "w-full rounded-[12px] border border-public-border bg-white px-4 py-3.5",
+                "w-full rounded-[12px] border border-[#E5E8EB] bg-white px-4 py-3.5",
                 "text-[14px] text-ink placeholder:text-ink-caption tracking-wider",
-                "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                "focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
               )}
             />
           </div>
-          <p className="text-[11px] text-public-muted">공공기관 본인확인용. 뒷자리는 가려지고 암호화 처리됩니다.</p>
+          <p className="text-[11px] text-text-muted">공공기관 본인확인용. 뒷자리는 가려지고 암호화 처리됩니다.</p>
         </div>
         <InputField
           label="휴대폰 번호"
@@ -422,7 +422,7 @@ function Step3Form({
           size="md"
           onClick={onBack}
           disabled={loading}
-          className="min-h-[48px] shrink-0 rounded-[12px] border-public-border bg-white px-4 text-ink-label"
+          className="min-h-[48px] shrink-0 rounded-[12px] border-[#E5E8EB] bg-white px-4 text-ink-label"
         >
           <ChevronLeft size={16} />
           이전
@@ -459,7 +459,7 @@ function DoneScreen() {
       </div>
       <div className="space-y-2">
         <p className="text-[18px] font-semibold text-ink">확인 요청이 완료되었습니다.</p>
-        <p className="text-[13px] text-public-muted leading-relaxed max-w-xs">
+        <p className="text-[13px] text-text-muted leading-relaxed max-w-xs">
           딜러가 서류를 검토한 후 순차적으로 연락드립니다.
           <br />
           보통 영업일 기준 1~2일 내에 연락드립니다.
@@ -471,7 +471,7 @@ function DoneScreen() {
           size="md"
           fullWidth
           onClick={() => router.push("/")}
-          className="min-h-[48px] rounded-[12px] border-public-border bg-white font-semibold"
+          className="min-h-[48px] rounded-[12px] border-[#E5E8EB] bg-white font-semibold"
         >
           홈으로 돌아가기
         </Button>
@@ -657,15 +657,15 @@ export function VerifyClient() {
     <div className="page-container max-w-md mx-auto py-4 md:py-8">
       {/* 차량 컨텍스트 배너 */}
       {vehicleSlug && step !== "done" && (
-        <div className="mb-4 rounded-[16px] border border-primary/15 bg-primary/[0.05] px-4 py-3">
+        <div className="mb-4 rounded-[16px] border border-brand/15 bg-brand/[0.05] px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/60">신청 차량</p>
-              <p className="truncate text-[14px] font-semibold text-primary">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand/60">신청 차량</p>
+              <p className="truncate text-[14px] font-semibold text-brand">
                 {formatVehicleSlug(vehicleSlug)}
               </p>
             </div>
-            <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-primary">
+            <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-brand">
               {CUSTOMER_TYPE_LABELS[customerType]}
             </span>
           </div>
@@ -679,7 +679,7 @@ export function VerifyClient() {
         </div>
       )}
 
-      <div className="public-mobile-section p-4 md:p-5">
+      <div className="rounded-[20px] bg-[#F8FAFC] p-4 md:p-5">
         {/* 스텝 콘텐츠 */}
         {step === 1 && (
           <Step1Consent
@@ -728,7 +728,7 @@ export function VerifyClient() {
 
       {/* 진행 텍스트 */}
       {step !== "done" && (
-        <p className="text-center text-[12px] text-public-muted mt-4">
+        <p className="text-center text-[12px] text-text-muted mt-4">
           {`${stepToNum(step)} / ${VERIFY_STEPS.length} 단계`} · 입력 정보는 암호화되어 전송됩니다
         </p>
       )}
