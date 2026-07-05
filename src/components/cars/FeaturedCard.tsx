@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import type { VehicleListItem } from "@/types/api";
 import { hasRepresentativeQuote } from "@/lib/representative-quote";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
-import { summarizeVehicleDescription } from "@/lib/public-ui-text";
 
 interface FeaturedCardProps {
   vehicle: VehicleListItem;
@@ -21,7 +20,6 @@ interface FeaturedCardProps {
  */
 export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
   const specs = vehicle.defaultTrim?.specs ?? {};
-  const description = summarizeVehicleDescription(vehicle.description);
   const hasQuote = hasRepresentativeQuote(vehicle.representativeQuotes);
 
   return (
@@ -68,10 +66,17 @@ export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
               >
                 {vehicle.name}
               </h2>
-              {description && (
-                <p className="mt-2 line-clamp-2 max-w-sm text-[13px] leading-relaxed text-text-muted md:text-[14px]">
-                  {description}
-                </p>
+              {vehicle.hashtags && vehicle.hashtags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {vehicle.hashtags.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
 

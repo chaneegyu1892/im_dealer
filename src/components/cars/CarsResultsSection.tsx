@@ -43,19 +43,18 @@ export function CarsResultsSection({
 }: CarsResultsSectionProps) {
   if (!isBrowsing) {
     return (
-      <section className="relative overflow-hidden rounded-[30px] bg-surface p-2 shadow-float ring-1 ring-border-subtle/80">
-        <div className="relative rounded-[24px] bg-surface-soft/80 px-5 py-6 md:px-8 md:py-8">
+      <section className="rounded-[20px] bg-[#F8FAFC] p-5 md:p-7">
           <div className="mb-6 max-w-xl">
-            <p className="mb-2 inline-flex rounded-pill bg-brand-soft px-3 py-1.5 text-[12px] font-extrabold text-brand">
+            <p className="mb-2 inline-flex rounded-full bg-brand-soft px-3 py-1.5 text-[12px] font-bold text-brand">
               탐색 시작
             </p>
-            <h2 className="break-keep text-[24px] font-extrabold leading-tight tracking-[-0.03em] text-text-strong md:text-[32px]">
+            <h2 className="break-keep text-[22px] font-extrabold leading-tight tracking-[-0.03em] text-text-strong md:text-[28px]">
               브랜드나 용도를 고르면
               <br className="hidden sm:block" />
               맞는 차량만 추려드릴게요
             </h2>
-            <p className="mt-3 break-keep text-[14px] font-medium leading-relaxed text-text-muted md:text-[15px]">
-              첫 화면에서는 전체 차량을 길게 펼치지 않고, 조건을 선택한 뒤 필요한 결과만 보여줍니다.
+            <p className="mt-3 break-keep text-[13.5px] font-medium leading-relaxed text-text-muted md:text-[14.5px]">
+              첫 화면에서는 전체 차량을 길게 펼치지 않고, 조건을 선택한 뒤 필요한 결과만 보여드려요.
             </p>
           </div>
 
@@ -63,9 +62,9 @@ export function CarsResultsSection({
             <button
               type="button"
               onClick={onScrollToFilters}
-              className="group flex min-h-[128px] flex-col items-start justify-between rounded-[22px] border border-border-subtle bg-surface p-4 text-left shadow-card transition-all duration-state hover:-translate-y-0.5 hover:border-brand/35 hover:shadow-float focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30"
+              className="group flex min-h-[120px] flex-col items-start justify-between rounded-[16px] bg-white p-4 text-left ring-[1.5px] ring-transparent transition-all duration-200 hover:ring-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30"
             >
-              <span className="grid h-10 w-10 place-items-center rounded-[14px] bg-brand-soft text-brand">
+              <span className="grid h-10 w-10 place-items-center rounded-[12px] bg-brand-soft text-brand">
                 <Tags size={18} strokeWidth={2.2} />
               </span>
               <span>
@@ -79,9 +78,9 @@ export function CarsResultsSection({
             <button
               type="button"
               onClick={() => onCategorySelect("SUV")}
-              className="group flex min-h-[128px] flex-col items-start justify-between rounded-[22px] border border-border-subtle bg-surface p-4 text-left shadow-card transition-all duration-state hover:-translate-y-0.5 hover:border-brand/35 hover:shadow-float focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30"
+              className="group flex min-h-[120px] flex-col items-start justify-between rounded-[16px] bg-white p-4 text-left ring-[1.5px] ring-transparent transition-all duration-200 hover:ring-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30"
             >
-              <span className="grid h-10 w-10 place-items-center rounded-[14px] bg-brand-soft text-brand">
+              <span className="grid h-10 w-10 place-items-center rounded-[12px] bg-brand-soft text-brand">
                 <CarFront size={18} strokeWidth={2.2} />
               </span>
               <span>
@@ -94,7 +93,7 @@ export function CarsResultsSection({
 
             <Link
               href="/recommend"
-              className="group flex min-h-[128px] flex-col items-start justify-between rounded-[22px] border border-brand/20 bg-brand p-4 text-left shadow-float transition-all duration-state hover:-translate-y-0.5 hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/35"
+              className="group flex min-h-[120px] flex-col items-start justify-between rounded-[16px] bg-brand p-4 text-left transition-all duration-200 hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/35"
             >
               <span className="inline-flex items-center gap-1.5">
                 <AiBadge tone="onDark" />
@@ -111,7 +110,6 @@ export function CarsResultsSection({
               </span>
             </Link>
           </div>
-        </div>
       </section>
     );
   }
