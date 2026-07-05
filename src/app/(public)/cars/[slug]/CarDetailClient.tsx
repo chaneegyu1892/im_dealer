@@ -83,7 +83,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
           <div className="space-y-6 lg:col-span-2">
             <CarImageGallery vehicleName={vehicle.name} images={allImages} />
-            {vehicle.detailedSpecs && <CarDetailSpecsSection specs={vehicle.detailedSpecs} />}
+            {vehicle.detailedSpecs && <CarDetailSpecsSection specs={vehicle.detailedSpecs} category={vehicle.category} />}
             <CarDetailRecommendationSection tags={derivedTags} highlights={vehicle.highlights} />
             <CarDetailBenefitsSection />
           </div>

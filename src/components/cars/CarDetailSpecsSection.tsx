@@ -87,10 +87,10 @@ function SpecCard({
       className={cn(
         "min-h-[86px] rounded-[16px] border p-3.5 text-left transition-all duration-150",
         highlight
-          ? "border-primary bg-primary-soft"
+          ? "border-brand bg-brand-soft"
           : "border-line bg-surface-muted",
         clickable
-          ? "cursor-pointer hover:border-primary/40 hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+          ? "cursor-pointer hover:border-brand/40 hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
           : "cursor-default",
       )}
     >
@@ -98,7 +98,7 @@ function SpecCard({
         <span className="text-[11px] font-bold text-ink-label">{label}</span>
         {clickable && <Info size={12} className="shrink-0 text-ink-caption" />}
       </span>
-      <span className={cn("block text-[15px] font-extrabold", highlight ? "text-primary" : "text-ink")}>
+      <span className={cn("block text-[15px] font-extrabold", highlight ? "text-brand" : "text-ink")}>
         {value}
       </span>
     </button>
@@ -135,7 +135,13 @@ function SpecsGrid({
   );
 }
 
-export function CarDetailSpecsSection({ specs }: { specs: VehicleDetailedSpecs }) {
+export function CarDetailSpecsSection({
+  specs,
+  category,
+}: {
+  specs: VehicleDetailedSpecs;
+  category?: string;
+}) {
   const [activeEngine, setActiveEngine] = useState("");
   const [selectedSpec, setSelectedSpec] = useState<SelectedSpec | null>(null);
   const engineVariants = Object.keys(specs.specs ?? {})
@@ -156,6 +162,7 @@ export function CarDetailSpecsSection({ specs }: { specs: VehicleDetailedSpecs }
             specKey={selectedSpec.key}
             label={selectedSpec.label}
             value={selectedSpec.value}
+            category={category}
             onClose={() => setSelectedSpec(null)}
           />
         )}
@@ -166,7 +173,7 @@ export function CarDetailSpecsSection({ specs }: { specs: VehicleDetailedSpecs }
         className="t-card overflow-hidden shadow-soft"
       >
         <div className="flex items-center gap-2.5 border-b border-line bg-surface-muted px-5 py-4 md:px-6">
-          <span className="t-iconbtn h-8 w-8 bg-primary-soft text-primary">
+          <span className="t-iconbtn h-8 w-8 bg-brand-soft text-brand">
             <Settings2 size={15} />
           </span>
           <p className="text-[15px] font-extrabold text-ink">상세 제원</p>
