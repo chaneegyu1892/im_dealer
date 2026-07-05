@@ -202,7 +202,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     setInteriorColorId(null);
 
     const slug = selectedVehicle.slug;
-    const shouldPrefill = !!prefillSlug && !hasPrefilled.current;
+    // v2: 트림 자동 선택 비활성화 — 사용자가 직접 트림을 고르게 해 "먼저 트림을 골라주세요"
+    // 안내가 보이도록. (복원 restoreRef가 있을 때는 저장본의 트림을 복원한다.)
+    const shouldPrefill = false;
 
     fetch(`/api/vehicles/${slug}/colors`)
       .then((r) => r.json())
