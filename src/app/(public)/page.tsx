@@ -3,9 +3,9 @@ export const revalidate = 600;
 
 import { prisma } from "@/lib/prisma";
 import { getHomeTopLikedReviews } from "@/lib/admin-queries";
-import { HeroSection } from "@/components/home/HeroSection";
+import { HeroSectionV2 } from "@/components/home/HeroSectionV2";
 import { CustomerReviewsSection } from "@/components/home/CustomerReviewsSection";
-import { PopularCarsSection } from "@/components/home/PopularCarsSection";
+import { PopularCarsSectionV2 } from "@/components/home/PopularCarsSectionV2";
 import { ServiceIntroSection } from "@/components/home/ServiceIntroSection";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
@@ -153,8 +153,11 @@ export default async function HomePage() {
   const homeReviews = buildHomeReviews(reviews, popularVehicles);
 
   return (
-    <div className="home-showroom-scope bg-app-bg text-text-body">
-      <HeroSection featuredVehicle={popularVehicles[0]} />
+    <div className="bg-white text-text-body">
+      <HeroSectionV2 featuredVehicle={popularVehicles[0]} />
+      {popularVehicles.length > 0 && (
+        <PopularCarsSectionV2 vehicles={popularVehicles} />
+      )}
       {homeReviews.length > 0 && (
         <CustomerReviewsSection
           reviews={homeReviews}
@@ -163,9 +166,6 @@ export default async function HomePage() {
           showImages
           forceBestBadge
         />
-      )}
-      {popularVehicles.length > 0 && (
-        <PopularCarsSection vehicles={popularVehicles} />
       )}
       <ServiceIntroSection />
     </div>
