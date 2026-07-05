@@ -16,7 +16,6 @@ import { prisma } from "@/lib/prisma";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
-import { QuoteClientPage } from "./QuoteClientPage";
 import { QuoteClientPageV2 } from "./QuoteClientPageV2";
 
 async function getVehicles(): Promise<VehicleListItem[]> {
@@ -62,21 +61,11 @@ async function getVehicles(): Promise<VehicleListItem[]> {
   }));
 }
 
-export default async function QuotePage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const [vehicles, params] = await Promise.all([getVehicles(), searchParams]);
-  // 임시 분기: ?v2=1 이면 v2 재작업 컴포넌트 렌더. 기본은 기존 v1 유지.
-  const useV2 = params?.v2 === "1";
+export default async function QuotePage() {
+  const vehicles = await getVehicles();
   return (
     <Suspense>
-      {useV2 ? (
-        <QuoteClientPageV2 vehicles={vehicles} />
-      ) : (
-        <QuoteClientPage vehicles={vehicles} />
-      )}
+      <QuoteClientPageV2 vehicles={vehicles} />
     </Suspense>
   );
 }
