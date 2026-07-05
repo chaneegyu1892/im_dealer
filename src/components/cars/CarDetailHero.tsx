@@ -77,7 +77,7 @@ export function CarDetailHero({
                 {ENGINE_LABEL[engineType]}
               </span>
               {vehicle.isPopular && (
-                <span className="rounded-pill bg-primary px-2.5 py-1 text-[11px] font-bold text-white">
+                <span className="rounded-pill bg-brand px-2.5 py-1 text-[11px] font-bold text-white">
                   인기
                 </span>
               )}
@@ -98,10 +98,6 @@ export function CarDetailHero({
               {vehicle.defaultTrim?.engineType && (
                 <HeroSpec label="연료" value={vehicle.defaultTrim.engineType} />
               )}
-              {vehicle.defaultTrim?.fuelEfficiency && (
-                <HeroSpec label="연비" value={`${vehicle.defaultTrim.fuelEfficiency}km/L~`} />
-              )}
-              <HeroSpec label="트림" value={`${vehicle.trims.length}종`} />
             </div>
           </motion.div>
 

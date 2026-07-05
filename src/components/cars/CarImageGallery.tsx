@@ -53,7 +53,7 @@ export function CarImageGallery({
                 "shrink-0 overflow-hidden rounded-[10px] border-2 transition-all duration-150",
                 "h-[54px] w-24",
                 index === activeImageIdx
-                  ? "border-primary"
+                  ? "border-brand"
                   : "border-transparent opacity-60 hover:opacity-90",
               )}
             >

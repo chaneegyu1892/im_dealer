@@ -47,7 +47,7 @@ export function MobileQuoteSummary({
         </div>
         <Link
           href={`/quote?vehicle=${vehicleSlug}`}
-          className="mt-3 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-btn bg-primary px-5 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-primary-strong"
+          className="mt-3 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-btn bg-brand px-5 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
         >
           <Calculator size={17} strokeWidth={2.3} />
           견적 내기
@@ -134,7 +134,7 @@ function MobileStickyQuoteBar({
                 />
                 <Link
                   href={`/quote?vehicle=${vehicleSlug}`}
-                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-btn bg-primary px-3 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-primary-strong"
+                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-btn bg-brand px-3 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
                 >
                   <Calculator size={16} strokeWidth={2.3} />
                   견적 내기
@@ -147,7 +147,7 @@ function MobileStickyQuoteBar({
                 </p>
                 <Link
                   href={`/quote?vehicle=${vehicleSlug}`}
-                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-btn bg-primary px-3 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-primary-strong"
+                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-btn bg-brand px-3 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
                 >
                   <Calculator size={16} strokeWidth={2.3} />
                   견적 내기
@@ -199,7 +199,7 @@ export function CarDetailSidebar({
             <>
               <Link
                 href={`/quote?vehicle=${vehicleSlug}`}
-                className="cta mb-2.5 hover:bg-primary-strong"
+                className="cta mb-2.5 hover:bg-brand-pressed"
               >
                 <Calculator size={16} strokeWidth={2} />
                 견적 내기
@@ -210,7 +210,7 @@ export function CarDetailSidebar({
             <>
               <Link
                 href={`/quote?vehicle=${vehicleSlug}`}
-                className="cta mb-2.5 hover:bg-primary-strong"
+                className="cta mb-2.5 hover:bg-brand-pressed"
               >
                 <Calculator size={16} strokeWidth={2} />
                 견적 내기
@@ -232,8 +232,8 @@ export function CarDetailSidebar({
           <ul className="space-y-2.5">
             {TRUST_ITEMS.map((item) => (
               <li key={item} className="flex items-center gap-2 text-[12.5px] text-ink-label">
-                <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-primary-soft">
-                  <Check size={10} strokeWidth={2.5} className="text-primary" />
+                <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-brand-soft">
+                  <Check size={10} strokeWidth={2.5} className="text-brand" />
                 </span>
                 {item}
               </li>

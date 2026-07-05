@@ -24,12 +24,12 @@ export function CarDetailBenefitsSection() {
   return (
     <motion.section
       initial={false}
-      className="overflow-hidden rounded-[24px] bg-primary text-white shadow-[0_16px_42px_rgb(var(--primary-rgb)/0.18)]"
+      className="overflow-hidden rounded-[24px] bg-brand text-white shadow-[0_16px_42px_rgb(var(--color-brand-primary-rgb)/0.18)]"
     >
       <div className="px-6 pb-2 pt-6 md:px-7">
         <div className="mb-1.5 flex items-center gap-2">
-          <ShieldCheck size={15} className="text-white/65" />
-          <p className="text-[12px] font-extrabold uppercase text-white/65">
+          <ShieldCheck size={15} className="text-white/85" />
+          <p className="text-[12px] font-extrabold uppercase text-white/85">
             장기렌트 핵심 혜택
           </p>
         </div>
@@ -38,15 +38,15 @@ export function CarDetailBenefitsSection() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-px border-t border-white/10 bg-white/10 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-px border-t border-white/15 bg-white/10 md:grid-cols-3">
         {BENEFITS.map(({ icon, title, desc }) => (
           <div
             key={title}
-            className="flex flex-col gap-2 bg-white/5 px-5 py-5 transition-colors duration-150 hover:bg-white/10"
+            className="flex flex-col gap-2 bg-brand-pressed/40 px-5 py-5 transition-colors duration-150 hover:bg-brand-pressed/60"
           >
-            <span className="text-white/65">{icon}</span>
+            <span className="text-white/90">{icon}</span>
             <p className="text-[13.5px] font-extrabold leading-snug text-white">{title}</p>
-            <p className="whitespace-pre-line text-[11.5px] leading-relaxed text-white/58">{desc}</p>
+            <p className="whitespace-pre-line text-[12.5px] leading-relaxed text-white/85">{desc}</p>
           </div>
         ))}
       </div>
