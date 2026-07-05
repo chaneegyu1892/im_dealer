@@ -11,19 +11,19 @@ type FeaturedVehiclesSectionProps = {
 
 export function CarsPageHero({ totalCount }: CarsPageHeroProps) {
   return (
-    <section className="relative bg-surface">
-      <div className="page-container relative py-9 md:py-14">
-        <div className="max-w-3xl">
-          <p className="mb-3 inline-flex rounded-pill bg-brand-soft px-3 py-1.5 text-[12px] font-extrabold tracking-[0.02em] text-brand">
+    <section className="bg-white">
+      <div className="mx-auto w-full max-w-[1120px] px-5 py-8 md:px-8 md:py-14">
+        <div className="max-w-2xl">
+          <p className="mb-3 inline-flex rounded-full bg-brand-soft px-3 py-1.5 text-[12.5px] font-bold text-brand">
             차량 탐색 · 총 {totalCount}개 차종
           </p>
-          <h1 className="break-keep text-[34px] font-extrabold leading-[1.08] tracking-[-0.04em] text-text-strong md:text-[54px]">
+          <h1 className="break-keep text-[30px] font-extrabold leading-[1.12] tracking-[-0.04em] text-text-strong md:text-[44px]">
             월 납입금이 보이는
             <br />
             차량 리스트
           </h1>
-          <p className="mt-4 max-w-xl break-keep text-[16px] font-semibold leading-relaxed text-text-body md:text-[18px]">
-            관심 차종을 고르면 초기 비용과 주행거리 조건별 견적 흐름으로 바로 이어집니다.
+          <p className="mt-4 max-w-xl break-keep text-[14px] font-medium leading-relaxed text-text-body md:text-[16px]">
+            관심 차종을 고르면 초기 비용과 주행거리 조건별 견적 흐름으로 바로 이어져요.
           </p>
         </div>
       </div>
@@ -35,14 +35,12 @@ export function FeaturedVehiclesSection({ vehicles }: FeaturedVehiclesSectionPro
   if (vehicles.length === 0) return null;
 
   return (
-    <section className="mb-9 md:mb-11">
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          <p className="t-kick mb-1.5">주목할 차량</p>
-          <h2 className="text-[21px] font-extrabold text-text-strong md:text-[26px]">
-            지금 가장 많이 비교하는 모델
-          </h2>
-        </div>
+    <section className="mb-8 md:mb-10">
+      <div className="mb-5">
+        <p className="text-[12.5px] font-bold text-brand">주목할 차량</p>
+        <h2 className="mt-1.5 text-[20px] font-extrabold leading-tight tracking-[-0.03em] text-text-strong md:text-[26px]">
+          지금 가장 많이 비교하는 모델
+        </h2>
       </div>
       <FeaturedCarsSlider vehicles={vehicles} />
     </section>
