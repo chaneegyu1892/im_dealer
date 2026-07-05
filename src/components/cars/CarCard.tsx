@@ -1,14 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight, Fuel, Gauge, Leaf, Zap, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
-import { formatSubsidyManwon } from "@/lib/ev-subsidy";
-import { hasRepresentativeQuote } from "@/lib/representative-quote";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 
 interface CarCardProps {
@@ -19,137 +16,195 @@ const ENGINE_BADGE: Record<
   EngineType,
   { label: string; icon: LucideIcon; className: string }
 > = {
-  EV: {
-    label: "EV",
-    icon: Zap,
-    className: "bg-brand-soft text-brand",
-  },
-  하이브리드: {
-    label: "HEV",
-    icon: Leaf,
-    className: "bg-status-positive-soft text-status-positive",
-  },
-  가솔린: {
-    label: "가솔린",
-    icon: Fuel,
-    className: "bg-surface-soft text-text-body",
-  },
-  디젤: {
-    label: "디젤",
-    icon: Gauge,
-    className: "bg-purple-soft text-purple",
-  },
+  EV: { label: "EV", icon: Zap, className: "bg-brand-soft text-brand" },
+  하이브리드: { label: "HEV", icon: Leaf, className: "bg-status-positive-soft text-status-positive" },
+  가솔린: { label: "가솔린", icon: Fuel, className: "bg-white text-text-body ring-[1px] ring-[#E5E8EB]" },
+  디젤: { label: "디젤", icon: Gauge, className: "bg-purple-soft text-purple" },
 };
 
 export function CarCard({ vehicle }: CarCardProps) {
   const rawEngineType = vehicle.defaultTrim?.engineType ?? "가솔린";
   const engineType = (rawEngineType in ENGINE_BADGE ? rawEngineType : "가솔린") as EngineType;
-  const engine = ENGINE_BADGE[engineType];
-  const EngineIcon = engine.icon;
-  const hasQuote = hasRepresentativeQuote(vehicle.representativeQuotes);
-
+  const engineBadge = ENGINE_BADGE[engineType];
   return (
     <motion.div
       initial={false}
-      whileHover={{ y: -2, transition: { duration: 0.18 } }}
-      className="group relative overflow-hidden rounded-[26px] bg-surface shadow-card ring-1 ring-border-subtle/80 transition-all duration-state hover:ring-brand/25 hover:shadow-float"
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-40px" }}
+      transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
     >
       <Link
         href={`/cars/${vehicle.slug}`}
-        className="relative block p-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30"
+        className="group block overflow-hidden rounded-[20px] bg-[#F8FAFC] transition-all duration-200 hover:bg-white hover:ring-[1.5px] hover:ring-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
       >
-        <div className="flex items-start gap-4">
-          <div className="relative h-[82px] w-[112px] shrink-0 overflow-hidden rounded-[20px] bg-surface-soft shadow-[inset_0_0_0_1px_rgba(var(--color-text-strong-rgb),0.05)] sm:h-[96px] sm:w-[132px]">
+        {/* ─── 모바일: 가로형 (썬네일 좌측 + 정보 우측) ─── */}
+        <div className="flex gap-3 p-3 md:hidden">
+          {/* 썬네일 — 작은 정사각형 */}
+          <div className="relative aspect-square w-[88px] shrink-0 overflow-hidden rounded-[12px] bg-white">
             {vehicle.thumbnailUrl ? (
-              <Image
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
                 src={vehicle.thumbnailUrl}
                 alt={`${vehicle.brand} ${vehicle.name}`}
-                fill
-                sizes="160px"
-                unoptimized
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-brand-soft px-3 text-center text-[13px] font-extrabold text-brand">
-                {vehicle.brand}
+              <div className="flex h-full w-full items-center justify-center p-1 text-center text-[10px] font-bold text-text-muted">
+                이미지 없음
               </div>
             )}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="mb-1.5 flex items-center gap-1.5">
-              <span className="truncate text-[12.5px] font-bold text-text-muted">
-                {vehicle.brand} · {vehicle.category}
-              </span>
+            {/* 배지 — 썬네일 좌상단 */}
+            <div className="absolute left-1 top-1 flex flex-col gap-0.5">
+              {vehicle.isPopular && (
+                <span className="inline-flex rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white">
+                  인기
+                </span>
+              )}
               {vehicle.hasAvailableInventory && (
-                <span className="shrink-0 rounded-pill bg-status-positive-soft px-2 py-0.5 text-[10.5px] font-extrabold text-status-positive">
+                <span className="inline-flex rounded-full bg-status-positive px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white">
                   즉시출고
                 </span>
               )}
             </div>
+          </div>
 
-            <h3 className="line-clamp-2 text-[18px] font-extrabold leading-tight text-text-strong transition-colors duration-state group-hover:text-brand sm:text-[19px]">
+          {/* 정보 — 우측 */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <p className="truncate text-[11px] font-bold text-text-muted">{vehicle.brand}</p>
+            <h3 className="mt-0.5 line-clamp-1 text-[15px] font-extrabold leading-tight text-text-strong transition-colors group-hover:text-brand">
               {vehicle.name}
             </h3>
+            {vehicle.defaultTrim && (
+              <p className="mt-0.5 truncate text-[11.5px] text-text-body">
+                {vehicle.defaultTrim.engineType} · {vehicle.defaultTrim.name}
+              </p>
+            )}
 
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-[11px] font-extrabold",
-                  engine.className,
-                )}
-              >
-                <EngineIcon size={10} strokeWidth={2.5} />
-                {engine.label}
-              </span>
-              {vehicle.highlights.slice(0, 1).map((tag) => (
-                <span
-                  key={tag}
-                  className="max-w-[150px] truncate rounded-pill bg-surface-soft px-2.5 py-1 text-[11px] font-bold text-text-body"
-                >
-                  {tag}
+            {/* 해시태그 — 모바일 1-2개 */}
+            {vehicle.hashtags && vehicle.hashtags.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {vehicle.hashtags.slice(0, 2).map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-white px-1.5 py-0.5 text-[9.5px] font-bold text-brand ring-[1px] ring-brand/15"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* 월 납입금 — 모바일은 인라인 */}
+            <div className="mt-auto pt-2">
+              <RepresentativeQuotePrice
+                quotes={vehicle.representativeQuotes}
+                tone="brand"
+                size="sm"
+                showCaption={false}
+                numberClassName="text-[22px]"
+                unitClassName="text-[12px] font-bold"
+              />
+              <p className="mt-0.5 text-[10px] font-medium text-text-muted">
+                월 납입금 · 60개월 · 초기 비용 0원
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── 데스크톱: 세로형 (v2 홈 카드와 동일) ─── */}
+        <div className="hidden md:block">
+          {/* 썬네일 — 16:10 전체 폭 */}
+          <div className="relative mb-4 aspect-[16/10] w-full overflow-hidden rounded-[14px] bg-white">
+            {vehicle.thumbnailUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={vehicle.thumbnailUrl}
+                alt={`${vehicle.brand} ${vehicle.name}`}
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-[13px] font-bold text-text-muted">
+                이미지 준비 중
+              </div>
+            )}
+            {/* 배지 — 썬네일 좌상단 */}
+            <div className="absolute left-2.5 top-2.5 flex items-center gap-1">
+              {vehicle.isPopular && (
+                <span className="inline-flex rounded-full bg-brand px-2 py-0.5 text-[10px] font-extrabold text-white">
+                  인기
                 </span>
-              ))}
+              )}
+              {vehicle.hasAvailableInventory && (
+                <span className="inline-flex rounded-full bg-status-positive px-2 py-0.5 text-[10px] font-extrabold text-white">
+                  즉시출고
+                </span>
+              )}
             </div>
           </div>
-        </div>
 
-        {vehicle.hashtags && vehicle.hashtags.length > 0 && (
-          <div className="mt-4 flex min-h-[22px] flex-wrap gap-1.5">
-            {vehicle.hashtags.slice(0, 3).map((tag) => (
-              <span
-                key={tag}
-                className="rounded-pill bg-brand-soft px-2.5 py-1 text-[11.5px] font-bold text-brand"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
+          <div className="p-5 pt-0">
+            {/* 차명 + 트림 */}
+            <div className="min-w-0">
+              <p className="truncate text-[12px] font-bold text-text-muted">{vehicle.brand}</p>
+              <h3 className="mt-1 line-clamp-2 text-[17px] font-extrabold leading-tight text-text-strong transition-colors group-hover:text-brand">
+                {vehicle.name}
+              </h3>
+              {vehicle.defaultTrim && (
+                <p className="mt-1 truncate text-[12.5px] text-text-body">
+                  {vehicle.defaultTrim.engineType} · {vehicle.defaultTrim.name}
+                </p>
+              )}
 
-        <div className="mt-4 rounded-[20px] border border-border-subtle/70 bg-surface-raised px-4 py-3.5 shadow-[0_10px_24px_rgba(var(--color-text-strong-rgb),0.06)]">
-          <RepresentativeQuotePrice
-            quotes={vehicle.representativeQuotes}
-            tone="brand"
-            size="lg"
-          />
-          {vehicle.evSubsidyRange ? (
-            <div className="mt-2 inline-flex items-center gap-1 rounded-pill bg-brand-soft px-2.5 py-1">
-              <Zap size={11} strokeWidth={2.5} className="text-brand" />
-              <span className="text-[11px] font-bold text-brand">
-                전기차 보조금 {formatSubsidyManwon(vehicle.evSubsidyRange)}
-              </span>
+              {/* 엔진 배지 + 하이라이트 */}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-extrabold",
+                    engineBadge.className,
+                  )}
+                >
+                  <engineBadge.icon size={9} strokeWidth={2.5} />
+                  {engineBadge.label}
+                </span>
+                {vehicle.highlights.slice(0, 1).map((tag) => (
+                  <span
+                    key={tag}
+                    className="max-w-[120px] truncate rounded-full bg-white px-2 py-0.5 text-[10.5px] font-bold text-text-body ring-[1px] ring-[#E5E8EB]"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              {/* 해시태그 — 데스크톱 2-3개 */}
+              {vehicle.hashtags && vehicle.hashtags.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {vehicle.hashtags.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-white px-1.5 py-0.5 text-[10.5px] font-bold text-brand ring-[1px] ring-brand/15"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-          ) : null}
-        </div>
-      </Link>
 
-      <Link
-        href={`/quote?vehicle=${vehicle.slug}`}
-        className="relative mx-4 mb-4 flex min-h-[46px] items-center justify-center gap-2 rounded-pill bg-brand text-[13.5px] font-extrabold text-white shadow-[0_10px_22px_rgba(var(--color-brand-rgb),0.22)] transition-all duration-state hover:bg-brand-pressed hover:shadow-float active:scale-[0.98]"
-      >
-        {hasQuote ? "바로 견적 보기" : "견적 내기"}
-        <ArrowRight size={14} strokeWidth={2.5} />
+            {/* 구분선 */}
+            <div className="my-4 h-[1px] bg-[#E5E8EB]" />
+
+            {/* 월 납입금 — 큰 타이포 + 풀 캡션 */}
+            <RepresentativeQuotePrice
+              quotes={vehicle.representativeQuotes}
+              tone="brand"
+              size="lg"
+              captionClassName="mb-1.5 text-[12px] font-bold leading-none text-text-muted"
+              numberClassName="text-[28px]"
+              unitClassName="text-[13px] font-bold"
+            />
+          </div>
+        </div>
       </Link>
     </motion.div>
   );
