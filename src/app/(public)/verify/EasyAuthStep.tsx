@@ -202,7 +202,7 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
     <div className="space-y-5">
       <div>
         <p className="mb-1 text-[18px] font-semibold text-ink">서류 발급 중</p>
-        <p className="text-[12px] leading-relaxed text-public-muted">
+        <p className="text-[12px] leading-relaxed text-text-muted">
           {cur.phase === "awaiting"
             ? "휴대폰 간편인증 앱에서 인증을 완료한 뒤 아래 버튼을 눌러주세요."
             : "각 서류를 순서대로 발급합니다."}
@@ -221,8 +221,8 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
                 isFailed
                   ? "border-red-200 bg-red-50/60"
                   : i === current
-                    ? "border-primary/40 bg-primary/[0.04]"
-                    : "border-public-border bg-white"
+                    ? "border-brand/40 bg-brand/[0.04]"
+                    : "border-[#E5E8EB] bg-white"
               )}
             >
               <div className="flex items-center justify-between gap-3">
@@ -267,12 +267,12 @@ function DocBadge({ phase }: { phase: DocPhase }) {
     );
   if (phase === "awaiting" || phase === "running")
     return (
-      <span className="inline-flex items-center gap-1 text-[12px] font-medium text-primary">
+      <span className="inline-flex items-center gap-1 text-[12px] font-medium text-brand">
         <Loader2 size={14} className="animate-spin" /> 진행 중
       </span>
     );
   return (
-    <span className="inline-flex items-center gap-1 text-[12px] text-public-muted">
+    <span className="inline-flex items-center gap-1 text-[12px] text-text-muted">
       <Clock size={14} /> 대기
     </span>
   );

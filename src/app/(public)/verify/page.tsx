@@ -35,9 +35,9 @@ function VerifyLoadingSkeleton() {
 
 export default function VerifyPage() {
   return (
-    <div className="home-showroom-scope min-h-screen bg-app-bg pb-[calc(112px+env(safe-area-inset-bottom,0px))] md:pb-0">
-      <div className="border-b border-border-subtle bg-surface">
-        <div className="page-container max-w-md mx-auto py-3.5 md:py-6">
+    <div className="min-h-screen bg-white pb-[calc(112px+env(safe-area-inset-bottom,0px))] md:pb-0">
+      <div className="border-b border-[#E5E8EB] bg-white">
+        <div className="mx-auto max-w-md px-4 py-3.5 md:py-6">
           <div className="mb-1 flex items-center gap-1.5">
             <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted">
               서류 확인
