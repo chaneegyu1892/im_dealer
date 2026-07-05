@@ -40,7 +40,7 @@ export function ServiceIntroSection() {
 
             <Link
               href="/recommend"
-              className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-pill bg-text-strong px-6 text-[15px] font-extrabold text-surface transition-all duration-state hover:bg-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
+              className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-pill bg-brand px-6 text-[15px] font-extrabold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
             >
               AI 추천으로 시작하기
               <ArrowRight size={16} />
