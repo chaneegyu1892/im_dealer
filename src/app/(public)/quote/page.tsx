@@ -16,7 +16,7 @@ import { prisma } from "@/lib/prisma";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
-import { QuoteClientPage } from "./QuoteClientPage";
+import { QuoteClientPageV2 } from "./QuoteClientPageV2";
 
 async function getVehicles(): Promise<VehicleListItem[]> {
   const vehicles = await prisma.vehicle.findMany({
@@ -65,7 +65,7 @@ export default async function QuotePage() {
   const vehicles = await getVehicles();
   return (
     <Suspense>
-      <QuoteClientPage vehicles={vehicles} />
+      <QuoteClientPageV2 vehicles={vehicles} />
     </Suspense>
   );
 }
