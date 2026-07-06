@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check } from "lucide-react";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 import { hasRepresentativeQuote, type RepresentativeQuote } from "@/lib/representative-quote";
+import { isSupabaseStorageUrl } from "@/lib/image-url";
 import type { VehicleDetail } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 
@@ -38,10 +40,17 @@ export function CarDetailHero({
   return (
     <section className="relative min-h-[520px] overflow-hidden md:min-h-[620px]">
       {heroImage && (
-        <div
-          className="absolute inset-0 scale-105 bg-cover bg-center"
-          style={{ backgroundImage: `url(${heroImage})` }}
-        />
+        <div className="absolute inset-0 scale-105">
+          <Image
+            src={heroImage}
+            alt={`${vehicle.brand} ${vehicle.name}`}
+            fill
+            priority
+            sizes="100vw"
+            unoptimized={isSupabaseStorageUrl(heroImage)}
+            className="object-cover"
+          />
+        </div>
       )}
       <div className="absolute inset-0 bg-black/55" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />

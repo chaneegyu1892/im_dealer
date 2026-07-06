@@ -5,6 +5,7 @@ import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { Images } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isSupabaseStorageUrl } from "@/lib/image-url";
 
 export function CarImageGallery({
   vehicleName,
@@ -31,15 +32,22 @@ export function CarImageGallery({
       </div>
       <div className="relative aspect-video overflow-hidden bg-surface-muted">
         <AnimatePresence mode="wait">
-          <motion.img
+          <motion.div
             key={activeImageIdx}
-            src={images[activeImageIdx]}
-            alt={`${vehicleName} 이미지 ${activeImageIdx + 1}`}
-            className="h-full w-full object-cover"
+            className="absolute inset-0"
             initial={false}
             exit={{ opacity: 0.85 }}
             transition={{ duration: 0.25 }}
-          />
+          >
+            <Image
+              src={images[activeImageIdx]}
+              alt={`${vehicleName} 이미지 ${activeImageIdx + 1}`}
+              fill
+              sizes="(max-width: 1024px) 100vw, 66vw"
+              unoptimized={isSupabaseStorageUrl(images[activeImageIdx])}
+              className="object-cover"
+            />
+          </motion.div>
         </AnimatePresence>
       </div>
       {images.length > 1 && (
@@ -62,6 +70,7 @@ export function CarImageGallery({
                 alt={`썸네일 ${index + 1}`}
                 width={96}
                 height={54}
+                unoptimized={isSupabaseStorageUrl(url)}
                 className="h-full w-full object-cover"
               />
             </button>

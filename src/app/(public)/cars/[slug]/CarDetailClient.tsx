@@ -8,8 +8,10 @@ import {
   TrendingDown,
   Users,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { CarDetailBenefitsSection } from "@/components/cars/CarDetailBenefitsSection";
 import { CarDetailHero } from "@/components/cars/CarDetailHero";
+import { CarDetailImageSections } from "@/components/cars/CarDetailImageSections";
 import { CarDetailRecommendBanner } from "@/components/cars/CarDetailRecommendBanner";
 import {
   CarDetailRecommendationSection,
@@ -18,10 +20,10 @@ import {
 import { CarDetailSidebar, MobileQuoteSummary } from "@/components/cars/CarDetailQuoteSurfaces";
 import { CarDetailSpecsSection } from "@/components/cars/CarDetailSpecsSection";
 import { CarImageGallery } from "@/components/cars/CarImageGallery";
-import type { VehicleDetail } from "@/types/api";
+import type { VehicleDetail, VehicleImageKind } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 
-const KEYWORD_TAGS: { keywords: string[]; icon: React.ReactNode; label: string }[] = [
+const KEYWORD_TAGS: { keywords: string[]; icon: ReactNode; label: string }[] = [
   { keywords: ["법인", "비용처리", "경비"], icon: <Building2 size={13} />, label: "법인·사업자" },
   { keywords: ["친환경", "전기", "EV", "ev"], icon: <Leaf size={13} />, label: "친환경 선호" },
   { keywords: ["연비", "유지비", "절감"], icon: <TrendingDown size={13} />, label: "유지비 절감" },
@@ -29,6 +31,8 @@ const KEYWORD_TAGS: { keywords: string[]; icon: React.ReactNode; label: string }
   { keywords: ["가족", "넓", "공간"], icon: <Users size={13} />, label: "가족 동반" },
   { keywords: ["절세", "세제", "혜택"], icon: <Receipt size={13} />, label: "절세 혜택" },
 ];
+
+const PRIMARY_IMAGE_TYPES: readonly VehicleImageKind[] = ["MAIN", "COVER"];
 
 function deriveTags(vehicle: VehicleDetail, engineType: EngineType): DetailTag[] {
   const joined = vehicle.highlights.join(" ");
@@ -54,9 +58,13 @@ function deriveTags(vehicle: VehicleDetail, engineType: EngineType): DetailTag[]
 export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
   const engineType = (vehicle.defaultTrim?.engineType ?? "가솔린") as EngineType;
   const representativeQuotes = vehicle.representativeQuotes;
-  const aiReason = vehicle.aiCaption ?? `${vehicle.name}은(는) 이 조건에 적합한 차량입니다.`;
+  const primaryImages = vehicle.images
+    .filter((image) => PRIMARY_IMAGE_TYPES.includes(image.type))
+    .map((image) => image.storageUrl);
   const allImages =
-    vehicle.imageUrls.length > 0
+    primaryImages.length > 0
+      ? primaryImages
+      : vehicle.imageUrls.length > 0
       ? vehicle.imageUrls
       : vehicle.thumbnailUrl
       ? [vehicle.thumbnailUrl]
@@ -84,6 +92,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
           <div className="space-y-6 lg:col-span-2">
             <CarImageGallery vehicleName={vehicle.name} images={allImages} />
             {vehicle.detailedSpecs && <CarDetailSpecsSection specs={vehicle.detailedSpecs} category={vehicle.category} />}
+            <CarDetailImageSections vehicleName={vehicle.name} images={vehicle.images} />
             <CarDetailRecommendationSection tags={derivedTags} highlights={vehicle.highlights} />
             <CarDetailBenefitsSection />
           </div>
@@ -92,8 +101,6 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
             vehicleName={vehicle.name}
             vehicleSlug={vehicle.slug}
             quotes={representativeQuotes}
-            aiReason={aiReason}
-            highlights={vehicle.highlights}
           />
         </div>
 

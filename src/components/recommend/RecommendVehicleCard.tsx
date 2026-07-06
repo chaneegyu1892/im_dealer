@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn, formatCurrency } from "@/lib/utils";
+import { isSupabaseStorageUrl } from "@/lib/image-url";
 import type { RecommendedVehicle } from "@/types/recommendation";
 import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
@@ -122,7 +123,7 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
                   alt={detail.name}
                   fill
                   sizes="96px"
-                  unoptimized
+                  unoptimized={isSupabaseStorageUrl(imageSrc)}
                   className="object-cover"
                 />
               ) : (

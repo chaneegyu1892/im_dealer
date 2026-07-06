@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Search } from "lucide-react";
 import type { VehicleListItem } from "@/types/api";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
+import { isSupabaseStorageUrl } from "@/lib/image-url";
 
 const DEFAULT_SEARCH_CHIPS = [
   { label: "SUV", query: "SUV" },
@@ -130,11 +132,13 @@ function FeaturedVehicleCard({ vehicle }: { vehicle: VehicleListItem }) {
       {/* 썸네일 */}
       <div className="relative mb-5 aspect-[16/10] w-full overflow-hidden rounded-[16px] bg-white">
         {vehicle.thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={vehicle.thumbnailUrl}
             alt={vehicle.name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            fill
+            sizes="(max-width: 1024px) 100vw, 420px"
+            unoptimized={isSupabaseStorageUrl(vehicle.thumbnailUrl)}
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[13px] font-bold text-text-muted">

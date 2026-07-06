@@ -74,6 +74,8 @@ const nextConfig = {
       { protocol: "https", hostname: "*.tesla.com" },
       { protocol: "https", hostname: "www.volvo.co.kr" },
       { protocol: "https", hostname: "*.volvo.co.kr" },
+      // 카판2 크롤링 차량 이미지 CDN
+      { protocol: "https", hostname: "www.carpan.co.kr" },
       // 카카오 프로필 이미지
       { protocol: "https", hostname: "*.kakaocdn.net" },
       { protocol: "http", hostname: "*.kakaocdn.net" },

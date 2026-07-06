@@ -49,6 +49,25 @@ export interface VehicleDetailedSpecs {
   };
 }
 
+export type VehicleImageKind =
+  | "MAIN"
+  | "COVER"
+  | "EXTERIOR_COLOR"
+  | "INTERIOR_COLOR"
+  | "SPEC_EXTERIOR"
+  | "SPEC_INTERIOR"
+  | "SPEC_SEAT"
+  | "SPEC_OPTION"
+  | "CATALOG_PAGE";
+
+export interface VehicleImageItem {
+  id: string;
+  type: VehicleImageKind;
+  title: string | null;
+  storageUrl: string;
+  displayOrder: number;
+}
+
 /** GET /api/vehicles/:slug 응답 data */
 export interface VehicleDetail {
   id: string;
@@ -62,6 +81,7 @@ export interface VehicleDetail {
   evSubsidyRange: SubsidyRange | null;
   thumbnailUrl: string;
   imageUrls: string[];
+  images: VehicleImageItem[];
   surchargeRate: number;
   isPopular: boolean;
   description: string | null;
@@ -79,7 +99,6 @@ export interface VehicleDetail {
   /** 60개월·무보증·2만km 기준 productType(장기렌트/리스)별 대표 견적가. */
   representativeQuotes: RepresentativeQuote[];
   highlights: string[];
-  aiCaption: string | null;
   hasRateConfig: boolean;
   detailedSpecs: VehicleDetailedSpecs | null;
 }

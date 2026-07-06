@@ -22,6 +22,8 @@ const eslintConfig = [
       "output/**",
       "playwright-report/**",
       ".omo/**",
+      ".claude/**",
+      "tmp/**",
       "build/**",
       "next-env.d.ts",
       "scratch/**",

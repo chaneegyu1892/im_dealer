@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import type { VehicleListItem } from "@/types/api";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
+import { isSupabaseStorageUrl } from "@/lib/image-url";
 
 const INITIAL_VISIBLE = 3;
 
@@ -24,11 +26,13 @@ function PopularCardV2({ vehicle, index }: { vehicle: VehicleListItem; index: nu
         {/* 썸네일 */}
         <div className="relative mb-4 aspect-[16/10] w-full overflow-hidden rounded-[14px] bg-white">
           {vehicle.thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={vehicle.thumbnailUrl}
               alt={vehicle.name}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              fill
+              sizes="(max-width: 768px) 100vw, 33vw"
+              unoptimized={isSupabaseStorageUrl(vehicle.thumbnailUrl)}
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-[12px] font-bold text-text-muted">

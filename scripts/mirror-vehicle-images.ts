@@ -1,18 +1,3 @@
-/**
- * 차량 이미지 일괄 미러링 스크립트
- *
- * DB의 모든 vehicle.thumbnailUrl / vehicle.imageUrls 를 순회하며 외부 URL을
- * Supabase Storage `vehicle-images` 버킷으로 복제하고, DB의 URL을 새 공개 URL로 갱신한다.
- *
- * 사용법:
- *   pnpm tsx scripts/mirror-vehicle-images.ts                 # 전체 미러링
- *   pnpm tsx scripts/mirror-vehicle-images.ts --dry-run       # 다운로드만, DB 갱신 안 함
- *   pnpm tsx scripts/mirror-vehicle-images.ts --vehicle <id>  # 특정 차량만
- *   pnpm tsx scripts/mirror-vehicle-images.ts --retry-failed  # 외부 호스트만 다시 시도
- *
- * 멱등성: 같은 콘텐츠는 SHA-256 해시 기반으로 동일 키에 저장되므로 재실행 안전.
- */
-
 import { PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { config as loadEnv } from "dotenv";
@@ -25,6 +10,8 @@ interface CliOptions {
   dryRun: boolean;
   vehicleId?: string;
   retryFailedOnly: boolean;
+  host?: string;
+  limit?: number;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -33,9 +20,34 @@ function parseArgs(argv: string[]): CliOptions {
     const a = argv[i];
     if (a === "--dry-run") opts.dryRun = true;
     else if (a === "--retry-failed") opts.retryFailedOnly = true;
-    else if (a === "--vehicle") opts.vehicleId = argv[++i];
+    else if (a === "--vehicle") {
+      opts.vehicleId = readArgValue(argv, i, a);
+      i++;
+    } else if (a === "--host") {
+      opts.host = readArgValue(argv, i, a);
+      i++;
+    } else if (a === "--limit") {
+      opts.limit = parsePositiveInt(readArgValue(argv, i, a), a);
+      i++;
+    }
   }
   return opts;
+}
+
+function readArgValue(argv: readonly string[], index: number, flag: string): string {
+  const value = argv[index + 1];
+  if (!value || value.startsWith("--")) {
+    throw new Error(`${flag} requires a value`);
+  }
+  return value;
+}
+
+function parsePositiveInt(value: string, flag: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${flag} requires a positive integer`);
+  }
+  return parsed;
 }
 
 interface VehicleFailure {
@@ -50,6 +62,7 @@ interface Stats {
   vehiclesProcessed: number;
   vehiclesUpdated: number;
   imagesUploaded: number;
+  imagesWouldMirror: number;
   imagesSkipped: number;
   imagesAlreadyMirrored: number;
   failures: VehicleFailure[];
@@ -63,23 +76,48 @@ function isLocalOrData(url: string): boolean {
   return !url || url.startsWith("/") || url.startsWith("data:");
 }
 
-async function main(): Promise<void> {
-  const opts = parseArgs(process.argv.slice(2));
+function matchesHost(url: string, host: string | undefined): boolean {
+  if (!host) return true;
+  try {
+    return new URL(url).hostname === host;
+  } catch {
+    return false;
+  }
+}
 
+function shouldMirrorUrl(url: string, opts: CliOptions): boolean {
+  return !isLocalOrData(url) && !isAlreadyMirrored(url) && matchesHost(url, opts.host);
+}
+
+function vehicleHasMirrorCandidate(
+  vehicle: { thumbnailUrl: string | null; imageUrls: readonly string[] },
+  opts: CliOptions,
+): boolean {
+  if (vehicle.thumbnailUrl && shouldMirrorUrl(vehicle.thumbnailUrl, opts)) return true;
+  return vehicle.imageUrls.some((url) => shouldMirrorUrl(url, opts));
+}
+
+function createMirrorContext(): MirrorContext {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceKey) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing");
   }
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
-  const prisma = new PrismaClient();
+  return { supabase, cache: new Map<string, string>() };
+}
 
-  const ctx: MirrorContext = { supabase, cache: new Map<string, string>() };
+async function main(): Promise<void> {
+  const opts = parseArgs(process.argv.slice(2));
+
+  const prisma = new PrismaClient();
+  const ctx = opts.dryRun ? null : createMirrorContext();
 
   const stats: Stats = {
     vehiclesProcessed: 0,
     vehiclesUpdated: 0,
     imagesUploaded: 0,
+    imagesWouldMirror: 0,
     imagesSkipped: 0,
     imagesAlreadyMirrored: 0,
     failures: [],
@@ -91,23 +129,35 @@ async function main(): Promise<void> {
     select: { id: true, name: true, brand: true, thumbnailUrl: true, imageUrls: true },
     orderBy: { createdAt: "asc" },
   });
+  const targetVehicles = opts.limit
+    ? vehicles.filter((vehicle) => vehicleHasMirrorCandidate(vehicle, opts)).slice(0, opts.limit)
+    : vehicles;
 
-  console.log(`▶ 미러링 대상 차량 ${vehicles.length}대 (dry-run=${opts.dryRun})\n`);
+  console.log(
+    `▶ 미러링 대상 차량 ${targetVehicles.length}대 (dry-run=${opts.dryRun}, host=${opts.host ?? "all"}, limit=${opts.limit ?? "all"})\n`,
+  );
 
-  for (const v of vehicles) {
+  for (const v of targetVehicles) {
     stats.vehiclesProcessed++;
-    const label = `[${stats.vehiclesProcessed}/${vehicles.length}] ${v.brand}/${v.name}`;
+    const label = `[${stats.vehiclesProcessed}/${targetVehicles.length}] ${v.brand}/${v.name}`;
 
     let newThumb = v.thumbnailUrl;
     const newImages: string[] = [];
     let changed = false;
+    let wouldChange = false;
 
     // thumbnailUrl
     if (v.thumbnailUrl && !isLocalOrData(v.thumbnailUrl)) {
       if (isAlreadyMirrored(v.thumbnailUrl)) {
         stats.imagesAlreadyMirrored++;
+      } else if (!matchesHost(v.thumbnailUrl, opts.host)) {
+        stats.imagesSkipped++;
+      } else if (opts.dryRun) {
+        stats.imagesWouldMirror++;
+        wouldChange = true;
       } else {
         try {
+          if (!ctx) throw new Error("Mirror context missing");
           const r = await mirrorImage(v.thumbnailUrl, ctx);
           if (r.url !== v.thumbnailUrl) {
             newThumb = r.url;
@@ -147,7 +197,19 @@ async function main(): Promise<void> {
         stats.imagesAlreadyMirrored++;
         continue;
       }
+      if (!matchesHost(original, opts.host)) {
+        newImages.push(original);
+        stats.imagesSkipped++;
+        continue;
+      }
+      if (opts.dryRun) {
+        newImages.push(original);
+        stats.imagesWouldMirror++;
+        wouldChange = true;
+        continue;
+      }
       try {
+        if (!ctx) throw new Error("Mirror context missing");
         const r = await mirrorImage(original, ctx);
         if (r.url) newImages.push(r.url);
         if (r.url !== original) changed = true;
@@ -163,7 +225,7 @@ async function main(): Promise<void> {
           error: msg,
         });
         console.warn(`  ⚠ ${label} img 실패: ${msg} (${original.slice(0, 80)})`);
-        // 실패한 URL은 새 배열에서 제외 — 사용자 요청대로 "에러 생기는 이미지 없이"
+        newImages.push(original);
       }
     }
 
@@ -185,8 +247,8 @@ async function main(): Promise<void> {
       });
       stats.vehiclesUpdated++;
       console.log(`  ✔ ${label} 갱신 (thumb=${newThumb ? "✓" : "—"}, imgs=${newImages.length})`);
-    } else if (changed) {
-      console.log(`  · ${label} [dry-run] 갱신 예정 (thumb=${newThumb ? "✓" : "—"}, imgs=${newImages.length})`);
+    } else if (changed || wouldChange) {
+      console.log(`  · ${label} [dry-run] 미러링 예정 (thumb=${newThumb ? "✓" : "—"}, imgs=${newImages.length})`);
     }
   }
 
@@ -194,6 +256,7 @@ async function main(): Promise<void> {
   console.log(`차량 처리:       ${stats.vehiclesProcessed}`);
   console.log(`차량 갱신:       ${stats.vehiclesUpdated}`);
   console.log(`이미지 업로드:   ${stats.imagesUploaded}`);
+  console.log(`미러링 예정:     ${stats.imagesWouldMirror}`);
   console.log(`이미지 캐시 적중: ${stats.imagesSkipped}`);
   console.log(`기존 미러링:     ${stats.imagesAlreadyMirrored}`);
   console.log(`실패:           ${stats.failures.length}`);

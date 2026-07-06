@@ -114,6 +114,7 @@ model Vehicle {
   quoteCalcLogs  QuoteCalcLog[]
   reviews        Review[]
   colors         VehicleColor[]
+  images         VehicleImage[]
 
   @@index([isVisible, isPopular])
   @@index([isVisible, isSpotlight])
@@ -290,6 +291,18 @@ enum ColorKind {
   INTERIOR
 }
 
+enum VehicleImageType {
+  MAIN
+  COVER
+  EXTERIOR_COLOR
+  INTERIOR_COLOR
+  SPEC_EXTERIOR
+  SPEC_INTERIOR
+  SPEC_SEAT
+  SPEC_OPTION
+  CATALOG_PAGE
+}
+
 model VehicleColor {
   id          String    @id @default(cuid())
   vehicleId   String
@@ -313,6 +326,27 @@ model VehicleColor {
 
   @@unique([vehicleId, kind, externalId])
   @@index([vehicleId, kind, sortOrder])
+}
+
+model VehicleImage {
+  id           String           @id @default(cuid())
+  vehicleId    String
+  type         VehicleImageType
+  title        String?
+  storageUrl   String
+  sourceUrl    String?
+  sourceKey    String
+  displayOrder Int              @default(0)
+  isVisible    Boolean          @default(true)
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  vehicle      Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleId, sourceKey])
+  @@index([vehicleId, type, isVisible, displayOrder])
+  @@index([sourceUrl])
 }
 
 model SavedQuote {

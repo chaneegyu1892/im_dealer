@@ -104,7 +104,18 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
       },
       recConfigs: {
         where: { isActive: true },
-        select: { highlights: true, aiCaption: true },
+        select: { highlights: true },
+      },
+      images: {
+        where: { isVisible: true },
+        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          storageUrl: true,
+          displayOrder: true,
+        },
       },
     },
   });
@@ -141,6 +152,13 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     evSubsidyRange: subsidyRangeFromTrims(vehicle.trims),
     thumbnailUrl: vehicle.thumbnailUrl,
     imageUrls: vehicle.imageUrls,
+    images: vehicle.images.map((image) => ({
+      id: image.id,
+      type: image.type,
+      title: image.title,
+      storageUrl: image.storageUrl,
+      displayOrder: image.displayOrder,
+    })),
     surchargeRate: vehicle.surchargeRate,
     isPopular: vehicle.isPopular,
     description: vehicle.description,
@@ -174,7 +192,6 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     bestFinanceName,
     representativeQuotes,
     highlights: recConfig?.highlights ?? [],
-    aiCaption: recConfig?.aiCaption ?? null,
     hasRateConfig: representativeQuotes.length > 0,
     detailedSpecs: (vehicle.detailedSpecs as VehicleDetailedSpecs | null) ?? null,
   };

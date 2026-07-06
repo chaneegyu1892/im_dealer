@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isSupabaseStorageUrl } from "@/lib/image-url";
 import type { VehicleListItem } from "@/types/api";
 import { hasRepresentativeQuote } from "@/lib/representative-quote";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
@@ -87,7 +88,7 @@ export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
                   alt={vehicle.name}
                   fill
                   sizes="160px"
-                  unoptimized
+                  unoptimized={isSupabaseStorageUrl(vehicle.thumbnailUrl)}
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               ) : null}

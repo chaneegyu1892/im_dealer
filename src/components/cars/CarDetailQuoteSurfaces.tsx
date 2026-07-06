@@ -5,7 +5,6 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Calculator, Check, ChevronRight } from "lucide-react";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
-import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { hasRepresentativeQuote, type RepresentativeQuote } from "@/lib/representative-quote";
 
@@ -165,14 +164,10 @@ export function CarDetailSidebar({
   vehicleName,
   vehicleSlug,
   quotes,
-  aiReason,
-  highlights,
 }: {
   vehicleName: string;
   vehicleSlug: string;
   quotes: RepresentativeQuote[];
-  aiReason: string;
-  highlights: string[];
 }) {
   const hasQuote = hasRepresentativeQuote(quotes);
 
@@ -224,8 +219,6 @@ export function CarDetailSidebar({
             상담 전 이름·전화번호 요구 없음
           </p>
         </motion.div>
-
-        <AiInsight reason={aiReason} highlights={highlights} />
 
         <div className="t-card p-4 shadow-soft">
           <p className="t-kick mb-3">아임딜러 약속</p>

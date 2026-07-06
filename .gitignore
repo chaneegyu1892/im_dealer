@@ -66,6 +66,7 @@ raw_data_ko_car.json
 # Agent-generated local artifacts
 /.superpowers/
 /output/
+/tmp/
 
 # Internal Korean PDFs (투자자용 / 온보딩 자료)
 아임딜러_투자자용_*.pdf

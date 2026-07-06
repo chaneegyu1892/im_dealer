@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
-import { ArrowRight, Fuel, Gauge, Leaf, Zap, type LucideIcon } from "lucide-react";
+import { Fuel, Gauge, Leaf, Zap, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isSupabaseStorageUrl } from "@/lib/image-url";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
@@ -42,11 +44,13 @@ export function CarCard({ vehicle }: CarCardProps) {
           {/* 썬네일 — 작은 정사각형 */}
           <div className="relative aspect-square w-[88px] shrink-0 overflow-hidden rounded-[12px] bg-white">
             {vehicle.thumbnailUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={vehicle.thumbnailUrl}
                 alt={`${vehicle.brand} ${vehicle.name}`}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                fill
+                sizes="88px"
+                unoptimized={isSupabaseStorageUrl(vehicle.thumbnailUrl)}
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center p-1 text-center text-[10px] font-bold text-text-muted">
@@ -116,11 +120,13 @@ export function CarCard({ vehicle }: CarCardProps) {
           {/* 썬네일 — 16:10 전체 폭 */}
           <div className="relative mb-4 aspect-[16/10] w-full overflow-hidden rounded-[14px] bg-white">
             {vehicle.thumbnailUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={vehicle.thumbnailUrl}
                 alt={`${vehicle.brand} ${vehicle.name}`}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                fill
+                sizes="(max-width: 1024px) 50vw, 33vw"
+                unoptimized={isSupabaseStorageUrl(vehicle.thumbnailUrl)}
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-[13px] font-bold text-text-muted">

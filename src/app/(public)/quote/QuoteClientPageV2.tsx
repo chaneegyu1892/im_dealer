@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { isSupabaseStorageUrl } from "@/lib/image-url";
 import { sortLineups } from "@/lib/lineup-sort";
 import { TossPrice } from "@/components/ui/TossPrice";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
@@ -1042,6 +1043,7 @@ function Step3ResultHeader({
                 alt={selectedVehicle.name ?? "차량"}
                 fill
                 sizes="120px"
+                unoptimized={isSupabaseStorageUrl(selectedVehicle.thumbnailUrl)}
                 className="object-cover"
               />
             ) : (

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, X, Check, Search, Car, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isSupabaseStorageUrl } from "@/lib/image-url";
 import { TrimGroupSelect } from "./TrimGroupSelect";
 import type { VehicleListItem } from "@/types/api";
 import type { VehicleColorPublic } from "./ColorSelector";
@@ -193,6 +194,7 @@ function VehiclePickerModal({
                           src={v.thumbnailUrl}
                           alt={v.name}
                           fill
+                          unoptimized={isSupabaseStorageUrl(v.thumbnailUrl)}
                           className="object-cover"
                           sizes="(max-width: 640px) 45vw, 180px"
                         />
@@ -421,6 +423,7 @@ export function VehicleConfigPanel({
                     src={displayThumb}
                     alt={displayName ?? "차량"}
                     fill
+                    unoptimized={isSupabaseStorageUrl(displayThumb)}
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 50vw"
                     priority
@@ -471,6 +474,7 @@ export function VehicleConfigPanel({
                     src={displayThumb}
                     alt={displayName ?? "차량"}
                     fill
+                    unoptimized={isSupabaseStorageUrl(displayThumb)}
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 50vw"
                     priority
