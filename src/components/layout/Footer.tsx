@@ -14,10 +14,10 @@ const LEGAL_LINKS = [
 ] as const;
 
 const BUSINESS_LINES = [
-  "상호: (주)메타키움",
+  "상호: (주)모빌페이브",
   "대표: 조수형",
-  "사업자등록번호: 781-87-01147",
-  "주소: 서울시 금천구 디지털로 178 퍼블릭가산 B동 1322호 메타키움",
+  "사업자등록번호: 576-86-04171",
+  "주소: 서울특별시 금천구 디지털로 178 퍼블릭가산 B동 1322호 (가산동, 가산퍼블릭)",
 ] as const;
 
 function FooterLink({ href, label }: { readonly href: string; readonly label: string }) {
@@ -117,7 +117,7 @@ export function Footer() {
               ))}
               </div>
               <p>
-                (주)메타키움은 금융상품판매대리·중개업자로서 제휴 금융사의 자동차 렌트·리스 상품을 안내합니다.
+                (주)모빌페이브는 금융상품판매대리·중개업자로서 제휴 금융사의 자동차 렌트·리스 상품을 안내합니다.
               </p>
               <Link
                 href="/finance-terms"

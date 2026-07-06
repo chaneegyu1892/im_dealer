@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "개인정보처리방침 | 아임딜러",
-  description: "(주)메타키움 아임딜러(IM DEALER) 개인정보처리방침",
+  description: "(주)모빌페이브 아임딜러(IM DEALER) 개인정보처리방침",
 };
 
 const TABLE = "w-full min-w-[640px] border-collapse text-xs sm:text-sm";
@@ -15,12 +15,12 @@ export default function PrivacyPage() {
     <main className="public-app-page min-h-screen">
       <div className="page-container mx-auto max-w-3xl px-5 pt-12 pb-[calc(128px+env(safe-area-inset-bottom,0px))] md:py-16">
         <h1 className="mb-2 text-[26px] font-extrabold leading-tight text-text-strong md:text-[32px]">
-          (주)메타키움 개인정보처리방침
+          (주)모빌페이브 개인정보처리방침
         </h1>
         <p className="mb-6 text-sm text-text-muted">시행일: 2026년 6월 17일</p>
 
         <p className="mb-10 text-sm leading-relaxed text-text-body">
-          (주)메타키움(이하 &ldquo;회사&rdquo;라 함)는 이용자의 개인정보를 중요하게
+          (주)모빌페이브(이하 &ldquo;회사&rdquo;라 함)는 이용자의 개인정보를 중요하게
           생각하며, 개인정보 보호법, 정보통신망 이용 촉진 및 정보보호 등에 관한 법률 등 관련
           법령을 성실히 준수합니다. 이에 개인정보 보호법 제30조에 따라 이용자가 개인정보 처리
           절차 및 기준을 명확히 이해하고, 관련 고충을 신속하게 처리받을 수 있도록 다음과 같이
@@ -414,7 +414,7 @@ export default function PrivacyPage() {
             제12조 본 개인정보처리방침의 적용 범위
           </h2>
           <p>
-            본 개인정보처리방침은 (주)메타키움이 운영하는 아임딜러
+            본 개인정보처리방침은 (주)모빌페이브가 운영하는 아임딜러
             웹사이트(https://www.imdealer.co.kr) 및 관련 서비스 전반에 적용됩니다. 회사의
             서비스와 연결된 제3자의 웹사이트 또는 서비스에서 수집되는 개인정보에 대해서는 본
             방침이 적용되지 않으므로, 해당 사이트의 개인정보처리방침을 별도로 확인하시기 바랍니다.
