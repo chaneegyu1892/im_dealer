@@ -11,6 +11,7 @@ import type {
 import RateInputForm from "./RateInputForm";
 import RateHistory from "./RateHistory";
 import { useBrandSignals } from "@/lib/use-brand-signals";
+import { buildRateGroupMarkers } from "./rate-group-markers";
 
 interface VehicleLineup {
   id: string;
@@ -348,6 +349,16 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
         JSON.stringify(s.maxBaseRates) !== JSON.stringify(first.maxBaseRates)
     );
   }, [selectedLineupIds, derivedTrimIds, activeSheets, selectedProductType]);
+
+  const rateGroupMarkerByTrimId = useMemo(
+    () =>
+      buildRateGroupMarkers({
+        activeSheets,
+        productType: selectedProductType,
+        trims: vehicleDetail?.trims ?? [],
+      }),
+    [activeSheets, selectedProductType, vehicleDetail?.trims]
+  );
 
   const handleSaved = (savedTrimIds: string[] = []) => {
     fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
@@ -831,6 +842,20 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                   <p className="text-xs font-semibold text-[#9BA4C0] uppercase tracking-wider">
                     트림 선택 ({derivedTrimIds.length}개 적용)
                   </p>
+                  <div className="flex items-center gap-2 text-[10px] font-medium text-[#9BA4C0]">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                      동일 회수율
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                      단독
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                      값 없음
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2 ml-auto">
                     <button onClick={selectAllLineups} className="text-[11px] text-[#6066EE] hover:underline font-medium">전체 선택</button>
                     <button onClick={deselectAllLineups} className="text-[11px] text-[#9BA4C0] hover:underline font-medium">선택 해제</button>
@@ -879,7 +904,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                           {lineupTrims.map((t) => {
                             const trimSaved = isSaved(t);
                             const trimSelected = !trimSaved && selectedLineupIds.has(lineup.id) && !deselectedTrimIds.has(t.id);
-                            const trimHasSheet = activeSheets.some((s) => s.trimId === t.id && s.productType === selectedProductType);
+                            const rateGroupMarker = rateGroupMarkerByTrimId.get(t.id);
                             return (
                               <button
                                 key={t.id}
@@ -900,7 +925,13 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                                 <span className={`flex-1 ${trimSelected ? "text-[#1A1A2E] font-medium" : trimSaved ? "text-emerald-600" : "text-[#9BA4C0]"}`}>{trimDisplayLabel(t.name, lineup.name)}</span>
                                 <span className="text-[10px] text-[#B0B8D0]">{Math.round((t.discountPrice ?? t.price) / 10000).toLocaleString()}만</span>
                                 {trimSaved && <span className="text-[10px] font-bold text-emerald-600 shrink-0">저장됨</span>}
-                                {trimHasSheet && !trimSaved && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+                                {rateGroupMarker && !trimSaved && (
+                                  <span
+                                    aria-label={rateGroupMarker.ariaLabel}
+                                    className={`inline-block h-2 w-2 rounded-full ring-2 ring-white shrink-0 ${rateGroupMarker.className}`}
+                                    title={rateGroupMarker.title}
+                                  />
+                                )}
                               </button>
                             );
                           })}
