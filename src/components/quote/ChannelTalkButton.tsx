@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageCircle } from "lucide-react";
+import { openChannelTalk } from "@/lib/channel-talk";
 import { cn } from "@/lib/utils";
 
 interface ChannelTalkButtonProps {
@@ -17,19 +18,7 @@ export function ChannelTalkButton({
   size = "md",
 }: ChannelTalkButtonProps) {
   const handleClick = () => {
-    // 채널톡 오픈 (window.ChannelIO가 로드된 경우)
-    if (typeof window !== "undefined" && "ChannelIO" in window) {
-      const channelIO = window.ChannelIO as (cmd: string, data?: unknown) => void;
-
-      if (vehicleName) {
-        channelIO("openChat", {
-          message: `[${vehicleName}] 관련 상담을 원해요.`,
-        });
-      } else {
-        channelIO("openChat");
-      }
-    } else {
-      // 채널톡 미로드 시 fallback: 페이지 하단 채팅 버튼 안내
+    if (!openChannelTalk()) {
       console.warn("채널톡이 로드되지 않았습니다.");
     }
   };

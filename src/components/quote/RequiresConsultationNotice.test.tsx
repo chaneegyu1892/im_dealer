@@ -22,8 +22,6 @@ describe("RequiresConsultationNotice", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "상담하기" }));
 
-    expect(calls).toEqual([
-      ["openChat", { message: "[카니발] 관련 상담을 원해요." }],
-    ]);
+    expect(calls).toEqual([["showMessenger"]]);
   });
 });

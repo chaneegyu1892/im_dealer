@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CarFront, ClipboardCheck, Home, Info, MessageCircle, UserRound } from "lucide-react";
+import { openChannelTalk } from "@/lib/channel-talk";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -91,10 +92,6 @@ export function Header() {
   function isActive(href: string, exact: boolean) {
     if (exact) return pathname === href;
     return pathname === href || pathname.startsWith(href + "/");
-  }
-
-  function openChannelTalk() {
-    window.ChannelIO?.("openChat");
   }
 
   const displayName =

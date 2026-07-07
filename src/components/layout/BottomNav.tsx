@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion, type Transition } from "framer-motion";
+import { openChannelTalk } from "@/lib/channel-talk";
 import { cn } from "@/lib/utils";
 import { CarFront, ClipboardCheck, Home, MessageCircle, type LucideIcon } from "lucide-react";
 
@@ -109,7 +110,7 @@ export function BottomNav() {
                   type="button"
                   className={wrapperClass}
                   aria-label={label}
-                  onClick={() => window.ChannelIO?.("openChat")}
+                  onClick={openChannelTalk}
                 >
                   {inner}
                 </button>
