@@ -13,7 +13,7 @@ export function AdminLayoutClient({ admin, children }: AdminLayoutClientProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="h-screen flex bg-[#F4F5F8] overflow-hidden">
+    <div className="admin-light-scope h-screen flex bg-[#F4F5F8] overflow-hidden">
       <AdminSidebar
         admin={admin}
         mobileOpen={mobileOpen}

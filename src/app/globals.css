@@ -181,6 +181,56 @@
   h1, h2 { @apply text-ink font-display font-light; }
   h3, h4 { @apply text-ink font-display font-medium; }
   p      { @apply text-ink-body; }
+
+  :where(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="number"],
+    input[type="password"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="time"],
+    input[type="week"],
+    textarea,
+    select
+  ) {
+    background-color: var(--color-surface);
+    color: var(--color-text-strong);
+    color-scheme: light;
+  }
+
+  :where(input, textarea)::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+  }
+
+  :where(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="number"],
+    input[type="password"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="time"],
+    input[type="week"],
+    textarea,
+    select
+  ):is(:disabled, [readonly]) {
+    background-color: var(--color-surface-soft);
+    color: var(--color-text-muted);
+    -webkit-text-fill-color: var(--color-text-muted);
+    opacity: 1;
+  }
 }
 
 @layer components {
@@ -248,6 +298,59 @@
 
   .input-search {
     @apply input-field pl-10;
+  }
+
+  .admin-light-scope {
+    color-scheme: light;
+  }
+
+  .admin-light-scope :where(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="number"],
+    input[type="password"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="time"],
+    input[type="week"],
+    textarea,
+    select
+  ) {
+    background-color: #FFFFFF;
+    color: #1A1A2E;
+    -webkit-text-fill-color: #1A1A2E;
+  }
+
+  .admin-light-scope :where(input, textarea)::placeholder {
+    color: #9BA4C0;
+    opacity: 1;
+  }
+
+  .admin-light-scope :where(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="number"],
+    input[type="password"],
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="time"],
+    input[type="week"],
+    textarea,
+    select
+  ):is(:disabled, [readonly]) {
+    background-color: #F6F8FB;
+    color: #9BA4C0;
+    -webkit-text-fill-color: #9BA4C0;
   }
 
   /* ── 토스트 ───────────────────────────── */
