@@ -15,6 +15,7 @@ import { useBrandSignals } from "@/lib/use-brand-signals";
 interface VehicleLineup {
   id: string;
   name: string;
+  isVisible?: boolean;
 }
 
 interface TrimBasic {
@@ -23,6 +24,7 @@ interface TrimBasic {
   price: number;
   discountPrice: number | null;
   lineupId: string | null;
+  isVisible?: boolean;
 }
 
 interface VehicleWithLineups {
@@ -181,7 +183,16 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       .then((r) => r.json())
       .then((res) => {
         const vehicle = res.data ?? res; // { success, data } 또는 직접 vehicle
-        setVehicleDetail(vehicle);
+        const visibleLineups = (vehicle.lineups ?? []).filter(
+          (lineup: VehicleLineup) => lineup.isVisible !== false
+        );
+        const visibleLineupIds = new Set(visibleLineups.map((lineup: VehicleLineup) => lineup.id));
+        const visibleTrims = (vehicle.trims ?? []).filter(
+          (trim: TrimBasic) =>
+            trim.isVisible !== false &&
+            (!trim.lineupId || visibleLineupIds.has(trim.lineupId))
+        );
+        setVehicleDetail({ ...vehicle, lineups: visibleLineups, trims: visibleTrims });
         setSelectedLineupIds(new Set());
         setDeselectedTrimIds(new Set());
       })

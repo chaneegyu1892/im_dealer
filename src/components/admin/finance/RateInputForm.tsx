@@ -28,6 +28,12 @@ const MILEAGE_LABELS: Record<number, string> = {
   20000: "2만km",
   30000: "3만km",
 };
+const inputClassName =
+  "w-full border border-[#E8EAF2] rounded-lg bg-white px-3 py-1.5 text-sm text-[#1A1A2E] placeholder:text-[#B0B8D0] focus:outline-none focus:border-[#6066EE] [color-scheme:light]";
+const rateInputClassName =
+  "w-full text-center text-xs border border-[#E8EAF2] rounded-lg bg-white px-1.5 py-1.5 text-[#1A1A2E] placeholder:text-[#B0B8D0] focus:outline-none focus:border-[#6066EE] [color-scheme:light]";
+const disabledRateInputClassName =
+  "w-full text-center text-xs border border-[#EEF1F6] rounded-lg bg-[#F6F8FB] px-1.5 py-1.5 text-[#9BA4C0] cursor-not-allowed select-none [color-scheme:light]";
 
 function emptyRates(): RateSheetRaw {
   return Object.fromEntries(RATE_KEYS.map((k) => [k, 0])) as RateSheetRaw;
@@ -227,11 +233,7 @@ export default function RateInputForm({
                         value={isActive && rates[key] > 0 ? rates[key].toLocaleString("ko-KR") : ""}
                         onChange={(e) => updateRate(setter, key, e.target.value)}
                         placeholder={isActive ? "0" : "—"}
-                        className={
-                          isActive
-                            ? "w-full text-center text-xs border border-[#E8EAF2] rounded-lg px-1.5 py-1.5 focus:outline-none focus:border-[#6066EE] text-[#1A1A2E]"
-                            : "w-full text-center text-xs border border-[#F0F1FA] rounded-lg px-1.5 py-1.5 bg-[#F4F5F8] text-[#C8CDD8] cursor-not-allowed select-none"
-                        }
+                        className={isActive ? rateInputClassName : disabledRateInputClassName}
                       />
                     </td>
                   );
@@ -289,7 +291,7 @@ export default function RateInputForm({
             type="date"
             value={weekOf}
             onChange={(e) => setWeekOf(e.target.value)}
-            className="w-full border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
+            className={inputClassName}
           />
         </div>
         <div>
@@ -308,7 +310,7 @@ export default function RateInputForm({
                 setPriceManuallyEdited(true);
               }
             }}
-            className="w-full md:w-40 border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
+            className={`${inputClassName} md:w-40`}
           />
         </div>
         <div>
@@ -328,7 +330,7 @@ export default function RateInputForm({
                   setPriceManuallyEdited(true);
                 }
               }}
-              className="w-full md:w-40 border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
+              className={`${inputClassName} md:w-40`}
             />
             {priceManuallyEdited && initialMinPrice > 0 && initialMaxPrice > 0 && (
               <button
@@ -352,7 +354,7 @@ export default function RateInputForm({
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             placeholder="선택 메모"
-            className="w-full border border-[#E8EAF2] rounded-lg px-3 py-1.5 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#6066EE]"
+            className={inputClassName}
           />
         </div>
       </div>
