@@ -46,7 +46,7 @@ const COLORS: VehicleColorPublic[] = [
 ];
 
 describe("ColorSelector", () => {
-  it("외장과 내장 색상을 각각 드롭다운으로 보여준다", () => {
+  it("외장과 내장 색상 SelectSheet 트리거를 보여준다", () => {
     const onChange = vi.fn();
 
     render(
@@ -58,17 +58,15 @@ describe("ColorSelector", () => {
       />
     );
 
-    expect(screen.getByLabelText("외장 색상 선택")).toHaveDisplayValue(
-      "스노우 화이트 펄 · 기본"
-    );
-    expect(screen.getByLabelText("내장 색상 선택")).toHaveDisplayValue("블랙 원톤 · 기본");
-    expect(screen.getByRole("option", { name: "그래비티 그레이 · +8만원" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "브라운 투톤 · +30만원" })).toBeInTheDocument();
-    expect(screen.getByLabelText("선택된 외장 색상 미리보기: 스노우 화이트 펄")).toBeInTheDocument();
-    expect(screen.getByLabelText("선택된 내장 색상 미리보기: 블랙 원톤")).toBeInTheDocument();
+    // 트리거 버튼에 선택된 색상 이름 노출
+    expect(screen.getByText("스노우 화이트 펄")).toBeInTheDocument();
+    expect(screen.getByText("블랙 원톤")).toBeInTheDocument();
+    // 보조 라벨
+    expect(screen.getByText("외장 색상")).toBeInTheDocument();
+    expect(screen.getByText("내장 색상")).toBeInTheDocument();
   });
 
-  it("색상 드롭다운을 바꾸면 기존 kind와 color id 계약으로 알린다", () => {
+  it("색상 SelectSheet를 열어 선택하면 기존 kind와 color id 계약으로 알린다", () => {
     const onChange = vi.fn();
 
     render(
@@ -80,12 +78,19 @@ describe("ColorSelector", () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText("외장 색상 선택"), {
-      target: { value: "exterior-gray" },
-    });
-    fireEvent.change(screen.getByLabelText("내장 색상 선택"), {
-      target: { value: "interior-brown" },
-    });
+    // 외장 — 라벨 버튼을 눌러 시트를 열고 옵션 선택
+    const exteriorTrigger = screen.getByText("외장 색상")
+      .closest("div")
+      ?.querySelector("button");
+    fireEvent.click(exteriorTrigger!);
+    fireEvent.click(screen.getByText("그래비티 그레이"));
+
+    // 내장 — 라벨 버튼을 눌러 시트를 열고 옵션 선택
+    const interiorTrigger = screen.getByText("내장 색상")
+      .closest("div")
+      ?.querySelector("button");
+    fireEvent.click(interiorTrigger!);
+    fireEvent.click(screen.getByText("브라운 투톤"));
 
     expect(onChange).toHaveBeenCalledWith("EXTERIOR", "exterior-gray");
     expect(onChange).toHaveBeenCalledWith("INTERIOR", "interior-brown");
