@@ -11,6 +11,9 @@ importers:
       '@google/genai':
         specifier: ^1.50.1
         version: 1.52.0
+      '@napi-rs/canvas':
+        specifier: 1.0.2
+        version: 1.0.2
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
