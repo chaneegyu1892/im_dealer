@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { QuoteDocumentData } from "@/lib/quote-document-template";
+import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  let body: Partial<QuoteDocumentData>;
+  let body: Partial<PDFQuoteData>;
   try {
     body = await req.json();
   } catch {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "필수 견적 정보가 누락되었습니다." }, { status: 400 });
   }
 
-  const imageData: QuoteDocumentData = {
+  const imageData: PDFQuoteData = {
     vehicleName: body.vehicleName,
     vehicleBrand: body.vehicleBrand ?? "",
     trimName: body.trimName ?? "",

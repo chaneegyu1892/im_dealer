@@ -32,7 +32,7 @@ import {
 } from "@/constants/customer-types";
 import type { VehicleListItem, QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
-import type { QuoteDocumentData } from "@/lib/quote-document-template";
+import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
 import {
   type LineupChoice,
@@ -575,7 +575,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     setImageError(null);
 
     const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({ name, price }));
-    const payload: Partial<QuoteDocumentData> = {
+    const payload: Partial<PDFQuoteData> = {
       vehicleName: selectedVehicle.name,
       vehicleBrand: selectedVehicle.brand,
       trimName: quoteResult.trimName,

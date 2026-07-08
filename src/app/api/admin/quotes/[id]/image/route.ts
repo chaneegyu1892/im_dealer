@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
-import type { QuoteDocumentData } from "@/lib/quote-document-template";
+import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
 import {
   buildVehicleScenarios,
@@ -99,7 +99,7 @@ export async function GET(
     ? `${customerLabel} (어드민 재발급: ${admin.email ?? admin.id})`
     : `어드민 재발급: ${admin.email ?? admin.id}`;
 
-  const imageData: QuoteDocumentData = {
+  const imageData: PDFQuoteData = {
     vehicleName: outcome.data.vehicleName,
     vehicleBrand: outcome.data.vehicleBrand,
     trimName: outcome.data.trimName,
