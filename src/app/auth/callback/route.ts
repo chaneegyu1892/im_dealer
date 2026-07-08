@@ -28,6 +28,14 @@ export async function GET(request: Request) {
     provider === "kakao" && typeof meta.nickname === "string" ? meta.nickname : null;
   // 카카오 이메일 미동의 시 빈 문자열을 반환 → unique 충돌 방지를 위해 null 로 정규화.
   const normalizedEmail = user.email && user.email.trim() ? user.email : null;
+  // 카카오 전화번호: 동의 항목(전화번호) 승인 시 Supabase user.phone 또는 user_metadata 에 담긴다.
+  // 카카오는 "+82 10-1234-5678" 형태로 내려줌 — 저장은 원본, 채널톡 전달 시 toE164KR 로 +82 정규화.
+  const rawPhone =
+    (typeof user.phone === "string" && user.phone.trim() && user.phone) ||
+    (typeof meta.phone_number === "string" && meta.phone_number.trim() && meta.phone_number) ||
+    (typeof meta.phone === "string" && meta.phone.trim() && meta.phone) ||
+    null;
+  const normalizedPhone = rawPhone ? rawPhone.trim() : null;
   const displayName =
     (typeof meta.name === "string" && meta.name) ||
     (typeof meta.full_name === "string" && meta.full_name) ||
@@ -40,9 +48,10 @@ export async function GET(request: Request) {
       where: { supabaseId: user.id },
       update: {
         lastLoginAt: new Date(),
-        // 이미 존재하는 사용자의 role/isActive 는 보존. email/nickname 은 최신값으로 동기화.
+        // 이미 존재하는 사용자의 role/isActive 는 보존. email/nickname/phone 은 최신값으로 동기화.
         ...(normalizedEmail ? { email: normalizedEmail } : {}),
         ...(kakaoNickname ? { kakaoNickname } : {}),
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
       },
       create: {
         supabaseId: user.id,
@@ -51,6 +60,7 @@ export async function GET(request: Request) {
         role: "member",
         provider,
         kakaoNickname,
+        phone: normalizedPhone,
         isActive: true,
         lastLoginAt: new Date(),
       },
