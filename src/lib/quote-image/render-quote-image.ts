@@ -40,6 +40,8 @@ type NativePdfPage = {
   }) => NativeRenderTask;
 };
 
+type PdfJsLegacy = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+
 class NapiCanvasFactory {
   create(width: number, height: number): CanvasEntry {
     const canvas = createCanvas(width, height);
@@ -83,13 +85,18 @@ function isNativePdfPage(value: unknown): value is NativePdfPage {
   );
 }
 
+async function loadPdfJsLegacy(): Promise<PdfJsLegacy> {
+  await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
+  return import("pdfjs-dist/legacy/build/pdf.mjs");
+}
+
 async function convertPdfToPng(pdfBuffer: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
   installCanvasGlobals();
   const canvasFactory = new NapiCanvasFactory();
   let loadingTask: PDFDocumentLoadingTask | null = null;
 
   try {
-    const { getDocument, VerbosityLevel } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const { getDocument, VerbosityLevel } = await loadPdfJsLegacy();
     loadingTask = getDocument({
       CanvasFactory: NapiCanvasFactory,
       data: pdfBuffer,

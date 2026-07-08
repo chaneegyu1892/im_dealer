@@ -7,6 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const quoteImageTraceIncludes = [
   "./src/lib/pdf/fonts/**",
   "./src/lib/pdf/brand/**",
+  "./node_modules/.pnpm/pdfjs-dist@*/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
   "./node_modules/.pnpm/@napi-rs+canvas*/node_modules/@napi-rs/canvas/**",
   "./node_modules/.pnpm/@napi-rs+canvas-*/node_modules/@napi-rs/canvas-*/**",
 ];

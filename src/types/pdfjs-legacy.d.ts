@@ -16,3 +16,5 @@ declare module "pdfjs-dist/legacy/build/pdf.mjs" {
     readonly INFOS: number;
   };
 }
+
+declare module "pdfjs-dist/legacy/build/pdf.worker.mjs" {}
