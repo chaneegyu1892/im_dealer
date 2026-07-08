@@ -118,9 +118,14 @@ export function BottomSheet({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="presentation">
+        <motion.div
+          key="bottom-sheet-root"
+          className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center"
+          role="presentation"
+        >
           {/* Backdrop */}
           <motion.div
+            key="bottom-sheet-backdrop"
             className="absolute inset-0 bg-text-strong/55 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -132,6 +137,7 @@ export function BottomSheet({
 
           {/* Sheet */}
           <motion.div
+            key="bottom-sheet-panel"
             role="dialog"
             aria-modal="true"
             aria-label={title ? undefined : "바텀시트"}
@@ -184,7 +190,7 @@ export function BottomSheet({
               {children}
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );
