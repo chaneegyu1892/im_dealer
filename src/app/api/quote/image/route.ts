@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { PDFQuoteData } from "@/lib/quote-pdf-template";
-import { renderQuotePdfBuffer } from "@/lib/pdf/render-quote";
+import type { QuoteDocumentData } from "@/lib/quote-document-template";
+import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  let body: Partial<PDFQuoteData>;
+  let body: Partial<QuoteDocumentData>;
   try {
     body = await req.json();
   } catch {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "필수 견적 정보가 누락되었습니다." }, { status: 400 });
   }
 
-  const pdfData: PDFQuoteData = {
+  const imageData: QuoteDocumentData = {
     vehicleName: body.vehicleName,
     vehicleBrand: body.vehicleBrand ?? "",
     trimName: body.trimName ?? "",
@@ -45,25 +45,25 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    const pdfBuffer = await renderQuotePdfBuffer(pdfData);
+    const imageBuffer = await renderQuoteImageBuffer(imageData);
 
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const vehicleNameSafe = pdfData.vehicleName.replace(/[^\wㄱ-힣]/g, "_");
-    const filename = `아임딜러_견적서_${vehicleNameSafe}_${today}.pdf`;
+    const vehicleNameSafe = imageData.vehicleName.replace(/[^\wㄱ-힣]/g, "_");
+    const filename = `아임딜러_견적서_${vehicleNameSafe}_${today}.png`;
 
-    const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+    const blob = new Blob([imageBuffer], { type: "image/png" });
     return new NextResponse(blob, {
       headers: {
-        "Content-Type": "application/pdf",
+        "Content-Type": "image/png",
         "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
-        "Content-Length": pdfBuffer.byteLength.toString(),
+        "Content-Length": imageBuffer.byteLength.toString(),
         "Cache-Control": "no-store",
       },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "알 수 없는 오류";
     return NextResponse.json(
-      { error: `PDF 생성에 실패했습니다: ${message}` },
+      { error: `이미지 생성에 실패했습니다: ${message}` },
       { status: 500 }
     );
   }

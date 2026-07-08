@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
-import type { PDFQuoteData } from "@/lib/quote-pdf-template";
-import { renderQuotePdfBuffer } from "@/lib/pdf/render-quote";
+import type { QuoteDocumentData } from "@/lib/quote-document-template";
+import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
 import {
   buildVehicleScenarios,
   type ContractTypeKor,
@@ -50,7 +50,6 @@ export async function GET(
     return NextResponse.json({ error: "견적을 찾을 수 없습니다." }, { status: 404 });
   }
 
-  // SavedQuote에 vehicle 관계가 없어 별도 조회 (slug → buildVehicleScenarios 입력)
   const vehicle = await prisma.vehicle.findUnique({
     where: { id: quote.vehicleId },
     select: { slug: true },
@@ -90,8 +89,7 @@ export async function GET(
     return NextResponse.json({ error: outcome.error.error }, { status: outcome.error.status });
   }
 
-  // 옵션은 저장 시점 스냅샷이 있으면 그 가격을 우선 사용 (옵션 가격 변동 대비).
-  const pdfSelectedOptions = (savedOptions && savedOptions.length > 0
+  const imageSelectedOptions = (savedOptions && savedOptions.length > 0
     ? savedOptions
     : outcome.data.selectedOptions
   ).map((o) => ({ name: o.name, price: o.price }));
@@ -101,12 +99,12 @@ export async function GET(
     ? `${customerLabel} (어드민 재발급: ${admin.email ?? admin.id})`
     : `어드민 재발급: ${admin.email ?? admin.id}`;
 
-  const pdfData: PDFQuoteData = {
+  const imageData: QuoteDocumentData = {
     vehicleName: outcome.data.vehicleName,
     vehicleBrand: outcome.data.vehicleBrand,
     trimName: outcome.data.trimName,
     trimPrice: outcome.data.trimPrice,
-    selectedOptions: pdfSelectedOptions,
+    selectedOptions: imageSelectedOptions,
     totalVehiclePrice: outcome.data.totalVehiclePrice,
     productType,
     contractMonths: quote.contractMonths,
@@ -131,27 +129,27 @@ export async function GET(
   };
 
   try {
-    const pdfBuffer = await renderQuotePdfBuffer(pdfData);
+    const imageBuffer = await renderQuoteImageBuffer(imageData);
 
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const vehicleNameSafe = pdfData.vehicleName.replace(/[^\wㄱ-힣]/g, "_");
+    const vehicleNameSafe = imageData.vehicleName.replace(/[^\wㄱ-힣]/g, "_");
     const idSuffix = quote.id.slice(0, 6);
-    const filename = `아임딜러_견적서_${vehicleNameSafe}_${today}_${idSuffix}.pdf`;
+    const filename = `아임딜러_견적서_${vehicleNameSafe}_${today}_${idSuffix}.png`;
 
-    const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+    const blob = new Blob([imageBuffer], { type: "image/png" });
     return new NextResponse(blob, {
       headers: {
-        "Content-Type": "application/pdf",
+        "Content-Type": "image/png",
         "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
-        "Content-Length": pdfBuffer.byteLength.toString(),
+        "Content-Length": imageBuffer.byteLength.toString(),
         "Cache-Control": "no-store",
       },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "알 수 없는 오류";
-    console.error("[admin pdf] failed", err);
+    console.error("[admin quote image] failed", err);
     return NextResponse.json(
-      { error: `PDF 생성에 실패했습니다: ${message}` },
+      { error: `이미지 생성에 실패했습니다: ${message}` },
       { status: 500 }
     );
   }

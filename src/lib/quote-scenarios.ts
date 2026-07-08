@@ -75,7 +75,7 @@ export type BuildVehicleScenariosOutcome =
 
 /**
  * 차량/트림/옵션/계약조건을 받아 표준 3개 시나리오(무보증/보증금/선납금)를 계산해 반환.
- * `/api/quote/calculate`와 어드민 PDF 재다운로드 라우트가 공유한다.
+ * `/api/quote/calculate`와 어드민 견적서 이미지 재다운로드 라우트가 공유한다.
  */
 export async function buildVehicleScenarios(
   input: BuildVehicleScenariosInput

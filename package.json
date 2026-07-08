@@ -23,7 +23,6 @@
   "dependencies": {
     "@google/genai": "^1.50.1",
     "@prisma/client": "^5.22.0",
-    "@react-pdf/renderer": "^4.5.1",
     "@sentry/nextjs": "^10.49.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",

@@ -11,9 +11,9 @@ export const LEGACY_QUOTE_STORAGE_PREFIX = "quote_";
  * localStorage 에 저장하며, 읽을 때 삭제하지 않는다(반복 새로고침에도 복원 가능).
  * 복원 트리거는 URL 의 restore=1 마커 — 마커가 없으면(새 견적 시작) 저장본을 읽지 않는다.
  */
-export const QUOTE_PDF_RESTORE_KEY = "quote_pdf_restore";
+export const QUOTE_IMAGE_RESTORE_KEY = "quote_image_restore";
 
-export interface QuotePdfRestoreState {
+export interface QuoteImageRestoreState {
   vehicleSlug: string;
   customerType: CustomerType;
   selectedLineup: string | null;
@@ -35,25 +35,25 @@ export interface QuotePdfRestoreState {
   quoteResult: QuoteResponse;
 }
 
-export function saveQuotePdfRestore(state: QuotePdfRestoreState): void {
+export function saveQuoteImageRestore(state: QuoteImageRestoreState): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(QUOTE_PDF_RESTORE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(QUOTE_IMAGE_RESTORE_KEY, JSON.stringify(state));
   } catch (error) {
-    console.error("[saveQuotePdfRestore] failed", error);
+    console.error("[saveQuoteImageRestore] failed", error);
   }
 }
 
 /** 저장본을 읽는다(삭제하지 않음). 새로고침마다 반복 복원 가능. */
-export function readQuotePdfRestore(): QuotePdfRestoreState | null {
+export function readQuoteImageRestore(): QuoteImageRestoreState | null {
   if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(QUOTE_PDF_RESTORE_KEY);
+  const raw = window.localStorage.getItem(QUOTE_IMAGE_RESTORE_KEY);
   if (!raw) return null;
   const parsed = parseJson(raw);
   if (!isRecord(parsed)) return null;
   if (typeof parsed.vehicleSlug !== "string") return null;
   if (!isRecord(parsed.quoteResult)) return null;
-  return parsed as unknown as QuotePdfRestoreState;
+  return parsed as unknown as QuoteImageRestoreState;
 }
 
 export type QuoteDraftScenarioType = "conservative" | "standard" | "aggressive";

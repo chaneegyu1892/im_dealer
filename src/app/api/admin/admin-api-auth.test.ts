@@ -182,7 +182,7 @@ describe("admin API role guards", () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it("blocks dealers from quote PDF generation before querying quote data", async () => {
+  it("blocks dealers from quote image generation before querying quote data", async () => {
     const findFirst = vi.fn().mockResolvedValue(null);
 
     vi.doMock("@/lib/admin-auth", () => ({
@@ -195,8 +195,8 @@ describe("admin API role guards", () => {
       },
     }));
 
-    const { GET } = await import("@/app/api/admin/quotes/[id]/pdf/route");
-    const request = new NextRequest("https://example.com/api/admin/quotes/q1/pdf");
+    const { GET } = await import("@/app/api/admin/quotes/[id]/image/route");
+    const request = new NextRequest("https://example.com/api/admin/quotes/q1/image");
 
     const response = await GET(request, { params: Promise.resolve({ id: "q1" }) });
 

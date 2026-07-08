@@ -633,7 +633,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                 className="w-full rounded-lg border border-[#E8EAF2] px-3 py-2 text-xs focus:border-[#6066EE] focus:outline-none"
               />
             </div>
-            {/* 로고 (견적서 PDF 노출용) */}
+            {/* 로고 (견적서 이미지 노출용) */}
             <div className="flex items-center gap-2">
               <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E8EAF2] bg-[#F8F9FC]">
                 {companyForm.logoUrl ? (

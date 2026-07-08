@@ -32,7 +32,7 @@ import {
 } from "@/constants/customer-types";
 import type { VehicleListItem, QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
-import type { PDFQuoteData } from "@/lib/quote-pdf-template";
+import type { QuoteDocumentData } from "@/lib/quote-document-template";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
 import {
   type LineupChoice,
@@ -40,9 +40,9 @@ import {
 } from "@/components/quote/LineupTrimPicker";
 import {
   QUOTE_DRAFT_STORAGE_PREFIX,
-  readQuotePdfRestore,
-  saveQuotePdfRestore,
-  type QuotePdfRestoreState,
+  readQuoteImageRestore,
+  saveQuoteImageRestore,
+  type QuoteImageRestoreState,
   type QuoteDraft,
 } from "@/lib/quote-draft";
 import { Step2ConditionV2, type TrimDataV2 } from "./Step2ConditionV2";
@@ -134,7 +134,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     typeof crypto !== "undefined" ? crypto.randomUUID() : `quote-${Date.now()}`
   );
 
-  const restoreRef = useRef<QuotePdfRestoreState | null>(null);
+  const restoreRef = useRef<QuoteImageRestoreState | null>(null);
 
   const [step, setStep] = useState<1 | 2 | 3>(() =>
     isRestoreReturn ? 3 : initialCustomerType ? 2 : 1
@@ -181,8 +181,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
   const [costMode, setCostMode] = useState<CostMode>("none");
   const [isRecalculating, setIsRecalculating] = useState(false);
-  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isImageDownloading, setIsImageDownloading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
   const recalculateRequestId = useRef(0);
   const lastQuotedSlug = useRef<string | null>(null);
@@ -291,7 +291,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   // ─── 복원 (v1 계약 그대로) ─────────────────────────────
   useEffect(() => {
     if (!isRestoreReturn) return;
-    const restored = readQuotePdfRestore();
+    const restored = readQuoteImageRestore();
     if (restored && restored.vehicleSlug === prefillSlug) {
       restoreRef.current = restored;
       baseStandardScenario.current =
@@ -568,14 +568,14 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     selectedOptionIds, contractCategory, exteriorColorId, interiorColorId,
   ]);
 
-  // ─── PDF 다운로드 (v1 계약 그대로) ─────────────────────
-  async function handlePdfDownload() {
+  // ─── 이미지 다운로드 (v1 계약 그대로) ─────────────────────
+  async function handleImageDownload() {
     if (!quoteResult || !selectedVehicle) return;
-    setIsPdfDownloading(true);
-    setPdfError(null);
+    setIsImageDownloading(true);
+    setImageError(null);
 
     const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({ name, price }));
-    const payload: Partial<PDFQuoteData> = {
+    const payload: Partial<QuoteDocumentData> = {
       vehicleName: selectedVehicle.name,
       vehicleBrand: selectedVehicle.brand,
       trimName: quoteResult.trimName,
@@ -598,21 +598,21 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     };
 
     try {
-      const response = await fetch("/api/quote/pdf", {
+      const response = await fetch("/api/quote/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
         const json = await response.json().catch(() => null);
-        setPdfError(json?.error ?? "PDF 다운로드에 실패했습니다.");
+        setImageError(json?.error ?? "이미지 다운로드에 실패했습니다.");
         return;
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const disposition = response.headers.get("Content-Disposition") ?? "";
       const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/)?.[1];
-      const fallbackName = `아임딜러_견적서_${selectedVehicle.name}.pdf`;
+      const fallbackName = `아임딜러_견적서_${selectedVehicle.name}.png`;
       const filename = encodedFilename ? decodeURIComponent(encodedFilename) : fallbackName;
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -622,14 +622,14 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       anchor.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setPdfError("PDF 다운로드 중 네트워크 오류가 발생했습니다.");
+      setImageError("이미지 다운로드 중 네트워크 오류가 발생했습니다.");
     } finally {
-      setIsPdfDownloading(false);
+      setIsImageDownloading(false);
     }
   }
 
   // ─── 복원 저장본 생성 + 게이트 로그인 (v1 계약 그대로) ──
-  const buildRestoreState = useCallback((): QuotePdfRestoreState | null => {
+  const buildRestoreState = useCallback((): QuoteImageRestoreState | null => {
     if (!quoteResult || !selectedVehicle) return null;
     return {
       vehicleSlug: selectedVehicle.slug,
@@ -654,7 +654,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
 
   const handleGateLogin = useCallback(() => {
     const state = buildRestoreState();
-    if (state) saveQuotePdfRestore(state);
+    if (state) saveQuoteImageRestore(state);
     const params = new URLSearchParams({
       vehicle: selectedVehicle?.slug ?? "",
       customerType,
@@ -667,7 +667,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   useEffect(() => {
     if (step === 3 && quoteResult && selectedVehicle) {
       const state = buildRestoreState();
-      if (state) saveQuotePdfRestore(state);
+      if (state) saveQuoteImageRestore(state);
       // restore 마커 동기화
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
@@ -831,14 +831,14 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               customRates={customRates}
               costMode={costMode}
               isRecalculating={isRecalculating}
-              isPdfDownloading={isPdfDownloading}
-              pdfError={pdfError}
+              isImageDownloading={isImageDownloading}
+              imageError={imageError}
               onCustomRatesChange={setCustomRates}
               onCostModeChange={setCostMode}
               onReset={restoreBaseStandardScenario}
               onMemberLogin={handleGateLogin}
               onContractApply={handleContractApply}
-              onPdfDownload={handlePdfDownload}
+              onImageDownload={handleImageDownload}
               onPrev={() => {
                 setQuoteResult(null);
                 setError(null);
@@ -962,14 +962,14 @@ function Step3ResultHeader({
   customRates,
   costMode,
   isRecalculating,
-  isPdfDownloading,
-  pdfError,
+  isImageDownloading,
+  imageError,
   onCustomRatesChange,
   onCostModeChange,
   onReset,
   onMemberLogin,
   onContractApply,
-  onPdfDownload,
+  onImageDownload,
   onPrev,
 }: {
   quoteResult: QuoteResponse;
@@ -987,14 +987,14 @@ function Step3ResultHeader({
   customRates: { depositRate: number; prepayRate: number };
   costMode: CostMode;
   isRecalculating: boolean;
-  isPdfDownloading: boolean;
-  pdfError: string | null;
+  isImageDownloading: boolean;
+  imageError: string | null;
   onCustomRatesChange: (rates: { depositRate: number; prepayRate: number }) => void;
   onCostModeChange: (mode: CostMode) => void;
   onReset: () => void;
   onMemberLogin: () => void;
   onContractApply: () => void;
-  onPdfDownload: () => void;
+  onImageDownload: () => void;
   onPrev: () => void;
 }) {
   const monthly = quoteResult.scenarios.standard.monthlyPayment;
@@ -1233,20 +1233,20 @@ function Step3ResultHeader({
         이 조건으로 심사 요청하기
       </button>
 
-      {/* 보조 CTA 2분할: PDF / 상담 */}
+      {/* 보조 CTA 2분할: 이미지 / 상담 */}
       <div className="grid grid-cols-2 gap-2.5">
         <button
           type="button"
-          onClick={onPdfDownload}
-          disabled={isPdfDownloading}
+          onClick={onImageDownload}
+          disabled={isImageDownloading}
           className={cn(
             "flex h-[48px] items-center justify-center gap-1.5 rounded-[14px] border text-[13.5px] font-bold transition-all",
-            isPdfDownloading
+            isImageDownloading
               ? "cursor-not-allowed border-[#E5E8EB] bg-[#F8FAFC] text-text-muted"
               : "border-brand/20 bg-white text-brand hover:bg-brand-soft active:scale-[0.99]"
           )}
         >
-          {isPdfDownloading ? (
+          {isImageDownloading ? (
             <>
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand/20 border-t-brand" />
               준비 중
@@ -1265,10 +1265,10 @@ function Step3ResultHeader({
         />
       </div>
 
-      {pdfError && (
+      {imageError && (
         <div className="flex items-start gap-2 rounded-[12px] border border-status-danger/20 bg-status-danger-soft p-3 text-[12px] text-status-danger">
           <AlertCircle size={14} className="mt-0.5 shrink-0" />
-          <p>{pdfError}</p>
+          <p>{imageError}</p>
         </div>
       )}
 

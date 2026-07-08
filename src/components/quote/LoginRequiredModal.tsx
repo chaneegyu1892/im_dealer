@@ -56,7 +56,7 @@ export function LoginRequiredModal({ open, onClose, onKakaoLogin }: LoginRequire
             로그인이 필요해요
           </h2>
           <p className="mt-2 text-[13px] leading-relaxed text-text-body">
-            견적서 PDF 다운로드는 회원만 이용할 수 있어요.
+            견적서 이미지 다운로드는 회원만 이용할 수 있어요.
             <br />
             카카오톡으로 빠르게 시작해보세요.
           </p>

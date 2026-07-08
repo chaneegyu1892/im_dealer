@@ -65,8 +65,8 @@ function QuotationsContent() {
 
   const [drawerQuote, setDrawerQuote] = useState<AdminSavedQuote | null>(null);
   const [quoteCopied, setQuoteCopied] = useState(false);
-  const [pdfDownloading, setPdfDownloading] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [imageDownloading, setImageDownloading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const handleCopyQuote = async (quote: AdminSavedQuote) => {
     try {
@@ -78,21 +78,21 @@ function QuotationsContent() {
     }
   };
 
-  const handleDownloadPdf = async (quote: AdminSavedQuote) => {
-    if (pdfDownloading) return;
-    setPdfDownloading(true);
-    setPdfError(null);
+  const handleDownloadImage = async (quote: AdminSavedQuote) => {
+    if (imageDownloading) return;
+    setImageDownloading(true);
+    setImageError(null);
     try {
-      const res = await fetch(`/api/admin/quotes/${quote.id}/pdf`);
+      const res = await fetch(`/api/admin/quotes/${quote.id}/image`);
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        throw new Error(json.error ?? "PDF 다운로드에 실패했습니다.");
+        throw new Error(json.error ?? "이미지 다운로드에 실패했습니다.");
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const disposition = res.headers.get("Content-Disposition") ?? "";
       const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/)?.[1];
-      const fallback = `아임딜러_견적서_${quote.vehicleName}_${quote.id.slice(0, 6)}.pdf`;
+      const fallback = `아임딜러_견적서_${quote.vehicleName}_${quote.id.slice(0, 6)}.png`;
       const filename = encoded ? decodeURIComponent(encoded) : fallback;
       const a = document.createElement("a");
       a.href = url;
@@ -102,11 +102,11 @@ function QuotationsContent() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "PDF 다운로드에 실패했습니다.";
-      setPdfError(message);
-      setTimeout(() => setPdfError(null), 4000);
+      const message = err instanceof Error ? err.message : "이미지 다운로드에 실패했습니다.";
+      setImageError(message);
+      setTimeout(() => setImageError(null), 4000);
     } finally {
-      setPdfDownloading(false);
+      setImageDownloading(false);
     }
   };
 
@@ -764,21 +764,21 @@ function QuotationsContent() {
                   <div className="mt-2 flex flex-col gap-1.5">
                     <button
                       type="button"
-                      onClick={() => handleDownloadPdf(drawerQuote)}
-                      disabled={pdfDownloading}
+                      onClick={() => handleDownloadImage(drawerQuote)}
+                      disabled={imageDownloading}
                       className={cn(
                         "w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] text-[12px] font-medium transition-colors border",
-                        pdfDownloading
+                        imageDownloading
                           ? "bg-[#F4F5F8] text-[#9BA4C0] border-[#E8EAF0] cursor-wait"
                           : "bg-white text-[#000666] border-[#000666] hover:bg-[#000666] hover:text-white"
                       )}
                     >
                       <Download size={13} />
-                      {pdfDownloading ? "PDF 생성 중…" : "견적서 PDF 다운로드"}
+                      {imageDownloading ? "이미지 생성 중…" : "견적서 이미지 다운로드"}
                     </button>
-                    {pdfError && (
+                    {imageError && (
                       <p className="text-[11px] text-red-500 flex items-center gap-1">
-                        <AlertCircle size={11} /> {pdfError}
+                        <AlertCircle size={11} /> {imageError}
                       </p>
                     )}
                   </div>

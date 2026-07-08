@@ -34,14 +34,14 @@ export default async function middleware(request: NextRequest) {
   const isAdminApi = pathname.startsWith("/api/admin");
 
   // ── API 라우트 Rate Limit 보호 ────────────────────────────────────
-  // strict: 실제로 리소스 무거운 / 어뷰징 위험 큰 경로만 (AI 추천, PDF 생성, 파일 업로드)
+  // strict: 실제로 리소스 무거운 / 어뷰징 위험 큰 경로만 (AI 추천, 이미지 생성, 파일 업로드)
   // 단순 견적 조회/계산/저장은 일반 apiRateLimit 으로 강등 — 비교/옵션 변경 시 정상 사용자가 걸리지 않게
   const isUploadApi = pathname === "/api/admin/upload";
   if (pathname.startsWith("/api/") && (!isAdminApi || isUploadApi)) {
     const isStrictApi =
       isUploadApi ||
       pathname.startsWith("/api/recommend") ||
-      pathname === "/api/quote/pdf";
+      pathname === "/api/quote/image";
     const ratelimit = isStrictApi ? strictRateLimit : apiRateLimit;
 
     if (ratelimit) {

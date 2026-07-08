@@ -27,7 +27,7 @@ export const apiRateLimit = redis
     })
   : null;
 
-// 2. 무거운/민감한 API용 속도 제한 (AI 추천, PDF 생성, 파일 업로드)
+// 2. 무거운/민감한 API용 속도 제한 (AI 추천, 이미지 생성, 파일 업로드)
 // 1분당 최대 30회 요청 허용 (Token Bucket 방식)
 // 단순 견적 계산은 여기서 제외(일반 apiRateLimit). 진짜 리소스 소비형만 보호.
 export const strictRateLimit = redis
