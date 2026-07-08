@@ -59,6 +59,22 @@ describe("buildBaseParams", () => {
     expect(p.phoneNo).toBe("01012345678");
   });
 
+  it("소득금액증명원: startYear/endYear·loginIdentity·originDataYN1 을 세팅한다", () => {
+    const p = buildBaseParams({
+      ...baseInput,
+      docType: "income_proof",
+      taxStartMonth: "2025",
+      taxEndMonth: "2025",
+    });
+    expect(p.loginIdentity).toBe("19900101");
+    expect(p.identity).toBeUndefined();
+    expect(p.originDataYN1).toBe("1");
+    expect(p.startYear).toBe("2025");
+    expect(p.endYear).toBe("2025");
+    expect(p.usePurposes).toBe("07");
+    expect(p.submitTargets).toBe("01");
+  });
+
   it("부가세과세표준: 과세기간(startDate/endDate)·loginIdentity·originDataYN1 을 세팅한다", () => {
     const p = buildBaseParams({
       ...baseInput,
@@ -151,6 +167,23 @@ describe("completeEasyAuth", () => {
     );
     expect(r.pdfBase64).toBe("JVBERi0xLjQK");
     expect(r.docVerifyNo).toBe("INC-1");
+  });
+
+  it("소득금액증명원(YN1) 성공 시 resOriGinalData1(PDF)를 추출한다", async () => {
+    mockRaw.mockResolvedValue({
+      success: true,
+      data: {
+        code: "CF-00000",
+        message: "성공",
+        data: { resOriGinalData1: "U09ERFVN", resIssueNo: "PROOF-1" },
+      },
+    });
+    const r = await completeEasyAuth(
+      { ...baseInput, docType: "income_proof", taxStartMonth: "2025", taxEndMonth: "2025" },
+      twoWayInfo
+    );
+    expect(r.pdfBase64).toBe("U09ERFVN");
+    expect(r.docVerifyNo).toBe("PROOF-1");
   });
 
   it("다건 리스트 응답이면 첫 항목을 사용한다", async () => {

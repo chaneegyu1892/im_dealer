@@ -74,7 +74,7 @@ async function main(): Promise<void> {
   console.log("\n=== Codef 스모크 테스트 입력 (Enter = 기본값) ===");
   const docType = (await field(
     "CODEF_SMOKE_DOC",
-    "문서 (biz_registration_proof / income_withholding / vat_taxbase / financial_statements)",
+    "문서 (biz_registration_proof / income_proof / income_withholding / vat_taxbase / financial_statements)",
     "biz_registration_proof"
   )) as DocType;
   const userName = await field("CODEF_SMOKE_NAME", "이름");
@@ -91,10 +91,13 @@ async function main(): Promise<void> {
       ? await field("CODEF_SMOKE_TELECOM", "통신사 (0 SKT / 1 KT / 2 LGU+)", "0")
       : process.env.CODEF_SMOKE_TELECOM;
 
-  // 과세기간: 부가세=기수코드(yyyyMM, MM 01/07) start=end, 재무제표=사업종료년월(yyyyMM).
+  // 과세기간: 소득금액=귀속연도(yyyy), 부가세=기수코드(yyyyMM), 재무제표=사업종료년월(yyyyMM).
   let taxStartMonth: string | undefined;
   let taxEndMonth: string | undefined;
-  if (docType === "vat_taxbase") {
+  if (docType === "income_proof") {
+    taxStartMonth = await field("CODEF_SMOKE_TAX_START", "소득금액 귀속연도(yyyy)", "2025");
+    taxEndMonth = await field("CODEF_SMOKE_TAX_END", "소득금액 귀속연도 종료(yyyy)", taxStartMonth);
+  } else if (docType === "vat_taxbase") {
     taxStartMonth = await field("CODEF_SMOKE_TAX_START", "부가세 과세기간(yyyyMM, MM=01 1기/07 2기)", "202401");
     taxEndMonth = await field("CODEF_SMOKE_TAX_END", "부가세 과세기간 종료(yyyyMM)", taxStartMonth);
   } else if (docType === "financial_statements") {

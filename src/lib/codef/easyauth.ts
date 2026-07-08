@@ -31,12 +31,13 @@ export interface EasyAuthInput {
   id: string;
   /**
    * 과세기간 시작(yyyyMM). docType 별 의미가 다르다.
+   *  - income_proof: 귀속연도(yyyy)
    *  - vat_taxbase: 기수 코드(MM="01" 1기 / "07" 2기)
    *  - financial_statements: 사업종료년월(예: "202312")
    * docType 을 아는 클라이언트(EasyAuthStep)가 계산해 주입한다.
    */
   taxStartMonth?: string;
-  /** 과세기간 종료(yyyyMM) — vat_taxbase 전용(보통 start 와 동일 기수). */
+  /** 과세기간 종료. income_proof 는 yyyy, vat_taxbase 는 yyyyMM(보통 start 와 동일 기수). */
   taxEndMonth?: string;
 }
 
@@ -80,6 +81,14 @@ export function buildBaseParams(input: EasyAuthInput): Record<string, unknown> {
       base.usePurposes = "07"; // 금융기관제출용
       base.submitTargets = "01"; // 금융기관
       base.isIdentityViewYN = "0";
+      break;
+    case "income_proof":
+      base.phoneNo = input.phoneNo;
+      base.loginIdentity = input.birthDate;
+      base.usePurposes = "07";
+      base.submitTargets = "01";
+      if (input.taxStartMonth) base.startYear = input.taxStartMonth;
+      if (input.taxEndMonth) base.endYear = input.taxEndMonth;
       break;
     case "income_withholding":
       // 근로소득 지급명세서: 본인확인 필드명이 'identity'(값은 생년월일 8자리).

@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       ? (encryptPII(issued.pdfBase64) as unknown as Prisma.InputJsonValue)
       : Prisma.JsonNull,
     docVerifyNo: encryptString(issued.docVerifyNo),
-    failReason: issued.success ? null : (issued.code ?? issued.error ?? null),
+    failReason: issued.success ? null : (issued.error ?? issued.code ?? null),
     issuedAt: issued.success ? new Date() : null,
   };
 

@@ -7,7 +7,7 @@ import type { CustomerType } from "@/constants/customer-types";
  * 데모 실호출 검증값이다. organization 은 4종 모두 고정값 "0001".
  *
  * 계약 서류 기준(개발요청서):
- *   - 개인        : 원천징수영수증
+ *   - 개인        : 소득금액증명원
  *   - 개인사업자  : 사업자등록증명, 부가가치세과세표준증명
  *   - 법인        : 사업자등록증명, 표준재무제표증명, 부가가치세과세표준증명
  *
@@ -16,6 +16,7 @@ import type { CustomerType } from "@/constants/customer-types";
  */
 export type DocType =
   | "biz_registration_proof" // 사업자등록 증명 (홈택스) — 개인 발급 불가
+  | "income_proof" // 소득금액증명원 (홈택스)
   | "income_withholding" // 근로소득 원천징수영수증(지급명세서) (홈택스)
   | "vat_taxbase" // 부가가치세 과세표준증명 (홈택스) — 개인(비사업자) 발급 불가
   | "financial_statements"; // 표준재무제표증명 (홈택스) — 개인 발급 불가
@@ -36,6 +37,13 @@ export const DOC_TYPES: Record<DocType, DocTypeConfig> = {
   biz_registration_proof: {
     label: "사업자등록증명",
     endpoint: "/v1/kr/public/nt/proof-issue/corporate-registration",
+    organization: "0001",
+    originParam: "originDataYN1",
+    pdfField: "resOriGinalData1",
+  },
+  income_proof: {
+    label: "소득금액증명원",
+    endpoint: "/v1/kr/public/nt/proof-issue/proof-income",
     organization: "0001",
     originParam: "originDataYN1",
     pdfField: "resOriGinalData1",
@@ -64,7 +72,7 @@ export const DOC_TYPES: Record<DocType, DocTypeConfig> = {
 };
 
 const CUSTOMER_DOC_MAP: Record<CustomerType, DocType[]> = {
-  individual: ["income_withholding"],
+  individual: ["income_proof"],
   self_employed: ["biz_registration_proof", "vat_taxbase"],
   corporate: ["biz_registration_proof", "financial_statements", "vat_taxbase"],
 };

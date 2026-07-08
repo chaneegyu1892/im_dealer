@@ -21,6 +21,12 @@ describe("easyAuthFieldsSchema", () => {
     );
   });
 
+  it("소득금액증명원 docType 을 허용한다", () => {
+    expect(easyAuthFieldsSchema.safeParse({ ...valid, docType: "income_proof" }).success).toBe(
+      true
+    );
+  });
+
   it("verificationId 누락 시 거부한다", () => {
     const { verificationId, ...rest } = valid;
     void verificationId;
@@ -52,18 +58,18 @@ describe("toEasyAuthInput", () => {
     expect(input.docType).toBe("biz_registration_proof");
   });
 
-  it("부가세 과세기간(taxStartMonth/taxEndMonth)을 전달한다", () => {
+  it("서류 발급 기간(taxStartMonth/taxEndMonth)을 전달한다", () => {
     const input = toEasyAuthInput(easyAuthFieldsSchema.parse({
       verificationId: "v1",
-      docType: "vat_taxbase",
+      docType: "income_proof",
       userName: "홍길동",
       phoneNo: "01012345678",
       loginTypeLevel: "1",
       id: "sess-1",
-      taxStartMonth: "202401",
-      taxEndMonth: "202401",
+      taxStartMonth: "2025",
+      taxEndMonth: "2025",
     }));
-    expect(input.taxStartMonth).toBe("202401");
-    expect(input.taxEndMonth).toBe("202401");
+    expect(input.taxStartMonth).toBe("2025");
+    expect(input.taxEndMonth).toBe("2025");
   });
 });

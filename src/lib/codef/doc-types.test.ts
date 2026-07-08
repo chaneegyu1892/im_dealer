@@ -3,8 +3,8 @@ import { DOC_TYPES, docTypesForCustomer, type DocType } from "@/lib/codef/doc-ty
 import { CUSTOMER_TYPES } from "@/constants/customer-types";
 
 describe("doc-types", () => {
-  it("개인은 원천징수영수증을 수집한다", () => {
-    expect(docTypesForCustomer("individual")).toEqual(["income_withholding"]);
+  it("개인은 소득금액증명원을 수집한다", () => {
+    expect(docTypesForCustomer("individual")).toEqual(["income_proof"]);
   });
 
   it("개인사업자는 사업자등록증명·부가세과세표준증명을 수집한다", () => {

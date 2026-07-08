@@ -39,7 +39,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   income_withholding: "근로소득 원천징수영수증",
   vat_taxbase: "부가가치세과세표준증명",
   financial_statements: "표준재무제표증명",
-  // 과거 데모 레코드 표시용(현재는 수집하지 않음)
+  // 현재 정책 및 과거 레코드 표시용
   resident_register: "주민등록등본",
   income_proof: "소득금액증명원",
 };
@@ -112,7 +112,6 @@ function ResultRow({
 
 // ─── 수집 서류 체크리스트 (고객 유형별) ──────────────────
 // 고객 유형이 제출해야 할 서류 목록을 기준으로, 각 서류의 발급 상태를 보여준다.
-// 기대 서류(순서 유지) + 기대 외 수집분(과거 데모 레코드 등)을 함께 표시한다.
 function DocumentChecklist({
   customerType,
   documents,
@@ -126,7 +125,7 @@ function DocumentChecklist({
   const byType = new Map(documents.map((d) => [d.docType, d]));
 
   // 알려진 고객유형(개인/개인사업자/법인): 현재 기준 기대 서류만 표시.
-  //   → 과거에 수집된 옛 서류(등본·소득금액증명원 등)는 노출하지 않는다.
+  //   → 과거에 수집된 옛 서류(등본·원천징수영수증 등)는 노출하지 않는다.
   // 미정의 유형(nonprofit 등): 수집된 서류를 그대로 표시(데이터 숨김 방지).
   const rows: { docType: string; doc: VerificationDocumentSummary | null }[] =
     expected.length > 0

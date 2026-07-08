@@ -9,6 +9,7 @@ export const easyAuthFieldsSchema = z.object({
   verificationId: z.string().min(1),
   docType: z.enum([
     "biz_registration_proof",
+    "income_proof",
     "income_withholding",
     "vat_taxbase",
     "financial_statements",

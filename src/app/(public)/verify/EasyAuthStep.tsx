@@ -41,6 +41,13 @@ function corpFiscalEndMonth(): string {
   return `${m >= 5 ? y - 1 : y - 2}12`;
 }
 
+function incomeProofYear(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  return String(m >= 6 ? y - 1 : y - 2);
+}
+
 interface Props {
   verificationId: string;
   customerType: CustomerType;
@@ -102,6 +109,10 @@ export function EasyAuthStep({ verificationId, customerType, info, onDone, onBac
     }
     if (docType === "financial_statements") {
       return { ...base, taxStartMonth: corpFiscalEndMonth() };
+    }
+    if (docType === "income_proof") {
+      const year = incomeProofYear();
+      return { ...base, taxStartMonth: year, taxEndMonth: year };
     }
     return base;
   };

@@ -124,7 +124,7 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
   const items = [
     {
       icon: <FileText size={18} className="text-brand" />,
-      title: "근로소득 원천징수영수증",
+      title: "소득금액증명원",
       desc: "국세청 홈택스에서 발급받습니다. (개인)",
     },
     {
@@ -244,7 +244,7 @@ const CUSTOMER_TYPE_OPTIONS: {
   label: string;
   desc: string;
 }[] = [
-  { type: "individual", label: "개인", desc: "근로소득 원천징수영수증" },
+  { type: "individual", label: "개인", desc: "소득금액증명원" },
   { type: "self_employed", label: "개인사업자", desc: "사업자등록증명 · 부가가치세 과세표준증명" },
   { type: "corporate", label: "법인", desc: "사업자등록증명 · 재무제표 · 부가가치세 과세표준증명" },
 ];
