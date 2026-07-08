@@ -4,16 +4,26 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+const quoteImageTraceIncludes = [
+  "./src/lib/pdf/fonts/**",
+  "./src/lib/pdf/brand/**",
+  "./node_modules/.pnpm/@napi-rs+canvas*/node_modules/@napi-rs/canvas/**",
+  "./node_modules/.pnpm/@napi-rs+canvas-*/node_modules/@napi-rs/canvas-*/**",
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  serverExternalPackages: ["@napi-rs/canvas"],
   // 견적서 이미지가 내부 PDF 렌더링 중 process.cwd()로 읽는 한글 TTF와 브랜드 로고(PNG)를
-  // 서버리스 함수 번들에 포함시킨다(정적 분석으로는 추적 불가하므로 명시).
+  // 서버리스 함수 번들에 포함시킨다. PDF.js의 Node canvas polyfill은 런타임 require라
+  // 정적 분석으로 추적되지 않으므로 native canvas 패키지도 함께 명시한다.
   outputFileTracingIncludes: {
-    "/api/quote/image": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/brand/**"],
-    "/api/admin/quotes/[id]/image": ["./src/lib/pdf/fonts/**", "./src/lib/pdf/brand/**"],
+    "/api/quote/image": quoteImageTraceIncludes,
+    "/api/admin/quotes/[id]/image": quoteImageTraceIncludes,
+    "/api/admin/quotes/*/image": quoteImageTraceIncludes,
   },
   async headers() {
     // CSP 정책. Next.js 16 + Sentry + Supabase + Upstash + 외부 차량 이미지 도메인을 모두 허용.
