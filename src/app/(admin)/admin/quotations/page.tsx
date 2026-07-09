@@ -113,11 +113,27 @@ function QuotationsContent() {
   const fetchQuotes = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/quotes?limit=100");
-      const json = await res.json();
-      if (json.success) {
-        setQuotes(json.data);
+      const PAGE_SIZE = 100;
+      const first = await fetch(`/api/admin/quotes?limit=${PAGE_SIZE}&page=1`).then((r) => r.json());
+      if (!first.success) return;
+
+      let all: AdminSavedQuote[] = first.data;
+      const total: number = first.meta?.total ?? all.length;
+      const totalPages = Math.ceil(total / PAGE_SIZE);
+
+      // 100건 초과분도 배치로 모두 로드 (클라이언트 검색·필터·엑셀이 전체 목록 기준이므로)
+      if (totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, i) =>
+            fetch(`/api/admin/quotes?limit=${PAGE_SIZE}&page=${i + 2}`).then((r) => r.json())
+          )
+        );
+        for (const r of rest) {
+          if (r.success) all = all.concat(r.data);
+        }
       }
+
+      setQuotes(all);
     } catch (err) {
       console.error(err);
     } finally {

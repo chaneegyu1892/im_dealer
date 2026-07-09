@@ -414,6 +414,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          sessionId: quoteSessionId,
           trimId: selectedTrim.id,
           selectedOptionIds: Array.from(selectedOptionIds),
           contractMonths: conditions.contractMonths,
@@ -471,6 +472,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          sessionId: quoteSessionId,
           trimId: selectedTrim?.id,
           selectedOptionIds: Array.from(selectedOptionIds),
           contractMonths: conditions.contractMonths,

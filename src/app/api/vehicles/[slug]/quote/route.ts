@@ -11,8 +11,11 @@ import type { FinanceQuoteResult } from "@/types/quote";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import { normalizeSelectedOptions } from "@/lib/option-rules";
 import { lockQuoteScenario } from "@/lib/member-gate";
+import { hashIp, getClientIp } from "@/lib/ip-hash";
 
 const quoteSchema = z.object({
+  // 견적 페이지에서만 전달 — 있으면 조회/계산 로그를 세션 기준으로 적재한다(비교 기능 등은 미전달).
+  sessionId: z.string().min(1).optional(),
   trimId: z.string().optional(),
   selectedOptionIds: z.array(z.string()).optional(),
   extraOptionsPrice: z.number().int().min(0).optional(),
@@ -193,6 +196,9 @@ export async function POST(
       : [...RANK_SURCHARGE_RATES];
 
     // 4) 시나리오별 전체 파이프라인 실행
+    // standard 시나리오에 실제 적용된 보증/선납 비율 — 계산 로그 기록에 사용.
+    let stdDeposit = 0;
+    let stdPrepay = 0;
     const scenarioKeys = ["conservative", "standard", "aggressive"] as const;
     const scenarios: Record<string, {
       monthlyPayment: number;
@@ -223,6 +229,10 @@ export async function POST(
       if (key === "standard" && isMember) {
         if (input.customDepositRate !== undefined) depositRate = input.customDepositRate;
         if (input.customPrepayRate  !== undefined) prepayRate  = input.customPrepayRate;
+      }
+      if (key === "standard") {
+        stdDeposit = depositRate;
+        stdPrepay = prepayRate;
       }
 
       const calcInput: CalcInput = {
@@ -299,6 +309,73 @@ export async function POST(
           conservative: lockQuoteScenario(scenarios.conservative),
           aggressive: lockQuoteScenario(scenarios.aggressive),
         };
+
+    // ── 로그 적재: 견적 조회(ExplorationLog) + 계산 로그(QuoteCalcLog) ──
+    // sessionId 가 실린 경우(견적 페이지)만 기록. 세션×차량 기준 1건으로 dedup 하여
+    // 슬라이더 재계산 등 반복 호출이 카운트를 부풀리지 않게 한다.
+    if (input.sessionId) {
+      const sessionId = input.sessionId;
+      const std = scenarios.standard;
+      const userAgent = request.headers.get("user-agent") ?? undefined;
+      const ipHash = hashIp(getClientIp(request));
+      try {
+        // QuoteCalcLog: 세션×차량 1행 유지 — 있으면 최신 조건/결과로 갱신, 없으면 생성.
+        const calcData = {
+          userId: user?.id ?? null,
+          vehicleId: vehicle.id,
+          vehicleSlug: slug,
+          vehicleName: vehicle.name,
+          trimId: trim.id,
+          optionIds: [...selectedOptionIds],
+          contractMonths: input.contractMonths,
+          annualMileage: input.annualMileage,
+          depositRate: stdDeposit,
+          prepayRate: stdPrepay,
+          contractType: input.contractType,
+          productType: input.productType,
+          resultMonthly: std?.monthlyPayment ?? 0,
+          bestFinanceCompany: std?.bestFinanceCompany ?? "",
+          scenarioType: "standard",
+          rangeExceeded: std?.rangeExceeded ?? false,
+          deviceType: /Mobile|Android|iPhone/i.test(userAgent ?? "") ? "mobile" : "desktop",
+          referrer: request.headers.get("referer") ?? undefined,
+          userAgent,
+          ipHash,
+        };
+        const updated = await prisma.quoteCalcLog.updateMany({
+          where: { sessionId, vehicleSlug: slug },
+          data: calcData,
+        });
+        if (updated.count === 0) {
+          await prisma.quoteCalcLog.create({ data: { sessionId, ...calcData } });
+        }
+
+        // ExplorationLog(quote_start): 세션×차량 최초 1건만 — 대시보드/분석 "견적 조회" 소스.
+        const existingView = await prisma.explorationLog.findFirst({
+          where: { sessionId, vehicleId: vehicle.id, eventType: "quote_start" },
+          select: { id: true },
+        });
+        if (!existingView) {
+          await prisma.explorationLog.create({
+            data: {
+              sessionId,
+              eventType: "quote_start",
+              path: `/quote?vehicle=${slug}`,
+              vehicleId: vehicle.id,
+              metadata: {
+                contractMonths: input.contractMonths,
+                annualMileage: input.annualMileage,
+              },
+              userAgent,
+              ipHash,
+            },
+          });
+        }
+      } catch (err) {
+        // 로그 적재 실패는 견적 응답에 영향 주지 않는다.
+        console.error("[vehicles/:slug/quote] 로그 적재 실패:", err);
+      }
+    }
 
     return NextResponse.json({
       success: true,

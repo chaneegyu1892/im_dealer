@@ -25,7 +25,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     prisma.vehicle.count(),
     prisma.vehicle.count({ where: { isVisible: true } }),
     prisma.explorationLog.count({
-      where: { eventType: "quote_view", createdAt: { gte: todayStart } },
+      where: { eventType: "quote_start", createdAt: { gte: todayStart } },
     }),
     prisma.recommendationLog.count({
       where: { createdAt: { gte: todayStart } },
@@ -49,7 +49,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const weeklyQuoteRows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
     SELECT DATE_TRUNC('day', "createdAt") AS day, COUNT(*)::bigint AS count
     FROM "ExplorationLog"
-    WHERE "eventType" = 'quote_view' AND "createdAt" >= ${weekAgo}
+    WHERE "eventType" = 'quote_start' AND "createdAt" >= ${weekAgo}
     GROUP BY day
     ORDER BY day
   `;

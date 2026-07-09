@@ -58,7 +58,7 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
 
   const [totalQuoteViews, totalVisitors] = await Promise.all([
     prisma.explorationLog.count({
-      where: { eventType: "quote_view", createdAt: { gte: thirtyDaysAgo } },
+      where: { eventType: "quote_start", createdAt: { gte: thirtyDaysAgo } },
     }),
     prisma.explorationLog
       .groupBy({
@@ -71,7 +71,7 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
   const dailyRows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
     SELECT DATE_TRUNC('day', "createdAt") AS day, COUNT(*)::bigint AS count
     FROM "ExplorationLog"
-    WHERE "eventType" = 'quote_view' AND "createdAt" >= ${thirtyDaysAgo}
+    WHERE "eventType" = 'quote_start' AND "createdAt" >= ${thirtyDaysAgo}
     GROUP BY day
     ORDER BY day
   `;
@@ -81,7 +81,7 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
     by: ["vehicleId"],
     where: {
       vehicleId: { not: null },
-      eventType: "quote_view",
+      eventType: "quote_start",
       createdAt: { gte: thirtyDaysAgo },
     },
     _count: { id: true },
