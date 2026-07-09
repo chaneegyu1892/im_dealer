@@ -25,13 +25,20 @@ export default function LoginContent() {
     const redirectOrigin = getAuthRedirectOrigin();
     const redirectTo = `${redirectOrigin}/auth/callback?next=${encodeURIComponent(next)}`;
 
+    // phone_number 는 카카오 비즈니스 앱 + 전화번호 동의항목 검수 통과 후에만 요청해야 한다.
+    // 검수 전에 요청하면 로그인 자체가 깨지므로 env 플래그로 제어한다(기본 off = 기존 동작).
+    const scope =
+      process.env.NEXT_PUBLIC_KAKAO_REQUEST_PHONE === "true"
+        ? "profile_nickname profile_image phone_number"
+        : "profile_nickname profile_image";
+
     await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
         redirectTo,
-        scopes: "profile_nickname profile_image",
+        scopes: scope,
         queryParams: {
-          scope: "profile_nickname profile_image",
+          scope,
         },
       },
     });
