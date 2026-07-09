@@ -93,10 +93,26 @@ export async function POST(
       : vehicle.trims.find((t) => t.isDefault) ?? vehicle.trims[0];
 
     if (!trim) {
-      return NextResponse.json(
-        { error: "트림을 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        success: true,
+        data: {
+          vehicleSlug: slug,
+          trimId: "",
+          trimName: "",
+          trimPrice: vehicle.basePrice,
+          discountPrice: null,
+          discountAmount: 0,
+          optionsTotalPrice: 0,
+          colorDelta: 0,
+          totalVehiclePrice: vehicle.basePrice,
+          contractMonths: input.contractMonths,
+          annualMileage: input.annualMileage,
+          contractType: input.contractType,
+          customerType: input.customerType,
+          scenarios: {} as Record<string, never>,
+          requiresConsultation: true,
+        },
+      });
     }
 
     // 선택된 옵션을 규칙(REQUIRED/INCLUDED/CONFLICT) 기준으로 검증·정규화

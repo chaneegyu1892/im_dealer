@@ -160,6 +160,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   // ─── 트림/옵션/색상/조건 상태 (v1 계약 그대로) ─────────
   const [trims, setTrims] = useState<TrimData[]>([]);
   const [trimsLoading, setTrimsLoading] = useState(false);
+  const [trimsLoaded, setTrimsLoaded] = useState(false);
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
   const [selectedTrimId, setSelectedTrimId] = useState<string | null>(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(new Set());
@@ -192,6 +193,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   useEffect(() => {
     if (!selectedVehicle) return;
     setTrimsLoading(true);
+    setTrimsLoaded(false);
     setTrims([]);
     setSelectedLineup(null);
     setSelectedTrimId(null);
@@ -224,8 +226,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     fetch(`/api/vehicles/${slug}/trims`)
       .then((r) => r.json())
       .then((trimsJson) => {
-        if (!trimsJson.success || trimsJson.data.length === 0) return;
+        if (!trimsJson?.success || !Array.isArray(trimsJson.data)) return;
         const loadedTrims: TrimData[] = trimsJson.data;
+        setTrimsLoaded(true);
+        if (loadedTrims.length === 0) return;
         setTrims(loadedTrims);
 
         const hasLineupInfo = loadedTrims.some(
@@ -376,6 +380,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     selectedTrim?.options
       .filter((option) => selectedOptionIds.has(option.id))
       .map((option) => ({ id: option.id, name: option.name, price: option.price })) ?? [];
+  const canRequestConsultation = trimsLoaded && trims.length === 0;
 
   // ─── 옵션 토글 (REQUIRED/INCLUDED/CONFLICT 룰 — v1 계약 그대로) ──
   const handleOptionToggle = useCallback((optionId: string) => {
@@ -404,25 +409,26 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
 
   // ─── 견적 계산 API (v1 계약 그대로) ────────────────────
   async function fetchQuote() {
-    if (!selectedVehicle || !selectedTrim) return;
+    if (!selectedVehicle || (!selectedTrim && !canRequestConsultation)) return;
     setIsLoading(true);
     setError(null);
     try {
+      const requestBody = {
+        sessionId: quoteSessionId,
+        selectedOptionIds: selectedTrim ? Array.from(selectedOptionIds) : [],
+        contractMonths: conditions.contractMonths,
+        annualMileage: conditions.annualMileage,
+        contractType: "반납형",
+        productType: contractCategory,
+        customerType,
+        exteriorColorId: selectedTrim ? exteriorColorId : null,
+        interiorColorId: selectedTrim ? interiorColorId : null,
+        ...(selectedTrim ? { trimId: selectedTrim.id } : {}),
+      };
       const res = await fetch(`/api/vehicles/${selectedVehicle.slug}/quote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: quoteSessionId,
-          trimId: selectedTrim.id,
-          selectedOptionIds: Array.from(selectedOptionIds),
-          contractMonths: conditions.contractMonths,
-          annualMileage: conditions.annualMileage,
-          contractType: "반납형",
-          productType: contractCategory,
-          customerType,
-          exteriorColorId,
-          interiorColorId,
-        }),
+        body: JSON.stringify(requestBody),
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
@@ -431,7 +437,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       }
       const nextResult = json.data as QuoteResponse;
       recalculateRequestId.current += 1;
-      baseStandardScenario.current = nextResult.scenarios.standard;
+      baseStandardScenario.current = nextResult.scenarios.standard ?? null;
 
       // 같은 차량 재계산이면 초기비용 설정 유지, 다른 차량이면 초기화 (v1 계약)
       const preserveRates =
@@ -789,6 +795,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               }}
               selectedTrim={selectedTrimV2}
               trimsLoading={trimsLoading}
+              canRequestConsultation={canRequestConsultation}
               selectedOptionIds={selectedOptionIds}
               onOptionToggle={handleOptionToggle}
               optionsTotalPrice={optionsTotalPrice}
@@ -1095,7 +1102,9 @@ function Step3ResultHeader({
         <div className="my-4 h-[1px] bg-[#E5E8EB]" />
 
         <div className="flex items-center justify-between">
-          <span className="text-[12.5px] text-text-body">차량가 (트림 + 옵션)</span>
+          <span className="text-[12.5px] text-text-body">
+            {quoteResult.trimName ? "차량가 (트림 + 옵션)" : "차량가격"}
+          </span>
           <span className="num text-[14px] font-extrabold text-text-strong tabular-nums">
             {Math.round(totalVehiclePrice / 10_000).toLocaleString()}만원
           </span>

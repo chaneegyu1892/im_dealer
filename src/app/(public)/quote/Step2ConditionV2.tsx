@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronDown, Calculator } from "lucide-react";
+import { AlertCircle, Check, ChevronDown, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SelectSheet, type SelectOption } from "./SelectSheet";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
@@ -45,6 +45,7 @@ interface Step2ConditionV2Props {
   onTrimChange: (trimId: string | null) => void;
   selectedTrim: TrimDataV2 | null;
   trimsLoading: boolean;
+  canRequestConsultation: boolean;
   selectedOptionIds: Set<string>;
   onOptionToggle: (optionId: string) => void;
   optionsTotalPrice: number;
@@ -88,6 +89,7 @@ export function Step2ConditionV2({
   onTrimChange,
   selectedTrim,
   trimsLoading,
+  canRequestConsultation,
   selectedOptionIds,
   onOptionToggle,
   optionsTotalPrice,
@@ -108,7 +110,6 @@ export function Step2ConditionV2({
   error,
 }: Step2ConditionV2Props) {
   const [expandedOptionId, setExpandedOptionId] = useState<string | null>(null);
-  const canCalculate = !!selectedTrim && !isLoading;
 
   // 트림 SelectSheet 옵션 구성
   const trimOptions: SelectOption[] = (hasCascade ? cascadeTrimChoices : flatTrimChoices).map((t) => ({
@@ -116,6 +117,15 @@ export function Step2ConditionV2({
     label: t.extra ? `${t.name} (${t.extra})` : t.name,
     hint: t.discountPrice ? `${fmtMan(t.discountPrice)} (할인)` : fmtMan(t.price),
   }));
+  const canSkipTrimSelection =
+    canRequestConsultation && !trimsLoading && trimOptions.length === 0;
+  const canShowConditionSections = !!selectedTrim || canSkipTrimSelection;
+  const canCalculate = canShowConditionSections && !isLoading;
+  const ctaLabel = selectedTrim
+    ? "월 납입금 확인하기"
+    : canSkipTrimSelection
+      ? "상담 필요 견적 확인하기"
+      : "트림을 선택하세요";
 
   // 라인업 SelectSheet 옵션
   const lineupOptions: SelectOption[] = lineupChoices.map((l) => ({
@@ -182,7 +192,9 @@ export function Step2ConditionV2({
           </div>
           {!selectedTrim && !trimsLoading && (
             <p className="mt-1.5 text-[13.5px] font-medium leading-snug text-brand">
-              먼저 차량 트림을 골라주세요. 트림 선택 후 옵션·색상·계약조건이 열려요.
+              {canSkipTrimSelection
+                ? "자동 견적 준비중인 차량이에요. 조건을 선택하면 상담 필요 견적 화면으로 이동해요."
+                : "먼저 차량 트림을 골라주세요. 트림 선택 후 옵션·색상·계약조건이 열려요."}
             </p>
           )}
         </div>
@@ -190,6 +202,18 @@ export function Step2ConditionV2({
           <div className="flex h-[54px] items-center gap-2 rounded-[14px] bg-[#F8FAFC] px-4 text-[14px] text-text-muted">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#E5E8EB] border-t-brand" />
             트림 정보 불러오는 중...
+          </div>
+        ) : canSkipTrimSelection ? (
+          <div className="flex items-start gap-3 rounded-[16px] bg-brand-soft p-4">
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-brand">
+              <AlertCircle size={17} strokeWidth={2.4} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[14.5px] font-extrabold text-text-strong">트림 정보 등록 준비중</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-text-body">
+                선택 가능한 트림이 아직 없어도 상품 유형, 계약기간, 약정거리를 기준으로 상담 요청을 진행할 수 있어요.
+              </p>
+            </div>
           </div>
         ) : (
           <>
@@ -245,7 +269,7 @@ export function Step2ConditionV2({
       </section>
 
       {/* ─── 2~4: 옵션 · 색상 · 계약조건 — 트림 선택 후 fade-in ─── */}
-      {selectedTrim && (
+      {canShowConditionSections && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -254,7 +278,7 @@ export function Step2ConditionV2({
         >
 
       {/* ─── 2. 추가 옵션 ─── */}
-      {selectedTrim.options.length > 0 && (
+      {selectedTrim && selectedTrim.options.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <SectionTitle title="추가 옵션" />
@@ -423,7 +447,7 @@ export function Step2ConditionV2({
         onClick={onCalculate}
         disabled={!canCalculate}
         loading={isLoading}
-        label={selectedTrim ? "월 납입금 확인하기" : "트림을 선택하세요"}
+        label={ctaLabel}
         icon={<Calculator size={16} strokeWidth={2.2} />}
         onPrev={onPrev}
       />
