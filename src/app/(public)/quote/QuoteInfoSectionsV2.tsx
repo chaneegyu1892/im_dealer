@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, ChevronDown, ChevronUp, ShieldCheck, TrendingDown, Trophy } from "lucide-react";
+import { ChevronDown, ChevronUp, ShieldCheck, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
 import { TossPrice } from "@/components/ui/TossPrice";
@@ -173,53 +173,6 @@ function FinanceRowV2({
           {diff > 0 ? `+${formatCurrency(diff)}` : "기준가"}
         </span>
       </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════
-// 견적 산출 내역 v2
-// ════════════════════════════════════════════════════════════
-export function BreakdownSectionV2({ data }: { data: QuoteScenarioDetail }) {
-  const bd = data.breakdown;
-  if (!bd) return null;
-
-  return (
-    <div className="overflow-hidden rounded-[20px] bg-[#F8FAFC]">
-      <div className="space-y-3 px-5 py-4">
-        <p className="text-[12px] font-bold uppercase tracking-[0.06em] text-text-body">견적 산출 내역</p>
-        <CalcRowV2 label="차량가격" value={formatCurrency(bd.vehiclePrice)} />
-        <CalcRowV2 label="기준 대여료" value={formatCurrency(bd.baseMonthly)} bold />
-        {data.depositAmount > 0 && (
-          <CalcRowV2 label="보증금" value={formatCurrency(data.depositAmount)} />
-        )}
-        {data.prepayAmount > 0 && (
-          <CalcRowV2 label="선납금" value={formatCurrency(data.prepayAmount)} />
-        )}
-        <div className="mt-1 flex items-center justify-between border-t border-[#E5E8EB] pt-3">
-          <span className="text-[13.5px] font-bold text-brand">최종 월 납입금</span>
-          <TossPrice won={data.monthlyPayment} size="md" tone="brand" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CalcRowV2({
-  label,
-  value,
-  bold,
-}: {
-  label: string;
-  value: string;
-  bold?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className={cn("text-[13px] text-text-body", bold && "font-bold text-text-strong")}>{label}</span>
-      <span className={cn("num font-medium tabular-nums", bold ? "text-[14px] font-bold text-text-strong" : "text-[13px] text-text-body")}>
-        {value}
-      </span>
     </div>
   );
 }

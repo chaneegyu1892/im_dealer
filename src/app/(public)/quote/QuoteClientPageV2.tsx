@@ -49,7 +49,6 @@ import { InitialCostPanelV2, type CostMode } from "./InitialCostPanelV2";
 import {
   ApprovalPreviewV2,
   FinanceSectionV2,
-  BreakdownSectionV2,
   CostCheckpointV2,
 } from "./QuoteInfoSectionsV2";
 
@@ -1198,10 +1197,7 @@ function Step3ResultHeader({
               <FinanceSectionV2 results={standardScenario.allFinanceResults} />
             )}
 
-          {/* ── 7) 견적 산출 내역 ── */}
-          <BreakdownSectionV2 data={standardScenario} />
-
-          {/* ── 8) rangeExceeded 안내 (옵션 초과 시) ── */}
+          {/* ── 7) rangeExceeded 안내 (옵션 초과 시) ── */}
           {standardScenario.rangeExceeded && (
             <div className="flex items-start gap-2 rounded-[14px] border border-status-warning/25 bg-status-warning-soft px-4 py-3 text-[12px] leading-relaxed text-status-warning">
               <AlertCircle size={13} className="mt-0.5 shrink-0" />
@@ -1212,7 +1208,7 @@ function Step3ResultHeader({
             </div>
           )}
 
-          {/* ── 9) 다른 차량과 비교 (ComparisonSection 인라인) ── */}
+          {/* ── 8) 다른 차량과 비교 (ComparisonSection 인라인) ── */}
           {selectedVehicle && (
             <ComparisonSection
               primary={{
