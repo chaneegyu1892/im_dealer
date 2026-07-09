@@ -82,4 +82,27 @@ describe("ComparisonTable 구성 정보", () => {
     expect(screen.queryByText("라인업 (연식/엔진)")).toBeNull();
     expect(screen.getAllByText(/총 차량가/).length).toBeGreaterThan(0);
   });
+
+  it("별도 상담 분기에서 고객에게 내부 데이터 용어를 노출하지 않는다", () => {
+    render(
+      <ComparisonTable
+        primary={{
+          brand: "현대",
+          name: "더 뉴 그랜저",
+          result: makeResult({ scenarios: {} as QuoteResponse["scenarios"] }),
+          config: CONFIG,
+        }}
+        comparison={{
+          brand: "기아",
+          name: "K8",
+          result: makeResult({ trimName: "노블레스", trimPrice: 39_000_000 }),
+          config: CONFIG,
+        }}
+      />
+    );
+
+    expect(screen.getByText("비교 견적을 계산할 수 없습니다")).toBeInTheDocument();
+    expect(screen.getByText("견적 데이터가 없습니다.", { exact: false })).toBeInTheDocument();
+    expect(screen.queryByText("회수율", { exact: false })).toBeNull();
+  });
 });

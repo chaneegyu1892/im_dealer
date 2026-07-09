@@ -19,7 +19,7 @@ export function RequiresConsultationNotice({ vehicleName }: RequiresConsultation
             이 차량은 별도 상담이 필요합니다
           </p>
           <p className="mt-1 text-[13px] leading-relaxed text-ink-label">
-            현재 자동 견적에 필요한 회수율 데이터가 등록되지 않아 정확한 금액을 즉시 산출하기 어렵습니다.
+            현재 자동 견적에 필요한 데이터가 등록되지 않아 정확한 금액을 즉시 산출하기 어렵습니다.
             전문 상담을 통해 맞춤 견적을 받아보실 수 있습니다.
           </p>
         </div>

@@ -999,11 +999,6 @@ function Step3ResultHeader({
   onImageDownload: () => void;
   onPrev: () => void;
 }) {
-  const monthly = quoteResult.scenarios.standard.monthlyPayment;
-  const totalVehiclePrice =
-    quoteResult.totalVehiclePrice ??
-    quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? 0);
-
   // 별도 상담 필요 차량 — 견적 대신 상담 안내만
   if (quoteResult.requiresConsultation) {
     return (
@@ -1026,6 +1021,11 @@ function Step3ResultHeader({
       </motion.section>
     );
   }
+
+  const monthly = quoteResult.scenarios.standard.monthlyPayment;
+  const totalVehiclePrice =
+    quoteResult.totalVehiclePrice ??
+    quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? 0);
 
   return (
     <motion.section
@@ -1186,7 +1186,7 @@ function Step3ResultHeader({
         <div className="flex items-start gap-2 rounded-[14px] border border-status-warning/25 bg-status-warning-soft px-4 py-3 text-[12px] leading-relaxed text-status-warning">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <p>
-            선택하신 옵션 조합으로 차량가가 등록 회수율 범위를 초과해 참고용 견적으로 표시돼요.
+            선택하신 옵션 조합으로 차량가가 등록된 견적 기준 범위를 초과해 참고용 견적으로 표시돼요.
             정확한 금액은 상담을 통해 확인해 주세요.
           </p>
         </div>

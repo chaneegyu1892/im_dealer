@@ -111,7 +111,6 @@ export function ComparisonTable({ primary, comparison }: ComparisonTableProps) {
     ];
   }, [primary, comparison, primaryScenario, compScenario]);
 
-  // requiresConsultation — 회수율 데이터 없는 경우
   if (!primaryScenario || !compScenario) {
     const missingLabel = !primaryScenario
       ? `${primary.brand} ${primary.name}`
@@ -121,7 +120,7 @@ export function ComparisonTable({ primary, comparison }: ComparisonTableProps) {
         <p className="text-[14px] font-semibold text-amber-700">비교 견적을 계산할 수 없습니다</p>
         <p className="text-[12px] text-amber-600">
           <span className="font-medium">{missingLabel}</span>의 선택한 계약 유형에<br />
-          대한 회수율 데이터가 없습니다. 별도 상담을 통해 확인해주세요.
+          대한 견적 데이터가 없습니다. 별도 상담을 통해 확인해주세요.
         </p>
       </div>
     );

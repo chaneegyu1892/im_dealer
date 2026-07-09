@@ -17,6 +17,12 @@ describe("RequiresConsultationNotice", () => {
 
     expect(screen.getByText("이 차량은 별도 상담이 필요합니다")).toBeInTheDocument();
     expect(
+      screen.getByText("현재 자동 견적에 필요한 데이터가 등록되지 않아 정확한 금액을 즉시 산출하기 어렵습니다.", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("회수율", { exact: false })).toBeNull();
+    expect(
       screen.getByText("상담을 통한 견적이 더 정확합니다.", { exact: false })
     ).toBeInTheDocument();
 

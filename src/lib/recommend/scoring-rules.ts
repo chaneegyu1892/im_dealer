@@ -70,7 +70,7 @@ export const INDUSTRY_RULES: Record<string, ScoreRule[]> = {
     {
       match: (_a, c) => c.category === "SUV" && isLargeOrPremium(c.price),
       pts: 18,
-      reason: "법인 운용리스 시 회수율이 높아 월납입금이 유리해요",
+      reason: "법인 운용리스 시 월납입금 조건이 유리해요",
     },
     {
       match: (a) => a.fuel === "EV",
