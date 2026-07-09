@@ -24,7 +24,6 @@ import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { type ComparisonTrimData } from "@/components/quote/VehicleConfigPanel";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
-import { RequiresConsultationNotice } from "@/components/quote/RequiresConsultationNotice";
 import {
   CUSTOMER_TYPE_LABELS,
   type CustomerType,
@@ -999,30 +998,7 @@ function Step3ResultHeader({
   onImageDownload: () => void;
   onPrev: () => void;
 }) {
-  // 별도 상담 필요 차량 — 견적 대신 상담 안내만
-  if (quoteResult.requiresConsultation) {
-    return (
-      <motion.section
-        initial={{ opacity: 0, x: 16 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -16 }}
-        transition={{ duration: 0.22 }}
-        className="space-y-5"
-      >
-        <RequiresConsultationNotice vehicleName={selectedVehicle?.name} />
-        <button
-          type="button"
-          onClick={onPrev}
-          className="mx-auto flex items-center gap-1 text-[13px] font-bold text-text-muted transition-colors hover:text-text-strong"
-        >
-          <ChevronLeft size={14} />
-          조건 다시 설정하기
-        </button>
-      </motion.section>
-    );
-  }
-
-  const monthly = quoteResult.scenarios.standard.monthlyPayment;
+  const standardScenario: QuoteScenarioDetail | undefined = quoteResult.scenarios.standard;
   const totalVehiclePrice =
     quoteResult.totalVehiclePrice ??
     quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? 0);
@@ -1127,161 +1103,207 @@ function Step3ResultHeader({
         </div>
       </div>
 
-      {/* ── 2) 월 납입금 대형 강조 (실제 데이터) ── */}
-      <div className="rounded-[24px] bg-brand p-6 text-white md:p-7">
-        <div className="flex items-center justify-between">
-          <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
-          {isRecalculating && (
-            <span className="flex items-center gap-1.5 text-[11.5px] text-white/70">
-              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              재계산 중…
-            </span>
+      {quoteResult.requiresConsultation === true || !standardScenario ? (
+        <>
+          <div className="rounded-[24px] bg-brand p-6 text-white md:p-7">
+            <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[30px] font-extrabold leading-tight text-white sm:text-[36px]">
+                  별도 상담 필요
+                </p>
+                <p className="mt-2 text-[14px] font-bold text-white/90">
+                  이 차량은 별도 상담이 필요합니다
+                </p>
+              </div>
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-white/85">
+                <AlertCircle size={12} />
+                견적 준비중
+              </span>
+            </div>
+            <p className="mt-4 text-[13.5px] leading-relaxed text-white/75">
+              현재 자동 견적에 필요한 데이터가 등록되지 않아 정확한 월 납입금을 즉시 산출하기 어렵습니다.
+              선택하신 조건 기준으로 상담을 통해 맞춤 견적을 안내해드릴게요.
+            </p>
+            <ChannelTalkButton
+              vehicleName={selectedVehicle?.name}
+              label="상담하기"
+              className="mt-5 h-[48px] rounded-[14px] bg-white px-4 text-[14px] font-bold text-brand hover:bg-white/95"
+            />
+          </div>
+
+          <div className="rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
+            옵션·계약조건에 따라 캐피탈사별 금액이 크게 달라질 수 있어 상담을 통한 견적이 더 정확합니다.
+          </div>
+
+          <button
+            type="button"
+            onClick={onPrev}
+            className="mx-auto flex items-center gap-1 text-[13px] font-bold text-text-muted transition-colors hover:text-text-strong"
+          >
+            <ChevronLeft size={14} />
+            조건 다시 설정하기
+          </button>
+        </>
+      ) : (
+        <>
+          {/* ── 2) 월 납입금 대형 강조 (실제 데이터) ── */}
+          <div className="rounded-[24px] bg-brand p-6 text-white md:p-7">
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
+              {isRecalculating && (
+                <span className="flex items-center gap-1.5 text-[11.5px] text-white/70">
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  재계산 중…
+                </span>
+              )}
+            </div>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <TossPrice won={standardScenario.monthlyPayment} size="xl" tone="white" />
+              {standardScenario.bestFinanceCompany && (
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-white/85">
+                  <Building2 size={11} />
+                  {standardScenario.bestFinanceCompany}
+                </span>
+              )}
+            </div>
+            <p className="mt-3 text-[13.5px] text-white/75">
+              {CUSTOMER_TYPE_LABELS[customerType]} · {contractCategory}
+            </p>
+          </div>
+
+          {/* ── 3) 초기비용(보증금/선납금) 패널 ── */}
+          <InitialCostPanelV2
+            data={standardScenario}
+            customRates={customRates}
+            onCustomRatesChange={onCustomRatesChange}
+            isRecalculating={isRecalculating}
+            costMode={costMode}
+            onCostModeChange={onCostModeChange}
+            onMemberLogin={onMemberLogin}
+            onReset={onReset}
+          />
+
+          {/* ── 4) EV 보조금 안내 (견적 미반영, 표시 전용) ── */}
+          {selectedTrim?.evSubsidy ? (
+            <EvSubsidyNotice amount={selectedTrim.evSubsidy} />
+          ) : null}
+
+          {/* ── 5) 심사 가능성 미리보기 ── */}
+          <ApprovalPreviewV2 data={standardScenario} />
+
+          {/* ── 6) 금융사별 견적 ── */}
+          {standardScenario.allFinanceResults &&
+            standardScenario.allFinanceResults.length >= 1 && (
+              <FinanceSectionV2 results={standardScenario.allFinanceResults} />
+            )}
+
+          {/* ── 7) 견적 산출 내역 ── */}
+          <BreakdownSectionV2 data={standardScenario} />
+
+          {/* ── 8) rangeExceeded 안내 (옵션 초과 시) ── */}
+          {standardScenario.rangeExceeded && (
+            <div className="flex items-start gap-2 rounded-[14px] border border-status-warning/25 bg-status-warning-soft px-4 py-3 text-[12px] leading-relaxed text-status-warning">
+              <AlertCircle size={13} className="mt-0.5 shrink-0" />
+              <p>
+                선택하신 옵션 조합으로 차량가가 등록된 견적 기준 범위를 초과해 참고용 견적으로 표시돼요.
+                정확한 금액은 상담을 통해 확인해 주세요.
+              </p>
+            </div>
           )}
-        </div>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <TossPrice won={monthly} size="xl" tone="white" />
-          {quoteResult.scenarios.standard.bestFinanceCompany && (
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-white/85">
-              <Building2 size={11} />
-              {quoteResult.scenarios.standard.bestFinanceCompany}
-            </span>
+
+          {/* ── 9) 다른 차량과 비교 (ComparisonSection 인라인) ── */}
+          {selectedVehicle && (
+            <ComparisonSection
+              primary={{
+                slug: selectedVehicle.slug,
+                brand: selectedVehicle.brand,
+                name: selectedVehicle.name,
+                result: quoteResult,
+                thumbnailUrl: selectedVehicle.thumbnailUrl,
+                trims: trims as ComparisonTrimData[],
+                currentTrimId: selectedTrim?.id ?? null,
+                currentOptionIds: selectedOptionIds,
+              }}
+              conditions={{
+                contractMonths: conditions.contractMonths as 36 | 48 | 60,
+                annualMileage: conditions.annualMileage as 10000 | 20000 | 30000,
+                contractType: "반납형",
+                productType: contractCategory,
+              }}
+              allVehicles={vehicles}
+              onMemberLogin={onMemberLogin}
+            />
           )}
-        </div>
-        <p className="mt-3 text-[13.5px] text-white/75">
-          {CUSTOMER_TYPE_LABELS[customerType]} · {contractCategory}
-        </p>
-      </div>
 
-      {/* ── 3) 초기비용(보증금/선납금) 패널 ── */}
-      <InitialCostPanelV2
-        data={quoteResult.scenarios.standard}
-        customRates={customRates}
-        onCustomRatesChange={onCustomRatesChange}
-        isRecalculating={isRecalculating}
-        costMode={costMode}
-        onCostModeChange={onCostModeChange}
-        onMemberLogin={onMemberLogin}
-        onReset={onReset}
-      />
+          {/* ── 10) 체크포인트 ── */}
+          <CostCheckpointV2 contractType="반납형" customerType={customerType} />
 
-      {/* ── 4) EV 보조금 안내 (견적 미반영, 표시 전용) ── */}
-      {selectedTrim?.evSubsidy ? (
-        <EvSubsidyNotice amount={selectedTrim.evSubsidy} />
-      ) : null}
+          {/* ── 11) 안내 + CTA ── */}
+          <div className="rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
+            위 견적은 실제 계약 가능한 기준이나, 최종 금액은 차량 상태·옵션·프로모션에 따라
+            달라질 수 있어요. 전문가 상담으로 확정 견적을 받아보세요.
+          </div>
 
-      {/* ── 5) 심사 가능성 미리보기 ── */}
-      <ApprovalPreviewV2 data={quoteResult.scenarios.standard} />
+          {/* 메인 CTA: 심사 요청 */}
+          <button
+            type="button"
+            onClick={onContractApply}
+            className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15.5px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99]"
+          >
+            <ClipboardCheck size={17} strokeWidth={2.2} />
+            이 조건으로 심사 요청하기
+          </button>
 
-      {/* ── 6) 금융사별 견적 ── */}
-      {quoteResult.scenarios.standard.allFinanceResults &&
-        quoteResult.scenarios.standard.allFinanceResults.length >= 1 && (
-          <FinanceSectionV2 results={quoteResult.scenarios.standard.allFinanceResults} />
-        )}
+          {/* 보조 CTA 2분할: 이미지 / 상담 */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={onImageDownload}
+              disabled={isImageDownloading}
+              className={cn(
+                "flex h-[48px] items-center justify-center gap-1.5 rounded-[14px] border text-[13.5px] font-bold transition-all",
+                isImageDownloading
+                  ? "cursor-not-allowed border-[#E5E8EB] bg-[#F8FAFC] text-text-muted"
+                  : "border-brand/20 bg-white text-brand hover:bg-brand-soft active:scale-[0.99]"
+              )}
+            >
+              {isImageDownloading ? (
+                <>
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand/20 border-t-brand" />
+                  준비 중
+                </>
+              ) : (
+                <>
+                  <Download size={14} strokeWidth={2.2} />
+                  견적서 받기
+                </>
+              )}
+            </button>
+            <ChannelTalkButton
+              vehicleName={selectedVehicle?.name}
+              label="상담하기"
+              className="h-[48px] rounded-[14px] border border-[#E5E8EB] bg-white px-3 text-[13.5px] font-bold text-text-body hover:bg-[#F8FAFC]"
+            />
+          </div>
 
-      {/* ── 7) 견적 산출 내역 ── */}
-      <BreakdownSectionV2 data={quoteResult.scenarios.standard} />
+          {imageError && (
+            <div className="flex items-start gap-2 rounded-[12px] border border-status-danger/20 bg-status-danger-soft p-3 text-[12px] text-status-danger">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              <p>{imageError}</p>
+            </div>
+          )}
 
-      {/* ── 8) rangeExceeded 안내 (옵션 초과 시) ── */}
-      {quoteResult.scenarios.standard.rangeExceeded && (
-        <div className="flex items-start gap-2 rounded-[14px] border border-status-warning/25 bg-status-warning-soft px-4 py-3 text-[12px] leading-relaxed text-status-warning">
-          <AlertCircle size={13} className="mt-0.5 shrink-0" />
-          <p>
-            선택하신 옵션 조합으로 차량가가 등록된 견적 기준 범위를 초과해 참고용 견적으로 표시돼요.
-            정확한 금액은 상담을 통해 확인해 주세요.
-          </p>
-        </div>
+          <button
+            type="button"
+            onClick={onPrev}
+            className="mx-auto flex items-center gap-1 text-[13px] font-bold text-text-muted transition-colors hover:text-text-strong"
+          >
+            <ChevronLeft size={14} />
+            조건 다시 설정하기
+          </button>
+        </>
       )}
-
-      {/* ── 9) 다른 차량과 비교 (ComparisonSection 인라인) ── */}
-      {selectedVehicle && (
-        <ComparisonSection
-          primary={{
-            slug: selectedVehicle.slug,
-            brand: selectedVehicle.brand,
-            name: selectedVehicle.name,
-            result: quoteResult,
-            thumbnailUrl: selectedVehicle.thumbnailUrl,
-            trims: trims as ComparisonTrimData[],
-            currentTrimId: selectedTrim?.id ?? null,
-            currentOptionIds: selectedOptionIds,
-          }}
-          conditions={{
-            contractMonths: conditions.contractMonths as 36 | 48 | 60,
-            annualMileage: conditions.annualMileage as 10000 | 20000 | 30000,
-            contractType: "반납형",
-            productType: contractCategory,
-          }}
-          allVehicles={vehicles}
-          onMemberLogin={onMemberLogin}
-        />
-      )}
-
-      {/* ── 10) 체크포인트 ── */}
-      <CostCheckpointV2 contractType="반납형" customerType={customerType} />
-
-      {/* ── 11) 안내 + CTA ── */}
-      <div className="rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
-        위 견적은 실제 계약 가능한 기준이나, 최종 금액은 차량 상태·옵션·프로모션에 따라
-        달라질 수 있어요. 전문가 상담으로 확정 견적을 받아보세요.
-      </div>
-
-      {/* 메인 CTA: 심사 요청 */}
-      <button
-        type="button"
-        onClick={onContractApply}
-        className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15.5px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99]"
-      >
-        <ClipboardCheck size={17} strokeWidth={2.2} />
-        이 조건으로 심사 요청하기
-      </button>
-
-      {/* 보조 CTA 2분할: 이미지 / 상담 */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <button
-          type="button"
-          onClick={onImageDownload}
-          disabled={isImageDownloading}
-          className={cn(
-            "flex h-[48px] items-center justify-center gap-1.5 rounded-[14px] border text-[13.5px] font-bold transition-all",
-            isImageDownloading
-              ? "cursor-not-allowed border-[#E5E8EB] bg-[#F8FAFC] text-text-muted"
-              : "border-brand/20 bg-white text-brand hover:bg-brand-soft active:scale-[0.99]"
-          )}
-        >
-          {isImageDownloading ? (
-            <>
-              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand/20 border-t-brand" />
-              준비 중
-            </>
-          ) : (
-            <>
-              <Download size={14} strokeWidth={2.2} />
-              견적서 받기
-            </>
-          )}
-        </button>
-        <ChannelTalkButton
-          vehicleName={selectedVehicle?.name}
-          label="상담하기"
-          className="h-[48px] rounded-[14px] border border-[#E5E8EB] bg-white px-3 text-[13.5px] font-bold text-text-body hover:bg-[#F8FAFC]"
-        />
-      </div>
-
-      {imageError && (
-        <div className="flex items-start gap-2 rounded-[12px] border border-status-danger/20 bg-status-danger-soft p-3 text-[12px] text-status-danger">
-          <AlertCircle size={14} className="mt-0.5 shrink-0" />
-          <p>{imageError}</p>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={onPrev}
-        className="mx-auto flex items-center gap-1 text-[13px] font-bold text-text-muted transition-colors hover:text-text-strong"
-      >
-        <ChevronLeft size={14} />
-        조건 다시 설정하기
-      </button>
     </motion.section>
   );
 }
