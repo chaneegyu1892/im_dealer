@@ -224,7 +224,14 @@ function ConfigRow({
         { method: "DELETE" }
       );
       const result = await resp.json() as { success: boolean };
-      if (result.success) onDeleted(config.id);
+      if (!resp.ok || !result.success) {
+        alert("삭제 중 오류가 발생했습니다.");
+        return;
+      }
+      onDeleted(config.id);
+    } catch (error) {
+      console.error(error);
+      alert("삭제 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
@@ -242,7 +249,14 @@ function ConfigRow({
         }
       );
       const result = await resp.json() as { success: boolean; data: AdminPopularConfig };
-      if (result.success) onUpdated(result.data);
+      if (!resp.ok || !result.success) {
+        alert("변경 중 오류가 발생했습니다.");
+        return;
+      }
+      onUpdated(result.data);
+    } catch (error) {
+      console.error(error);
+      alert("변경 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
@@ -271,10 +285,15 @@ function ConfigRow({
         }
       );
       const result = await resp.json() as { success: boolean; data: AdminPopularConfig };
-      if (result.success) {
-        onUpdated(result.data);
-        setEditing(false);
+      if (!resp.ok || !result.success) {
+        alert("저장 중 오류가 발생했습니다.");
+        return;
       }
+      onUpdated(result.data);
+      setEditing(false);
+    } catch (error) {
+      console.error(error);
+      alert("저장 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
@@ -443,10 +462,15 @@ export function PopularConfigTab({ vehicleId }: PopularConfigTabProps) {
         body: JSON.stringify(payload),
       });
       const result = await resp.json() as { success: boolean; data: AdminPopularConfig };
-      if (result.success) {
-        setConfigs((prev) => [...prev, result.data]);
-        setIsAdding(false);
+      if (!resp.ok || !result.success) {
+        alert("추가 중 오류가 발생했습니다.");
+        return;
       }
+      setConfigs((prev) => [...prev, result.data]);
+      setIsAdding(false);
+    } catch (error) {
+      console.error(error);
+      alert("추가 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }

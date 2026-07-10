@@ -80,6 +80,15 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "사용자를 찾을 수 없습니다." }, { status: 404 });
   }
 
+  // 대상이 superadmin인 경우, 권한 강등 또는 비활성화를 차단하여
+  // 마지막 superadmin이 잠금 상태가 되는 것을 방지.
+  if (before.role === "superadmin" && (role !== undefined || isActive === false)) {
+    return NextResponse.json(
+      { error: "최종관리자의 권한은 변경할 수 없습니다." },
+      { status: 403 }
+    );
+  }
+
   try {
     const updated = await prisma.user.update({
       where: { id },

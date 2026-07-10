@@ -38,19 +38,31 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
     if (selectedQuote) setMemoInput(selectedQuote.internalMemo ?? "");
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function patchQuote(id: string, body: Record<string, unknown>) {
-    const res = await fetch(`/api/admin/quotes/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return;
-    const json = await res.json();
-    if (json.success) {
-      setQuoteOverrides(prev => ({
-        ...prev,
-        [id]: { ...prev[id], ...body },
-      }));
+  async function patchQuote(id: string, body: Record<string, unknown>): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/admin/quotes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        alert("저장 중 오류가 발생했습니다.");
+        return false;
+      }
+      const json = await res.json();
+      if (json.success) {
+        setQuoteOverrides(prev => ({
+          ...prev,
+          [id]: { ...prev[id], ...body },
+        }));
+        return true;
+      }
+      alert("저장 중 오류가 발생했습니다.");
+      return false;
+    } catch (err) {
+      console.error("[patchQuote] failed", err);
+      alert("저장 중 오류가 발생했습니다.");
+      return false;
     }
   }
 
@@ -92,16 +104,16 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
           </p>
         </div>
         <div className="bg-white rounded-[12px] border border-[#E8EAF0] p-4 shadow-sm">
-          <p className="text-[11px] text-[#6B7399] mb-1">장기렌트</p>
+          <p className="text-[11px] text-[#6B7399] mb-1">AI 추천</p>
           <p className="text-[24px] font-bold text-[#000666]">
-            {filtered.filter((q) => q.contractType === "반납형").length}
+            {filtered.filter((q) => q.quoteType === "AI").length}
             <span className="text-[13px] text-[#9BA4C0] ml-1">건</span>
           </p>
         </div>
         <div className="bg-white rounded-[12px] border border-[#E8EAF0] p-4 shadow-sm">
-          <p className="text-[11px] text-[#6B7399] mb-1">인수형</p>
+          <p className="text-[11px] text-[#6B7399] mb-1">세부 견적</p>
           <p className="text-[24px] font-bold text-[#7C3AED]">
-            {filtered.filter((q) => q.contractType === "인수형").length}
+            {filtered.filter((q) => q.quoteType === "DETAIL").length}
             <span className="text-[13px] text-[#9BA4C0] ml-1">건</span>
           </p>
         </div>
@@ -304,8 +316,9 @@ export function QuotationTable({ initialQuotes, total }: QuotationTableProps) {
                 <button
                   onClick={async () => {
                     setSavingMemo(true);
-                    await patchQuote(selectedQuote.id, { internalMemo: memoInput });
+                    const ok = await patchQuote(selectedQuote.id, { internalMemo: memoInput });
                     setSavingMemo(false);
+                    if (ok) alert("메모가 저장되었습니다.");
                   }}
                   disabled={savingMemo}
                   className="mt-1.5 flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold bg-[#000666] text-white rounded-[6px] hover:opacity-90 disabled:opacity-50 transition-opacity"

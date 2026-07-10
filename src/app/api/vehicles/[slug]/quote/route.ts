@@ -12,6 +12,7 @@ import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import { normalizeSelectedOptions } from "@/lib/option-rules";
 import { lockQuoteScenario } from "@/lib/member-gate";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
+import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 
 const quoteSchema = z.object({
   // 견적 페이지에서만 전달 — 있으면 조회/계산 로그를 세션 기준으로 적재한다(비교 기능 등은 미전달).
@@ -45,6 +46,10 @@ export async function POST(
 ) {
   try {
     const { slug } = await params;
+
+    const limited = await checkRateLimit(request, apiRateLimit);
+    if (limited) return limited;
+
     const body = await request.json();
     const input = quoteSchema.parse(body);
 

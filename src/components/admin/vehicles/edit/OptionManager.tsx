@@ -60,21 +60,26 @@ export function OptionManager({ trimId, target, badges, nextDisplayOrder, onClos
     };
 
     try {
-      if (target) {
-        await fetch(`/api/admin/trims/${trimId}/options/${target.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch(`/api/admin/trims/${trimId}/options`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      const res = target
+        ? await fetch(`/api/admin/trims/${trimId}/options/${target.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch(`/api/admin/trims/${trimId}/options`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      if (!res.ok) {
+        alert("저장 중 오류가 발생했습니다.");
+        return;
       }
       onClose();
       router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert("저장 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }

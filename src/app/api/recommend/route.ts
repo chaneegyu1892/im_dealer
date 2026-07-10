@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { recommend } from "@/lib/ai-recommender";
 import { PREFERENCE_OPTIONS, MAX_PREFERENCES } from "@/constants/recommend-options";
 import { randomUUID } from "crypto";
+import { strictRateLimit, checkRateLimit } from "@/lib/rate-limit";
 
 const PREFERENCE_VALUES = PREFERENCE_OPTIONS.map((o) => o.value) as [string, ...string[]];
 const FEEL_VALUES = PREFERENCE_OPTIONS.filter((o) => o.kind === "feel").map((o) => o.value) as [string, ...string[]];
@@ -64,6 +65,9 @@ const recommendSchema = z
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = await checkRateLimit(request, strictRateLimit);
+    if (limited) return limited;
+
     const body = await request.json();
     const input = recommendSchema.parse(body);
 

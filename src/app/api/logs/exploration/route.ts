@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
 import { requireRoleAtLeast } from "@/lib/require-admin";
+import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 
 // ─── 이벤트 타입 ────────────────────────────────────────
 const EVENT_TYPES = [
@@ -29,6 +30,9 @@ const explorationSchema = z.object({
 // 클라이언트에서 탐색 이벤트 수집
 export async function POST(request: NextRequest) {
   try {
+    const limited = await checkRateLimit(request, apiRateLimit);
+    if (limited) return limited;
+
     const body = await request.json();
     const data = explorationSchema.parse(body);
 

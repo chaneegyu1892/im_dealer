@@ -43,6 +43,8 @@ export interface ScoreCtx {
   category: string;
   price: number;
   fuelEfficiency: number | null;
+  /** admin scoreMatrix에서 산출된 업종×용도 가산점 (없으면 0) */
+  scoreMatrixBonus?: number;
 }
 
 export interface ScoreResult {
@@ -165,6 +167,11 @@ export function scoreVehicle(
         }
       }
     }
+  }
+
+  // 9. admin scoreMatrix 가산점 (업종×용도)
+  if (ctx.scoreMatrixBonus && ctx.scoreMatrixBonus > 0) {
+    score += ctx.scoreMatrixBonus;
   }
 
   return {

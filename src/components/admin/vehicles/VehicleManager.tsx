@@ -67,22 +67,27 @@ export function VehicleManager({ initialVehicles, initialBrands, initialSelected
       basePrice: Number(fd.get("basePrice")) * 10000,
     };
     try {
-      if (vehicleModal.target) {
-        await fetch(`/api/admin/vehicles/${vehicleModal.target.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch("/api/admin/vehicles", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      const res = vehicleModal.target
+        ? await fetch(`/api/admin/vehicles/${vehicleModal.target.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/admin/vehicles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      if (!res.ok) {
+        alert("저장 중 오류가 발생했습니다.");
+        return;
       }
       setVehicleModal({ isOpen: false, target: null });
       setSelectedVehicle(null);
       router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert("저장 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
@@ -92,33 +97,60 @@ export function VehicleManager({ initialVehicles, initialBrands, initialSelected
     if (!deleteModal) return;
     setSaving(true);
     try {
-      await fetch(`/api/admin/vehicles/${deleteModal.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/vehicles/${deleteModal.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        alert("삭제 중 오류가 발생했습니다.");
+        return;
+      }
       if (selectedVehicle?.id === deleteModal.id) setSelectedVehicle(null);
       setDeleteModal(null);
       router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert("삭제 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
   };
 
   const handleReorder = async (orderedIds: string[]) => {
-    await fetch("/api/admin/vehicles/reorder", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: orderedIds }),
-    });
-    router.refresh();
+    try {
+      const res = await fetch("/api/admin/vehicles/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: orderedIds }),
+      });
+      if (!res.ok) {
+        alert("순서 저장 중 오류가 발생했습니다.");
+        return;
+      }
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert("순서 저장 중 오류가 발생했습니다.");
+    }
   };
 
   const handleToggleVisibility = async (vehicle: AdminVehicle) => {
     const toggled = { ...vehicle, isVisible: !vehicle.isVisible };
     setSelectedVehicle(toggled);
-    await fetch(`/api/admin/vehicles/${vehicle.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isVisible: toggled.isVisible }),
-    });
-    router.refresh();
+    try {
+      const res = await fetch(`/api/admin/vehicles/${vehicle.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isVisible: toggled.isVisible }),
+      });
+      if (!res.ok) {
+        alert("변경 중 오류가 발생했습니다.");
+        setSelectedVehicle(vehicle);
+        return;
+      }
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert("변경 중 오류가 발생했습니다.");
+      setSelectedVehicle(vehicle);
+    }
   };
 
   return (

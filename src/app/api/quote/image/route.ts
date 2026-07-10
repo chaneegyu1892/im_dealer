@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
+import { strictRateLimit, checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
+  const limited = await checkRateLimit(req, strictRateLimit);
+  if (limited) return limited;
+
   const supabase = await createClient();
   const {
     data: { user },

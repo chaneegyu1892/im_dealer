@@ -146,10 +146,15 @@ export function TrimTab({ vehicle }: TrimTabProps) {
         body: JSON.stringify(payload),
       });
 
-      if (resp.ok) {
-        closeModal();
-        window.location.reload();
+      if (!resp.ok) {
+        alert("저장 중 오류가 발생했습니다.");
+        return;
       }
+      closeModal();
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      alert("저장 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
@@ -157,8 +162,17 @@ export function TrimTab({ vehicle }: TrimTabProps) {
 
   const handleDelete = async (id: string) => {
     if (!confirm("이 트림을 삭제하시겠습니까?")) return;
-    await fetch(`/api/admin/vehicles/${vehicle.id}/trims/${id}`, { method: "DELETE" });
-    window.location.reload();
+    try {
+      const resp = await fetch(`/api/admin/vehicles/${vehicle.id}/trims/${id}`, { method: "DELETE" });
+      if (!resp.ok) {
+        alert("삭제 중 오류가 발생했습니다.");
+        return;
+      }
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      alert("삭제 중 오류가 발생했습니다.");
+    }
   };
 
   const toggleTrimSelect = (id: string) => {
@@ -239,10 +253,15 @@ export function TrimTab({ vehicle }: TrimTabProps) {
           body: JSON.stringify(bulkPayload),
         }
       );
-      if (resp.ok) {
-        exitMultiSelectMode();
-        window.location.reload();
+      if (!resp.ok) {
+        alert("적용 중 오류가 발생했습니다.");
+        return;
       }
+      exitMultiSelectMode();
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      alert("적용 중 오류가 발생했습니다.");
     } finally {
       setBulkSaving(false);
     }
@@ -265,10 +284,15 @@ export function TrimTab({ vehicle }: TrimTabProps) {
           body: JSON.stringify({ trimIds: Array.from(selectedTrimIds), evSubsidy }),
         }
       );
-      if (resp.ok) {
-        exitMultiSelectMode();
-        window.location.reload();
+      if (!resp.ok) {
+        alert("적용 중 오류가 발생했습니다.");
+        return;
       }
+      exitMultiSelectMode();
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      alert("적용 중 오류가 발생했습니다.");
     } finally {
       setBulkSaving(false);
     }

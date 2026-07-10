@@ -75,6 +75,7 @@ const CUSTOMER_DOC_MAP: Record<CustomerType, DocType[]> = {
   individual: ["income_proof"],
   self_employed: ["biz_registration_proof", "vat_taxbase"],
   corporate: ["biz_registration_proof", "financial_statements", "vat_taxbase"],
+  nonprofit: ["biz_registration_proof", "financial_statements", "vat_taxbase"],
 };
 
 export function docTypesForCustomer(type: CustomerType): DocType[] {

@@ -12,6 +12,7 @@ import {
 import type { FinanceQuoteResult } from "@/types/quote";
 import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 
 const SCENARIO_CONDITIONS = {
   conservative: { depositRate: 20, prepayRate: 0 },
@@ -38,6 +39,9 @@ const calculateSchema = z.object({
 // 독립 견적 계산 엔드포인트 (3개 시나리오 반환)
 export async function POST(request: NextRequest) {
   try {
+    const limited = await checkRateLimit(request, apiRateLimit);
+    if (limited) return limited;
+
     const body = await request.json();
     const input = calculateSchema.parse(body);
 

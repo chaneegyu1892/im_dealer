@@ -157,6 +157,24 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
         options: defaultTrim.options,
       },
     );
+
+    // admin scoreMatrix에서 업종×용도 가산점 조회
+    let scoreMatrixBonus = 0;
+    if (recConfig?.scoreMatrix) {
+      try {
+        const matrix = recConfig.scoreMatrix as Record<string, Record<string, number>>;
+        const industryEntry = matrix[input.industry];
+        if (industryEntry && input.purpose) {
+          const bonus = industryEntry[input.purpose];
+          if (typeof bonus === "number" && bonus > 0) {
+            scoreMatrixBonus = bonus;
+          }
+        }
+      } catch {
+        // scoreMatrix 파싱 실패 시 무시
+      }
+    }
+
     const { score, reasons } = scoreVehicle(
       {
         industry: input.industry,
@@ -175,6 +193,7 @@ export async function recommend(input: RecommendInput): Promise<RecommendedVehic
         category: v.category ?? "",
         price: defaultTrim.price,
         fuelEfficiency: defaultTrim.fuelEfficiency,
+        scoreMatrixBonus,
       },
     );
 

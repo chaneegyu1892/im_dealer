@@ -417,18 +417,34 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   };
 
   const handleActivate = async (sheetId: string) => {
-    await fetch(`/api/admin/capital-rates/${sheetId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ setActive: true }),
-    });
-    handleSaved();
+    try {
+      const res = await fetch(`/api/admin/capital-rates/${sheetId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ setActive: true }),
+      });
+      if (!res.ok) {
+        alert("활성화 중 오류가 발생했습니다.");
+        return;
+      }
+      handleSaved();
+    } catch {
+      alert("활성화 중 오류가 발생했습니다.");
+    }
   };
 
   const handleDelete = async (sheetId: string) => {
     if (!confirm("이 시트를 삭제하시겠습니까?")) return;
-    await fetch(`/api/admin/capital-rates/${sheetId}`, { method: "DELETE" });
-    handleSaved();
+    try {
+      const res = await fetch(`/api/admin/capital-rates/${sheetId}`, { method: "DELETE" });
+      if (!res.ok) {
+        alert("삭제 중 오류가 발생했습니다.");
+        return;
+      }
+      handleSaved();
+    } catch {
+      alert("삭제 중 오류가 발생했습니다.");
+    }
   };
 
   const resetCompanyForm = () => {

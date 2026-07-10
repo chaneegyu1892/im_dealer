@@ -34,7 +34,11 @@ export default function PolicyManager() {
       if (res.ok) {
         alert(`${rank}순위 가산율이 저장되었습니다.`);
         fetchConfigs();
+      } else {
+        alert("저장 중 오류가 발생했습니다.");
       }
+    } catch {
+      alert("저장 중 오류가 발생했습니다.");
     } finally {
       setSaving(null);
     }

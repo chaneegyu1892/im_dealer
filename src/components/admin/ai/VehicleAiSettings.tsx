@@ -67,6 +67,8 @@ export default function VehicleAiSettings({ initialConfigs }: Props) {
         setConfigs(configs.map((c) => (c.id === id ? { ...c, ...result.data } : c)));
         setEditingId(null);
         alert("설정이 저장되었습니다.");
+      } else {
+        alert("저장 중 오류가 발생했습니다.");
       }
     } catch (error) {
       alert("저장 중 오류가 발생했습니다.");

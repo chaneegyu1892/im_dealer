@@ -51,7 +51,11 @@ export default function UserManager() {
       if (result.success) {
         setUsers(result.data);
         setTotal(result.meta?.total ?? 0);
+      } else {
+        alert(result.error ?? "사용자 목록을 불러오지 못했습니다.");
       }
+    } catch {
+      alert("사용자 목록을 불러오는 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
@@ -66,7 +70,8 @@ export default function UserManager() {
       .then((r) => r.json())
       .then((d) => {
         if (d.success) setMe(d.data);
-      });
+      })
+      .catch(() => alert("내 정보를 불러오는 중 오류가 발생했습니다."));
   }, []);
 
   const isSuperAdmin = me?.role === "superadmin";

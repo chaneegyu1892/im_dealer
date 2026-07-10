@@ -71,11 +71,16 @@ export default function SurchargePolicy() {
   const handleUpdateFcSurcharge = async (id: string, rate: number) => {
     setSavingId(id);
     try {
-      await fetch(`/api/admin/finance-companies/${id}`, {
+      const res = await fetch(`/api/admin/finance-companies/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ surchargeRate: rate }),
       });
+      if (!res.ok) {
+        alert("저장 중 오류가 발생했습니다.");
+      }
+    } catch {
+      alert("저장 중 오류가 발생했습니다.");
     } finally {
       setSavingId(null);
     }
@@ -84,11 +89,16 @@ export default function SurchargePolicy() {
   const handleUpdateVehicleSurcharge = async (id: string, rate: number) => {
     setSavingId(id);
     try {
-      await fetch(`/api/admin/vehicles/${id}`, {
+      const res = await fetch(`/api/admin/vehicles/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ surchargeRate: rate }),
       });
+      if (!res.ok) {
+        alert("저장 중 오류가 발생했습니다.");
+      }
+    } catch {
+      alert("저장 중 오류가 발생했습니다.");
     } finally {
       setSavingId(null);
     }

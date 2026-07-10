@@ -72,6 +72,7 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
     const params = new URLSearchParams({
       vehicle: detail.slug,
       customerType: industryToCustomerType(industry),
+      source: "AI",
     });
     if (selectedItems.size > 0) {
       const allItems = detail.popularConfigs.flatMap((c) => c.items);

@@ -35,18 +35,27 @@ export default function NotificationsPage() {
   }, []);
 
   const markAsRead = async (id: string) => {
-    await fetch(`/api/admin/notifications/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isRead: true }),
-    });
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    try {
+      const res = await fetch(`/api/admin/notifications/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isRead: true }),
+      });
+      if (!res.ok) return;
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const deleteNotification = async (id: string) => {
-    // 알림 삭제 API가 아직 없으므로 일단 클라이언트에서만 제거 (또는 나중에 API 추가)
-    // await fetch(`/api/admin/notifications/${id}`, { method: "DELETE" });
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    try {
+      const res = await fetch(`/api/admin/notifications/${id}`, { method: "DELETE" });
+      if (!res.ok) return;
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const filtered = notifications.filter(n => {

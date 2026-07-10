@@ -82,11 +82,11 @@ export async function GET() {
       date.setDate(now.getDate() - i);
       const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
       const end = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-      
+
       const count = await prisma.quoteCalcLog.count({
         where: { createdAt: { gte: start, lte: end } }
       });
-      
+
       weeklyData.push({
         day: `${date.getMonth() + 1}/${date.getDate()}`,
         value: count

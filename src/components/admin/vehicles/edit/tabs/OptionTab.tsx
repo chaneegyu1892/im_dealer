@@ -49,9 +49,13 @@ export function OptionTab({ vehicle }: OptionTabProps) {
   // 추천 배지 목록 (전역, 클라이언트 조회)
   const [badges, setBadges] = useState<AdminOptionBadge[]>([]);
   const loadBadges = useCallback(async () => {
-    const resp = await fetch("/api/admin/option-badges");
-    const json = await resp.json();
-    if (json.success) setBadges(json.data);
+    try {
+      const resp = await fetch("/api/admin/option-badges");
+      const json = await resp.json();
+      if (json.success) setBadges(json.data);
+    } catch (error) {
+      console.error(error);
+    }
   }, []);
   useEffect(() => {
     loadBadges();
@@ -66,8 +70,17 @@ export function OptionTab({ vehicle }: OptionTabProps) {
 
   const handleDelete = async (optId: string) => {
     if (!confirm("이 옵션을 삭제하시겠습니까?")) return;
-    await fetch(`/api/admin/trims/${selectedTrimId}/options/${optId}`, { method: "DELETE" });
-    router.refresh();
+    try {
+      const resp = await fetch(`/api/admin/trims/${selectedTrimId}/options/${optId}`, { method: "DELETE" });
+      if (!resp.ok) {
+        alert("삭제 중 오류가 발생했습니다.");
+        return;
+      }
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert("삭제 중 오류가 발생했습니다.");
+    }
   };
 
   const reorderable = items.length > 1;
@@ -75,12 +88,21 @@ export function OptionTab({ vehicle }: OptionTabProps) {
   const commitOrder = async () => {
     const next = items.map((o) => o.id);
     if (next.join(",") === baseOptions.map((o) => o.id).join(",")) return;
-    await fetch(`/api/admin/trims/${selectedTrimId}/options/reorder`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: next }),
-    });
-    router.refresh();
+    try {
+      const resp = await fetch(`/api/admin/trims/${selectedTrimId}/options/reorder`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: next }),
+      });
+      if (!resp.ok) {
+        alert("순서 저장 중 오류가 발생했습니다.");
+        return;
+      }
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert("순서 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (

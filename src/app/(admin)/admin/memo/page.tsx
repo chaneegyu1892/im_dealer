@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ClipboardList, Plus, Search, Filter, Pin,
@@ -51,6 +51,8 @@ function formatDateTime(dateStr: string) {
 
 export default function MemoPage() {
   const [memos, setMemos] = useState<AdminMemo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<MemoCategory | "전체">("전체");
 
@@ -62,6 +64,36 @@ export default function MemoPage() {
   const today = new Date().toLocaleDateString("ko-KR", {
     year: "numeric", month: "long", day: "numeric", weekday: "long",
   });
+
+  // ─── 메모 로드 ───
+  const fetchMemos = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/memos");
+      const json = await res.json();
+      if (json.success) {
+        const mapped: AdminMemo[] = json.data.map((m: Record<string, unknown>) => ({
+          id: m.id as string,
+          title: (m.title as string) || "",
+          content: (m.content as string) || "",
+          category: (m.category as MemoCategory) || "일반",
+          isPinned: (m.isPinned as boolean) ?? false,
+          author: (m.createdBy as string) || "관리자",
+          createdAt: (m.createdAt as string) || new Date().toISOString(),
+          updatedAt: (m.updatedAt as string) || new Date().toISOString(),
+        }));
+        setMemos(mapped);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMemos();
+  }, [fetchMemos]);
 
   // ─── 필터링 ───
   const filteredMemos = useMemo(() => {
@@ -94,36 +126,84 @@ export default function MemoPage() {
     setDrawerOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("정말로 이 메모를 삭제하시겠습니까?")) {
+  const handleDelete = async (id: string) => {
+    if (!confirm("정말로 이 메모를 삭제하시겠습니까?")) return;
+    try {
+      const res = await fetch(`/api/admin/memos/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        alert("삭제 중 오류가 발생했습니다.");
+        return;
+      }
       setMemos(prev => prev.filter(m => m.id !== id));
+    } catch {
+      alert("삭제 중 오류가 발생했습니다.");
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim() || !form.content.trim()) return;
-
-    if (editTarget) {
-      setMemos(prev => prev.map(m => m.id === editTarget.id ? {
-        ...m,
-        ...form,
-        updatedAt: new Date().toISOString(),
-      } : m));
-    } else {
-      const newMemo: AdminMemo = {
-        id: `MEMO-${Date.now()}`,
-        ...form,
-        author: "관리자", // 임시 하드코딩
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setMemos(prev => [newMemo, ...prev]);
+    setSaving(true);
+    try {
+      if (editTarget) {
+        const res = await fetch(`/api/admin/memos/${editTarget.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        if (!res.ok) {
+          alert("저장 중 오류가 발생했습니다.");
+          return;
+        }
+        const json = await res.json();
+        if (json.success) {
+          setMemos(prev => prev.map(m => m.id === editTarget.id ? {
+            ...m,
+            ...form,
+            updatedAt: new Date().toISOString(),
+          } : m));
+        }
+      } else {
+        const res = await fetch("/api/admin/memos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        if (!res.ok) {
+          alert("저장 중 오류가 발생했습니다.");
+          return;
+        }
+        const json = await res.json();
+        if (json.success) {
+          await fetchMemos();
+        }
+      }
+      setDrawerOpen(false);
+    } catch {
+      alert("저장 중 오류가 발생했습니다.");
+    } finally {
+      setSaving(false);
     }
-    setDrawerOpen(false);
   };
 
-  const togglePin = (id: string) => {
-    setMemos(prev => prev.map(m => m.id === id ? { ...m, isPinned: !m.isPinned } : m));
+  const togglePin = async (id: string) => {
+    const target = memos.find(m => m.id === id);
+    if (!target) return;
+    const newPinned = !target.isPinned;
+    // optimistic update
+    setMemos(prev => prev.map(m => m.id === id ? { ...m, isPinned: newPinned } : m));
+    try {
+      const res = await fetch(`/api/admin/memos/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPinned: newPinned }),
+      });
+      if (!res.ok) {
+        // rollback
+        setMemos(prev => prev.map(m => m.id === id ? { ...m, isPinned: !newPinned } : m));
+      }
+    } catch {
+      setMemos(prev => prev.map(m => m.id === id ? { ...m, isPinned: !newPinned } : m));
+    }
   };
 
   // ─── 메모 카드 컴포넌트 ───
@@ -239,7 +319,12 @@ export default function MemoPage() {
 
       {/* ── 보드 영역 ──────────────────────────────────────── */}
       <div className="flex-1">
-        {filteredMemos.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-[#9BA4C0] bg-white border border-dashed border-[#D0D4E8] rounded-[12px]">
+            <div className="w-8 h-8 border-4 border-[#000666]/10 border-t-[#000666] rounded-full animate-spin mb-4" />
+            <p className="text-[14px] font-medium">메모를 불러오는 중...</p>
+          </div>
+        ) : filteredMemos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-[#9BA4C0] bg-white border border-dashed border-[#D0D4E8] rounded-[12px]">
             <ClipboardList size={40} className="mb-3 opacity-50" />
             <p className="text-[14px] font-medium">표시할 메모가 없습니다.</p>
@@ -377,11 +462,11 @@ export default function MemoPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={!form.title.trim() || !form.content.trim()}
+                  disabled={!form.title.trim() || !form.content.trim() || saving}
                   className="px-6 py-2.5 rounded-[8px] text-[13px] font-semibold text-white bg-[#000666] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md flex items-center gap-2"
                 >
                   <CheckCircle2 size={16} />
-                  저장하기
+                  {saving ? "저장 중…" : "저장하기"}
                 </button>
               </div>
             </motion.div>

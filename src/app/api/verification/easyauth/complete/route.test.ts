@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(),
   findUnique: vi.fn(),
   update: vi.fn(),
+  getUser: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -21,6 +22,12 @@ vi.mock("@/lib/prisma", () => ({
       update: mocks.update,
     },
   },
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(() => ({
+    auth: { getUser: mocks.getUser },
+  })),
 }));
 
 vi.mock("@/lib/codef/easyauth", () => ({
@@ -47,6 +54,7 @@ function request(body: unknown): NextRequest {
 describe("POST /api/verification/easyauth/complete", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
     mocks.findUnique.mockResolvedValue({ id: "v1" });
     mocks.findFirst.mockResolvedValue(null);
     mocks.create.mockResolvedValue({});

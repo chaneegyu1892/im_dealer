@@ -29,11 +29,16 @@ export function LineupTab({ vehicle }: LineupTabProps) {
         body: JSON.stringify({ name: editName }),
       });
       const result = await resp.json();
-      if (result.success) {
-        setLineups([...lineups, result.data]);
-        setIsAdding(false);
-        setEditName("");
+      if (!resp.ok || !result.success) {
+        alert("추가 중 오류가 발생했습니다.");
+        return;
       }
+      setLineups([...lineups, result.data]);
+      setIsAdding(false);
+      setEditName("");
+    } catch (error) {
+      console.error(error);
+      alert("추가 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
@@ -49,11 +54,16 @@ export function LineupTab({ vehicle }: LineupTabProps) {
         body: JSON.stringify({ name: editName }),
       });
       const result = await resp.json();
-      if (result.success) {
-        setLineups(lineups.map(l => l.id === id ? result.data : l));
-        setEditingId(null);
-        setEditName("");
+      if (!resp.ok || !result.success) {
+        alert("수정 중 오류가 발생했습니다.");
+        return;
       }
+      setLineups(lineups.map(l => l.id === id ? result.data : l));
+      setEditingId(null);
+      setEditName("");
+    } catch (error) {
+      console.error(error);
+      alert("수정 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
@@ -69,9 +79,14 @@ export function LineupTab({ vehicle }: LineupTabProps) {
         body: JSON.stringify({ isVisible: !lineup.isVisible }),
       });
       const result = await resp.json();
-      if (result.success) {
-        setLineups(lineups.map((l) => (l.id === lineup.id ? { ...l, isVisible: result.data.isVisible } : l)));
+      if (!resp.ok || !result.success) {
+        alert("변경 중 오류가 발생했습니다.");
+        return;
       }
+      setLineups(lineups.map((l) => (l.id === lineup.id ? { ...l, isVisible: result.data.isVisible } : l)));
+    } catch (error) {
+      console.error(error);
+      alert("변경 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
@@ -85,9 +100,14 @@ export function LineupTab({ vehicle }: LineupTabProps) {
         method: "DELETE",
       });
       const result = await resp.json();
-      if (result.success) {
-        setLineups(lineups.filter(l => l.id !== id));
+      if (!resp.ok || !result.success) {
+        alert("삭제 중 오류가 발생했습니다.");
+        return;
       }
+      setLineups(lineups.filter(l => l.id !== id));
+    } catch (error) {
+      console.error(error);
+      alert("삭제 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }

@@ -57,11 +57,15 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await fetch(`/api/admin/vehicles/${vehicle.id}`, {
+      const res = await fetch(`/api/admin/vehicles/${vehicle.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
+      if (!res.ok) {
+        alert("저장 중 오류가 발생했습니다.");
+        return;
+      }
       router.refresh();
       alert("기본 정보가 저장되었습니다.");
     } catch (error) {

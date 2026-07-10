@@ -493,7 +493,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         }),
       });
       const json = await res.json();
-      if (!res.ok || !json.success) return;
+      if (!res.ok || !json.success) {
+        console.error("[recalculateStandard]", json?.error ?? "failed");
+        return;
+      }
       if (requestId !== recalculateRequestId.current) return;
 
       setQuoteResult((prev) =>

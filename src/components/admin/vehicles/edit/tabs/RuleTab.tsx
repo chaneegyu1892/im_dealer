@@ -35,8 +35,17 @@ export function RuleTab({ vehicle }: RuleTabProps) {
 
   const handleDelete = async (ruleId: string) => {
     if (!confirm("이 규칙을 삭제하시겠습니까? (충돌 규칙의 경우 쌍방향 규칙이 모두 삭제됩니다)")) return;
-    await fetch(`/api/admin/trims/${selectedTrimId}/rules/${ruleId}`, { method: "DELETE" });
-    window.location.reload();
+    try {
+      const resp = await fetch(`/api/admin/trims/${selectedTrimId}/rules/${ruleId}`, { method: "DELETE" });
+      if (!resp.ok) {
+        alert("삭제 중 오류가 발생했습니다.");
+        return;
+      }
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      alert("삭제 중 오류가 발생했습니다.");
+    }
   };
 
   const getOptionName = (id: string) => options.find(o => o.id === id)?.name ?? "삭제된 옵션";

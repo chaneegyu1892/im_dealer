@@ -49,6 +49,7 @@ function QuotationsContent() {
   const searchParams = useSearchParams();
   const [quotes, setQuotes] = useState<AdminSavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<UIQuoteStatus | "전체">("전체");
   const [userTypeFilter, setUserTypeFilter] = useState<"Member" | "Guest" | "전체">("전체");
@@ -112,10 +113,14 @@ function QuotationsContent() {
 
   const fetchQuotes = async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const PAGE_SIZE = 100;
       const first = await fetch(`/api/admin/quotes?limit=${PAGE_SIZE}&page=1`).then((r) => r.json());
-      if (!first.success) return;
+      if (!first.success) {
+        setFetchError("견적 데이터를 불러오지 못했습니다.");
+        return;
+      }
 
       let all: AdminSavedQuote[] = first.data;
       const total: number = first.meta?.total ?? all.length;
@@ -136,6 +141,7 @@ function QuotationsContent() {
       setQuotes(all);
     } catch (err) {
       console.error(err);
+      setFetchError("견적 데이터를 불러오는 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
@@ -217,97 +223,129 @@ function QuotationsContent() {
   };
 
   const handleExportExcel = async () => {
-    const target = selectedIds.size > 0
-      ? filteredQuotes.filter(q => selectedIds.has(q.id))
-      : filteredQuotes;
+    try {
+      const target = selectedIds.size > 0
+        ? filteredQuotes.filter(q => selectedIds.has(q.id))
+        : filteredQuotes;
 
-    const dataToExport = target.map(q => ({
-      "견적 ID": q.id,
-      "고객명": q.customerName ?? "",
-      "연락처": q.phone ?? "",
-      "차량명": q.vehicleName,
-      "월 납입금 (원)": q.monthlyPayment,
-      "브랜드": q.vehicleBrand,
-      "진행 상태": q.status,
-      "접수일": q.createdAt,
-      "계정 유형": q.userType === "Member" ? "회원" : "비회원",
-      "견적 방식": q.quoteType === "AI" ? "AI추천" : "세부견적",
-      "메모": q.internalMemo ?? "",
-    }));
+      const dataToExport = target.map(q => ({
+        "견적 ID": q.id,
+        "고객명": q.customerName ?? "",
+        "연락처": q.phone ?? "",
+        "차량명": q.vehicleName,
+        "월 납입금 (원)": q.monthlyPayment,
+        "브랜드": q.vehicleBrand,
+        "진행 상태": q.status,
+        "접수일": q.createdAt,
+        "계정 유형": q.userType === "Member" ? "회원" : "비회원",
+        "견적 방식": q.quoteType === "AI" ? "AI추천" : "세부견적",
+        "메모": q.internalMemo ?? "",
+      }));
 
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("견적데이터");
-    worksheet.columns = [
-      { header: "견적 ID", key: "견적 ID", width: 14 },
-      { header: "고객명", key: "고객명", width: 8 },
-      { header: "연락처", key: "연락처", width: 16 },
-      { header: "차량명", key: "차량명", width: 30 },
-      { header: "월 납입금 (원)", key: "월 납입금 (원)", width: 14 },
-      { header: "브랜드", key: "브랜드", width: 16 },
-      { header: "진행 상태", key: "진행 상태", width: 10 },
-      { header: "접수일", key: "접수일", width: 12 },
-      { header: "계정 유형", key: "계정 유형", width: 10 },
-      { header: "견적 방식", key: "견적 방식", width: 12 },
-      { header: "메모", key: "메모", width: 30 },
-    ];
-    worksheet.addRows(dataToExport);
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("견적데이터");
+      worksheet.columns = [
+        { header: "견적 ID", key: "견적 ID", width: 14 },
+        { header: "고객명", key: "고객명", width: 8 },
+        { header: "연락처", key: "연락처", width: 16 },
+        { header: "차량명", key: "차량명", width: 30 },
+        { header: "월 납입금 (원)", key: "월 납입금 (원)", width: 14 },
+        { header: "브랜드", key: "브랜드", width: 16 },
+        { header: "진행 상태", key: "진행 상태", width: 10 },
+        { header: "접수일", key: "접수일", width: 12 },
+        { header: "계정 유형", key: "계정 유형", width: 10 },
+        { header: "견적 방식", key: "견적 방식", width: 12 },
+        { header: "메모", key: "메모", width: 30 },
+      ];
+      worksheet.addRows(dataToExport);
 
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `아임딜러_견적데이터_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    link.click();
-    URL.revokeObjectURL(url);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `아임딜러_견적데이터_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("[handleExportExcel] failed", err);
+      alert("엑셀 내보내기 중 오류가 발생했습니다.");
+    }
   };
 
   const handleBulkStatusChange = async (newStatus: UIQuoteStatus) => {
     const dbStatus = DB_STATUS_MAP[newStatus];
     logActivity(`[견적 일괄 변경] 선택된 ${selectedIds.size}건의 상태를 '${newStatus}'로 변경했습니다.`, 'update');
-    
-    // 개별 업데이트 (벌크 API가 있다면 좋겠지만 일단 루프로)
-    await Promise.all(
-      Array.from(selectedIds).map(id =>
-        fetch(`/api/admin/quotes/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: dbStatus }),
-        })
-      )
-    );
-    
-    fetchQuotes();
-    setSelectedIds(new Set());
-  };
 
-  const handleBulkDelete = async () => {
-    if (confirm(`선택한 ${selectedIds.size}개의 견적을 정말 삭제하시겠습니까?`)) {
-      logActivity(`[견적 일괄 삭제] 선택된 ${selectedIds.size}건의 견적 데이터를 삭제했습니다.`, 'delete');
-      
-      await Promise.all(
+    try {
+      // 개별 업데이트 (벌크 API가 있다면 좋겠지만 일단 루프로)
+      const results = await Promise.all(
         Array.from(selectedIds).map(id =>
-          fetch(`/api/admin/quotes/${id}`, { method: "DELETE" })
+          fetch(`/api/admin/quotes/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: dbStatus }),
+          }).then(res => res.ok)
         )
       );
 
+      if (!results.every(Boolean)) {
+        alert("일괄 처리 중 일부 실패했습니다.");
+      }
+
       fetchQuotes();
       setSelectedIds(new Set());
+    } catch (err) {
+      console.error("[handleBulkStatusChange] failed", err);
+      alert("상태 변경 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`선택한 ${selectedIds.size}개의 견적을 정말 삭제하시겠습니까?`)) return;
+
+    logActivity(`[견적 일괄 삭제] 선택된 ${selectedIds.size}건의 견적 데이터를 삭제했습니다.`, 'delete');
+
+    try {
+      const results = await Promise.all(
+        Array.from(selectedIds).map(id =>
+          fetch(`/api/admin/quotes/${id}`, { method: "DELETE" }).then(res => res.ok)
+        )
+      );
+
+      if (!results.every(Boolean)) {
+        alert("일괄 처리 중 일부 실패했습니다.");
+      }
+
+      fetchQuotes();
+      setSelectedIds(new Set());
+    } catch (err) {
+      console.error("[handleBulkDelete] failed", err);
+      alert("삭제 중 오류가 발생했습니다.");
     }
   };
 
   const updateQuoteStatus = async (id: string, newStatus: UIQuoteStatus) => {
     const dbStatus = DB_STATUS_MAP[newStatus];
-    await fetch(`/api/admin/quotes/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: dbStatus }),
-    });
-    fetchQuotes();
-    if (drawerQuote?.id === id) {
-      setDrawerQuote(prev => prev ? { ...prev, status: dbStatus as any } : null);
+    try {
+      const res = await fetch(`/api/admin/quotes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: dbStatus }),
+      });
+      if (!res.ok) {
+        alert("상태 변경 중 오류가 발생했습니다.");
+        return;
+      }
+      fetchQuotes();
+      if (drawerQuote?.id === id) {
+        setDrawerQuote(prev => prev ? { ...prev, status: dbStatus as any } : null);
+      }
+    } catch (err) {
+      console.error("[updateQuoteStatus] failed", err);
+      alert("상태 변경 중 오류가 발생했습니다.");
     }
   };
 
@@ -322,12 +360,21 @@ function QuotationsContent() {
   };
 
   const saveMemo = async (id: string, memo: string) => {
-     await fetch(`/api/admin/quotes/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ internalMemo: memo }),
-    });
-    fetchQuotes();
+    try {
+      const res = await fetch(`/api/admin/quotes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ internalMemo: memo }),
+      });
+      if (!res.ok) {
+        alert("메모 저장 중 오류가 발생했습니다.");
+        return;
+      }
+      fetchQuotes();
+    } catch (err) {
+      console.error("[saveMemo] failed", err);
+      alert("메모 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -520,6 +567,12 @@ function QuotationsContent() {
 
       {/* 4. 테이블 */}
       <div className="flex-1 overflow-auto bg-white min-h-0 relative scrollbar-hide">
+        {fetchError && (
+          <div className="px-6 py-3 bg-red-50 border-b border-red-200 flex items-center gap-2">
+            <AlertCircle size={14} className="text-red-500 shrink-0" />
+            <p className="text-[12px] text-red-600 font-medium">{fetchError}</p>
+          </div>
+        )}
         <table className="w-full text-left border-collapse">
           <thead className="bg-[#FAFBFF] sticky top-0 z-10 border-b border-[#E8EAF0] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
             <tr>

@@ -64,6 +64,8 @@ export default function QuoteLogicSimulator() {
           if (rates.length > 0) setRankRates(rates);
         }
         if (sData.success) setSummary(sData.data);
+      } catch {
+        alert("데이터를 불러오는 중 오류가 발생했습니다.");
       } finally {
         setLoading(false);
       }
@@ -241,6 +243,8 @@ export default function QuoteLogicSimulator() {
 
       const out = calculateMultiFinanceQuote(input);
       setResults(out);
+    } catch {
+      setCalcError("계산 중 오류가 발생했습니다.");
     } finally {
       setCalculating(false);
     }

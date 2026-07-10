@@ -48,12 +48,17 @@ export default function AdminManager() {
 
   const toggleStatus = async (id: string, currentStatus: boolean) => {
     try {
-      await fetch("/api/admin/settings/admins", {
+      const res = await fetch("/api/admin/settings/admins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, isActive: !currentStatus }),
       });
-      fetchAdmins();
+      if (res.ok) {
+        fetchAdmins();
+      } else {
+        const d = await res.json();
+        alert(d.error || "상태 변경 실패");
+      }
     } catch {
       alert("상태 변경 실패");
     }

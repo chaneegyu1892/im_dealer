@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import {
   verifyDriverLicense,
   verifyHealthInsurance,
@@ -22,6 +23,15 @@ const fetchSchema = z.object({
 // customerType에 따라 Codef API 순차 호출 후 결과 저장
 export async function POST(request: NextRequest) {
   try {
+    // 로그인 필수 — Codef 유료 API 호출 및 PII 저장을 인증된 사용자만 허용.
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    }
+
     const body = await request.json();
     const parsed = fetchSchema.safeParse(body);
 
@@ -44,6 +54,11 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    // verification 레코드의 userId 가 현재 로그인 사용자와 일치하는지 확인.
+    // consent 라우트가 CustomerVerification 에 userId 를 저장하지 않으므로,
+    // sessionId 기반 매칭이 불가능 → 최소한 로그인 여부로 게이트한다.
+    // (TODO: CustomerVerification 에 userId 컬럼 추가 후 소유권 검증 강화)
 
     const customerType = verification.customerType as
       | "individual"
