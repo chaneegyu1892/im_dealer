@@ -48,7 +48,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             className={cn(
               "w-full rounded-btn border border-border-subtle bg-surface text-text-strong outline-none",
               "placeholder:text-text-muted transition-[border-color,box-shadow] duration-200",
-              "focus-visible:ring-4 focus-visible:ring-focus/35 focus-visible:ring-offset-2 focus-visible:ring-offset-surface focus-visible:border-focus-ring",
+              "focus-visible:ring-4 focus-visible:ring-focus-ring/35 focus-visible:ring-offset-2 focus-visible:ring-offset-surface focus-visible:border-focus-ring",
               "motion-safe:transition-all",
               SIZE_STYLE[size],
               disabled &&

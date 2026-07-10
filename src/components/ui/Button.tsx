@@ -65,7 +65,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const classes = cn(
       "relative inline-flex items-center justify-center gap-2 rounded-btn font-bold",
       "min-h-[44px] whitespace-nowrap transition-all duration-200 active:scale-[0.98]",
-      "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+      "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
       isIconVariant && "h-11 w-11 shrink-0 rounded-[999px] p-0",
       isDisabled && "pointer-events-none cursor-not-allowed opacity-45",
       variantStyles[variant],

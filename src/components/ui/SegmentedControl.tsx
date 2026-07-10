@@ -177,7 +177,7 @@ export function SegmentedControl({
                 !isActive &&
                   "text-text-body hover:bg-surface hover:text-text-strong border border-transparent",
                 !isActive && !isDisabled && "focus-visible:border-brand focus-visible:text-text-strong",
-                "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus/35 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+                "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/35 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
                 isDisabled && "cursor-not-allowed opacity-55"
               )}
               tabIndex={isActive ? 0 : -1}

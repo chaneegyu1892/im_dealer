@@ -59,7 +59,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     const isInteractive = interactive || variant === "selectable";
     const isDisabled = isInteractive && disabled;
     const interactiveStyles = isInteractive
-      ? "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface cursor-pointer"
+      ? "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface cursor-pointer"
       : "";
     const stateStyles = cn(
       interactiveStyles,

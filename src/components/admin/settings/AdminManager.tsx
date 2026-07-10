@@ -64,24 +64,24 @@ export default function AdminManager() {
     }
   };
 
-  if (loading) return <div className="py-12 text-center text-sm text-[#9BA4C0]">조회 중...</div>;
+  if (loading) return <div className="py-12 text-center text-[13px] text-[#9BA4C0]">조회 중...</div>;
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-[#9BA4C0]">
+      <p className="text-[12px] text-[#9BA4C0]">
         사용자 관리 페이지에서 카카오 로그인 계정에 관리자 권한을 부여할 수 있습니다.
       </p>
 
       <div className="grid grid-cols-1 gap-3">
         {admins.map((admin) => (
-          <div key={admin.id} className="bg-[#F8F9FC] border border-[#E8EAF0] rounded-2xl p-4 flex items-center justify-between">
+          <div key={admin.id} className="bg-[#F8F9FC] border border-[#E8EAF0] rounded-[12px] p-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${admin.isActive ? 'bg-[#6066EE] text-white' : 'bg-gray-100 text-gray-400'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-[13px] ${admin.isActive ? 'bg-[#6066EE] text-white' : 'bg-gray-100 text-gray-400'}`}>
                 {admin.name[0]}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-[#1A1A2E]">{admin.name}</span>
+                  <span className="text-[13px] font-bold text-[#1A1A2E]">{admin.name}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${
                     admin.role === 'superadmin'
                       ? 'bg-[#1A1A2E] text-white'
@@ -107,7 +107,7 @@ export default function AdminManager() {
                 value={admin.role}
                 onChange={(e) => changeRole(admin.id, e.target.value)}
                 disabled={admin.id === me?.id}
-                className="text-xs px-2.5 py-1.5 border border-[#E8EAF0] rounded-xl focus:outline-none focus:border-[#6066EE] bg-white text-[#5A6080] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-[12px] px-2.5 py-1.5 border border-[#E8EAF0] rounded-[10px] focus:outline-none focus:border-[#6066EE] bg-white text-[#5A6080] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="superadmin">최고 관리자 (Super Admin)</option>
                 <option value="admin">관리자 (Admin)</option>
@@ -117,7 +117,7 @@ export default function AdminManager() {
               <button
                 onClick={() => toggleStatus(admin.id, admin.isActive)}
                 disabled={admin.id === me?.id}
-                className={`p-2 rounded-lg transition-colors ${admin.isActive ? 'hover:bg-red-50 text-emerald-500 hover:text-red-500' : 'hover:bg-[#F0F1FA] text-gray-300 hover:text-[#6066EE]'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`p-2 rounded-[10px] transition-colors ${admin.isActive ? 'hover:bg-red-50 text-emerald-500 hover:text-red-500' : 'hover:bg-[#F0F1FA] text-gray-300 hover:text-[#6066EE]'} disabled:opacity-50 disabled:cursor-not-allowed`}
                 title={admin.isActive ? "비활성화" : "활성화"}
               >
                 <Power size={18} />

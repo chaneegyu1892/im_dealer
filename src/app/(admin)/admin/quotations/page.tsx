@@ -36,11 +36,11 @@ const DB_STATUS_MAP: Record<UIQuoteStatus, string> = {
 };
 
 const STATUS_STYLE: Record<UIQuoteStatus, { bg: string; text: string; icon: React.ElementType }> = {
-  상담대기: { bg: "bg-slate-100", text: "text-slate-600", icon: Clock },
-  연락완료: { bg: "bg-indigo-50", text: "text-indigo-600", icon: Phone },
-  상담중:   { bg: "bg-blue-50",   text: "text-blue-600",  icon: MessageSquare },
-  계약완료: { bg: "bg-emerald-50", text: "text-emerald-600", icon: CheckCircle2 },
-  계약취소: { bg: "bg-red-50",    text: "text-red-500",   icon: AlertCircle },
+  상담대기: { bg: "bg-[#E5E5FA]", text: "text-[#000666]", icon: Clock },
+  연락완료: { bg: "bg-[#E8EAF2]", text: "text-[#5A5D80]", icon: Phone },
+  상담중:   { bg: "bg-[#E5E5FA]", text: "text-[#6066EE]", icon: MessageSquare },
+  계약완료: { bg: "bg-[#E8F8EF]", text: "text-[#1FC26B]", icon: CheckCircle2 },
+  계약취소: { bg: "bg-[#FFECEF]", text: "text-[#E23B4A]", icon: AlertCircle },
 };
 
 const STATUS_LIST: UIQuoteStatus[] = ["상담대기", "연락완료", "상담중", "계약완료", "계약취소"];

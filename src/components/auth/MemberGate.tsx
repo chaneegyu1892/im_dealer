@@ -67,13 +67,13 @@ export function MemberGate({
           aria-label={message}
           className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-[10px] bg-white/40 px-4 text-center backdrop-blur-[2px] transition-colors hover:bg-white/55"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-            <Lock size={16} className="text-primary" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10">
+            <Lock size={16} className="text-brand" />
           </span>
           <span className="text-[12px] font-semibold leading-snug text-ink">
             {message}
           </span>
-          <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-status-warning-bg px-3 py-1.5 text-[12px] font-semibold text-text-strong">
+          <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-status-warning-soft px-3 py-1.5 text-[12px] font-semibold text-status-warning">
             카카오로 로그인
           </span>
         </button>

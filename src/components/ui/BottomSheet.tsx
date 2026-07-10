@@ -172,7 +172,7 @@ export function BottomSheet({
                   className={cn(
                     "-mr-1 inline-flex h-11 w-11 items-center justify-center rounded-full",
                     "text-text-body transition-colors hover:bg-surface-soft focus-visible:outline-none",
-                    "focus-visible:ring-4 focus-visible:ring-focus/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                    "focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
                   )}
                 >
                   <X size={18} />

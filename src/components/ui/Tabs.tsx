@@ -174,7 +174,7 @@ export function Tabs({
               className={cn(
                 "inline-flex min-h-[44px] flex-1 items-center justify-center rounded-[10px]",
                 "px-4 text-[14px] font-semibold leading-tight whitespace-nowrap transition-all",
-                "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus/35 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
+                "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/35 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
                 isActive && "bg-surface text-text-strong shadow-card border border-border-strong",
                 !isActive && "bg-transparent text-text-body hover:bg-surface hover:text-text-strong",
                 disabled && "cursor-not-allowed opacity-55"
