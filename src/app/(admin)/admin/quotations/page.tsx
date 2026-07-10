@@ -151,6 +151,16 @@ function QuotationsContent() {
     fetchQuotes();
   }, []);
 
+  // 상세 Drawer가 열려 있을 때 ESC로 닫기
+  useEffect(() => {
+    if (!drawerQuote) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerQuote(null);
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [drawerQuote]);
+
   // URL 파라미터(?id=... 또는 ?search=...) 연동
   useEffect(() => {
     if (loading) return;
@@ -367,13 +377,18 @@ function QuotationsContent() {
         body: JSON.stringify({ internalMemo: memo }),
       });
       if (!res.ok) {
-        alert("메모 저장 중 오류가 발생했습니다.");
+        // 실패 시 로컬 state가 서버와 불일치한 채 남지 않도록 서버 진실값으로 롤백.
+        const err = await res.json().catch(() => ({}));
+        alert(err.error ?? "메모 저장 중 오류가 발생했습니다.");
+        fetchQuotes();
         return;
       }
       fetchQuotes();
     } catch (err) {
       console.error("[saveMemo] failed", err);
       alert("메모 저장 중 오류가 발생했습니다.");
+      // 네트워크 실패 시에도 서버 진실값으로 롤백.
+      fetchQuotes();
     }
   };
 
@@ -710,11 +725,11 @@ function QuotationsContent() {
       <AnimatePresence>
         {drawerQuote && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDrawerQuote(null)} className="absolute inset-0 bg-black/20 backdrop-blur-[2px] z-40" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDrawerQuote(null)} className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40" />
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute top-0 right-0 bottom-0 w-[420px] bg-white z-50 flex flex-col border-l border-[#E8EAF0] shadow-[-10px_0_30px_rgba(0,0,0,0.08)]"
+              className="fixed top-0 right-0 bottom-0 w-full max-w-[420px] bg-white z-50 flex flex-col border-l border-[#E8EAF0] shadow-[-10px_0_30px_rgba(0,0,0,0.08)]"
             >
               <div className="flex items-center justify-between px-6 py-5 border-b border-[#E8EAF0] bg-[#FAFBFF]">
                 <div>

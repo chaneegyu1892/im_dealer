@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Star } from "lucide-react";
 import type { AdminVehicleDetail, AdminVehicleColor, ColorKind } from "@/types/admin";
 import { ColorManager } from "../ColorManager";
@@ -15,6 +16,7 @@ const KIND_LABELS: Record<ColorKind, string> = {
 };
 
 export function ColorTab({ vehicle }: ColorTabProps) {
+  const router = useRouter();
   const [modal, setModal] = useState<{
     isOpen: boolean;
     target: AdminVehicleColor | null;
@@ -31,7 +33,7 @@ export function ColorTab({ vehicle }: ColorTabProps) {
       method: "DELETE",
     });
     if (res.ok) {
-      window.location.reload();
+      router.refresh();
     } else {
       const data = await res.json().catch(() => ({}));
       alert(data.error ?? "삭제 중 오류가 발생했습니다.");

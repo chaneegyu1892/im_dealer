@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Check, X, Tag, Zap, CheckSquare, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatKRWMan } from "@/lib/format";
@@ -23,6 +24,7 @@ interface TrimTabProps {
 }
 
 export function TrimTab({ vehicle }: TrimTabProps) {
+  const router = useRouter();
   const [selectedLineupId, setSelectedLineupId] = useState<string>(
     vehicle.lineups[0]?.id ?? ""
   );
@@ -151,7 +153,7 @@ export function TrimTab({ vehicle }: TrimTabProps) {
         return;
       }
       closeModal();
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert("저장 중 오류가 발생했습니다.");
@@ -168,7 +170,7 @@ export function TrimTab({ vehicle }: TrimTabProps) {
         alert("삭제 중 오류가 발생했습니다.");
         return;
       }
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert("삭제 중 오류가 발생했습니다.");
@@ -258,7 +260,7 @@ export function TrimTab({ vehicle }: TrimTabProps) {
         return;
       }
       exitMultiSelectMode();
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert("적용 중 오류가 발생했습니다.");
@@ -289,7 +291,7 @@ export function TrimTab({ vehicle }: TrimTabProps) {
         return;
       }
       exitMultiSelectMode();
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert("적용 중 오류가 발생했습니다.");

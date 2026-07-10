@@ -114,21 +114,14 @@ page.tsx (SSR)
 ### 데이터 흐름
 
 ```
-page.tsx (SSR)
-  └─ getAdminQuotes(1, 100)  ← lib/admin-queries.ts
-  └─ <QuotationTable initialQuotes={...} total={...} />
+page.tsx (client component, QuotationsContent)
+  └─ 클라이언트에서 /api/admin/quotes fetch (PAGE_SIZE 단위 페이지 로드)
+  └─ 자체 테이블 + 상세 Drawer + 일괄 처리 렌더
 ```
 
-### `src/components/admin/quotations/QuotationTable.tsx`
-
-#### Props
-
-```typescript
-interface QuotationTableProps {
-  initialQuotes: AdminSavedQuote[];
-  total: number;
-}
-```
+> 참고: 과거 `src/components/admin/quotations/QuotationTable.tsx` 컴포넌트는
+> 제거되었으며, 현재는 `src/app/(admin)/admin/quotations/page.tsx` 의
+> `QuotationsContent` 가 동일 기능을 직접 구현한다.
 
 #### 테이블 컬럼
 
@@ -481,8 +474,8 @@ interface Props {
 
 | 증상 | 원인 | 확인할 파일 |
 |------|------|-------------|
-| Drawer가 안 열림 | selectedId state 초기화 로직 변경 | QuotationTable.tsx |
-| 서류 확인 결과 미표시 | VerificationResult 미임포트 | QuotationTable.tsx |
+| Drawer가 안 열림 | selectedId state 초기화 로직 변경 | quotations/page.tsx |
+| 서류 확인 결과 미표시 | VerificationResult 미임포트 | quotations/page.tsx |
 | 차트 빈 화면 | SVG viewBox 계산 오류 | LineChart / BarChart / DonutChart |
 | KPI 카드 0 표시 | SSR 쿼리 함수 미호출 | admin-queries.ts + page.tsx |
 | 차량 목록 브랜드 필터 안됨 | VehicleManager 상태 전달 누락 | VehicleManager.tsx → VehicleList.tsx |

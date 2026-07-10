@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2, ChevronRight, AlertCircle, Link2, Ban, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdminVehicleDetail } from "@/types/admin";
@@ -11,6 +12,7 @@ interface RuleTabProps {
 }
 
 export function RuleTab({ vehicle }: RuleTabProps) {
+  const router = useRouter();
   const [selectedLineupId, setSelectedLineupId] = useState<string>(
     vehicle.lineups[0]?.id ?? ""
   );
@@ -41,7 +43,7 @@ export function RuleTab({ vehicle }: RuleTabProps) {
         alert("삭제 중 오류가 발생했습니다.");
         return;
       }
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert("삭제 중 오류가 발생했습니다.");

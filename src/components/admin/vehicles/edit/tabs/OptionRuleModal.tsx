@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ interface OptionRuleModalProps {
 }
 
 export function OptionRuleModal({ trimId, options, onClose }: OptionRuleModalProps) {
+  const router = useRouter();
   const [ruleType, setRuleType] = useState<"REQUIRED"| "INCLUDED" | "CONFLICT">("REQUIRED");
   const [sourceId, setSourceId] = useState("");
   const [targetId, setTargetId] = useState("");
@@ -38,7 +40,7 @@ export function OptionRuleModal({ trimId, options, onClose }: OptionRuleModalPro
       });
       if (resp.ok) {
         onClose();
-        window.location.reload();
+        router.refresh();
       } else {
         const err = await resp.json();
         alert(err.error || "규칙 저장 중 오류가 발생했습니다.");

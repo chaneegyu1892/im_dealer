@@ -63,7 +63,8 @@ export function BasicInfoTab({ vehicle }: BasicInfoTabProps) {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        alert("저장 중 오류가 발생했습니다.");
+        const err = await res.json().catch(() => ({}));
+        alert(err.error ?? "저장 중 오류가 발생했습니다.");
         return;
       }
       router.refresh();
