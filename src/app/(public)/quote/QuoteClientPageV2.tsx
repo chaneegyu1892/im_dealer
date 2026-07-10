@@ -127,6 +127,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const initialCustomerType = isCustomerType(customerTypeParam) ? customerTypeParam : null;
   const isRestoreReturn = searchParams?.get("restore") === "1";
   const prefillOptionIds = searchParams?.get("options")?.split(",").filter(Boolean) ?? [];
+  const draftSource = searchParams?.get("source") === "AI" ? "AI" : "DETAIL" as const;
 
   const [quoteSessionId] = useState(() =>
     typeof crypto !== "undefined" ? crypto.randomUUID() : `quote-${Date.now()}`
@@ -175,6 +176,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
 
   // ─── 보증금/선납/CTA 상태 (v1 계약 그대로) ─────────────
   const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
@@ -535,10 +537,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
 
   // ─── 견적 초안 저장 + /verify 이동 (v1 계약 그대로) ────
   const handleContractApply = useCallback(async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (quoteResult) {
+    if (!quoteResult || isApplying) return;
+    setIsApplying(true);
+    try {
       const quoteDraft: QuoteDraft = {
         schemaVersion: 1,
         sessionId: quoteSessionId,
@@ -553,25 +554,67 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         scenarios: quoteResult.scenarios,
         optionsTotalPrice: quoteResult.optionsTotalPrice,
         totalVehiclePrice: quoteResult.totalVehiclePrice,
-        customRates: { depositRate: 0, prepayRate: 0 },
+        customRates,
         exteriorColorId,
         interiorColorId,
+        source: draftSource,
       };
       localStorage.setItem(
         `${QUOTE_DRAFT_STORAGE_PREFIX}${quoteSessionId}`,
         JSON.stringify(quoteDraft)
       );
-    }
 
-    const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}&customerType=${customerType}`;
-    if (!user) {
-      router.push(`/login?next=${encodeURIComponent(target)}`);
-      return;
+      setError(null);
+      try {
+        const saveRes = await fetch("/api/quote/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: quoteSessionId,
+            vehicleSlug: quoteResult.vehicleSlug,
+            trimId: quoteResult.trimId,
+            selectedOptionIds: Array.from(selectedOptionIds),
+            contractMonths: quoteResult.contractMonths,
+            annualMileage: quoteResult.annualMileage,
+            contractType: "반납형",
+            customerType,
+            productType: contractCategory,
+            scenarioType: "standard",
+            customDepositRate: customRates.depositRate,
+            customPrepayRate: customRates.prepayRate,
+            exteriorColorId,
+            interiorColorId,
+            quoteType: draftSource,
+          }),
+        });
+        if (!saveRes.ok) {
+          setError("견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+          return;
+        }
+      } catch (saveError) {
+        setError(
+          saveError instanceof Error
+            ? "견적 저장 중 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+            : "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요."
+        );
+        return;
+      }
+
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}&customerType=${customerType}`;
+      if (!user) {
+        router.push(`/login?next=${encodeURIComponent(target)}`);
+        return;
+      }
+      router.push(target);
+    } finally {
+      setIsApplying(false);
     }
-    router.push(target);
   }, [
     router, quoteSessionId, selectedVehicle?.slug, quoteResult, customerType,
-    selectedOptionIds, contractCategory, exteriorColorId, interiorColorId,
+    selectedOptionIds, contractCategory, customRates, exteriorColorId, interiorColorId, draftSource,
+    isApplying,
   ]);
 
   // ─── 이미지 다운로드 (v1 계약 그대로) ─────────────────────
@@ -666,8 +709,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       customerType,
       restore: "1",
     });
+    if (draftSource === "AI") params.set("source", "AI");
     router.push(`/login?next=${encodeURIComponent(`/quote?${params.toString()}`)}`);
-  }, [buildRestoreState, router, selectedVehicle, customerType]);
+  }, [buildRestoreState, router, selectedVehicle, customerType, draftSource]);
 
   // 결과(step 3) 도달 시 저장본 localStorage 저장 + restore 마커 동기화 (v1 계약)
   useEffect(() => {
@@ -838,6 +882,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               customRates={customRates}
               costMode={costMode}
               isRecalculating={isRecalculating}
+              isApplying={isApplying}
+              applyError={error}
               isImageDownloading={isImageDownloading}
               imageError={imageError}
               onCustomRatesChange={setCustomRates}
@@ -969,6 +1015,8 @@ function Step3ResultHeader({
   customRates,
   costMode,
   isRecalculating,
+  isApplying,
+  applyError,
   isImageDownloading,
   imageError,
   onCustomRatesChange,
@@ -994,6 +1042,8 @@ function Step3ResultHeader({
   customRates: { depositRate: number; prepayRate: number };
   costMode: CostMode;
   isRecalculating: boolean;
+  isApplying: boolean;
+  applyError: string | null;
   isImageDownloading: boolean;
   imageError: string | null;
   onCustomRatesChange: (rates: { depositRate: number; prepayRate: number }) => void;
@@ -1254,11 +1304,20 @@ function Step3ResultHeader({
           <button
             type="button"
             onClick={onContractApply}
-            className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15.5px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99]"
+            disabled={isApplying}
+            aria-busy={isApplying}
+            className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15.5px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99] disabled:cursor-wait disabled:opacity-60"
           >
             <ClipboardCheck size={17} strokeWidth={2.2} />
-            이 조건으로 심사 요청하기
+            {isApplying ? "견적 저장 중…" : "이 조건으로 심사 요청하기"}
           </button>
+
+          {applyError && (
+            <div role="alert" className="flex items-start gap-2 rounded-[14px] border border-status-danger/20 bg-status-danger-soft px-4 py-3 text-[14px] leading-relaxed">
+              <AlertCircle size={16} className="mt-0.5 shrink-0 text-status-danger" />
+              <p className="break-keep text-text-primary">{applyError}</p>
+            </div>
+          )}
 
           {/* 보조 CTA 2분할: 이미지 / 상담 */}
           <div className="grid grid-cols-2 gap-2.5">

@@ -351,7 +351,7 @@ model VehicleImage {
 
 model SavedQuote {
   id                    String      @id @default(cuid())
-  sessionId             String
+  sessionId             String      @unique
   userId                String?
   vehicleId             String
   trimId                String
@@ -391,7 +391,6 @@ model SavedQuote {
   reviews               Review[]
   reviewTokens          ReviewRequestToken[]
 
-  @@index([sessionId])
   @@index([status])
   @@index([assigneeId])
   @@index([userId])

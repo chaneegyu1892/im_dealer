@@ -82,6 +82,7 @@ export interface QuoteDraft {
   totalVehiclePrice?: number;
   exteriorColorId?: string | null;
   interiorColorId?: string | null;
+  source?: "AI" | "DETAIL";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -151,6 +152,7 @@ function normalizeDraft(value: unknown, expectedSessionId: string): QuoteDraft |
       typeof value.exteriorColorId === "string" ? value.exteriorColorId : null,
     interiorColorId:
       typeof value.interiorColorId === "string" ? value.interiorColorId : null,
+    source: value.source === "AI" ? "AI" : "DETAIL",
   };
 }
 

@@ -11,28 +11,13 @@ import {
 } from "@/lib/quote-calculator";
 import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { saveQuoteSchema } from "./request-schema";
 
 const SCENARIO_CONDITIONS = {
   conservative: { depositRate: 20, prepayRate: 0 },
   standard: { depositRate: 0, prepayRate: 0 },
   aggressive: { depositRate: 0, prepayRate: 30 },
 } as const;
-
-const saveQuoteSchema = z.object({
-  sessionId: z.string().min(1),
-  vehicleSlug: z.string().min(1),
-  trimId: z.string().min(1),
-  selectedOptionIds: z.array(z.string()).default([]),
-  extraOptionsPrice: z.number().int().min(0).default(0),
-  contractMonths: z.number().int().refine((v) => [36, 48, 60].includes(v)),
-  annualMileage: z.number().int().refine((v) => [10000, 20000, 30000].includes(v)),
-  contractType: z.enum(["인수형", "반납형"]),
-  customerType: z.enum(["individual", "self_employed", "corporate", "nonprofit"]).default("individual"),
-  productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
-  scenarioType: z.enum(["conservative", "standard", "aggressive"]),
-  exteriorColorId: z.string().nullable().optional(),
-  interiorColorId: z.string().nullable().optional(),
-});
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -137,7 +122,12 @@ export async function POST(request: NextRequest) {
     const rankRates = rankSurcharges.length > 0
       ? rankSurcharges.map((r) => r.rate)
       : [...RANK_SURCHARGE_RATES];
-    const condition = SCENARIO_CONDITIONS[input.scenarioType];
+    const condition = input.customDepositRate !== undefined || input.customPrepayRate !== undefined
+      ? {
+          depositRate: input.customDepositRate ?? 0,
+          prepayRate: input.customPrepayRate ?? 0,
+        }
+      : SCENARIO_CONDITIONS[input.scenarioType];
 
     const calcInput: CalcInput = {
       vehiclePrice: totalVehiclePrice,
@@ -204,14 +194,27 @@ export async function POST(request: NextRequest) {
       }),
     })) as Prisma.InputJsonObject;
 
-    const existing = await prisma.savedQuote.findFirst({
-      where: { sessionId: input.sessionId, deletedAt: null },
-      orderBy: { createdAt: "desc" },
+    const existing = await prisma.savedQuote.findUnique({
+      where: { sessionId: input.sessionId },
+      select: { id: true, userId: true, deletedAt: true, status: true },
     });
+
+    if (existing?.deletedAt) {
+      return NextResponse.json({ error: "삭제된 견적입니다." }, { status: 410 });
+    }
+    if (existing?.userId && existing.userId !== user?.id) {
+      return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
+    }
+    if (existing && existing.status !== "NEW") {
+      return NextResponse.json({
+        success: true,
+        data: { id: existing.id, sessionId: input.sessionId },
+      });
+    }
 
     const data = {
       sessionId: input.sessionId,
-      userId: user?.id ?? null,
+      userId: user?.id ?? existing?.userId ?? null,
       vehicleId: vehicle.id,
       trimId: trim.id,
       contractMonths: input.contractMonths,
@@ -220,6 +223,7 @@ export async function POST(request: NextRequest) {
       prepayRate: condition.prepayRate,
       contractType: input.contractType,
       customerType: input.customerType,
+      quoteType: input.quoteType,
       monthlyPayment,
       totalCost: monthlyPayment * input.contractMonths,
       breakdown,
@@ -228,14 +232,11 @@ export async function POST(request: NextRequest) {
       interiorColorId: interiorColor?.id ?? null,
     };
 
-    const savedQuote = existing
-      ? await prisma.savedQuote.update({
-          where: { id: existing.id },
-          data,
-        })
-      : await prisma.savedQuote.create({
-          data,
-        });
+    const savedQuote = await prisma.savedQuote.upsert({
+      where: { sessionId: input.sessionId },
+      create: data,
+      update: existing ? data : {},
+    });
 
     await prisma.quoteCalcLog.updateMany({
       where: {

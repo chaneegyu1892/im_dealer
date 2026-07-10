@@ -615,8 +615,8 @@ export function VerifyClient() {
             trimId: quoteDraft.trimId,
             contractMonths: quoteDraft.contractMonths,
             annualMileage: quoteDraft.annualMileage,
-            depositRate: scenario?.depositAmount ? 20 : 0,
-            prepayRate: scenario?.prepayAmount ? 30 : 0,
+            depositRate: quoteDraft.customRates.depositRate,
+            prepayRate: quoteDraft.customRates.prepayRate,
             contractType: quoteDraft.contractType,
             customerType: quoteDraft.customerType ?? customerType,
             monthlyPayment: scenario?.monthlyPayment || 0,
@@ -645,7 +645,8 @@ export function VerifyClient() {
     } catch (err) {
       // 견적 저장 실패는 치명적이지 않다 — 서류는 이미 수집됨. 완료로 진행.
       // 단 네트워크/파싱 에러도 놓치지 않도록 Sentry에 보고한다.
-      Sentry.captureException(err, { tags: { area: "verify", customerType } });
+      const error = err instanceof Error ? err : new Error(String(err));
+      Sentry.captureException(error, { tags: { area: "verify", customerType } });
     } finally {
       setStep("done");
     }

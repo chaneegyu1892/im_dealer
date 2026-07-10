@@ -2,35 +2,30 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminNotification } from "@/lib/admin-notification";
-import { isCustomerType } from "@/constants/customer-types";
 import { z } from "zod";
 
-// CRM 리드 저장 — 클라이언트 입력의 구조/타입을 검증해 크래시(문자열 monthlyPayment 등)와
-// 이상 데이터(contractMonths 0/음수)를 차단한다.
-// (클라이언트 금액 신뢰 제거를 위한 서버 재계산 통일은 verify 플로우 전반 정리와 함께 후속 작업.)
 const quotesPostSchema = z.object({
   sessionId: z.string().min(1),
-  vehicleId: z.string().min(1),
-  trimId: z.string().min(1),
-  contractMonths: z.number().int().positive(),
-  annualMileage: z.number().int().positive(),
-  depositRate: z.number().min(0),
-  prepayRate: z.number().min(0),
-  contractType: z.string(),
-  customerType: z.string(),
-  monthlyPayment: z.number().int().nonnegative(),
-  totalCost: z.number().int().nonnegative(),
-  breakdown: z.record(z.unknown()).optional(),
-  customerName: z.string().optional(),
-  phone: z.string().optional(),
-  exteriorColorId: z.string().nullish(),
-  interiorColorId: z.string().nullish(),
+  customerName: z.string().trim().min(1).max(100).optional(),
+  phone: z.string().trim().min(1).max(30).optional(),
 });
+
+class QuoteRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    }
 
     const parsed = quotesPostSchema.safeParse(await request.json());
     if (!parsed.success) {
@@ -39,128 +34,81 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const {
-      sessionId,
-      vehicleId,
-      trimId,
-      contractMonths,
-      annualMileage,
-      depositRate,
-      prepayRate,
-      contractType,
-      customerType,
-      monthlyPayment,
-      totalCost,
-      breakdown,
-      customerName,
-      phone,
-      exteriorColorId,
-      interiorColorId,
-    } = parsed.data;
-
-    // vehicleId 필드로 기존 ID 또는 slug가 들어올 수 있어 저장 전 ID로 정규화
-    let targetVehicleId = vehicleId;
-    if (vehicleId) {
-      const byId = await prisma.vehicle.findUnique({
-        where: { id: vehicleId },
-        select: { id: true },
-      });
-      if (!byId) {
-        const bySlug = await prisma.vehicle.findUnique({
-          where: { slug: vehicleId },
-          select: { id: true },
-        });
-        if (bySlug) targetVehicleId = bySlug.id;
-      }
-    }
-
-    // 옵션 가격 변동 대비를 위해 저장 시점의 옵션 스냅샷을 breakdown에 함께 저장.
-    const breakdownInput =
-      breakdown && typeof breakdown === "object" ? (breakdown as Record<string, unknown>) : {};
-    const selectedOptionIdsRaw = breakdownInput.selectedOptionIds;
-    const selectedOptionIds = Array.isArray(selectedOptionIdsRaw)
-      ? selectedOptionIdsRaw.filter((id): id is string => typeof id === "string")
-      : [];
-
-    let selectedOptionsSnapshot: Array<{ id: string; name: string; price: number }> = [];
-    if (selectedOptionIds.length > 0) {
-      const options = await prisma.trimOption.findMany({
-        where: { id: { in: selectedOptionIds } },
-        select: { id: true, name: true, price: true },
-      });
-      selectedOptionsSnapshot = options.map((o) => ({ id: o.id, name: o.name, price: o.price }));
-    }
-
-    // 색상 검증 — vehicle 소속 + kind 일치
-    let exteriorColorIdValid: string | null = null;
-    let interiorColorIdValid: string | null = null;
-    let exteriorColorSnapshot: { id: string; name: string; hexCode: string; priceDelta: number } | null = null;
-    let interiorColorSnapshot: { id: string; name: string; hexCode: string; priceDelta: number } | null = null;
-    if (targetVehicleId && (exteriorColorId || interiorColorId)) {
-      const ids = [exteriorColorId, interiorColorId].filter(
-        (v): v is string => typeof v === "string" && v.length > 0
-      );
-      if (ids.length > 0) {
-        const fetched = await prisma.vehicleColor.findMany({
-          where: { id: { in: ids }, vehicleId: targetVehicleId },
-          select: { id: true, kind: true, name: true, hexCode: true, priceDelta: true },
-        });
-        const ext = fetched.find((c) => c.id === exteriorColorId && c.kind === "EXTERIOR");
-        const intr = fetched.find((c) => c.id === interiorColorId && c.kind === "INTERIOR");
-        if (ext) {
-          exteriorColorIdValid = ext.id;
-          exteriorColorSnapshot = { id: ext.id, name: ext.name, hexCode: ext.hexCode, priceDelta: ext.priceDelta };
-        }
-        if (intr) {
-          interiorColorIdValid = intr.id;
-          interiorColorSnapshot = { id: intr.id, name: intr.name, hexCode: intr.hexCode, priceDelta: intr.priceDelta };
-        }
-      }
-    }
-
-    const enrichedBreakdown = {
-      ...breakdownInput,
-      selectedOptions: selectedOptionsSnapshot,
-      exteriorColor: exteriorColorSnapshot,
-      interiorColor: interiorColorSnapshot,
+    const { sessionId, customerName, phone } = parsed.data;
+    const contactData = {
+      userId: user.id,
+      customerName: customerName ?? "고객",
+      phone: phone ?? "연락처 미입력",
     };
+    const savedQuote = await prisma.$transaction(async (tx) => {
+      const existingQuote = await tx.savedQuote.findUnique({
+        where: { sessionId },
+        select: { id: true, userId: true, deletedAt: true },
+      });
+      if (!existingQuote) {
+        throw new QuoteRequestError(
+          "저장된 견적을 찾을 수 없습니다. 견적을 다시 산출해 주세요.",
+          409
+        );
+      }
+      if (existingQuote.deletedAt) {
+        throw new QuoteRequestError("삭제된 견적입니다.", 410);
+      }
+      if (existingQuote.userId && existingQuote.userId !== user.id) {
+        throw new QuoteRequestError("접근 권한이 없습니다.", 403);
+      }
 
-    // 1. 견적 저장
-    const savedQuote = await prisma.savedQuote.create({
-      data: {
-        sessionId,
-        userId: user?.id,
-        vehicleId: targetVehicleId,
-        trimId,
-        contractMonths,
-        annualMileage,
-        depositRate,
-        prepayRate,
-        contractType,
-        customerType: isCustomerType(customerType) ? customerType : "individual",
-        monthlyPayment,
-        totalCost,
-        breakdown: enrichedBreakdown,
-        customerName: customerName || "고객",
-        phone: phone || "010-0000-0000",
-        status: "NEW", // QuoteStatus.NEW
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30일 후 만료
-        exteriorColorId: exteriorColorIdValid,
-        interiorColorId: interiorColorIdValid,
-      },
+      const ownershipWhere = {
+        id: existingQuote.id,
+        deletedAt: null,
+        OR: [{ userId: null }, { userId: user.id }],
+      };
+      const notificationClaim = await tx.savedQuote.updateMany({
+        where: {
+          ...ownershipWhere,
+          customerName: null,
+          phone: null,
+        },
+        data: contactData,
+      });
+      if (notificationClaim.count === 0) {
+        const enrichment = await tx.savedQuote.updateMany({
+          where: ownershipWhere,
+          data: contactData,
+        });
+        if (enrichment.count === 0) {
+          throw new QuoteRequestError("접근 권한이 없습니다.", 403);
+        }
+      }
+
+      const currentQuote = await tx.savedQuote.findUniqueOrThrow({
+        where: { id: existingQuote.id },
+      });
+      if (notificationClaim.count === 1) {
+        await createAdminNotification({
+          type: "NEW_QUOTE",
+          title: "새로운 견적 신청",
+          content: `${contactData.customerName}님이 새로운 견적 상담을 신청했습니다. (${currentQuote.monthlyPayment.toLocaleString()}원/월)`,
+          linkUrl: `/admin/quotations?id=${currentQuote.id}`,
+          client: tx,
+        });
+      }
+      return currentQuote;
     });
 
-    // 2. 관리자 알림 생성
-    await createAdminNotification({
-      type: "NEW_QUOTE",
-      title: "새로운 견적 신청",
-      content: `${customerName || "고객"}님이 새로운 견적 상담을 신청했습니다. (${monthlyPayment.toLocaleString()}원/월)`,
-      linkUrl: `/admin/quotations?id=${savedQuote.id}`,
+    return NextResponse.json({
+      success: true,
+      data: { id: savedQuote.id, sessionId: savedQuote.sessionId },
     });
-
-    return NextResponse.json({ success: true, data: savedQuote });
   } catch (error) {
-    console.error("[POST /api/quotes]", error);
+    if (error instanceof QuoteRequestError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    if (error instanceof Error) {
+      console.error("[POST /api/quotes]", error);
+    } else {
+      console.error("[POST /api/quotes] unknown error");
+    }
     return NextResponse.json(
       { error: "견적 저장 중 오류가 발생했습니다." },
       { status: 500 }
