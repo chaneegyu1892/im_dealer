@@ -45,6 +45,8 @@ interface Step2ConditionV2Props {
   onTrimChange: (trimId: string | null) => void;
   selectedTrim: TrimDataV2 | null;
   trimsLoading: boolean;
+  trimsError: boolean;
+  onRetryLoadTrims: () => void;
   canRequestConsultation: boolean;
   selectedOptionIds: Set<string>;
   onOptionToggle: (optionId: string) => void;
@@ -89,6 +91,8 @@ export function Step2ConditionV2({
   onTrimChange,
   selectedTrim,
   trimsLoading,
+  trimsError,
+  onRetryLoadTrims,
   canRequestConsultation,
   selectedOptionIds,
   onOptionToggle,
@@ -118,9 +122,9 @@ export function Step2ConditionV2({
     hint: t.discountPrice ? `${fmtMan(t.discountPrice)} (할인)` : fmtMan(t.price),
   }));
   const canSkipTrimSelection =
-    canRequestConsultation && !trimsLoading && trimOptions.length === 0;
+    canRequestConsultation && !trimsLoading && !trimsError && trimOptions.length === 0;
   const canShowConditionSections = !!selectedTrim || canSkipTrimSelection;
-  const canCalculate = canShowConditionSections && !isLoading;
+  const canCalculate = canShowConditionSections && !isLoading && !trimsError;
   const ctaLabel = selectedTrim
     ? "월 납입금 확인하기"
     : canSkipTrimSelection
@@ -198,7 +202,28 @@ export function Step2ConditionV2({
             </p>
           )}
         </div>
-        {trimsLoading ? (
+        {trimsError ? (
+          <div className="flex flex-col gap-3 rounded-[16px] bg-status-danger-soft p-4">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-status-danger">
+                <AlertCircle size={17} strokeWidth={2.4} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[14.5px] font-extrabold text-text-strong">트림 정보를 불러오지 못했어요</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-text-body">
+                  일시적인 네트워크 오류일 수 있어요. 다시 시도해 주세요.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onRetryLoadTrims}
+              className="public-touch-button w-fit bg-brand text-white"
+            >
+              다시 불러오기
+            </button>
+          </div>
+        ) : trimsLoading ? (
           <div className="flex h-[54px] items-center gap-2 rounded-[14px] bg-[#F8FAFC] px-4 text-[14px] text-text-muted">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#E5E8EB] border-t-brand" />
             트림 정보 불러오는 중...

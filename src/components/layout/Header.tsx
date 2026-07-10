@@ -22,6 +22,13 @@ export function Header() {
   const pathname = usePathname() ?? "";
   const isHome = pathname === "/";
   const router = useRouter();
+
+  // 견적 플로우는 전용 미니 헤더(STEP/진행바)를 모바일에서 쓰므로,
+  // 사이트 헤더와 겹쳐 단계 표시가 가려지는 문제를 막기 위해 모바일에서만 숨긴다.
+  // 데스크톱은 견적 미니 헤더가 md:hidden 이라 사이트 헤더를 그대로 노출해 로그인·네비 유지.
+  if (pathname.startsWith("/quote")) {
+    return <div className="h-0 md:hidden" aria-hidden />;
+  }
   const [user, setUser] = useState<User | null>(null);
   const [dbRole, setDbRole] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);

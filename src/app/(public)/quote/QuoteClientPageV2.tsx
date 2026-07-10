@@ -162,6 +162,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [trims, setTrims] = useState<TrimData[]>([]);
   const [trimsLoading, setTrimsLoading] = useState(false);
   const [trimsLoaded, setTrimsLoaded] = useState(false);
+  const [trimsError, setTrimsError] = useState(false);
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
   const [selectedTrimId, setSelectedTrimId] = useState<string | null>(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState<Set<string>>(new Set());
@@ -191,11 +192,13 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
 
   const hasPrefilled = useRef(false);
 
-  // ─── 트림/색상 fetch (v1 계약 그대로) ──────────────────
-  useEffect(() => {
+  // ─── 트림/색상 fetch (v1 계약 그대로 + 에러 복구) ──────
+  const loadVehicleDetails = useCallback(() => {
     if (!selectedVehicle) return;
+    const slug = selectedVehicle.slug;
     setTrimsLoading(true);
     setTrimsLoaded(false);
+    setTrimsError(false);
     setTrims([]);
     setSelectedLineup(null);
     setSelectedTrimId(null);
@@ -204,7 +207,6 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     setExteriorColorId(null);
     setInteriorColorId(null);
 
-    const slug = selectedVehicle.slug;
     // v2: 트림 자동 선택 비활성화 — 사용자가 직접 트림을 고르게 해 "먼저 트림을 골라주세요"
     // 안내가 보이도록. (복원 restoreRef가 있을 때는 저장본의 트림을 복원한다.)
     const shouldPrefill = false;
@@ -287,10 +289,16 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
           }
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        // 트림 로딩 실패 시 데드엔드 방지: 에러 상태를 설정해 재시도 UI 노출.
+        setTrimsError(true);
+      })
       .finally(() => setTrimsLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVehicle]);
+  }, [selectedVehicle, prefillOptionIds]);
+
+  useEffect(() => {
+    loadVehicleDetails();
+  }, [loadVehicleDetails]);
 
   // ─── 복원 (v1 계약 그대로) ─────────────────────────────
   useEffect(() => {
@@ -770,7 +778,17 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         <div className="flex h-14 items-center gap-3 px-5">
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={() => {
+              // 딥링크/공유로 직접 진입한 경우(history 없음) router.back()이 사이트를 떠나지 않도록 폴백.
+              const fallback = selectedVehicle
+                ? `/cars/${selectedVehicle.slug}`
+                : "/cars";
+              if (typeof window !== "undefined" && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push(fallback);
+              }
+            }}
             aria-label="뒤로"
             className="flex h-9 w-9 items-center justify-center rounded-full text-text-strong transition-colors hover:bg-surface-soft"
           >
@@ -842,6 +860,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               }}
               selectedTrim={selectedTrimV2}
               trimsLoading={trimsLoading}
+              trimsError={trimsError}
+              onRetryLoadTrims={loadVehicleDetails}
               canRequestConsultation={canRequestConsultation}
               selectedOptionIds={selectedOptionIds}
               onOptionToggle={handleOptionToggle}
