@@ -126,7 +126,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const customerTypeParam = searchParams?.get("customerType") ?? null;
   const initialCustomerType = isCustomerType(customerTypeParam) ? customerTypeParam : null;
   const isRestoreReturn = searchParams?.get("restore") === "1";
-  const prefillOptionIds = searchParams?.get("options")?.split(",").filter(Boolean) ?? [];
+  const prefillOptionsParam = searchParams?.get("options") ?? "";
   const draftSource = searchParams?.get("source") === "AI" ? "AI" : "DETAIL" as const;
 
   const [quoteSessionId] = useState(() =>
@@ -282,6 +282,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
           } else {
             setSelectedLineup(defaultTrim.id);
           }
+          const prefillOptionIds = prefillOptionsParam.split(",").filter(Boolean);
           if (prefillOptionIds.length > 0) {
             const validIds = new Set(defaultTrim.options.map((o: TrimOption) => o.id));
             const toSelect = prefillOptionIds.filter((id) => validIds.has(id));
@@ -294,7 +295,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         setTrimsError(true);
       })
       .finally(() => setTrimsLoading(false));
-  }, [selectedVehicle, prefillOptionIds]);
+  }, [selectedVehicle, prefillOptionsParam]);
 
   useEffect(() => {
     loadVehicleDetails();
