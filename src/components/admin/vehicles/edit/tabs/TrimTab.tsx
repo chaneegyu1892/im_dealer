@@ -666,7 +666,7 @@ export function TrimTab({ vehicle }: TrimTabProps) {
                       <p className="text-[12px] text-[#9BA4C0]">{trim.engineType}</p>
                     </div>
                     {!multiSelectMode && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity">
                         <button
                           onClick={() => openModal(trim)}
                           className="p-1.5 text-[#9BA4C0] hover:text-[#000666] hover:bg-[#F0F2F8] rounded-[6px]"

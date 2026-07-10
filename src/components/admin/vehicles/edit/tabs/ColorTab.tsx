@@ -100,7 +100,7 @@ export function ColorTab({ vehicle }: ColorTabProps) {
                   />
                 </div>
               )}
-              <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity">
                 <button
                   onClick={() =>
                     setModal({ isOpen: true, target: c, defaultKind: c.kind })

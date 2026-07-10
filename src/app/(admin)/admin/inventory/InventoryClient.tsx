@@ -1081,7 +1081,7 @@ export function InventoryClient({
                           </td>
                           <td className="py-3.5 px-4 text-[12px] text-[#6B7399] w-[100px]">{item.registeredAt}</td>
                           <td className="py-3.5 px-4 w-[130px]">
-                            <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity">
                               <button onClick={() => openEdit(item)} className="p-1.5 text-[#6B7399] hover:bg-[#E8EAF0] rounded-[4px] transition-colors"><Pencil size={13} /></button>
                               <button onClick={() => setDeleteTarget(item)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-[4px] transition-colors"><Trash2 size={13} /></button>
                             </div>
@@ -1597,7 +1597,7 @@ export function InventoryClient({
                     {finances.map(fc => (
                       <div key={fc} className="flex items-center justify-between p-3 rounded-[8px] bg-[#F8F9FC] border border-[#F0F2F8] group">
                         <span className="text-[13px] font-medium text-[#1A1A2E]">{fc}</span>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity">
                           <button onClick={() => {
                             const newer = prompt("새 금융사 이름을 입력하세요", fc);
                             if (newer) handleRenameFinance(fc, newer);

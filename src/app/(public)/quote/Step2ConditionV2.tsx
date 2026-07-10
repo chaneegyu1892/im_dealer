@@ -326,11 +326,11 @@ export function Step2ConditionV2({
                       onClick={() => onOptionToggle(opt.id)}
                       aria-label={opt.name}
                       className={cn(
-                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] transition-colors",
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] border-[1.5px] transition-colors",
                         isSelected ? "border-brand bg-brand" : "border-[#D7DCE2] bg-transparent"
                       )}
                     >
-                      {isSelected && <Check size={13} strokeWidth={3} className="text-white" />}
+                      {isSelected && <Check size={15} strokeWidth={3} className="text-white" />}
                     </button>
                     <button
                       type="button"
@@ -357,7 +357,7 @@ export function Step2ConditionV2({
                       <button
                         type="button"
                         onClick={() => setExpandedOptionId(isExpanded ? null : opt.id)}
-                        className="shrink-0 rounded-md p-1 hover:bg-white"
+                        className="shrink-0 rounded-md p-2 hover:bg-white"
                         aria-label="설명 보기"
                       >
                         <ChevronDown
