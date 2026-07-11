@@ -107,9 +107,14 @@ describe("scoreOverlapVehicle", () => {
     value.scores.additionalCondition.cargo.details["소형 박스"] = "fit";
     const result = scoreOverlapVehicle(
       {
-        ...bestInput,
+        industry: bestInput.industry,
+        industryDetail: bestInput.industryDetail,
+        primaryPreference: bestInput.primaryPreference,
         situationPreference: "화물",
         cargoDetail: "소형 박스",
+        annualMileage: bestInput.annualMileage,
+        fuelPreference: "가솔린/디젤",
+        residenceRegion: bestInput.residenceRegion,
       },
       value
     );
