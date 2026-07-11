@@ -1,9 +1,21 @@
 import { describe, it, expect } from "vitest";
 import {
   INDUSTRY_OPTIONS,
+  CHARGING_OPTIONS,
+  MILEAGE_OPTIONS,
   PREFERENCE_OPTIONS,
   PREFERENCE_DETAIL_OPTIONS,
+  REGION_OPTIONS,
 } from "@/constants/recommend-options";
+import {
+  ANNUAL_MILEAGE_PROFILE_KEYS,
+  CARGO_DETAIL_PROFILE_KEYS,
+  CHARGING_PROFILE_KEYS,
+  CHILD_DETAIL_PROFILE_KEYS,
+  INDUSTRY_PROFILE_KEYS,
+  PRIMARY_PREFERENCE_PROFILE_KEYS,
+  REGION_PROFILE_KEYS,
+} from "@/lib/recommend/overlap-profile";
 import {
   SCORING_INDUSTRIES,
   SCORING_PREFERENCES,
@@ -59,5 +71,32 @@ describe("스코어링 라벨이 실제 선택지와 일치", () => {
     for (const opt of PREFERENCE_DETAIL_OPTIONS["화물"] ?? []) {
       expect(known.has(opt.value)).toBe(true);
     }
+  });
+
+  it("overlap-v2 프로필 키는 현재 공개 선택지와 양방향 일치", () => {
+    expect([...INDUSTRY_PROFILE_KEYS].sort()).toEqual(
+      INDUSTRY_OPTIONS.map((option) => option.value).sort()
+    );
+    expect([...PRIMARY_PREFERENCE_PROFILE_KEYS].sort()).toEqual(
+      PREFERENCE_OPTIONS
+        .filter((option) => option.kind === "feel")
+        .map((option) => option.value)
+        .sort()
+    );
+    expect([...CHILD_DETAIL_PROFILE_KEYS].sort()).toEqual(
+      (PREFERENCE_DETAIL_OPTIONS["가족"] ?? []).map((option) => option.value).sort()
+    );
+    expect([...CARGO_DETAIL_PROFILE_KEYS].sort()).toEqual(
+      (PREFERENCE_DETAIL_OPTIONS["화물"] ?? []).map((option) => option.value).sort()
+    );
+    expect([...ANNUAL_MILEAGE_PROFILE_KEYS].sort()).toEqual(
+      MILEAGE_OPTIONS.map((option) => String(option.value)).sort()
+    );
+    expect([...REGION_PROFILE_KEYS].sort()).toEqual(
+      REGION_OPTIONS.map((option) => option.value).sort()
+    );
+    expect([...CHARGING_PROFILE_KEYS].sort()).toEqual(
+      CHARGING_OPTIONS.map((option) => option.value).sort()
+    );
   });
 });
