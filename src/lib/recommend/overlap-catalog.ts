@@ -125,7 +125,7 @@ function compileDetails(scores: MutableScores, facts: CatalogFacts): void {
     const largeCargoFit = (facts.cargoKg !== null && facts.cargoKg >= 1_000)
       || facts.bodyClass === "van"
       || (facts.seating !== null && facts.seating >= 7);
-    scores.additionalCondition.cargo.details["대형 화물"] = largeCargoFit ? promote(cargo) : cargo;
+    scores.additionalCondition.cargo.details["대형 화물"] = largeCargoFit ? promote(cargo) : facts.bodyClass === "sedan" ? demote(cargo) : cargo;
   }
 }
 

@@ -136,6 +136,28 @@ describe("overlap PDF catalog", () => {
     }
   });
 
+  it("demotes sedans for both cargo details when a cargo parent tier exists", () => {
+    const sedanCargoPlacement: PdfPlacement = {
+      axis: "additionalCondition",
+      answer: "화물",
+      level: "support",
+      vehicles: ["디 올 뉴 G80 F/L", "더 뉴 K9", "더 뉴 아반떼"],
+    };
+    const catalog = compileOverlapCatalogFromSources({
+      vehicles: CATALOG_VEHICLES,
+      placements: [...PDF_PLACEMENTS, sedanCargoPlacement],
+      chargingEvidence: EV_CHARGING_EVIDENCE,
+    });
+
+    for (const documentName of sedanCargoPlacement.vehicles) {
+      const row = catalog.find((candidate) => candidate.documentName === documentName);
+      expect(row?.profile.scores.additionalCondition.cargo).toEqual({
+        default: "support",
+        details: { "소형 박스": "none", "대형 화물": "none" },
+      });
+    }
+  });
+
   it("derives all 11 EV charging maps only from complete official evidence", () => {
     const catalog = compileOverlapCatalog();
     const evs = catalog.filter((row) => row.profile.fuelGroup === "EV");
