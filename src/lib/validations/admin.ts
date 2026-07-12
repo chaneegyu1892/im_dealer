@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { overlapProfileSchema } from "@/lib/recommend/overlap-profile";
 
 // ─── Vehicle ────────────────────────────────────────────
 export const vehicleCreateSchema = z.object({
@@ -188,18 +189,40 @@ export const inventoryUpdateSchema = z.object({
 });
 
 // ─── AI Recommendation Config ───────────────────────────
-// scoreMatrix 는 카테고리별 가중치 맵: { [category]: { [key]: 0..1 } }
-export const aiConfigUpdateSchema = z.object({
-  id: z.string().min(1, "config id 가 필요합니다"),
+const aiConfigMetadataShape = {
   highlights: z.array(z.string().max(200)).max(20).optional(),
-  aiCaption: z.string().max(1000).optional(),
-  scoreMatrix: z
-    .record(
-      z.string(),
-      z.record(z.string(), z.number().min(0).max(1))
-    )
-    .optional(),
-});
+  aiCaption: z.string().max(1000).nullable().optional(),
+};
+
+const aiConfigCreateSchema = z.object({
+  action: z.literal("create"),
+  vehicleId: z.string().min(1, "vehicleId가 필요합니다"),
+  expectedUpdatedAt: z.never().optional(),
+  profile: overlapProfileSchema,
+  isActive: z.boolean(),
+  ...aiConfigMetadataShape,
+}).strict();
+
+const aiConfigUpdateSchema = z.object({
+  action: z.literal("update"),
+  vehicleId: z.string().min(1, "vehicleId가 필요합니다"),
+  expectedUpdatedAt: z.string().datetime({ offset: true }),
+  profile: overlapProfileSchema,
+  isActive: z.boolean(),
+  ...aiConfigMetadataShape,
+}).strict();
+
+const aiConfigDeactivateSchema = z.object({
+  action: z.literal("deactivate"),
+  vehicleId: z.string().min(1, "vehicleId가 필요합니다"),
+  expectedUpdatedAt: z.string().datetime({ offset: true }),
+}).strict();
+
+export const aiConfigMutationSchema = z.union([
+  aiConfigUpdateSchema,
+  aiConfigCreateSchema,
+  aiConfigDeactivateSchema,
+]);
 
 // ─── Slug 생성 유틸 ─────────────────────────────────────
 export function generateSlug(brand: string, name: string): string {

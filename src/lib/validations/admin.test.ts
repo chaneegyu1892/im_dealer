@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   inventoryCreateSchema,
   inventoryUpdateSchema,
-  aiConfigUpdateSchema,
+  aiConfigMutationSchema,
   popularConfigCreateSchema,
 } from "./admin";
+import { compileOverlapCatalog } from "@/lib/recommend/overlap-catalog";
 
 describe("inventoryCreateSchema", () => {
   const valid = {
@@ -80,40 +81,32 @@ describe("inventoryUpdateSchema", () => {
   });
 });
 
-describe("aiConfigUpdateSchema", () => {
-  it("accepts valid scoreMatrix in 0..1 range", () => {
-    const parsed = aiConfigUpdateSchema.safeParse({
-      id: "cfg1",
-      scoreMatrix: { fuel: { gasoline: 0.7, ev: 0.9 } },
-    });
-    expect(parsed.success).toBe(true);
+describe("aiConfigMutationSchema", () => {
+  const profile = compileOverlapCatalog()[0]?.profile;
+
+  it("accepts create, update, and deactivate boundaries", () => {
+    expect(profile).toBeDefined();
+    if (!profile) return;
+    expect(aiConfigMutationSchema.safeParse({ action: "create", vehicleId: "vehicle", profile, isActive: true }).success).toBe(true);
+    expect(aiConfigMutationSchema.safeParse({ action: "update", vehicleId: "vehicle", expectedUpdatedAt: "2026-07-12T00:00:00.000Z", profile, isActive: true }).success).toBe(true);
+    expect(aiConfigMutationSchema.safeParse({ action: "deactivate", vehicleId: "vehicle", expectedUpdatedAt: "2026-07-12T00:00:00.000Z" }).success).toBe(true);
   });
 
-  it("rejects scoreMatrix values outside 0..1", () => {
-    expect(
-      aiConfigUpdateSchema.safeParse({
-        id: "cfg1",
-        scoreMatrix: { fuel: { gasoline: 1.5 } },
-      }).success
-    ).toBe(false);
-    expect(
-      aiConfigUpdateSchema.safeParse({
-        id: "cfg1",
-        scoreMatrix: { fuel: { gasoline: -0.1 } },
-      }).success
-    ).toBe(false);
+  it("rejects legacy matrices and malformed v2 profiles", () => {
+    expect(aiConfigMutationSchema.safeParse({ action: "create", vehicleId: "vehicle", profile: { fuel: { gasoline: 0.7 } }, isActive: true }).success).toBe(false);
+    expect(aiConfigMutationSchema.safeParse({ action: "create", vehicleId: "vehicle", profile: { version: "overlap-v2" }, isActive: true }).success).toBe(false);
   });
 
-  it("requires id", () => {
-    expect(
-      aiConfigUpdateSchema.safeParse({ aiCaption: "hello" }).success
-    ).toBe(false);
+  it("requires optimistic locking for deactivate and distinguishes create from update", () => {
+    expect(aiConfigMutationSchema.safeParse({ action: "deactivate", vehicleId: "vehicle" }).success).toBe(false);
+    expect(aiConfigMutationSchema.safeParse({ action: "update", vehicleId: "vehicle", profile, isActive: true }).success).toBe(false);
+    expect(aiConfigMutationSchema.safeParse({ action: "update", vehicleId: "vehicle", expectedUpdatedAt: "not-a-date", profile, isActive: true }).success).toBe(false);
   });
 
   it("rejects oversized highlights array", () => {
     const tooMany = Array.from({ length: 21 }, (_, i) => `h${i}`);
     expect(
-      aiConfigUpdateSchema.safeParse({ id: "cfg1", highlights: tooMany }).success
+      aiConfigMutationSchema.safeParse({ action: "create", vehicleId: "vehicle", profile, isActive: true, highlights: tooMany }).success
     ).toBe(false);
   });
 });

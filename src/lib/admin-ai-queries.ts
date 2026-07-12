@@ -1,4 +1,16 @@
 import { prisma } from "./prisma";
+import { getRecommendationExclusion, type RecommendationExclusion } from "./recommend/excluded-vehicles";
+import { assessOperationalEligibility, type OperationalEligibilityStatus } from "./recommend/operational-eligibility";
+import { parseOverlapProfile, type FuelGroup } from "./recommend/overlap-profile";
+
+export interface AiRecentLogDto {
+  readonly id: string;
+  readonly industry: string;
+  readonly purpose: string;
+  readonly recommendationCount: number;
+  readonly clickedVehicleId: string | null;
+  readonly createdAt: string;
+}
 
 export interface AiInsightData {
   totalRecommendations: number;
@@ -15,7 +27,7 @@ export interface AiInsightData {
     clickCount: number;
     ctr: number;
   }[];
-  recentLogs: any[];
+  recentLogs: AiRecentLogDto[];
 }
 
 export async function getAiInsights(): Promise<AiInsightData> {
@@ -45,6 +57,14 @@ export async function getAiInsights(): Promise<AiInsightData> {
   const recentLogs = await prisma.recommendationLog.findMany({
     orderBy: { createdAt: "desc" },
     take: 200,
+    select: {
+      id: true,
+      industry: true,
+      purpose: true,
+      recommendedVehicleIds: true,
+      clickedVehicleId: true,
+      createdAt: true,
+    },
   });
 
   const recommendationCounts = new Map<string, number>();
@@ -87,16 +107,114 @@ export async function getAiInsights(): Promise<AiInsightData> {
       count: p._count._all,
     })),
     topRecommendedVehicles: topVehicles,
-    recentLogs: recentLogs.slice(0, 10),
+    recentLogs: recentLogs.slice(0, 10).map((log) => ({
+      id: log.id,
+      industry: log.industry,
+      purpose: log.purpose,
+      recommendationCount: log.recommendedVehicleIds.length,
+      clickedVehicleId: log.clickedVehicleId,
+      createdAt: log.createdAt.toISOString(),
+    })),
   };
 }
 
-export async function getVehicleAiConfigs() {
-  return prisma.recommendationConfig.findMany({
+export interface VehicleAiConfigDto {
+  readonly vehicle: {
+    readonly id: string;
+    readonly slug: string;
+    readonly name: string;
+    readonly brand: string;
+    readonly category: string;
+    readonly isVisible: boolean;
+  };
+  readonly config: null | {
+    readonly id: string;
+    readonly profile: unknown;
+    readonly isActive: boolean;
+    readonly highlights: readonly string[];
+    readonly aiCaption: string | null;
+    readonly updatedAt: string;
+  };
+  readonly profileState: "missing" | "valid" | "legacy" | "invalid";
+  readonly fuelGroup: FuelGroup | null;
+  readonly exclusion: RecommendationExclusion | null;
+  readonly coverage: Readonly<Record<"10000" | "20000" | "30000", OperationalEligibilityStatus>>;
+}
+
+export async function getVehicleAiConfigs(): Promise<VehicleAiConfigDto[]> {
+  const vehicles = await prisma.vehicle.findMany({
+    orderBy: [{ brand: "asc" }, { name: "asc" }],
     include: {
-      vehicle: {
-        select: { id: true, name: true, brand: true, category: true },
+      recConfigs: true,
+      trims: {
+        include: {
+          lineup: { select: { name: true, isVisible: true } },
+          rateSheets: { include: { financeCompany: true } },
+        },
       },
     },
+  });
+  return vehicles.map((vehicle) => {
+    const snapshot = {
+      vehicleId: vehicle.id,
+      slug: vehicle.slug,
+      brand: vehicle.brand,
+      name: vehicle.name,
+      category: vehicle.category,
+      isVisible: vehicle.isVisible,
+      config: vehicle.recConfigs ? { isActive: vehicle.recConfigs.isActive, profile: vehicle.recConfigs.scoreMatrix } : null,
+      trims: vehicle.trims.map((trim) => ({
+        id: trim.id,
+        name: trim.name,
+        price: trim.price,
+        isDefault: trim.isDefault,
+        isVisible: trim.isVisible,
+        lineup: trim.lineup,
+        rateSheets: trim.rateSheets.map((sheet) => ({
+          id: sheet.id,
+          isActive: sheet.isActive,
+          minVehiclePrice: sheet.minVehiclePrice,
+          maxVehiclePrice: sheet.maxVehiclePrice,
+          minRateMatrix: sheet.minRateMatrix,
+          maxRateMatrix: sheet.maxRateMatrix,
+          depositDiscountRate: sheet.depositDiscountRate,
+          prepayAdjustRate: sheet.prepayAdjustRate,
+          financeCompany: {
+            id: sheet.financeCompany.id,
+            name: sheet.financeCompany.name,
+            isActive: sheet.financeCompany.isActive,
+            surchargeRate: sheet.financeCompany.surchargeRate,
+          },
+        })),
+      })),
+    };
+    const parsed = vehicle.recConfigs ? parseOverlapProfile(vehicle.recConfigs.scoreMatrix) : null;
+    const profileState = parsed === null ? "missing" : parsed.kind;
+    return {
+      vehicle: {
+        id: vehicle.id,
+        slug: vehicle.slug,
+        name: vehicle.name,
+        brand: vehicle.brand,
+        category: vehicle.category,
+        isVisible: vehicle.isVisible,
+      },
+      config: vehicle.recConfigs ? {
+        id: vehicle.recConfigs.id,
+        profile: vehicle.recConfigs.scoreMatrix,
+        isActive: vehicle.recConfigs.isActive,
+        highlights: vehicle.recConfigs.highlights,
+        aiCaption: vehicle.recConfigs.aiCaption,
+        updatedAt: vehicle.recConfigs.updatedAt.toISOString(),
+      } : null,
+      profileState,
+      fuelGroup: parsed?.kind === "valid" ? parsed.profile.fuelGroup : null,
+      exclusion: getRecommendationExclusion(vehicle),
+      coverage: {
+        "10000": assessOperationalEligibility(snapshot, 10_000).status,
+        "20000": assessOperationalEligibility(snapshot, 20_000).status,
+        "30000": assessOperationalEligibility(snapshot, 30_000).status,
+      },
+    };
   });
 }

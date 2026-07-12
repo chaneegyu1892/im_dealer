@@ -38,7 +38,17 @@ export default async function AiManagementPage() {
               <span className="sm:hidden">차량별 AI 설정</span>
             </h2>
           </div>
-          <VehicleAiSettings initialConfigs={configs} />
+          <VehicleAiSettings initialConfigs={configs.flatMap((row) => row.config ? [{
+            id: row.config.id,
+            highlights: [...row.config.highlights],
+            aiCaption: row.config.aiCaption,
+            scoreMatrix: row.config.profile,
+            vehicle: {
+              name: row.vehicle.name,
+              brand: row.vehicle.brand,
+              category: row.vehicle.category,
+            },
+          }] : [])} />
         </section>
       </div>
     </div>
