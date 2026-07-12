@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(),
   findManyVehicles: vi.fn(),
+  queryRaw: vi.fn(),
   recommendLegacyV1: vi.fn(),
   getUser: vi.fn(),
 }));
@@ -12,6 +13,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     recommendationLog: { findFirst: mocks.findFirst },
     vehicle: { findMany: mocks.findManyVehicles },
+    $queryRaw: mocks.queryRaw,
   },
 }));
 vi.mock("@/lib/ai-recommender", () => ({ recommendLegacyV1: mocks.recommendLegacyV1 }));
@@ -22,6 +24,7 @@ vi.mock("@/lib/supabase/server", () => ({
 import { GET } from "./route";
 
 const baseLog = {
+  id: "log-fixed",
   industry: "개인",
   industryDetail: "2~3명",
   purpose: "안정감, 가족",
@@ -51,6 +54,7 @@ describe("GET /api/recommend/:sessionId", () => {
     mocks.getUser.mockResolvedValue({ data: { user: null } });
     mocks.recommendLegacyV1.mockResolvedValue([]);
     mocks.findManyVehicles.mockResolvedValue([]);
+    mocks.queryRaw.mockResolvedValue([{ isSqlNull: true }]);
   });
 
   it("keeps an empty v2 envelope frozen without invoking either recommender", async () => {
@@ -97,5 +101,13 @@ describe("GET /api/recommend/:sessionId", () => {
       fuelPreference: "하이브리드",
       residenceRegion: "일반",
     }));
+  });
+
+  it("fails closed for a JSON null result", async () => {
+    mocks.findFirst.mockResolvedValue(baseLog);
+    mocks.queryRaw.mockResolvedValue([{ isSqlNull: false }]);
+    const response = await GET(request, context);
+    expect(response.status).toBe(500);
+    expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
   });
 });

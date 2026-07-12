@@ -70,6 +70,11 @@ describe("stored recommendation result boundary", () => {
     expect(parseStoredResultState(undefined)).toEqual({ kind: "missing" });
   });
 
+  it("fails closed when the database value is JSON null rather than SQL NULL", () => {
+    const result = parseStoredResultState(null, false);
+    expect(result.kind).toBe("invalid");
+  });
+
   it("keeps a valid legacy frozen array unchanged", () => {
     const value = [legacyVehicle];
     const result = parseStoredResultState(value);

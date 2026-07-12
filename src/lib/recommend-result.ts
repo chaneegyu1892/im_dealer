@@ -129,8 +129,11 @@ function issues(error: z.ZodError): StoredResultIssue[] {
   }));
 }
 
-export function parseStoredResultState(value: unknown): StoredResultParseResult {
-  if (value === null || value === undefined) return { kind: "missing" };
+export function parseStoredResultState(
+  value: unknown,
+  isSqlNull: boolean = value === null || value === undefined
+): StoredResultParseResult {
+  if (isSqlNull) return { kind: "missing" };
 
   if (Array.isArray(value)) {
     const legacy = legacyResultSchema.safeParse(value);
