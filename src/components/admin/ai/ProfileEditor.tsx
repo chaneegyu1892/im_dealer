@@ -20,7 +20,6 @@ const savedResponseSchema = z.object({
     updatedAt: z.string(),
   }),
 });
-const conflictResponseSchema = z.object({ currentUpdatedAt: z.string().optional() });
 
 export interface SavedProfileState {
   readonly id: string;
@@ -45,7 +44,7 @@ export default function ProfileEditor({ row, onClose, onSaved }: Props) {
   const [isActive, setIsActive] = useState(row.config?.isActive ?? false);
   const [highlights, setHighlights] = useState([...(row.config?.highlights ?? [])]);
   const [caption, setCaption] = useState(row.config?.aiCaption ?? "");
-  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState(row.config?.updatedAt ?? null);
+  const expectedUpdatedAt = row.config?.updatedAt ?? null;
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
@@ -72,12 +71,8 @@ export default function ProfileEditor({ row, onClose, onSaved }: Props) {
       });
       const result: unknown = await response.json();
       if (response.status === 409) {
-        const parsedConflict = conflictResponseSchema.safeParse(result);
-        if (parsedConflict.success && parsedConflict.data.currentUpdatedAt) {
-          setExpectedUpdatedAt(parsedConflict.data.currentUpdatedAt);
-        }
         setConflict(true);
-        setMessage("다른 관리자의 변경이 감지되었습니다. 최신 상태를 불러온 뒤 다시 저장하세요.");
+        setMessage("다른 관리자의 변경이 감지되었습니다. 편집기를 닫고 최신 상태에서 다시 수정하세요.");
         return;
       }
       if (!response.ok) {
@@ -150,7 +145,7 @@ export default function ProfileEditor({ row, onClose, onSaved }: Props) {
             </label>
           </div>
           <label className="flex items-center gap-2 text-xs font-bold text-[#1A1A2E]"><input type="checkbox" checked={isActive} disabled={excluded} onChange={(event) => setIsActive(event.target.checked)} /> 추천 활성화</label>
-          {message && <div className={`rounded-xl p-3 text-xs ${conflict ? "bg-amber-50 text-amber-800" : "bg-blue-50 text-blue-800"}`}>{message}{conflict && <button onClick={() => { setConflict(false); setMessage("최신 버전으로 다시 저장할 수 있습니다. 작성 중인 값은 유지되었습니다."); router.refresh(); }} className="ml-2 font-bold underline">최신 상태 불러오기</button>}</div>}
+          {message && <div className={`rounded-xl p-3 text-xs ${conflict ? "bg-amber-50 text-amber-800" : "bg-blue-50 text-blue-800"}`}>{message}{conflict && <button onClick={() => { router.refresh(); onClose(); }} className="ml-2 font-bold underline">닫고 최신 상태 불러오기</button>}</div>}
         </div>
 
         <footer className="flex flex-wrap justify-end gap-2 border-t border-[#E8EAF2] bg-[#F8F9FC] p-4">

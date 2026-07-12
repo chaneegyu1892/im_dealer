@@ -88,7 +88,7 @@ describe("ProfileEditor", () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith("vehicle", expect.objectContaining({ profileState: "legacy", isActive: false })));
   });
 
-  it("preserves the draft on conflict and exposes a reload action", async () => {
+  it("blocks stale resubmission and closes before loading the latest state", async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: "conflict" }), { status: 409 }));
     render(<ProfileEditor row={row(true)} onClose={onClose} onSaved={onSaved} />);
     const caption = screen.getByLabelText("추천 캡션");
@@ -97,8 +97,9 @@ describe("ProfileEditor", () => {
     expect(await screen.findByText(/다른 관리자의 변경/)).toBeInTheDocument();
     expect(screen.getByDisplayValue("잃으면 안 되는 초안")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "프로필 저장" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "최신 상태 불러오기" }));
+    fireEvent.click(screen.getByRole("button", { name: "닫고 최신 상태 불러오기" }));
     expect(mocks.refresh).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
     expect(onSaved).not.toHaveBeenCalled();
   });
 });
