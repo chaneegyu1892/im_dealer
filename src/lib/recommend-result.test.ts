@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseStoredResult, parseStoredResultState } from "./recommend-result";
+import { parseStoredResultState } from "./recommend-result";
 
 function scenario(monthlyPayment = 760_000) {
   return {
@@ -106,11 +106,4 @@ describe("stored recommendation result boundary", () => {
     expect(parseStoredResultState([])).toEqual({ kind: "legacy", vehicles: [] });
   });
 
-  it("keeps the temporary legacy wrapper behavior until route migration", () => {
-    expect(parseStoredResult([legacyVehicle])).toEqual([legacyVehicle]);
-    expect(parseStoredResult({ version: "overlap-v2", vehicles: [v2Vehicle] })).toEqual([
-      v2Vehicle,
-    ]);
-    expect(parseStoredResult(null)).toBeNull();
-  });
 });

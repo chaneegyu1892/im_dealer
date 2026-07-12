@@ -133,9 +133,14 @@ export interface RecommendResultResponse {
   sessionId: string;
   input: {
     industry: string;
+    industryDetail?: string;
     // 결과 요약 칩 표기용 — 신규 흐름은 선택한 선호 라벨, 옛 세션은 목적 문자열
     purpose: string;
     preferences?: string[];
+    primaryPreference?: string;
+    situationPreference?: string;
+    childDetail?: string;
+    cargoDetail?: string;
     annualMileage: number;
     returnType: ReturnType;
     fuelPreference?: string;

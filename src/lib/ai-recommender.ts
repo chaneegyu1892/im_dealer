@@ -20,10 +20,17 @@ export async function recommendWithEngines(
     : dependencies.legacy(input);
 }
 
-export async function recommend(input: RecommendInput): Promise<RecommendedVehicle[]> {
+export async function recommendForVersion(
+  input: RecommendInput,
+  version: "legacy-v1" | "overlap-v2"
+): Promise<RecommendedVehicle[]> {
   return recommendWithEngines(input, {
-    version: getRecommendEngineVersion,
+    version: () => version,
     legacy: recommendLegacyV1,
     overlap: recommendOverlapV2,
   });
+}
+
+export async function recommend(input: RecommendInput): Promise<RecommendedVehicle[]> {
+  return recommendForVersion(input, getRecommendEngineVersion());
 }

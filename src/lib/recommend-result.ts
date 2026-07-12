@@ -2,7 +2,6 @@ import { z } from "zod";
 import type {
   LegacyRecommendedVehicle,
   OverlapRecommendedVehicle,
-  RecommendedVehicle,
 } from "@/types/recommendation";
 
 const scenarioSchema = z.object({
@@ -144,11 +143,4 @@ export function parseStoredResultState(value: unknown): StoredResultParseResult 
   return overlap.success
     ? { kind: "v2", vehicles: overlap.data.vehicles }
     : { kind: "invalid", issues: issues(overlap.error) };
-}
-
-/** Temporary compatibility wrapper; remove when the GET route consumes the four-state boundary. */
-export function parseStoredResult(value: unknown): RecommendedVehicle[] | null {
-  const parsed = parseStoredResultState(value);
-  if (parsed.kind === "legacy" || parsed.kind === "v2") return [...parsed.vehicles];
-  return null;
 }
