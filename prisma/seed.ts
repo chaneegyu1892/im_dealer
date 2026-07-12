@@ -10,6 +10,13 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import {
+  applyProfileBootstrapChanges,
+  getRecommendationDatabaseFingerprint,
+  loadProfileBootstrapState,
+  planProfileBootstrapChanges,
+  writeProfileBootstrapSnapshot,
+} from "./recommendation-overlap-v2-bootstrap";
 
 const prisma = new PrismaClient();
 
@@ -694,86 +701,17 @@ async function main() {
   }
   console.log(`   ✅ ${rateSheetCount}개 회수율 시트 생성\n`);
 
-  // 5) AI 추천 기초 데이터 (RecommendationConfig)
-  console.log("🤖 AI 추천 기초 데이터 생성...");
-
-  const scoreProfiles: Record<string, {
-    business: number; family: number; commute: number; leisure: number;
-    budget: string; highlights: string[]; caption: string;
-  }> = {
-    grandeur: { business: 9, family: 7, commute: 8, leisure: 6, budget: "mid", highlights: ["법인 인기 1위", "넓은 실내공간", "합리적 유지비"], caption: "사업용 차량의 정석. 격식과 실용의 균형." },
-    sonata: { business: 7, family: 6, commute: 9, leisure: 5, budget: "low", highlights: ["최고의 가성비", "높은 연비", "넉넉한 트렁크"], caption: "출퇴근부터 업무용까지. 가장 합리적인 선택." },
-    tucson: { business: 5, family: 8, commute: 7, leisure: 8, budget: "low", highlights: ["하이브리드 연비 16.2km/L", "넉넉한 적재공간", "5인 가족 최적"], caption: "가족 SUV의 표준. 연비와 공간 모두 만족." },
-    santafe: { business: 6, family: 9, commute: 6, leisure: 8, budget: "mid", highlights: ["7인승 가능", "넉넉한 2열 공간", "안정적인 승차감"], caption: "가족이 많을수록 빛나는 중형 SUV." },
-    palisade: { business: 5, family: 10, commute: 5, leisure: 9, budget: "mid", highlights: ["대형 SUV", "7·8인승", "프리미엄 승차감"], caption: "대가족의 든든한 파트너. 여유로운 공간." },
-    ioniq5: { business: 7, family: 7, commute: 9, leisure: 7, budget: "mid", highlights: ["800V 초급속 충전", "넓은 실내", "비용처리 유리"], caption: "전기차 시대의 스마트한 선택." },
-    ioniq6: { business: 8, family: 5, commute: 9, leisure: 6, budget: "mid", highlights: ["614km 주행거리", "800V 충전", "세련된 디자인"], caption: "효율과 디자인을 모두 잡은 전기 세단." },
-    staria: { business: 4, family: 8, commute: 4, leisure: 7, budget: "mid", highlights: ["최대 9인승", "미래형 디자인", "넓은 화물 공간"], caption: "다인승 이동의 새로운 기준." },
-    k8: { business: 9, family: 7, commute: 8, leisure: 6, budget: "mid", highlights: ["세련된 디자인", "하이브리드 17.4km/L", "임원급 품격"], caption: "품격 있는 비즈니스 세단." },
-    k5: { business: 7, family: 6, commute: 9, leisure: 5, budget: "low", highlights: ["스포티한 디자인", "하이브리드 19.4km/L", "합리적 가격"], caption: "젊은 사업가의 스마트한 선택." },
-    sportage: { business: 5, family: 8, commute: 7, leisure: 8, budget: "low", highlights: ["국내 판매 1위", "하이브리드 16.7km/L", "넓은 실내"], caption: "판매량이 증명하는 실용 SUV." },
-    sorento: { business: 6, family: 9, commute: 6, leisure: 8, budget: "mid", highlights: ["7인승 가능", "넉넉한 공간", "하이브리드 선택"], caption: "쏘렌토는 가족의 선택." },
-    carnival: { business: 4, family: 10, commute: 4, leisure: 8, budget: "mid", highlights: ["국내 1위 미니밴", "9인승 비용처리", "최대 공간"], caption: "9인승 비용처리의 정석." },
-    ev6: { business: 7, family: 7, commute: 9, leisure: 7, budget: "mid", highlights: ["800V 급속충전", "스포티한 디자인", "넉넉한 주행거리"], caption: "미래 지향 전기 크로스오버." },
-    ev9: { business: 6, family: 8, commute: 5, leisure: 7, budget: "high", highlights: ["대형 전기 SUV", "프리미엄 인테리어", "501km 주행"], caption: "전동화 시대의 프리미엄." },
-    g80: { business: 10, family: 6, commute: 7, leisure: 5, budget: "high", highlights: ["법인 대표 세단", "최고급 승차감", "제네시스 브랜드"], caption: "대표이사의 차. 품격의 완성." },
-    gv70: { business: 8, family: 7, commute: 7, leisure: 7, budget: "mid", highlights: ["럭셔리 중형 SUV", "역동적 디자인", "합리적 제네시스"], caption: "접근 가능한 럭셔리." },
-    gv80: { business: 9, family: 7, commute: 6, leisure: 6, budget: "high", highlights: ["플래그십 SUV", "최고급 인테리어", "강력한 퍼포먼스"], caption: "럭셔리와 퍼포먼스의 정점." },
-    "porter2-ev": { business: 3, family: 1, commute: 3, leisure: 1, budget: "mid", highlights: ["전기 1톤 트럭", "자영업 필수", "운영비 절감"], caption: "소상공인의 친환경 파트너." },
-    "bongo3-ev": { business: 3, family: 1, commute: 3, leisure: 1, budget: "mid", highlights: ["전기 1톤 트럭", "물류 최적화", "운영비 절감"], caption: "친환경 물류의 새 기준." },
-  };
-
-  for (const v of vehicles) {
-    const profile = scoreProfiles[v.slug];
-    if (!profile) continue;
-
-    const budgetRange = { low: [200, 400], mid: [350, 600], high: [500, 900] }[profile.budget] ?? [300, 600];
-
-    // 신규 PURPOSE 옵션을 위한 파생 점수 (profile의 4개 기본 축 + 차량 특성으로 도출)
-    const isCargo = ["porter2-ev", "bongo3-ev"].includes(v.slug);
-    const cargoScore = isCargo ? 10 : 1;
-    const officialScore = profile.business >= 8 ? profile.business : Math.max(1, profile.business - 3);
-    const firstcarScore = profile.budget === "low" ? 8 : profile.budget === "mid" ? 5 : 2;
-
-    // INDUSTRY_OPTIONS, PURPOSE_OPTIONS_BY_INDUSTRY와 키 일치.
-    // ai-recommender의 matrix[input.industry][input.purpose] 조회가 정상 동작하도록 함.
-    const scoreMatrix = {
-      industry: {
-        법인: profile.business,
-        개인사업자: Math.max(1, profile.business - 1),
-        직장인: profile.commute,
-        개인: Math.max(1, profile.commute - 1),
-      },
-      purpose: {
-        출퇴근: profile.commute,
-        "영업·외근": profile.business,
-        가족: profile.family,
-        "화물·배달": cargoScore,
-        "의전·임원용": officialScore,
-        첫차: firstcarScore,
-        "레저·캠핑": profile.leisure,
-        기타: profile.commute,
-      },
-      budget: { min: budgetRange[0], max: budgetRange[1] },
-    };
-
-    await prisma.recommendationConfig.upsert({
-      where: { vehicleId: vehicleIds[v.slug] },
-      update: {
-        scoreMatrix,
-        highlights: profile.highlights,
-        aiCaption: profile.caption,
-      },
-      create: {
-        vehicleId: vehicleIds[v.slug],
-        scoreMatrix,
-        highlights: profile.highlights,
-        aiCaption: profile.caption,
-        updatedBy: "seed",
-      },
-    });
-  }
-  console.log(`   ✅ ${Object.keys(scoreProfiles).length}개 추천 기초 데이터\n`);
+  // 5) AI 추천 프로필. 이미 유효한 v2 설정과 운영자 우선순위는 보존한다.
+  console.log("🤖 overlap-v2 추천 프로필 확인...");
+  const bootstrapState = await loadProfileBootstrapState(prisma);
+  const profileChanges = planProfileBootstrapChanges(bootstrapState.catalog, bootstrapState.vehicles, false);
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error("DATABASE_URL is required for recommendation profile snapshot");
+  const fingerprint = getRecommendationDatabaseFingerprint(databaseUrl);
+  const snapshotPath = `.omo/evidence/ai-recommend-overlap-scoring/task-6-bootstrap/snapshots/seed-${new Date().toISOString().replaceAll(":", "-")}-${fingerprint.slice(0, 12)}.json`;
+  await writeProfileBootstrapSnapshot(snapshotPath, fingerprint, bootstrapState.vehicles);
+  const profileWriteCount = await applyProfileBootstrapChanges(prisma, profileChanges);
+  console.log(`   ✅ ${bootstrapState.catalog.length}개 검증, ${profileWriteCount}개 생성/마이그레이션\n`);
 
   // 6) 메인 배너
   console.log("🎨 메인 배너 생성...");
