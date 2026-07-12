@@ -96,8 +96,18 @@ describe("scoreOverlapVehicle", () => {
       (item) => item.axis === "additionalCondition"
     );
 
-    expect(infantAdditional).toMatchObject({ level: "support", weightedPoints: 1 });
-    expect(preschoolAdditional).toMatchObject({ level: "fit", weightedPoints: 3 });
+    expect(infantAdditional).toMatchObject({
+      selectedDetail: "영유아",
+      evidenceLabel: "자녀 동승 조건",
+      level: "support",
+      weightedPoints: 1,
+    });
+    expect(preschoolAdditional).toMatchObject({
+      selectedDetail: "미취학",
+      evidenceLabel: "자녀 동승 조건",
+      level: "fit",
+      weightedPoints: 3,
+    });
     expect(preschool.documentScore - infant.documentScore).toBe(2);
   });
 

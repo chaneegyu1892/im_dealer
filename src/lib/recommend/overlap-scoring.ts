@@ -118,7 +118,7 @@ function additionalContribution(
       input.childDetail,
       profile.scores.additionalCondition.family.details[input.childDetail],
       OVERLAP_WEIGHTS.additionalCondition,
-      `${input.childDetail} 자녀 동승 조건`
+      "자녀 동승 조건"
     );
   }
 
@@ -129,7 +129,7 @@ function additionalContribution(
       input.cargoDetail,
       profile.scores.additionalCondition.cargo.details[input.cargoDetail],
       OVERLAP_WEIGHTS.additionalCondition,
-      `${input.cargoDetail} 적재 조건`
+      "적재 조건"
     );
   }
 

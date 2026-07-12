@@ -111,6 +111,8 @@ describe("recommendOverlapV2FromSnapshot", () => {
     expect(first?.score).toBe(first?.rankScore);
     expect(first?.documentScore).toBeGreaterThanOrEqual(0);
     expect(first?.contributions).toHaveLength(5);
+    expect(first?.reason).toContain("영유아 자녀 동승 조건");
+    expect(first?.reason).not.toContain("영유아 영유아");
     expect(first?.scenarios.conservative.depositAmount).toBe(8_000_000);
     expect(first?.scenarios.standard.depositAmount).toBe(0);
     expect(first?.scenarios.aggressive.prepayAmount).toBe(12_000_000);
