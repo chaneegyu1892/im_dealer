@@ -84,10 +84,10 @@ describe("overlap-v2 profile boundary", () => {
   it.each([
     ["missing map key", () => {
       const value = profile("ICE");
-      const { 개인: _removed, ...industry } = value.scores.industry;
+      const { 법인, 개인사업자 } = value.scores.industry;
       return {
         ...value,
-        scores: { ...value.scores, industry },
+        scores: { ...value.scores, industry: { 법인, 개인사업자 } },
       };
     }],
     ["extra map key", () => {
@@ -119,8 +119,8 @@ describe("overlap-v2 profile boundary", () => {
       chargingFit: { 자택: "best", 직장: "fit", 외부: "support", 없음: "none" },
     })],
     ["EV missing charging data", () => {
-      const { chargingFit: _removed, ...value } = profile("EV");
-      return value;
+      const { version, fuelGroup, scores, companyPriority, profitPriority } = profile("EV");
+      return { version, fuelGroup, scores, companyPriority, profitPriority };
     }],
   ])("rejects %s", (_label, build) => {
     const parsed = parseOverlapProfile(build());
