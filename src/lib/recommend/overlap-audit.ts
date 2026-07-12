@@ -38,8 +38,6 @@ export interface OverlapAuditReport {
 
 const resultSignature = (vehicles: readonly { readonly vehicle: { readonly slug: string }; readonly documentScore: number; readonly chargingAdjustment: number }[]) =>
   vehicles.map((vehicle) => `${vehicle.vehicle.slug}:${vehicle.documentScore}:${vehicle.chargingAdjustment}`).join("|");
-const orderSignature = (vehicles: readonly { readonly vehicle: { readonly slug: string } }[]) =>
-  vehicles.map((vehicle) => vehicle.vehicle.slug).join("|");
 
 function comparisonKey(input: OverlapScoringInput, omit: "industryDetail" | "childDetail" | "cargoDetail" | "chargingEnvironment"): string {
   const entries = Object.entries(input).filter(([key]) => key !== omit).sort(([left], [right]) => left.localeCompare(right));
@@ -138,10 +136,9 @@ export function auditOverlapSnapshot(
     const previousIndustry = industryGroups.get(industryKey);
     if (previousIndustry !== undefined && previousIndustry !== signature) failures.add("industry_detail_changed_rank");
     industryGroups.set(industryKey, signature);
-    const order = orderSignature(first);
-    if (input.situationPreference === "가족") updateVariantGroup(familyGroups, comparisonKey(input, "childDetail"), input.childDetail, order);
-    if (input.situationPreference === "화물") updateVariantGroup(cargoGroups, comparisonKey(input, "cargoDetail"), input.cargoDetail, order);
-    if (input.fuelPreference === "전기차") updateVariantGroup(chargingGroups, comparisonKey(input, "chargingEnvironment"), input.chargingEnvironment, order);
+    if (input.situationPreference === "가족") updateVariantGroup(familyGroups, comparisonKey(input, "childDetail"), input.childDetail, signature);
+    if (input.situationPreference === "화물") updateVariantGroup(cargoGroups, comparisonKey(input, "cargoDetail"), input.cargoDetail, signature);
+    if (input.fuelPreference === "전기차") updateVariantGroup(chargingGroups, comparisonKey(input, "chargingEnvironment"), input.chargingEnvironment, signature);
   }
 
   const childDetailSensitive = sensitivity(familyGroups, ["영유아", "미취학", "초등", "중학생+"]);
