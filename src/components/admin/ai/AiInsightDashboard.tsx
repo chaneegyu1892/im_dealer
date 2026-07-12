@@ -1,9 +1,10 @@
 "use client";
 
 import { TrendingUp, Users, Target, MousePointer2 } from "lucide-react";
+import type { AiInsightData } from "@/lib/admin-ai-queries";
 
 interface Props {
-  data: any;
+  data: AiInsightData;
 }
 
 export default function AiInsightDashboard({ data }: Props) {
@@ -49,7 +50,7 @@ export default function AiInsightDashboard({ data }: Props) {
           <span className="text-[10px] text-[#9BA4C0] whitespace-nowrap">최근 200건</span>
         </div>
         <div className="space-y-2.5">
-          {data.topRecommendedVehicles.map((v: any, i: number) => (
+          {data.topRecommendedVehicles.map((v, i) => (
             <div key={v.vehicleId} className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-[10px] font-black text-[#9BA4C0] shrink-0">0{i + 1}</span>

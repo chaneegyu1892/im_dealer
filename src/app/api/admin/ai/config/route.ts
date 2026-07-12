@@ -38,8 +38,11 @@ function auditable(config: {
   };
 }
 
-const conflict = () => NextResponse.json(
-  { error: "설정이 다른 관리자에 의해 변경되었습니다. 새로고침 후 다시 시도하세요." },
+const conflict = (currentUpdatedAt?: Date) => NextResponse.json(
+  {
+    error: "설정이 다른 관리자에 의해 변경되었습니다. 새로고침 후 다시 시도하세요.",
+    currentUpdatedAt: currentUpdatedAt?.toISOString(),
+  },
   { status: 409 }
 );
 
@@ -75,10 +78,10 @@ export async function POST(req: NextRequest) {
         where: { vehicleId: input.vehicleId, updatedAt: new Date(input.expectedUpdatedAt) },
         data: { isActive: false, updatedBy: session.email },
       });
-      if (result.count !== 1) return conflict();
+      if (result.count !== 1) return conflict(existing.updatedAt);
       updated = await prisma.recommendationConfig.findUniqueOrThrow({ where: { vehicleId: input.vehicleId } });
     } else if (input.action === "create") {
-      if (existing) return conflict();
+      if (existing) return conflict(existing.updatedAt);
       updated = await prisma.recommendationConfig.create({
         data: {
           vehicleId: input.vehicleId,
@@ -101,7 +104,7 @@ export async function POST(req: NextRequest) {
           updatedBy: session.email,
         },
       });
-      if (result.count !== 1) return conflict();
+      if (result.count !== 1) return conflict(existing.updatedAt);
       updated = await prisma.recommendationConfig.findUniqueOrThrow({ where: { vehicleId: input.vehicleId } });
     }
 
