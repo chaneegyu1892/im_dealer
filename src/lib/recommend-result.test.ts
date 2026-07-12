@@ -1,48 +1,116 @@
-import { describe, it, expect } from "vitest";
-import { parseStoredResult } from "./recommend-result";
+import { describe, expect, it } from "vitest";
+import { parseStoredResult, parseStoredResultState } from "./recommend-result";
 
-const validVehicle = {
+function scenario(monthlyPayment = 760_000) {
+  return {
+    monthlyPayment,
+    depositAmount: 0,
+    prepayAmount: 0,
+    contractMonths: 48,
+    annualMileage: 20_000,
+    contractType: "반납형",
+  };
+}
+
+const legacyVehicle = {
   vehicleId: "veh_1",
   rank: 1,
   score: 70,
   reason: "조건에 적합한 차량이에요",
   highlights: ["고연비"],
-  estimatedMonthly: 760000,
-  vehicle: { slug: "genesis-g80", name: "제네시스 G80" },
-  scenarios: { standard: { monthlyPayment: 760000 } },
+  estimatedMonthly: 760_000,
+  vehicle: {
+    slug: "genesis-g80",
+    name: "제네시스 G80",
+    brand: "제네시스",
+    category: "승용",
+    thumbnailUrl: "/g80.png",
+    defaultTrimName: "기본형",
+    defaultTrimPrice: 60_000_000,
+    popularConfigs: [],
+  },
+  scenarios: {
+    conservative: scenario(710_000),
+    standard: scenario(),
+    aggressive: scenario(620_000),
+  },
 };
 
-describe("parseStoredResult", () => {
-  it("null/undefined 는 null 반환 (옛 로그 → 재계산 폴백 신호)", () => {
+const v2Vehicle = {
+  ...legacyVehicle,
+  score: 12.04,
+  scoringVersion: "overlap-v2",
+  documentScore: 12,
+  chargingAdjustment: 0.04,
+  rankScore: 12.04,
+  contributions: [
+    {
+      kind: "document",
+      axis: "industry",
+      selectedValue: "법인",
+      level: "best",
+      rawPoints: 5,
+      weight: 0.6,
+      weightedPoints: 3,
+      evidenceLabel: "등록 형태 법인",
+    },
+  ],
+  tieBreak: {
+    modelYear: 2026,
+    companyPriority: 0,
+    isPopular: true,
+    profitPriority: 0,
+    slug: "genesis-g80",
+  },
+};
+
+describe("stored recommendation result boundary", () => {
+  it("returns missing only for SQL-null-like values", () => {
+    expect(parseStoredResultState(null)).toEqual({ kind: "missing" });
+    expect(parseStoredResultState(undefined)).toEqual({ kind: "missing" });
+  });
+
+  it("keeps a valid legacy frozen array unchanged", () => {
+    const value = [legacyVehicle];
+    const result = parseStoredResultState(value);
+    expect(result).toEqual({ kind: "legacy", vehicles: value });
+  });
+
+  it("keeps a populated v2 envelope with complete evidence", () => {
+    const value = { version: "overlap-v2", vehicles: [v2Vehicle] };
+    const result = parseStoredResultState(value);
+    expect(result).toEqual({ kind: "v2", vehicles: [v2Vehicle] });
+  });
+
+  it("keeps an empty v2 envelope frozen", () => {
+    expect(parseStoredResultState({ version: "overlap-v2", vehicles: [] })).toEqual({
+      kind: "v2",
+      vehicles: [],
+    });
+  });
+
+  it.each([
+    "garbage",
+    42,
+    {},
+    { version: "overlap-v2" },
+    { version: "overlap-v2", vehicles: [{ ...v2Vehicle, rankScore: undefined }] },
+    { version: "overlap-v2", vehicles: [legacyVehicle] },
+  ])("fails closed for invalid non-null storage", (value) => {
+    const result = parseStoredResultState(value);
+    expect(result.kind).toBe("invalid");
+    if (result.kind === "invalid") expect(result.issues.length).toBeGreaterThan(0);
+  });
+
+  it("keeps a historical empty legacy array frozen", () => {
+    expect(parseStoredResultState([])).toEqual({ kind: "legacy", vehicles: [] });
+  });
+
+  it("keeps the temporary legacy wrapper behavior until route migration", () => {
+    expect(parseStoredResult([legacyVehicle])).toEqual([legacyVehicle]);
+    expect(parseStoredResult({ version: "overlap-v2", vehicles: [v2Vehicle] })).toEqual([
+      v2Vehicle,
+    ]);
     expect(parseStoredResult(null)).toBeNull();
-    expect(parseStoredResult(undefined)).toBeNull();
-  });
-
-  it("유효한 결과 배열은 그대로 반환", () => {
-    const result = parseStoredResult([validVehicle]);
-    expect(result).not.toBeNull();
-    expect(result).toHaveLength(1);
-    expect(result?.[0].vehicleId).toBe("veh_1");
-  });
-
-  it("빈 배열은 유효한 frozen 결과로 [] 반환 (null 아님)", () => {
-    expect(parseStoredResult([])).toEqual([]);
-  });
-
-  it("배열이 아니면 null", () => {
-    expect(parseStoredResult({ vehicleId: "veh_1" })).toBeNull();
-    expect(parseStoredResult("garbage")).toBeNull();
-    expect(parseStoredResult(42)).toBeNull();
-  });
-
-  it("필수 필드(vehicleId) 누락 항목이 있으면 null", () => {
-    const missingId: Record<string, unknown> = { ...validVehicle };
-    delete missingId.vehicleId;
-    expect(parseStoredResult([missingId])).toBeNull();
-  });
-
-  it("vehicle.slug 누락이면 null (견적 링크 깨짐 방지)", () => {
-    const noSlug = { ...validVehicle, vehicle: { name: "이름만" } };
-    expect(parseStoredResult([noSlug])).toBeNull();
   });
 });

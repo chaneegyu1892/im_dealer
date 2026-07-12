@@ -28,7 +28,7 @@ export interface RecommendResult {
   vehicles: RecommendedVehicle[];
 }
 
-export interface RecommendedVehicle {
+export interface RecommendedVehicleBase {
   vehicleId: string;
   rank: number;
   score: number;
@@ -38,6 +38,45 @@ export interface RecommendedVehicle {
   vehicle: RecommendedVehicleDetail;
   scenarios: RecommendScenarios;
 }
+
+export interface RecommendationScoreContribution {
+  readonly kind: "document" | "charging";
+  readonly axis:
+    | "industry"
+    | "primaryPreference"
+    | "additionalCondition"
+    | "annualMileage"
+    | "region"
+    | "chargingEnvironment";
+  readonly selectedValue: string | null;
+  readonly selectedDetail?: string;
+  readonly level: "best" | "fit" | "support" | "none";
+  readonly rawPoints: number;
+  readonly weight: number | null;
+  readonly weightedPoints: number;
+  readonly evidenceLabel: string;
+}
+
+export interface LegacyRecommendedVehicle extends RecommendedVehicleBase {
+  readonly scoringVersion?: never;
+}
+
+export interface OverlapRecommendedVehicle extends RecommendedVehicleBase {
+  readonly scoringVersion: "overlap-v2";
+  readonly documentScore: number;
+  readonly chargingAdjustment: number;
+  readonly rankScore: number;
+  readonly contributions: readonly RecommendationScoreContribution[];
+  readonly tieBreak: {
+    readonly modelYear: number;
+    readonly companyPriority: number;
+    readonly isPopular: boolean;
+    readonly profitPriority: number;
+    readonly slug: string;
+  };
+}
+
+export type RecommendedVehicle = LegacyRecommendedVehicle | OverlapRecommendedVehicle;
 
 export interface PopularConfigItem {
   id: string;
