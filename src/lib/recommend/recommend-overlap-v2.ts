@@ -1,0 +1,134 @@
+import type { RecommendInput, OverlapRecommendedVehicle } from "@/types/recommendation";
+import { getRecommendationModelKey } from "./latest-model";
+import {
+  loadOverlapCandidateSnapshot,
+  type OverlapCandidateSnapshot,
+  type OverlapRuntimeVehicle,
+} from "./overlap-candidate-loader";
+import {
+  assessOperationalEligibility,
+  type EligibleOperationalResult,
+  type OperationalEligibilityStatus,
+} from "./operational-eligibility";
+import { rankOverlapCandidates, type RankableOverlapCandidate } from "./overlap-ranking";
+import { parseOverlapRuntimeInput } from "./overlap-runtime-input";
+import { scoreOverlapVehicle, type OverlapScoringInput } from "./overlap-scoring";
+import { generateOverlapReason } from "./reason";
+import { buildRecommendScenarios } from "./recommend-scenarios";
+
+interface RuntimeScoredCandidate extends RankableOverlapCandidate {
+  readonly vehicle: OverlapRuntimeVehicle;
+  readonly eligibility: EligibleOperationalResult;
+}
+
+export interface OverlapEligibilityDiagnostic {
+  readonly slug: string;
+  readonly status: OperationalEligibilityStatus;
+}
+
+export interface OverlapRecommendationRun {
+  readonly vehicles: readonly OverlapRecommendedVehicle[];
+  readonly diagnostics: readonly OverlapEligibilityDiagnostic[];
+}
+
+function scoreEligibleVehicles(
+  input: OverlapScoringInput,
+  snapshot: OverlapCandidateSnapshot
+): { readonly candidates: readonly RuntimeScoredCandidate[]; readonly diagnostics: readonly OverlapEligibilityDiagnostic[] } {
+  const candidates: RuntimeScoredCandidate[] = [];
+  const diagnostics: OverlapEligibilityDiagnostic[] = [];
+  for (const vehicle of snapshot.vehicles) {
+    const eligibility = assessOperationalEligibility(vehicle, input.annualMileage);
+    diagnostics.push({ slug: vehicle.slug, status: eligibility.status });
+    if (eligibility.status !== "eligible") continue;
+    candidates.push({
+      vehicleId: vehicle.vehicleId,
+      slug: vehicle.slug,
+      modelKey: getRecommendationModelKey({
+        brand: vehicle.brand,
+        name: vehicle.name,
+        defaultTrimName: eligibility.selectedTrim.name,
+        lineupName: eligibility.selectedTrim.lineup?.name,
+      }),
+      modelYear: eligibility.modelYear,
+      isPopular: vehicle.isPopular,
+      profile: eligibility.profile,
+      score: scoreOverlapVehicle(input, eligibility.profile),
+      vehicle,
+      eligibility,
+    });
+  }
+  return { candidates, diagnostics };
+}
+
+function toRecommendedVehicle(
+  candidate: RuntimeScoredCandidate,
+  input: OverlapScoringInput,
+  rankSurchargeRates: readonly number[],
+  rank: number
+): OverlapRecommendedVehicle {
+  const { vehicle, eligibility, profile, score } = candidate;
+  const trim = eligibility.selectedTrim;
+  return {
+    vehicleId: vehicle.vehicleId,
+    rank,
+    score: score.rankScore,
+    scoringVersion: "overlap-v2",
+    documentScore: score.documentScore,
+    chargingAdjustment: score.chargingAdjustment,
+    rankScore: score.rankScore,
+    contributions: score.contributions,
+    tieBreak: {
+      modelYear: candidate.modelYear,
+      companyPriority: profile.companyPriority,
+      isPopular: vehicle.isPopular,
+      profitPriority: profile.profitPriority,
+      slug: vehicle.slug,
+    },
+    reason: generateOverlapReason(score.contributions),
+    highlights: [...vehicle.highlights].slice(0, 4),
+    estimatedMonthly: eligibility.estimatedMonthly,
+    vehicle: {
+      name: vehicle.name,
+      brand: vehicle.brand,
+      category: vehicle.category,
+      thumbnailUrl: vehicle.thumbnailUrl,
+      imageUrls: [...vehicle.imageUrls],
+      defaultTrimName: trim.name,
+      defaultTrimPrice: trim.price,
+      slug: vehicle.slug,
+      popularConfigs: vehicle.popularConfigs.map((config) => ({
+        id: config.id,
+        name: config.name,
+        note: config.note,
+        items: config.items.map((item) => ({ ...item })),
+      })),
+    },
+    scenarios: buildRecommendScenarios({
+      vehiclePrice: trim.price,
+      annualMileage: input.annualMileage,
+      vehicleSurchargeRate: vehicle.surchargeRate,
+      rankSurchargeRates,
+      rateConfigs: eligibility.rateConfigs,
+      estimatedMonthly: eligibility.estimatedMonthly,
+    }),
+  };
+}
+
+export function recommendOverlapV2FromSnapshot(
+  rawInput: unknown,
+  snapshot: OverlapCandidateSnapshot
+): OverlapRecommendationRun {
+  const input = parseOverlapRuntimeInput(rawInput);
+  const scored = scoreEligibleVehicles(input, snapshot);
+  const ranked = rankOverlapCandidates(scored.candidates, input.fuelPreference);
+  return {
+    vehicles: ranked.map((candidate, index) => toRecommendedVehicle(candidate, input, snapshot.rankSurchargeRates, index + 1)),
+    diagnostics: scored.diagnostics,
+  };
+}
+
+export async function recommendOverlapV2(input: RecommendInput): Promise<OverlapRecommendedVehicle[]> {
+  const snapshot = await loadOverlapCandidateSnapshot();
+  return [...recommendOverlapV2FromSnapshot(input, snapshot).vehicles];
+}

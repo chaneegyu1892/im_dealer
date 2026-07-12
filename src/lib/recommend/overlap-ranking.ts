@@ -38,10 +38,10 @@ export function compareOverlapCandidates(
   return left.slug.localeCompare(right.slug);
 }
 
-function deduplicateLatestModel(
-  candidates: readonly RankableOverlapCandidate[]
-): RankableOverlapCandidate[] {
-  const byModel = new Map<string, RankableOverlapCandidate>();
+function deduplicateLatestModel<T extends RankableOverlapCandidate>(
+  candidates: readonly T[]
+): T[] {
+  const byModel = new Map<string, T>();
   for (const candidate of candidates) {
     const current = byModel.get(candidate.modelKey);
     if (
@@ -56,10 +56,10 @@ function deduplicateLatestModel(
   return [...byModel.values()];
 }
 
-export function rankOverlapCandidates(
-  candidates: readonly RankableOverlapCandidate[],
+export function rankOverlapCandidates<T extends RankableOverlapCandidate>(
+  candidates: readonly T[],
   fuelPreference: FuelPreference
-): RankableOverlapCandidate[] {
+): T[] {
   const requiredFuel = requiredFuelGroup(fuelPreference);
   const matchingFuel = requiredFuel
     ? candidates.filter((candidate) => candidate.profile.fuelGroup === requiredFuel)
