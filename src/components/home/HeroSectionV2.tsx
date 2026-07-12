@@ -46,14 +46,14 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
             <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
               <Link
                 href="/cars"
-                className="flex h-[56px] items-center justify-center gap-2 rounded-[14px] bg-brand px-7 text-[16px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99] md:text-[17px]"
+                className="flex flex-1 h-[56px] items-center justify-center gap-2 rounded-[14px] bg-brand px-7 text-[16px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99] md:text-[17px]"
               >
                 차량 둘러보기
                 <ArrowRight size={17} strokeWidth={2.4} />
               </Link>
               <Link
                 href="/recommend"
-                className="flex h-[56px] items-center justify-center gap-1.5 rounded-[14px] bg-[#F8FAFC] px-5 text-[15px] font-bold text-text-strong ring-[1.5px] ring-transparent transition-all hover:ring-[#E5E8EB] active:scale-[0.99]"
+                className="flex flex-1 h-[56px] items-center justify-center gap-2 rounded-[14px] bg-[#F8FAFC] px-7 text-[16px] font-bold text-text-strong ring-[1.5px] ring-transparent transition-all hover:ring-[#E5E8EB] active:scale-[0.99] md:text-[17px]"
               >
                 AI 추천 받기
               </Link>
