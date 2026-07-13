@@ -17,6 +17,10 @@ import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import { QuoteClientPageV2 } from "./QuoteClientPageV2";
+import {
+  publicThumbnailProjectionInclude,
+  resolvePublicThumbnailUrl,
+} from "@/lib/vehicle-images/public";
 
 async function getVehicles(): Promise<VehicleListItem[]> {
   const vehicles = await prisma.vehicle.findMany({
@@ -31,6 +35,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
         where: { isActive: true },
         select: { highlights: true },
       },
+      ...publicThumbnailProjectionInclude,
     },
   });
 
@@ -42,7 +47,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     category: v.category as VehicleListItem["category"],
     basePrice: v.basePrice,
     evSubsidyRange: subsidyRangeFromTrims(v.trims),
-    thumbnailUrl: v.thumbnailUrl,
+    thumbnailUrl: resolvePublicThumbnailUrl(v),
     isPopular: v.isPopular,
     description: v.description,
     displayOrder: v.displayOrder,

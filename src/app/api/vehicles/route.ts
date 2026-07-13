@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  publicThumbnailProjectionInclude,
+  resolvePublicThumbnailUrl,
+} from "@/lib/vehicle-images/public";
 
 // ─── GET /api/vehicles ──────────────────────────────────
 // 공개 차량 목록 조회
@@ -48,6 +52,7 @@ export async function GET(request: NextRequest) {
             where: { isActive: true },
             select: { highlights: true, aiCaption: true },
           },
+          ...publicThumbnailProjectionInclude,
         },
       }),
       prisma.vehicle.count({ where }),
@@ -59,7 +64,7 @@ export async function GET(request: NextRequest) {
       .filter(Boolean) as string[];
 
     const rateSheets = defaultTrimIds.length > 0
-      ? await (prisma as any).capitalRateSheet.findMany({
+      ? await prisma.capitalRateSheet.findMany({
           where: { trimId: { in: defaultTrimIds }, isActive: true },
           select: { trimId: true, minRateMatrix: true },
         })
@@ -90,7 +95,7 @@ export async function GET(request: NextRequest) {
         brand: v.brand,
         category: v.category,
         basePrice: v.basePrice,
-        thumbnailUrl: v.thumbnailUrl,
+        thumbnailUrl: resolvePublicThumbnailUrl(v),
         isPopular: v.isPopular,
         description: v.description,
         displayOrder: v.displayOrder,
@@ -113,7 +118,7 @@ export async function GET(request: NextRequest) {
       data,
       meta: { total, page, limit },
     });
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- HTTP boundary converts unexpected failures to 500.
     console.error("[GET /api/vehicles]", error);
     return NextResponse.json(
       { error: "차량 목록 조회 중 오류가 발생했습니다." },

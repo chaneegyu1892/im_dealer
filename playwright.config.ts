@@ -22,7 +22,7 @@ export default defineConfig({
 
   use: {
     baseURL: BASE_URL,
-    trace: "retain-on-failure",
+    trace: process.env.VEHICLE_IMAGE_E2E_TRACE === "1" ? "on" : "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     actionTimeout: 10_000,

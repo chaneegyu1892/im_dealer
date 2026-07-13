@@ -1,6 +1,11 @@
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import { prisma } from "@/lib/prisma";
 import type { OperationalVehicleSnapshot } from "./operational-eligibility";
+import {
+  canUseLegacyImageFallback,
+  publicThumbnailProjectionInclude,
+  resolvePublicThumbnailUrl,
+} from "@/lib/vehicle-images/public";
 
 export interface OverlapRuntimePopularConfig {
   readonly id: string;
@@ -44,6 +49,7 @@ export async function loadOverlapCandidateSnapshot(): Promise<OverlapCandidateSn
           orderBy: { displayOrder: "asc" },
           include: { items: { orderBy: { displayOrder: "asc" } } },
         },
+        ...publicThumbnailProjectionInclude,
       },
     }),
     prisma.rankSurchargeConfig.findMany({ orderBy: { rank: "asc" } }),
@@ -62,8 +68,8 @@ export async function loadOverlapCandidateSnapshot(): Promise<OverlapCandidateSn
       isVisible: vehicle.isVisible,
       surchargeRate: vehicle.surchargeRate,
       isPopular: vehicle.isPopular,
-      thumbnailUrl: vehicle.thumbnailUrl,
-      imageUrls: vehicle.imageUrls,
+      thumbnailUrl: resolvePublicThumbnailUrl(vehicle),
+      imageUrls: canUseLegacyImageFallback(vehicle) ? vehicle.imageUrls : [],
       highlights: vehicle.recConfigs?.highlights ?? [],
       config: vehicle.recConfigs ? {
         isActive: vehicle.recConfigs.isActive,

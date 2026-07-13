@@ -1,6 +1,10 @@
-import { PrismaClient, type Prisma } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
-import type { Carpan2ImageCandidate, Carpan2ImageType, ImageMetadata } from "./types";
+import type { Carpan2ImageCandidate, Carpan2ImageType } from "./types";
+import {
+  createCarpan2ImagePersistence,
+  type Carpan2ImagePersistence,
+} from "./persistence";
 import { mirrorImage, type MirrorContext } from "../vehicle-image-mirror";
 
 const DEFAULT_IMPORT_CONCURRENCY = 8;
@@ -32,6 +36,14 @@ export class Carpan2ImageImportError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "Carpan2ImageImportError";
+  }
+}
+
+export class Carpan2ImageFinalizationError extends Error {
+  readonly name = "Carpan2ImageFinalizationError";
+
+  constructor(readonly failures: readonly unknown[]) {
+    super("CARPAN2_IMAGE_FINALIZATION_FAILED", { cause: failures[0] });
   }
 }
 
@@ -88,15 +100,21 @@ export async function applyCarpan2ImagePlans(input: {
   readonly ctx: MirrorContext;
   readonly plans: readonly Carpan2ImageImportPlan[];
   readonly concurrency?: number;
+  readonly persistence?: Carpan2ImagePersistence;
+  readonly mirror?: typeof mirrorImage;
 }): Promise<Carpan2ImageImportStats> {
   const stats = createInitialStats();
   const tasks: ImportTask[] = [];
+  const matchedVehicleIds = new Set<string>();
+  const primaryFailureVehicleIds = new Set<string>();
+  const persistence = input.persistence ?? createCarpan2ImagePersistence(input.prisma);
   for (const plan of input.plans) {
     if (!plan.dbVehicle) {
       stats.vehiclesMissing += 1;
       continue;
     }
     stats.vehiclesMatched += 1;
+    matchedVehicleIds.add(plan.dbVehicle.id);
     for (const candidate of plan.candidates) {
       tasks.push({ dbVehicle: plan.dbVehicle, candidate });
     }
@@ -106,11 +124,21 @@ export async function applyCarpan2ImagePlans(input: {
     concurrency: input.concurrency ?? DEFAULT_IMPORT_CONCURRENCY,
     worker: (task) =>
       applyImageCandidate({
-        prisma: input.prisma,
         ctx: input.ctx,
+        mirror: input.mirror ?? mirrorImage,
+        persistence,
+        primaryFailureVehicleIds,
         task,
         stats,
       }),
+  });
+  await runWithConcurrency({
+    items: [...matchedVehicleIds].filter((vehicleId) => !primaryFailureVehicleIds.has(vehicleId)),
+    concurrency: input.concurrency ?? DEFAULT_IMPORT_CONCURRENCY,
+    failureError: (failures) => new Carpan2ImageFinalizationError(failures),
+    worker: async (vehicleId) => {
+      await persistence.finalizeVehicleRepresentative(vehicleId);
+    },
   });
   return stats;
 }
@@ -158,41 +186,46 @@ type ImportTask = {
 };
 
 async function applyImageCandidate(input: {
-  readonly prisma: PrismaClient;
   readonly ctx: MirrorContext;
+  readonly mirror: typeof mirrorImage;
+  readonly persistence: Carpan2ImagePersistence;
+  readonly primaryFailureVehicleIds: Set<string>;
   readonly task: ImportTask;
   readonly stats: Carpan2ImageImportStats;
 }): Promise<void> {
   input.stats.candidates += 1;
   try {
-    const existing = await input.prisma.vehicleImage.findUnique({
-      where: {
-        vehicleId_sourceKey: {
-          vehicleId: input.task.dbVehicle.id,
-          sourceKey: input.task.candidate.sourceKey,
-        },
-      },
-      select: { sourceUrl: true, storageUrl: true },
-    });
+    const existing = await input.persistence.findExisting(
+      input.task.dbVehicle.id,
+      input.task.candidate.sourceKey,
+    );
+    if (existing?.origin === "ADMIN") {
+      input.stats.skippedExisting += 1;
+      return;
+    }
     if (existing?.storageUrl && existing.sourceUrl === input.task.candidate.sourceUrl) {
       input.stats.skippedExisting += 1;
       return;
     }
-    const mirrored = await mirrorImage(input.task.candidate.sourceUrl, input.ctx);
+    const mirrored = await input.mirror(input.task.candidate.sourceUrl, input.ctx);
     if (mirrored.uploaded) input.stats.uploaded += 1;
     else input.stats.mirroredCachedOrExisting += 1;
-    await upsertVehicleImage({
-      prisma: input.prisma,
+    const result = await input.persistence.applyMirroredCandidate({
       vehicleId: input.task.dbVehicle.id,
+      existingImageId: existing?.id ?? null,
       candidate: input.task.candidate,
       storageUrl: mirrored.url,
     });
-    input.stats.upserted += 1;
+    if (result === "upserted") input.stats.upserted += 1;
+    else input.stats.skippedExisting += 1;
     if (input.stats.candidates % 100 === 0) {
       console.log(`[APPLY] images ${input.stats.candidates}, upserted ${input.stats.upserted}`);
     }
   } catch (error) {
     input.stats.failed += 1;
+    if (input.task.candidate.type === "MAIN" || input.task.candidate.type === "COVER") {
+      input.primaryFailureVehicleIds.add(input.task.dbVehicle.id);
+    }
     if (error instanceof Error) {
       console.warn(
         `[WARN] ${input.task.dbVehicle.brand}/${input.task.dbVehicle.name}: ${error.message} (${input.task.candidate.sourceUrl})`,
@@ -203,53 +236,14 @@ async function applyImageCandidate(input: {
   }
 }
 
-async function upsertVehicleImage(input: {
-  readonly prisma: PrismaClient;
-  readonly vehicleId: string;
-  readonly candidate: Carpan2ImageCandidate;
-  readonly storageUrl: string;
-}): Promise<void> {
-  await input.prisma.vehicleImage.upsert({
-    where: {
-      vehicleId_sourceKey: {
-        vehicleId: input.vehicleId,
-        sourceKey: input.candidate.sourceKey,
-      },
-    },
-    create: {
-      vehicleId: input.vehicleId,
-      type: input.candidate.type,
-      title: input.candidate.title,
-      storageUrl: input.storageUrl,
-      sourceUrl: input.candidate.sourceUrl,
-      sourceKey: input.candidate.sourceKey,
-      displayOrder: input.candidate.displayOrder,
-      metadata: toPrismaJson(input.candidate.metadata),
-    },
-    update: {
-      type: input.candidate.type,
-      title: input.candidate.title,
-      storageUrl: input.storageUrl,
-      sourceUrl: input.candidate.sourceUrl,
-      displayOrder: input.candidate.displayOrder,
-      isVisible: true,
-      metadata: toPrismaJson(input.candidate.metadata),
-    },
-  });
-}
-
-function toPrismaJson(metadata: ImageMetadata): Prisma.InputJsonObject {
-  const output: Record<string, Prisma.InputJsonValue> = {};
-  for (const [key, value] of Object.entries(metadata)) output[key] = value;
-  return output;
-}
-
 async function runWithConcurrency<T>(input: {
   readonly items: readonly T[];
   readonly concurrency: number;
+  readonly failureError?: (failures: readonly unknown[]) => Error;
   readonly worker: (item: T) => Promise<void>;
 }): Promise<void> {
   let nextIndex = 0;
+  const failures: unknown[] = [];
   const workerCount = Math.min(Math.max(input.concurrency, 1), input.items.length);
   const workers = Array.from({ length: workerCount }, async () => {
     while (nextIndex < input.items.length) {
@@ -257,8 +251,14 @@ async function runWithConcurrency<T>(input: {
       nextIndex += 1;
       const item = input.items[index];
       if (item === undefined) return;
-      await input.worker(item);
+      const [result] = await Promise.allSettled([
+        Promise.resolve().then(() => input.worker(item)),
+      ]);
+      if (result?.status === "rejected") failures.push(result.reason);
     }
   });
   await Promise.all(workers);
+  if (failures.length === 0) return;
+  if (input.failureError) throw input.failureError(failures);
+  throw failures[0];
 }

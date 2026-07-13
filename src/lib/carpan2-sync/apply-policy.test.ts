@@ -68,13 +68,10 @@ describe("buildExistingVehicleApplyPolicy", () => {
       category: "SUV",
       externalSource: "carpan2",
       basePrice: 38240000,
-      thumbnailUrl: "https://www.carpan.co.kr/img/model/sorento-L.png",
-      imageUrls: [
-        "https://www.carpan.co.kr/img/model/sorento-L.png",
-        "https://www.carpan.co.kr/img/model/sorento-cover.png",
-      ],
       description: "updated summary",
     });
+    expect(policy.vehicleUpdate).not.toHaveProperty("thumbnailUrl");
+    expect(policy.vehicleUpdate).not.toHaveProperty("imageUrls");
     expect(policy.vehicleUpdate).not.toHaveProperty("isVisible");
     expect(policy.vehicleUpdate).not.toHaveProperty("isPopular");
     expect(policy.vehicleUpdate).not.toHaveProperty("isSpotlight");

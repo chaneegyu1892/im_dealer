@@ -131,3 +131,76 @@ jobs:
           name: playwright-traces
           path: test-results/
           retention-days: 14
+
+  vehicle-image-e2e:
+    name: Vehicle image E2E (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    needs: ci
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: desktop
+            spec: e2e/admin-vehicle-images-desktop.spec.ts
+          - name: mobile
+            spec: e2e/admin-vehicle-images-mobile.spec.ts
+          - name: failure
+            spec: e2e/admin-vehicle-images-failure.spec.ts
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Require production deny fingerprint
+        env:
+          PRODUCTION_DATABASE_FINGERPRINT: ${{ vars.PRODUCTION_DATABASE_FINGERPRINT }}
+          PRODUCTION_DATABASE_RUNTIME_FINGERPRINT: ${{ vars.PRODUCTION_DATABASE_RUNTIME_FINGERPRINT }}
+          PRODUCTION_DATABASE_DIRECT_FINGERPRINT: ${{ vars.PRODUCTION_DATABASE_DIRECT_FINGERPRINT }}
+        run: |
+          test -n "$PRODUCTION_DATABASE_FINGERPRINT"
+          test -n "$PRODUCTION_DATABASE_RUNTIME_FINGERPRINT"
+          test -n "$PRODUCTION_DATABASE_DIRECT_FINGERPRINT"
+      - name: Run isolated vehicle image scenario
+        env:
+          CARPAN2_E2E_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+          CARPAN2_E2E_DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+          CARPAN2_E2E_EXPECTED_FINGERPRINT: 8f06e5e213436c9e7532f1aa5099328336c546ec07872b0631c07253a0f597e2
+          PRODUCTION_DATABASE_FINGERPRINT: ${{ vars.PRODUCTION_DATABASE_FINGERPRINT }}
+          PRODUCTION_DATABASE_RUNTIME_FINGERPRINT: ${{ vars.PRODUCTION_DATABASE_RUNTIME_FINGERPRINT }}
+          PRODUCTION_DATABASE_DIRECT_FINGERPRINT: ${{ vars.PRODUCTION_DATABASE_DIRECT_FINGERPRINT }}
+        run: pnpm exec tsx scripts/run-vehicle-image-e2e.ts --spec "${{ matrix.spec }}"
+      - name: Upload vehicle image Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vehicle-image-playwright-${{ matrix.name }}
+          path: |
+            playwright-report/
+            test-results/
+            .omo/evidence/carpan2-admin-image-management/task-9-${{ matrix.name }}*
+          retention-days: 14

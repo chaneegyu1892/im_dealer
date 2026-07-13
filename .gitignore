@@ -95,3 +95,10 @@ tsconfig.tsbuildinfo
 /playwright-report/
 /playwright/.cache/
 /blob-report/
+/.playwright-mcp/
+
+# ZCode (agent working files)
+.zcode/
+
+# Orphan patch / scratch artifacts (명시적으로 추적되지 않는 한)
+/*.patch

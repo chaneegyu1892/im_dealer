@@ -82,6 +82,8 @@ export interface VehicleDetail {
   thumbnailUrl: string;
   imageUrls: string[];
   images: VehicleImageItem[];
+  readonly legacyImageFallbackAllowed: boolean;
+  readonly heroImageProjectionAllowed: boolean;
   surchargeRate: number;
   isPopular: boolean;
   description: string | null;

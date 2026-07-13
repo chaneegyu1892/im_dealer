@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
+import { VEHICLE_IMAGE_BUCKET } from "@/lib/vehicle-image-mirror";
+import {
+  deleteFilesystemVehicleImage,
+  FilesystemE2EStorageError,
+  uploadFilesystemVehicleImage,
+} from "@/lib/vehicle-images/filesystem-e2e-storage";
 
 export const REVIEW_IMAGE_BUCKET = "review-images";
 export const REVIEW_IMAGE_MAX_SIZE = 5 * 1024 * 1024;
@@ -26,6 +32,18 @@ export const ADMIN_UPLOAD_CATEGORIES = [
   "misc",
 ] as const;
 export type AdminUploadCategory = (typeof ADMIN_UPLOAD_CATEGORIES)[number];
+
+export class VehicleImageStorageError extends Error {
+  readonly name = "VehicleImageStorageError";
+
+  constructor(
+    readonly operation: "upload" | "delete",
+    message: string,
+    readonly objectMayExist = false,
+  ) {
+    super(`VEHICLE_IMAGE_STORAGE_${operation.toUpperCase()}_FAILED: ${message}`);
+  }
+}
 
 const EXT_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -120,4 +138,69 @@ export function adminUploadPathFromUrl(url: string): string | null {
   const prefix = adminUploadPublicUrlPrefix();
   if (!url.startsWith(prefix)) return null;
   return url.slice(prefix.length);
+}
+
+export function vehicleImagePublicUrl(path: string): string {
+  const { data } = supabaseAdmin().storage.from(VEHICLE_IMAGE_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+function isDeterministicUploadRejection(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  if (!("name" in error) || error.name !== "StorageApiError") return false;
+  if (!("status" in error) || typeof error.status !== "number") return false;
+  return error.status >= 400 && error.status < 500;
+}
+
+function storageErrorMessage(error: unknown): string {
+  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return String(error);
+}
+
+export async function uploadVehicleImageObject(params: {
+  readonly path: string;
+  readonly file: Blob;
+  readonly contentType: string;
+}): Promise<string> {
+  if (process.env.VEHICLE_IMAGE_STORAGE_DRIVER === "filesystem-e2e") {
+    try {
+      return await uploadFilesystemVehicleImage(params);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      throw new VehicleImageStorageError("upload", message, !(cause instanceof FilesystemE2EStorageError));
+    }
+  }
+  let error: unknown = null;
+  try {
+    const result = await supabaseAdmin().storage.from(VEHICLE_IMAGE_BUCKET).upload(
+      params.path,
+      params.file,
+      { contentType: params.contentType, cacheControl: "31536000", upsert: false },
+    );
+    error = result.error;
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    throw new VehicleImageStorageError("upload", message, true);
+  }
+  if (error) {
+    throw new VehicleImageStorageError(
+      "upload",
+      storageErrorMessage(error),
+      !isDeterministicUploadRejection(error),
+    );
+  }
+  return vehicleImagePublicUrl(params.path);
+}
+
+export async function deleteVehicleImageObject(path: string): Promise<void> {
+  if (process.env.VEHICLE_IMAGE_STORAGE_DRIVER === "filesystem-e2e") {
+    await deleteFilesystemVehicleImage(path);
+    return;
+  }
+  const { error } = await supabaseAdmin().storage.from(VEHICLE_IMAGE_BUCKET).remove([path]);
+  if (error && !/not found|404/i.test(error.message)) {
+    throw new VehicleImageStorageError("delete", error.message);
+  }
 }

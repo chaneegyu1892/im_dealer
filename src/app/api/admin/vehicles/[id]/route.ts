@@ -4,6 +4,8 @@ import { vehicleUpdateSchema } from "@/lib/validations/admin";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
+import { deleteVehicleWithStorageCleanup } from "@/lib/vehicle-images/storage-cleanup";
+import { imageRouteError } from "./images/http";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,7 +31,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     }
 
     return NextResponse.json({ success: true, data: vehicle });
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- HTTP boundary converts unexpected failures to 500.
     console.error("[GET /api/admin/vehicles/[id]]", error);
     return NextResponse.json(
       { error: "차량 조회 중 오류가 발생했습니다." },
@@ -76,7 +78,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: vehicle });
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- HTTP boundary converts unexpected failures to 500.
     console.error("[PATCH /api/admin/vehicles/[id]]", error);
     return NextResponse.json(
       { error: "차량 수정 중 오류가 발생했습니다." },
@@ -91,12 +93,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (error) return error;
   try {
     const { id } = await params;
-    const existing = await prisma.vehicle.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: "차량을 찾을 수 없습니다." }, { status: 404 });
-    }
-
-    await prisma.vehicle.delete({ where: { id } });
+    const result = await deleteVehicleWithStorageCleanup(id);
 
     await logAdminAction({
       request,
@@ -104,16 +101,12 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       action: "VEHICLE_DELETE",
       resource: "Vehicle",
       targetId: id,
-      before: existing,
+      before: result.vehicle,
     });
     revalidatePublicVehicleSurfaces();
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("[DELETE /api/admin/vehicles/[id]]", error);
-    return NextResponse.json(
-      { error: "차량 삭제 중 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, storageCleanupJobs: result.cleanupJobs });
+  } catch (error) { // no-excuse-ok: catch -- HTTP boundary converts unexpected failures to 500.
+    return imageRouteError(error);
   }
 }

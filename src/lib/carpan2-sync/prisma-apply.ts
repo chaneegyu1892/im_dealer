@@ -42,6 +42,9 @@ export async function applyExistingVehiclesToPrisma(input: {
   readonly prisma: PrismaClient;
   readonly crawlVehicles: readonly CrawlVehicleSnapshot[];
   readonly includeOptionsAndColors?: boolean;
+  readonly transactionRunner?: <TResult>(
+    mutation: (tx: Prisma.TransactionClient) => Promise<TResult>,
+  ) => Promise<TResult>;
   readonly onVehicleApplied?: (progress: {
     readonly processedVehicles: number;
     readonly totalVehicles: number;
@@ -66,15 +69,15 @@ export async function applyExistingVehiclesToPrisma(input: {
       continue;
     }
 
-    const result = await input.prisma.$transaction(
-      async (tx) =>
-        applyOneExistingVehicle(tx, {
-          existingVehicle,
-          includeOptionsAndColors: input.includeOptionsAndColors ?? false,
-          vehicle,
-        }),
-      VEHICLE_TRANSACTION_OPTIONS
-    );
+    const mutation = async (tx: Prisma.TransactionClient): Promise<MutableApplyStats> =>
+      applyOneExistingVehicle(tx, {
+        existingVehicle,
+        includeOptionsAndColors: input.includeOptionsAndColors ?? false,
+        vehicle,
+      });
+    const result = input.transactionRunner
+      ? await input.transactionRunner(mutation)
+      : await input.prisma.$transaction(mutation, VEHICLE_TRANSACTION_OPTIONS);
     addStats(stats, result);
     processedVehicles++;
     input.onVehicleApplied?.({
@@ -122,10 +125,7 @@ async function applyOneExistingVehicle(
 
   await tx.vehicle.update({
     where: { id: input.existingVehicle.id },
-    data: {
-      ...vehicleUpdate,
-      imageUrls: [...vehicleUpdate.imageUrls],
-    },
+    data: vehicleUpdate,
   });
   stats.vehiclesUpdated++;
 

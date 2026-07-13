@@ -4,6 +4,34 @@ import { vehicleCreateSchema, generateSlug } from "@/lib/validations/admin";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
+import type { Prisma } from "@prisma/client";
+
+type VehicleListRow = Prisma.VehicleGetPayload<{
+  include: { _count: { select: { trims: true } } };
+}>;
+
+function serializeVehicleListRow(vehicle: VehicleListRow) {
+  return {
+    id: vehicle.id,
+    slug: vehicle.slug,
+    name: vehicle.name,
+    brand: vehicle.brand,
+    category: vehicle.category,
+    vehicleCode: vehicle.vehicleCode,
+    basePrice: vehicle.basePrice,
+    thumbnailUrl: vehicle.thumbnailUrl,
+    imageUrls: vehicle.imageUrls,
+    surchargeRate: vehicle.surchargeRate,
+    isVisible: vehicle.isVisible,
+    isPopular: vehicle.isPopular,
+    isSpotlight: vehicle.isSpotlight,
+    displayOrder: vehicle.displayOrder,
+    description: vehicle.description,
+    createdAt: vehicle.createdAt.toISOString(),
+    updatedAt: vehicle.updatedAt.toISOString(),
+    _count: vehicle._count,
+  };
+}
 
 // ─── GET /api/admin/vehicles ────────────────────────────
 export async function GET(request: NextRequest) {
@@ -19,39 +47,36 @@ export async function GET(request: NextRequest) {
       ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
     };
 
-    const vehicles = await prisma.vehicle.findMany({
-      where,
-      orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }],
-      include: {
-        _count: { select: { trims: true } },
-        ...(includeTrims ? { trims: { orderBy: { price: "asc" } }, lineups: true } : {}),
-      },
-    });
-
-    const data = vehicles.map((v) => ({
-      id: v.id,
-      slug: v.slug,
-      name: v.name,
-      brand: v.brand,
-      category: v.category,
-      vehicleCode: v.vehicleCode,
-      basePrice: v.basePrice,
-      thumbnailUrl: v.thumbnailUrl,
-      imageUrls: v.imageUrls,
-      surchargeRate: v.surchargeRate,
-      isVisible: v.isVisible,
-      isPopular: v.isPopular,
-      isSpotlight: v.isSpotlight,
-      displayOrder: v.displayOrder,
-      description: v.description,
-      createdAt: v.createdAt.toISOString(),
-      updatedAt: v.updatedAt.toISOString(),
-      _count: v._count,
-      ...(includeTrims ? { trims: (v as any).trims, lineups: (v as any).lineups } : {}),
-    }));
+    const orderBy: Prisma.VehicleOrderByWithRelationInput[] = [
+      { displayOrder: "asc" },
+      { createdAt: "desc" },
+    ];
+    const data = includeTrims
+      ? (
+          await prisma.vehicle.findMany({
+            where,
+            orderBy,
+            include: {
+              _count: { select: { trims: true } },
+              trims: { orderBy: { price: "asc" } },
+              lineups: true,
+            },
+          })
+        ).map((vehicle) => ({
+          ...serializeVehicleListRow(vehicle),
+          trims: vehicle.trims,
+          lineups: vehicle.lineups,
+        }))
+      : (
+          await prisma.vehicle.findMany({
+            where,
+            orderBy,
+            include: { _count: { select: { trims: true } } },
+          })
+        ).map(serializeVehicleListRow);
 
     return NextResponse.json({ success: true, data });
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- HTTP boundary converts unexpected failures to 500.
     console.error("[GET /api/admin/vehicles]", error);
     return NextResponse.json(
       { error: "차량 목록 조회 중 오류가 발생했습니다." },
@@ -88,7 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     const vehicle = await prisma.vehicle.create({
-      data: { ...data, slug },
+      data: { ...data, slug, thumbnailUrl: "", imageUrls: [] },
     });
 
     await logAdminAction({
@@ -102,7 +127,7 @@ export async function POST(request: NextRequest) {
     revalidatePublicVehicleSurfaces();
 
     return NextResponse.json({ success: true, data: vehicle }, { status: 201 });
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- HTTP boundary converts unexpected failures to 500.
     console.error("[POST /api/admin/vehicles]", error);
     return NextResponse.json(
       { error: "차량 생성 중 오류가 발생했습니다." },

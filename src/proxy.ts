@@ -3,6 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { apiRateLimit, strictRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_ROLES } from "@/lib/admin-roles";
+import {
+  getVehicleImageE2EAdmin,
+  VEHICLE_IMAGE_E2E_ADMIN_COOKIE,
+} from "@/lib/vehicle-images/e2e-admin-session";
 
 // Next 16 의 proxy.ts 는 항상 Node.js 런타임으로 실행됨 → runtime export 불필요.
 // Prisma 직접 호출 가능. https://nextjs.org/docs/messages/middleware-to-proxy
@@ -80,6 +84,19 @@ export default async function middleware(request: NextRequest) {
   // ── Supabase 세션 갱신 ───────────────────────────────────
   let supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
 
+  if (process.env.VEHICLE_IMAGE_STORAGE_DRIVER === "filesystem-e2e") {
+    const e2eAdmin = await getVehicleImageE2EAdmin(request.cookies.get(VEHICLE_IMAGE_E2E_ADMIN_COOKIE)?.value);
+    if (isAdminApi && !e2eAdmin) {
+      return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+    }
+    if (isAdminPage && !e2eAdmin) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("next", "/admin");
+      return NextResponse.redirect(loginUrl);
+    }
+    return supabaseResponse;
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -128,8 +145,8 @@ export default async function middleware(request: NextRequest) {
         isAdmin =
           !!dbUser?.isActive &&
           (ADMIN_ROLES as readonly string[]).includes(dbUser?.role ?? "");
-      } catch (err) {
-        console.error("[proxy] DB role check failed:", err);
+      } catch (error: unknown) {
+        console.error("[proxy] DB role check failed:", error instanceof Error ? error.message : "unknown error");
         // 안전한 기본값: 차단. DB 장애로 권한 우회되는 것보다 거부가 낫다.
         isAdmin = false;
       }

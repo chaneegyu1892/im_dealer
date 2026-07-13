@@ -18,7 +18,8 @@ export function CarDetailRecommendBanner() {
             <span className="text-[12px] font-extrabold uppercase text-white/85">추천</span>
           </div>
           <h3 className="mb-1.5 text-[22px] font-extrabold text-white md:text-[24px]">
-            나에게 맞는 차량이 따로 있을 수 있어요
+            나에게 맞는 차량이 따로{" "}
+            <span className="whitespace-nowrap">있을 수 있어요</span>
           </h3>
           <p className="text-[14px] leading-relaxed text-white/85">
             업종·목적·예산·성향 4가지로 최적 차량을 찾아드려요.

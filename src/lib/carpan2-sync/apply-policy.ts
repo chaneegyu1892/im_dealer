@@ -13,8 +13,6 @@ export type VehicleUpdatePolicy = {
   readonly category: string;
   readonly externalSource: "carpan2";
   readonly basePrice: number;
-  readonly thumbnailUrl: string;
-  readonly imageUrls: readonly string[];
   readonly description: string | null;
 };
 
@@ -63,12 +61,6 @@ export function buildVehicleUpdatePolicy(vehicle: CrawlVehicleSnapshot): Vehicle
     category: CARTYPE_TO_CATEGORY[vehicle.cartypeCode ?? ""] ?? "세단",
     externalSource: "carpan2",
     basePrice: vehicle.priceMin ?? 0,
-    thumbnailUrl: vehicle.imageLarge ?? vehicle.cover ?? "",
-    imageUrls: uniqueStrings([vehicle.imageLarge, vehicle.cover]),
     description: vehicle.summary,
   };
-}
-
-function uniqueStrings(values: readonly (string | null)[]): readonly string[] {
-  return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }

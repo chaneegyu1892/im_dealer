@@ -294,41 +294,53 @@ page.tsx (SSR)
 
 ```
 page.tsx (SSR)
-  └─ getVehicleById(id)  ← trims + options 포함
+  └─ getVehicleById(id)  ← trims + options + colors + VehicleImage 전체 상태 포함
   └─ <VehicleEditor vehicle={...} />
 ```
 
-### `src/components/admin/vehicles/VehicleEditor.tsx`
+`getVehicleById`는 이미지 탭 운영을 위해 활성·숨김·휴지통 이미지를 모두 조회한다. 정렬은 `type → displayOrder → createdAt` 오름차순이며 `origin`, `isVisible`, `deletedAt`, `updatedAt`, `isRepresentative`를 관리자 DTO로 변환한다. 저장소 내부 경로인 `adminStoragePath`는 SSR 응답과 클라이언트에 노출하지 않는다. 차량 목록 쿼리 `getAdminVehicles`는 이미지 relation을 include하지 않고 기존 경량 계약을 유지한다.
 
-2열 레이아웃 (좌 flex-1 | 우 flex-1)
+### 기본정보 탭
 
-#### 좌열: `VehicleInfoForm`
+기본정보 탭은 비이미지 차량 필드만 수정한다.
 
 ```typescript
-interface VehicleEditData {
+interface BasicInfoFormData {
   brand: string;
   name: string;
   category: VehicleCategory;
   basePrice: number;
   description: string;
-  thumbnailUrl: string;
-  imageUrls: string[];
   surchargeRate: number;
   isVisible: boolean;
   isPopular: boolean;
+  isSpotlight: boolean;
   displayOrder: number;
   vehicleCode: string;
   slug: string;
+  slidingDoorOverride: boolean | null;
+  advancedSafetyOverride: boolean | null;
+  tags: string[];
 }
 ```
 
-- 썸네일 미리보기 (URL 입력 시 실시간)
-- 이미지 URL 동적 추가/제거 (배열)
-- 노출 / 인기 체크박스
+- `BasicInfoCoreFields`: 차량 식별/가격/설명/태그
+- `BasicInfoFlags`: 노출/인기/주목/추천 override/노출 순서
+- `BasicInfoRepresentativePreview`: 현재 대표 이미지 또는 명시적 빈 상태를 읽기 전용으로 표시하고 이미지 탭으로 이동
+- BasicInfo PATCH payload에는 `thumbnailUrl`, `imageUrls`를 포함하지 않는다.
 
-#### 우열: `TrimManager`
+### 이미지 쓰기 SSOT
 
-트림 목록 (isDefault 배지, 엔진타입 라벨) + 하위 옵션 중첩 표시
+이미지 탭만 `VehicleImage`와 대표 이미지 연결을 변경하는 쓰기 화면이다. 기본정보 탭과 차량 생성/수정 API는 레거시 `thumbnailUrl`, `imageUrls`를 직접 입력받지 않는다.
+
+- `POST /api/admin/vehicles`: 클라이언트 이미지 키를 거부하고 서버가 `thumbnailUrl: ""`, `imageUrls: []`를 채운다.
+- `PATCH /api/admin/vehicles/[id]`: strict schema를 사용해 레거시 이미지 키를 포함한 알 수 없는 키를 400으로 거부한다.
+- `thumbnailUrl`, `imageUrls` DB 컬럼과 기존 공개/목록 응답은 호환용 fallback으로 유지한다.
+- 대표 이미지 미연결 레거시 URL은 BasicInfo에서 읽기 전용으로만 보이며 이미지 탭의 연결 절차 전에는 수정하지 않는다.
+
+### 트림/옵션 편집
+
+트림 탭은 트림 목록과 하위 옵션을 관리한다.
 
 **트림 모달 필드**
 

@@ -1,6 +1,7 @@
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { withSentryConfig } from "@sentry/nextjs";
+import { vehicleImageE2ENextConfig } from "./scripts/lib/vehicle-image-e2e-next-config.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -12,8 +13,12 @@ const quoteImageTraceIncludes = [
   "./node_modules/.pnpm/@napi-rs+canvas-*/node_modules/@napi-rs/canvas-*/**",
 ];
 
+const vehicleImageE2ENext = vehicleImageE2ENextConfig(process.env);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  ...(vehicleImageE2ENext.distDir ? { distDir: vehicleImageE2ENext.distDir } : {}),
+  ...(vehicleImageE2ENext.tsconfigPath ? { typescript: { tsconfigPath: vehicleImageE2ENext.tsconfigPath } } : {}),
   turbopack: {
     root: __dirname,
   },
@@ -60,7 +65,9 @@ const nextConfig = {
     ];
   },
   images: {
+    dangerouslyAllowLocalIP: vehicleImageE2ENext.images.dangerouslyAllowLocalIP,
     remotePatterns: [
+      ...vehicleImageE2ENext.images.remotePatterns,
       {
         protocol: "https",
         hostname: "*.supabase.co",

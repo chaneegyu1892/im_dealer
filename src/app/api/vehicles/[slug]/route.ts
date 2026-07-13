@@ -6,11 +6,44 @@ import {
   estimateMonthly,
   type RateConfigData,
 } from "@/lib/quote-calculator";
+import {
+  canUseLegacyImageFallback,
+  publicVehicleImageStateInclude,
+  resolvePublicThumbnailUrl,
+  resolvePublicVehicleImages,
+} from "@/lib/vehicle-images/public";
+import type { RateSheetKey, RateSheetRaw } from "@/types/admin";
+import type { VehicleDetail } from "@/types/api";
+
+function legacyRateCell(value: unknown, key: RateSheetKey): number {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return 0;
+  const cell = Object.entries(value).find(([candidate]) => candidate === key)?.[1];
+  if (cell === null || cell === undefined) return 0;
+  if (typeof cell === "number") return cell;
+  if (typeof cell === "string" || typeof cell === "boolean" || Array.isArray(cell)) {
+    return Number(cell);
+  }
+  return Number.NaN;
+}
+
+function normalizeLegacyRateSheet(value: unknown): RateSheetRaw {
+  return {
+    "36_10000": legacyRateCell(value, "36_10000"),
+    "36_20000": legacyRateCell(value, "36_20000"),
+    "36_30000": legacyRateCell(value, "36_30000"),
+    "48_10000": legacyRateCell(value, "48_10000"),
+    "48_20000": legacyRateCell(value, "48_20000"),
+    "48_30000": legacyRateCell(value, "48_30000"),
+    "60_10000": legacyRateCell(value, "60_10000"),
+    "60_20000": legacyRateCell(value, "60_20000"),
+    "60_30000": legacyRateCell(value, "60_30000"),
+  };
+}
 
 // ─── GET /api/vehicles/:slug ────────────────────────────
 // 차량 상세 + 기본 트림 기준 시나리오 견적
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
@@ -28,6 +61,7 @@ export async function GET(
           where: { isActive: true },
           select: { highlights: true, aiCaption: true, scoreMatrix: true },
         },
+        ...publicVehicleImageStateInclude,
       },
     });
 
@@ -41,36 +75,35 @@ export async function GET(
     const defaultTrim = vehicle.trims.find((t) => t.isDefault) ?? vehicle.trims[0];
 
     let scenarios = null;
-    let bestFinanceName = null;
-    let rateSheets: any[] = [];
+    let bestFinanceName: string | null = null;
+    const rateSheets = defaultTrim
+      ? await prisma.capitalRateSheet.findMany({
+          where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
+          include: { financeCompany: true },
+        })
+      : [];
 
-    if (defaultTrim) {
-      rateSheets = await (prisma as any).capitalRateSheet.findMany({
-        where: { trimId: defaultTrim.id, isActive: true, financeCompany: { isActive: true } },
-        include: { financeCompany: true },
-      });
-    }
+    const configs: RateConfigData[] = rateSheets.map((rateSheet) => ({
+      financeCompanyId: rateSheet.financeCompanyId,
+      financeCompanyName: rateSheet.financeCompany.name,
+      financeSurchargeRate: rateSheet.financeCompany.surchargeRate,
+      minVehiclePrice: rateSheet.minVehiclePrice,
+      maxVehiclePrice: rateSheet.maxVehiclePrice,
+      minRateMatrix: normalizeLegacyRateSheet(rateSheet.minRateMatrix),
+      maxRateMatrix: normalizeLegacyRateSheet(rateSheet.maxRateMatrix),
+      depositDiscountRate: rateSheet.depositDiscountRate,
+      prepayAdjustRate: rateSheet.prepayAdjustRate,
+    }));
+    const [initialConfig] = configs;
 
-    if (defaultTrim && rateSheets.length > 0) {
-      const configs: RateConfigData[] = rateSheets.map((rs: any) => ({
-        financeCompanyId: rs.financeCompanyId,
-        financeCompanyName: rs.financeCompany.name,
-        financeSurchargeRate: rs.financeCompany.surchargeRate,
-        minVehiclePrice: rs.minVehiclePrice,
-        maxVehiclePrice: rs.maxVehiclePrice,
-        minRateMatrix: rs.minRateMatrix,
-        maxRateMatrix: rs.maxRateMatrix,
-        depositDiscountRate: rs.depositDiscountRate,
-        prepayAdjustRate: rs.prepayAdjustRate,
-      }));
-
-      let bestConfig = configs[0];
+    if (defaultTrim && initialConfig) {
+      let bestConfig = initialConfig;
       let bestMonthly = Infinity;
-      for (const cfg of configs) {
-        const monthly = estimateMonthly(defaultTrim.price, cfg, 48, 20000);
+      for (const config of configs) {
+        const monthly = estimateMonthly(defaultTrim.price, config, 48, 20000);
         if (monthly > 0 && monthly < bestMonthly) {
           bestMonthly = monthly;
-          bestConfig = cfg;
+          bestConfig = config;
         }
       }
 
@@ -79,6 +112,10 @@ export async function GET(
     }
 
     const recConfig = vehicle.recConfigs ?? null;
+    const publicImages: VehicleDetail["images"] = resolvePublicVehicleImages(vehicle.images);
+    const legacyImageFallbackAllowed = canUseLegacyImageFallback(vehicle);
+    const thumbnailUrl = resolvePublicThumbnailUrl(vehicle);
+    const heroImageProjectionAllowed = thumbnailUrl !== "";
 
     return NextResponse.json({
       success: true,
@@ -91,8 +128,11 @@ export async function GET(
         vehicleCode: vehicle.vehicleCode,
         basePrice: vehicle.basePrice,
         evSubsidyRange: subsidyRangeFromTrims(vehicle.trims),
-        thumbnailUrl: vehicle.thumbnailUrl,
-        imageUrls: vehicle.imageUrls,
+        thumbnailUrl,
+        imageUrls: legacyImageFallbackAllowed ? vehicle.imageUrls : [],
+        images: publicImages,
+        legacyImageFallbackAllowed,
+        heroImageProjectionAllowed,
         surchargeRate: vehicle.surchargeRate,
         isPopular: vehicle.isPopular,
         description: vehicle.description,
@@ -129,7 +169,7 @@ export async function GET(
         hasRateConfig: rateSheets.length > 0,
       },
     });
-  } catch (error) {
+  } catch (error) { // no-excuse-ok: catch -- HTTP boundary converts unexpected failures to 500.
     console.error("[GET /api/vehicles/:slug]", error);
     return NextResponse.json(
       { error: "차량 상세 조회 중 오류가 발생했습니다." },

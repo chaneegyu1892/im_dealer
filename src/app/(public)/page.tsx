@@ -13,6 +13,10 @@ import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-que
 import { lowestMonthly } from "@/lib/representative-quote";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import type { PublicReview } from "@/types/review";
+import {
+  publicThumbnailProjectionInclude,
+  resolvePublicThumbnailUrl,
+} from "@/lib/vehicle-images/public";
 
 const DEV_REVIEW_CONTENTS = [
   "처음에는 월 납입금 차이를 잘 몰랐는데, 조건별로 비교하니까 상담 전에 기준을 잡기 쉬웠어요.",
@@ -86,6 +90,7 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
         where: { isActive: true },
         select: { highlights: true },
       },
+      ...publicThumbnailProjectionInclude,
     },
   } as const;
 
@@ -123,7 +128,7 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
       category: v.category as VehicleListItem["category"],
       basePrice: v.basePrice,
       evSubsidyRange: subsidyRangeFromTrims(v.trims),
-      thumbnailUrl: v.thumbnailUrl,
+      thumbnailUrl: resolvePublicThumbnailUrl(v),
       isPopular: v.isPopular,
       description: v.description,
       displayOrder: v.displayOrder,

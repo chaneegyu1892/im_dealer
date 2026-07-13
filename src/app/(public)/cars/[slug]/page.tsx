@@ -23,6 +23,13 @@ import {
 } from "@/lib/admin-queries";
 import { CustomerReviewsSection } from "@/components/home/CustomerReviewsSection";
 import { BestReviewSection } from "@/components/reviews/BestReviewSection";
+import {
+  canUseLegacyImageFallback,
+  publicThumbnailProjectionSelect,
+  publicVehicleImageStateInclude,
+  resolvePublicThumbnailUrl,
+  resolvePublicVehicleImages,
+} from "@/lib/vehicle-images/public";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -38,7 +45,7 @@ async function getVehicleMeta(slug: string) {
       brand: true,
       category: true,
       basePrice: true,
-      thumbnailUrl: true,
+      ...publicThumbnailProjectionSelect,
       description: true,
       isVisible: true,
       trims: {
@@ -68,6 +75,7 @@ export async function generateMetadata({
     ? `${v.description} · 시작가 ${priceManwon}만원. AI 기반 진짜견적.`
     : `${v.brand} ${v.name} 장기렌트·리스 견적을 시작가 ${priceManwon}만원부터 비교하세요. AI 기반 진짜견적.`;
   const url = `${SITE_URL}/cars/${v.slug}`;
+  const thumbnailUrl = resolvePublicThumbnailUrl(v);
 
   return {
     title: titleText,
@@ -80,15 +88,15 @@ export async function generateMetadata({
       type: "website",
       locale: "ko_KR",
       siteName: "아임딜러",
-      images: v.thumbnailUrl
-        ? [{ url: v.thumbnailUrl, alt: `${v.brand} ${v.name}` }]
+      images: thumbnailUrl
+        ? [{ url: thumbnailUrl, alt: `${v.brand} ${v.name}` }]
         : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title: titleText,
       description: descText,
-      images: v.thumbnailUrl ? [v.thumbnailUrl] : undefined,
+      images: thumbnailUrl ? [thumbnailUrl] : undefined,
     },
   };
 }
@@ -106,17 +114,7 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
         where: { isActive: true },
         select: { highlights: true },
       },
-      images: {
-        where: { isVisible: true },
-        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
-        select: {
-          id: true,
-          type: true,
-          title: true,
-          storageUrl: true,
-          displayOrder: true,
-        },
-      },
+      ...publicVehicleImageStateInclude,
     },
   });
 
@@ -140,6 +138,9 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     representativeQuotes[0]?.financeCompanyName ?? null;
 
   const recConfig = vehicle.recConfigs ?? null;
+  const legacyImageFallbackAllowed = canUseLegacyImageFallback(vehicle);
+  const thumbnailUrl = resolvePublicThumbnailUrl(vehicle);
+  const heroImageProjectionAllowed = thumbnailUrl !== "";
 
   return {
     id: vehicle.id,
@@ -150,15 +151,11 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     vehicleCode: vehicle.vehicleCode,
     basePrice: vehicle.basePrice,
     evSubsidyRange: subsidyRangeFromTrims(vehicle.trims),
-    thumbnailUrl: vehicle.thumbnailUrl,
-    imageUrls: vehicle.imageUrls,
-    images: vehicle.images.map((image) => ({
-      id: image.id,
-      type: image.type,
-      title: image.title,
-      storageUrl: image.storageUrl,
-      displayOrder: image.displayOrder,
-    })),
+    thumbnailUrl,
+    imageUrls: legacyImageFallbackAllowed ? vehicle.imageUrls : [],
+    images: resolvePublicVehicleImages(vehicle.images),
+    legacyImageFallbackAllowed,
+    heroImageProjectionAllowed,
     surchargeRate: vehicle.surchargeRate,
     isPopular: vehicle.isPopular,
     description: vehicle.description,

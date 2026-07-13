@@ -64,12 +64,14 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
   const allImages =
     primaryImages.length > 0
       ? primaryImages
-      : vehicle.imageUrls.length > 0
+      : vehicle.legacyImageFallbackAllowed && vehicle.imageUrls.length > 0
       ? vehicle.imageUrls
-      : vehicle.thumbnailUrl
+      : vehicle.legacyImageFallbackAllowed && vehicle.thumbnailUrl
       ? [vehicle.thumbnailUrl]
       : [];
-  const heroImage = vehicle.thumbnailUrl || allImages[0] || "";
+  const heroImage = vehicle.heroImageProjectionAllowed && vehicle.thumbnailUrl
+    ? vehicle.thumbnailUrl
+    : allImages[0] ?? "";
   const derivedTags = deriveTags(vehicle, engineType);
 
   return (

@@ -4,6 +4,17 @@ import type { User } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
+export const VEHICLE_IMAGE_AUDIT_ACTIONS = [
+  "VEHICLE_IMAGE_CREATE",
+  "VEHICLE_IMAGE_UPDATE",
+  "VEHICLE_IMAGE_VISIBILITY",
+  "VEHICLE_IMAGE_REORDER",
+  "VEHICLE_IMAGE_SET_REPRESENTATIVE",
+  "VEHICLE_IMAGE_DELETE",
+  "VEHICLE_IMAGE_RESTORE",
+  "VEHICLE_IMAGE_PURGE",
+] as const;
+
 export type AuditAction =
   | "LOGIN"
   | "LOGOUT"
@@ -12,6 +23,7 @@ export type AuditAction =
   | "VEHICLE_UPDATE"
   | "VEHICLE_DELETE"
   | "VEHICLE_REORDER"
+  | (typeof VEHICLE_IMAGE_AUDIT_ACTIONS)[number]
   | "TRIM_CREATE"
   | "TRIM_UPDATE"
   | "TRIM_DELETE"
@@ -89,8 +101,8 @@ function extractIp(request?: NextRequest | Request | null): string | null {
     const xreal = request.headers.get("x-real-ip");
     if (xreal) return xreal.trim();
   }
-  const directIp = (request as unknown as { ip?: string }).ip;
-  return directIp ?? null;
+  if ("ip" in request && typeof request.ip === "string") return request.ip;
+  return null;
 }
 
 function extractUserAgent(request?: NextRequest | Request | null): string | null {
@@ -132,10 +144,11 @@ export async function logAdminAction(params: LogAdminActionParams): Promise<void
   } catch (error) {
     // 감사 로그 적재 실패는 호출자의 mutation을 차단해서는 안 된다.
     // 실패 자체는 Sentry로만 보고하고 무음 처리한다.
-    Sentry.captureException(error, {
+    const captured = error instanceof Error ? error : new Error(String(error));
+    Sentry.captureException(captured, {
       tags: { component: "audit-log" },
       extra: { action, resource, targetId },
     });
-    console.error("[audit] logAdminAction failed:", error);
+    console.error("[audit] logAdminAction failed:", captured);
   }
 }

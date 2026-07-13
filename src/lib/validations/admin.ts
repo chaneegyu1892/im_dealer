@@ -2,14 +2,12 @@ import { z } from "zod";
 import { overlapProfileSchema } from "@/lib/recommend/overlap-profile";
 
 // ─── Vehicle ────────────────────────────────────────────
-export const vehicleCreateSchema = z.object({
+const vehicleFields = {
   name: z.string().min(1, "차량명을 입력하세요"),
   brand: z.string().min(1, "브랜드를 입력하세요"),
   category: z.enum(["세단", "SUV", "밴", "트럭"]),
   basePrice: z.number().int().positive("기준가는 양수여야 합니다"),
   slug: z.string().min(1).optional(),
-  thumbnailUrl: z.string().default(""),
-  imageUrls: z.array(z.string()).default([]),
   description: z.string().optional(),
   isVisible: z.boolean().default(true),
   isPopular: z.boolean().default(false),
@@ -20,9 +18,11 @@ export const vehicleCreateSchema = z.object({
   slidingDoorOverride: z.boolean().nullable().optional(),
   advancedSafetyOverride: z.boolean().nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(20)).max(10).optional(),
-});
+} as const;
 
-export const vehicleUpdateSchema = vehicleCreateSchema.partial();
+export const vehicleCreateSchema = z.object(vehicleFields).strict();
+
+export const vehicleUpdateSchema = z.object(vehicleFields).partial().strict();
 
 // 차량 노출 순서 일괄 저장: 전달된 id 배열 순서대로 displayOrder(0,1,2…) 부여
 export const vehicleReorderSchema = z.object({

@@ -48,6 +48,43 @@ const baseLog = {
 const request = new NextRequest("http://localhost/api/recommend/session-fixed");
 const context = { params: Promise.resolve({ sessionId: "session-fixed" }) };
 
+const frozenVehicle = {
+  vehicleId: "vehicle-active",
+  rank: 1,
+  score: 1,
+  scoringVersion: "overlap-v2",
+  documentScore: 1,
+  chargingAdjustment: 0,
+  rankScore: 1,
+  contributions: [],
+  tieBreak: {
+    modelYear: 2026,
+    companyPriority: 1,
+    isPopular: false,
+    profitPriority: 1,
+    slug: "active-car",
+  },
+  reason: "저장된 추천 이유",
+  highlights: ["저장된 특징"],
+  estimatedMonthly: 500_000,
+  vehicle: {
+    name: "활성 차량",
+    brand: "테스트",
+    category: "SUV",
+    thumbnailUrl: "https://cdn.example/old-cover.jpg",
+    imageUrls: [],
+    defaultTrimName: "기본",
+    defaultTrimPrice: 40_000_000,
+    slug: "active-car",
+    popularConfigs: [],
+  },
+  scenarios: {
+    conservative: { monthlyPayment: 500_000, depositAmount: 0, prepayAmount: 0, contractMonths: 60, annualMileage: 20_000, contractType: "반납형" },
+    standard: { monthlyPayment: 500_000, depositAmount: 0, prepayAmount: 0, contractMonths: 60, annualMileage: 20_000, contractType: "반납형" },
+    aggressive: { monthlyPayment: 500_000, depositAmount: 0, prepayAmount: 0, contractMonths: 60, annualMileage: 20_000, contractType: "반납형" },
+  },
+} as const;
+
 describe("GET /api/recommend/:sessionId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -70,6 +107,26 @@ describe("GET /api/recommend/:sessionId", () => {
     mocks.findFirst.mockResolvedValue({ ...baseLog, result: [] });
     const response = await GET(request, context);
     expect(response.status).toBe(200);
+    expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
+  });
+
+  it("returns historical recommendation bytes without replacing its representative projection", async () => {
+    const result = { version: "overlap-v2", vehicles: [frozenVehicle] } as const;
+    const storedBytes = JSON.stringify(result);
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "member" } } });
+    mocks.findFirst.mockResolvedValue({ ...baseLog, result });
+    mocks.findManyVehicles.mockResolvedValue([{
+      id: "vehicle-active",
+      thumbnailUrl: "https://cdn.example/new-cover.jpg",
+    }]);
+
+    const response = await GET(request, context);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.vehicles).toEqual([frozenVehicle]);
+    expect(JSON.stringify(result)).toBe(storedBytes);
+    expect(body.vehicles[0].vehicle.thumbnailUrl).toBe("https://cdn.example/old-cover.jpg");
     expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
   });
 

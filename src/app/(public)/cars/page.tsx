@@ -10,6 +10,10 @@ import { lowestMonthly } from "@/lib/representative-quote";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import { deriveHashtags } from "@/lib/vehicle-hashtags";
 import { CarsClientPage } from "./CarsClientPage";
+import {
+  publicThumbnailProjectionSelect,
+  resolvePublicThumbnailUrl,
+} from "@/lib/vehicle-images/public";
 
 type CarsPageProps = {
   readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -34,7 +38,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       brand: true,
       category: true,
       basePrice: true,
-      thumbnailUrl: true,
+      ...publicThumbnailProjectionSelect,
       isPopular: true,
       isSpotlight: true,
       description: true,
@@ -105,7 +109,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       category: v.category as VehicleListItem["category"],
       basePrice: v.basePrice,
       evSubsidyRange: subsidyRangeFromTrims(v.trims),
-      thumbnailUrl: v.thumbnailUrl,
+      thumbnailUrl: resolvePublicThumbnailUrl(v),
       isPopular: v.isPopular,
       isSpotlight: v.isSpotlight,
       description: v.description,

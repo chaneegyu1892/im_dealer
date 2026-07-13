@@ -1,0 +1,32 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { logAdminAction } from "@/lib/audit";
+import { requireRoleAtLeast } from "@/lib/require-admin";
+import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
+import { vehicleImageRestoreSchema } from "@/lib/validations/admin-vehicle-images";
+import { restoreVehicleImage } from "@/lib/vehicle-images/item-mutations";
+import { imageResponse, imageRouteError, invalidInput, readJsonBody } from "../../http";
+
+type Params = { readonly params: Promise<{ readonly id: string; readonly imageId: string }> };
+
+export async function POST(request: NextRequest, { params }: Params) {
+  const { admin, error } = await requireRoleAtLeast("staff");
+  if (error) return error;
+  try {
+    const route = await params;
+    const body = await readJsonBody(request);
+    if (!body.ok) return body.response;
+    const parsed = vehicleImageRestoreSchema.safeParse(body.value);
+    if (!parsed.success) return invalidInput(parsed.error.flatten());
+    const result = await restoreVehicleImage(route.id, route.imageId, parsed.data);
+    const before = imageResponse(result.before);
+    const image = imageResponse(result.image);
+    await logAdminAction({ request, actor: admin, action: "VEHICLE_IMAGE_RESTORE", resource: "VehicleImage", targetId: route.imageId, before, after: image });
+    revalidatePublicVehicleSurfaces();
+    return NextResponse.json({
+      success: true,
+      data: { image, imageRevision: result.imageRevision, vehicleUpdatedAt: result.vehicleUpdatedAt.toISOString() },
+    });
+  } catch (error) { // no-excuse-ok: catch -- HTTP boundary maps typed service failures.
+    return imageRouteError(error);
+  }
+}

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
 import { logAdminAction } from "@/lib/audit";
+import { VEHICLE_IMAGE_E2E_ADMIN_COOKIE } from "@/lib/vehicle-images/e2e-admin-session";
 
 // ─── POST /api/admin/auth/logout ──────────────────────────
 export async function POST(request: NextRequest) {
@@ -15,5 +16,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ success: true });
+  const response = NextResponse.json({ success: true });
+  response.cookies.delete(VEHICLE_IMAGE_E2E_ADMIN_COOKIE);
+  return response;
 }

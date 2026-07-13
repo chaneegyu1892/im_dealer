@@ -8,7 +8,6 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { generateReason } from "@/lib/llm-reason";
 import { buildVehicleAttrs } from "@/lib/recommend/vehicle-attributes";
 import { scoreVehicle } from "@/lib/recommend/scoring";
 import {
@@ -20,30 +19,25 @@ import {
 import { parseRateSheetRaw } from "@/lib/recommend/rate-sheet";
 import {
   estimateMonthly,
-  calculateMultiFinanceQuote,
   type RateConfigData,
-  type CalcInput,
 } from "@/lib/quote-calculator";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import { PREFERENCE_OPTIONS } from "@/constants/recommend-options";
 import type {
   RecommendInput,
   RecommendedVehicle,
-  RecommendedVehicleDetail,
-  RecommendScenarios,
 } from "@/types/recommendation";
-
-interface ScoredVehicle {
-  vehicleId: string;
-  modelKey: string;
-  modelYear: number;
-  score: number;
-  reason: string;
-  highlights: string[];
-  detail: RecommendedVehicleDetail;
-  scenarios: RecommendScenarios;
-  estimatedMonthly: number;
-}
+import {
+  canUseLegacyImageFallback,
+  publicThumbnailProjectionInclude,
+  resolvePublicThumbnailUrl,
+} from "@/lib/vehicle-images/public";
+import { buildRecommendScenarios } from "./recommend-scenarios";
+import { readLegacyScoreMatrixBonus } from "./recommend-legacy-score-matrix";
+import {
+  finalizeLegacyRecommendations,
+  type LegacyScoredVehicle,
+} from "./recommend-legacy-results";
 
 export async function recommendLegacyV1(input: RecommendInput): Promise<RecommendedVehicle[]> {
   // 1) 노출 가능 차량 + 추천설정 조회
@@ -64,6 +58,7 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
         orderBy: { displayOrder: "asc" },
         include: { items: { orderBy: { displayOrder: "asc" } } },
       },
+      ...publicThumbnailProjectionInclude,
     },
   });
 
@@ -107,7 +102,7 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
   const mileageKey = closestMileage(input.annualMileage);
 
   // 3) 차량별 점수 계산
-  const scored: ScoredVehicle[] = [];
+  const scored: LegacyScoredVehicle[] = [];
 
   const preferences = input.preferences ?? [];
   // "고급"(구 임원용·의전)은 6천만원 미만 제외 + 최상위 트림 노출 게이트를 유지한다.
@@ -158,22 +153,11 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
       },
     );
 
-    // admin scoreMatrix에서 업종×용도 가산점 조회
-    let scoreMatrixBonus = 0;
-    if (recConfig?.scoreMatrix) {
-      try {
-        const matrix = recConfig.scoreMatrix as Record<string, Record<string, number>>;
-        const industryEntry = matrix[input.industry];
-        if (industryEntry && input.purpose) {
-          const bonus = industryEntry[input.purpose];
-          if (typeof bonus === "number" && bonus > 0) {
-            scoreMatrixBonus = bonus;
-          }
-        }
-      } catch {
-        // scoreMatrix 파싱 실패 시 무시
-      }
-    }
+    const scoreMatrixBonus = readLegacyScoreMatrixBonus(
+      recConfig?.scoreMatrix,
+      input.industry,
+      input.purpose,
+    );
 
     const { score, reasons } = scoreVehicle(
       {
@@ -208,49 +192,14 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
       highlights.push("고연비");
     }
 
-    // ── 3개 시나리오 계산 (전체 파이프라인) ──────────
-    const scenarioConditions = [
-      { key: "conservative" as const, depositRate: 20, prepayRate: 0 },
-      { key: "standard" as const,     depositRate: 0,  prepayRate: 0 },
-      { key: "aggressive" as const,   depositRate: 0,  prepayRate: 30 },
-    ];
-
-    const scenarioEntries: Partial<RecommendScenarios> = {};
-    for (const sc of scenarioConditions) {
-      const calcInput: CalcInput = {
-        vehiclePrice: defaultTrim.price,
-        contractMonths: 48,
-        annualMileage: mileageKey,
-        depositRate: sc.depositRate,
-        prepayRate: sc.prepayRate,
-        vehicleSurchargeRate: v.surchargeRate,
-        rankSurchargeRates: rankRates,
-        rateConfigs: configs,
-      };
-
-      const results = calculateMultiFinanceQuote(calcInput);
-      const best = results[0];
-
-      scenarioEntries[sc.key] = best
-        ? {
-            monthlyPayment: best.monthlyPayment,
-            depositAmount: best.breakdown.depositAmount,
-            prepayAmount: best.breakdown.prepayAmount,
-            contractMonths: 48,
-            annualMileage: mileageKey,
-            contractType: "반납형",
-          }
-        : {
-            monthlyPayment: bestMonthly,
-            depositAmount: 0,
-            prepayAmount: 0,
-            contractMonths: 48,
-            annualMileage: mileageKey,
-            contractType: "반납형",
-          };
-    }
-
-    const scenarios = scenarioEntries as RecommendScenarios;
+    const scenarios = buildRecommendScenarios({
+      vehiclePrice: defaultTrim.price,
+      annualMileage: mileageKey,
+      vehicleSurchargeRate: v.surchargeRate,
+      rankSurchargeRates: rankRates,
+      rateConfigs: configs,
+      estimatedMonthly: bestMonthly,
+    });
 
     scored.push({
       vehicleId: v.id,
@@ -274,8 +223,8 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
         name: v.name,
         brand: v.brand,
         category: v.category,
-        thumbnailUrl: v.thumbnailUrl,
-        imageUrls: v.imageUrls,
+        thumbnailUrl: resolvePublicThumbnailUrl(v),
+        imageUrls: canUseLegacyImageFallback(v) ? v.imageUrls : [],
         defaultTrimName: defaultTrim.name,
         defaultTrimPrice: defaultTrim.price,
         slug: v.slug,
@@ -295,39 +244,13 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
   latestScored.sort((a, b) => b.score - a.score);
   const top = latestScored.slice(0, 3);
 
-  // 5) LLM으로 추천 이유 병렬 생성 (실패 시 규칙 기반 reason 사용)
-  const llmReasons = await Promise.all(
-    top.map((s) =>
-      generateReason({
-        industry: input.industry,
-        purpose: preferenceLabel,
-        budgetMax: 0,
-        annualMileage: input.annualMileage,
-        vehicleName: s.detail.name,
-        brand: s.detail.brand,
-        category: s.detail.category,
-        estimatedMonthly: s.estimatedMonthly,
-        fallback: s.reason,
-      })
-    )
-  );
-
-  return top.map((s, i): RecommendedVehicle => ({
-    vehicleId: s.vehicleId,
-    rank: i + 1,
-    score: s.score,
-    reason: llmReasons[i],
-    highlights: s.highlights,
-    estimatedMonthly: s.estimatedMonthly,
-    vehicle: s.detail,
-    scenarios: s.scenarios,
-  }));
+  return finalizeLegacyRecommendations(top, input, preferenceLabel);
 }
 
 /** 고객 입력 연간주행거리를 가장 가까운 회수율 키로 매핑 */
-function closestMileage(annualMileage: number): number {
-  const options = [10000, 20000, 30000];
-  let closest = options[0];
+function closestMileage(annualMileage: number): 10_000 | 20_000 | 30_000 {
+  const options = [10_000, 20_000, 30_000] as const;
+  let closest: (typeof options)[number] = options[0];
   let minDiff = Math.abs(annualMileage - options[0]);
   for (const opt of options) {
     const diff = Math.abs(annualMileage - opt);
