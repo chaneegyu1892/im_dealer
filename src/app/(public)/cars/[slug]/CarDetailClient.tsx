@@ -58,12 +58,22 @@ function deriveTags(vehicle: VehicleDetail, engineType: EngineType): DetailTag[]
 export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
   const engineType = (vehicle.defaultTrim?.engineType ?? "가솔린") as EngineType;
   const representativeQuotes = vehicle.representativeQuotes;
+  // 대표 썸네일(thumbnailUrl)과 일치하는 MAIN/COVER 이미지가 있으면 그것을 갤러리 첫 슬라이드로.
+  // 썸네일이 primary 그룹에 없으면 임의로 끼워넣지 않는다(마이그레이션 안 된 차량의 숨겨진
+  // URL이 부활하는 것 방지). hero와 첫 슬라이드가 같은 이미지일 때 중복은 제거한다.
+  const thumbnailUrl = vehicle.thumbnailUrl.trim();
   const primaryImages = vehicle.images
     .filter((image) => PRIMARY_IMAGE_TYPES.includes(image.type))
     .map((image) => image.storageUrl);
+  const orderedPrimaryImages = thumbnailUrl.length > 0
+    ? [
+        ...primaryImages.filter((url) => url === thumbnailUrl),
+        ...primaryImages.filter((url) => url !== thumbnailUrl),
+      ]
+    : primaryImages;
   const allImages =
-    primaryImages.length > 0
-      ? primaryImages
+    orderedPrimaryImages.length > 0
+      ? orderedPrimaryImages
       : vehicle.legacyImageFallbackAllowed && vehicle.imageUrls.length > 0
       ? vehicle.imageUrls
       : vehicle.legacyImageFallbackAllowed && vehicle.thumbnailUrl
