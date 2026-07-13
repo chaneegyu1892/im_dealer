@@ -12,10 +12,13 @@ const isCI = !!process.env.CI;
  */
 export default defineConfig({
   testDir: "./e2e",
-  // 차량 이미지 관리 E2E 3종은 격리된 harness와 전용 DB/스토리지 드라이버가 필요하므로
-  // 일반 Playwright 실행에서는 제외한다. 전용 vehicle-image-e2e 잡은 spec 파일을 커맨드라인
-  // 인자로 직접 지정하여 실행하므로 testIgnore와 무관하게 동작한다.
-  testIgnore: ["**/admin-vehicle-images-*.spec.ts"],
+  // 차량 이미지 관리 E2E 3종은 격리된 harness와 전용 DB/스토리지 드라이버가 필요하다.
+  // 전용 vehicle-image-e2e 잡(CARPAN2_E2E_TARGET=test 환경)에서만 실행하고,
+  // 일반 Playwright 잡에서는 제외한다. (testIgnore는 커맨드라인 인자 지정과 무관하게
+  // 항상 적용되므로 환경변수로 분기한다.)
+  testIgnore: process.env.CARPAN2_E2E_TARGET === "test"
+    ? []
+    : ["**/admin-vehicle-images-*.spec.ts"],
   fullyParallel: !isCI,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
