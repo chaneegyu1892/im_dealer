@@ -8,7 +8,7 @@ import {
   Users, UserCheck, Clock, Search, X,
   ChevronRight, Phone, CalendarDays,
   FileText, MessageSquare, AlertCircle, CheckCircle2,
-  Sparkles, TrendingUp, Mail, Shield, ShieldAlert,
+  Sparkles, TrendingUp, Mail, Shield,
   Download, ArrowDown, ArrowUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ type UserStatusFilter = "전체" | "정상" | "휴면";
 type ActiveFilter = "전체" | "진행중" | "계약있음" | "없음";
 type TabKind = "all" | "dormant";
 type DormantSortKey = "dormancy" | "lastContact" | "consultationCount";
+type UserSortKey = "joinedAt" | "lastSignInAt";
 type SortDirection = "asc" | "desc";
 
 const USER_STATUS_STYLE: Record<"active" | "dormant", { color: string; bg: string; label: string }> = {
@@ -76,6 +77,12 @@ function dormancyTone(days: number): { color: string; bg: string } {
   if (days >= 91) return { color: "#DC2626", bg: "#FEF2F2" };
   if (days >= 31) return { color: "#D97706", bg: "#FFFBEB" };
   return { color: "#6B7399", bg: "#F4F5F8" };
+}
+
+function userSortDate(user: AdminUserRecord, key: UserSortKey) {
+  return key === "joinedAt"
+    ? user.joinedAt ?? user.firstContactAt
+    : user.lastSignInAt ?? user.lastContactAt;
 }
 
 function todayKey() {
@@ -241,11 +248,18 @@ function UserDetailPanel({
                   <CalendarDays size={12} className="text-[#6B7399]" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-[#9BA4C0]">최초 접수 / 최근 접수</p>
+                  <p className="text-[10px] text-[#9BA4C0]">
+                    {user.source === "member" ? "최초 가입 / 최근 접속" : "최초 접수 / 최근 접수"}
+                  </p>
                   <p className="text-[13px] font-medium text-[#1A1A2E]">
-                    {formatDate(user.firstContactAt)}
+                    {formatDate(user.joinedAt ?? user.firstContactAt)}
                     <span className="text-[#C0C5D8] mx-1.5">·</span>
-                    <span className="text-[#6B7399]">{daysSince(user.lastContactAt)}</span>
+                    <span className="text-[#6B7399]">
+                      {formatDate(user.lastSignInAt ?? user.lastContactAt)}
+                      <span className="ml-1 text-[10px] text-[#9BA4C0]">
+                        ({daysSince(user.lastSignInAt ?? user.lastContactAt)})
+                      </span>
+                    </span>
                   </p>
                 </div>
               </div>
@@ -417,6 +431,8 @@ export default function UsersClient({
   );
   const [dormantSortKey, setDormantSortKey] = useState<DormantSortKey>("dormancy");
   const [dormantSortDir, setDormantSortDir] = useState<SortDirection>("desc");
+  const [userSortKey, setUserSortKey] = useState<UserSortKey>("lastSignInAt");
+  const [userSortDir, setUserSortDir] = useState<SortDirection>("desc");
 
   // URL ?search=, ?tab= 파라미터 연동
   useEffect(() => {
@@ -484,15 +500,24 @@ export default function UsersClient({
       });
     }
 
-    // 전체 탭 정렬: 최종관리자(superadmin) > 관리자(admin) > 딜러(dealer) > 일반사용자(null)
-    const rolePriority: Record<string, number> = { superadmin: 4, admin: 3, dealer: 2, staff: 1 };
+    const flip = userSortDir === "desc" ? -1 : 1;
     return list.sort((a, b) => {
-      const prioA = rolePriority[a.role || ""] || 0;
-      const prioB = rolePriority[b.role || ""] || 0;
-      if (prioA !== prioB) return prioB - prioA;
-      return new Date(b.lastContactAt).getTime() - new Date(a.lastContactAt).getTime();
+      const cmp =
+        new Date(userSortDate(a, userSortKey)).getTime() -
+        new Date(userSortDate(b, userSortKey)).getTime();
+      return cmp !== 0 ? cmp * flip : a.name.localeCompare(b.name, "ko");
     });
-  }, [users, search, statusFilter, activeFilter, tab, dormantSortKey, dormantSortDir]);
+  }, [
+    users,
+    search,
+    statusFilter,
+    activeFilter,
+    tab,
+    dormantSortKey,
+    dormantSortDir,
+    userSortKey,
+    userSortDir,
+  ]);
 
   const isDormantTab = tab === "dormant";
 
@@ -502,6 +527,15 @@ export default function UsersClient({
     } else {
       setDormantSortKey(key);
       setDormantSortDir("desc");
+    }
+  };
+
+  const toggleUserSort = (key: UserSortKey) => {
+    if (userSortKey === key) {
+      setUserSortDir((direction) => (direction === "asc" ? "desc" : "asc"));
+    } else {
+      setUserSortKey(key);
+      setUserSortDir("desc");
     }
   };
 
@@ -710,9 +744,35 @@ export default function UsersClient({
               className="grid border-b border-[#F0F2F8] px-6 py-3.5 bg-[#FAFBFF] sticky top-0 z-10"
               style={{ gridTemplateColumns: "1.8fr 1.5fr 1fr 0.8fr 1fr 1.8fr 1.2fr" }}
             >
-              {["고객", "연락처", "상태", "견적 건수", "최초 접수", "진행/계약", "최근 접수"].map((col) => (
-                <span key={col} className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">{col}</span>
-              ))}
+              <span className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">고객</span>
+              <span className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">연락처</span>
+              <span className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">상태</span>
+              <span className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">견적 건수</span>
+              <button
+                type="button"
+                onClick={() => toggleUserSort("joinedAt")}
+                className="flex items-center gap-1 text-left text-[10px] font-black uppercase tracking-widest text-[#9BA4C0] transition-colors hover:text-[#000666]"
+              >
+                최초 가입/접수
+                {userSortKey === "joinedAt" && (
+                  userSortDir === "desc"
+                    ? <ArrowDown size={10} className="text-[#000666]" />
+                    : <ArrowUp size={10} className="text-[#000666]" />
+                )}
+              </button>
+              <span className="text-[10px] font-black text-[#9BA4C0] uppercase tracking-widest">진행/계약</span>
+              <button
+                type="button"
+                onClick={() => toggleUserSort("lastSignInAt")}
+                className="flex items-center gap-1 text-left text-[10px] font-black uppercase tracking-widest text-[#9BA4C0] transition-colors hover:text-[#000666]"
+              >
+                최근 접속/접수
+                {userSortKey === "lastSignInAt" && (
+                  userSortDir === "desc"
+                    ? <ArrowDown size={10} className="text-[#000666]" />
+                    : <ArrowUp size={10} className="text-[#000666]" />
+                )}
+              </button>
             </div>
           )}
 
@@ -747,6 +807,7 @@ export default function UsersClient({
                 return (
                   <motion.div
                     key={user.id}
+                    data-testid="user-row"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.02 }}
@@ -835,6 +896,7 @@ export default function UsersClient({
                 return (
                   <motion.div
                     key={user.id}
+                    data-testid="user-row"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.03 }}
@@ -891,9 +953,9 @@ export default function UsersClient({
                       <span className="text-[10px] text-[#9BA4C0]">건</span>
                     </div>
 
-                    {/* 최초 접수 */}
+                    {/* 최초 가입/접수 */}
                     <div className="text-[11px] font-medium text-[#9BA4C0] tabular-nums">
-                      {formatDate(user.firstContactAt)}
+                      {formatDate(user.joinedAt ?? user.firstContactAt)}
                     </div>
 
                     {/* 진행 항목 */}
@@ -929,11 +991,16 @@ export default function UsersClient({
                       )}
                     </div>
 
-                    {/* 최근 접수 */}
+                    {/* 최근 접속/접수 */}
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-[#9BA4C0] tabular-nums">
-                        {daysSince(user.lastContactAt)}
-                      </span>
+                      <div>
+                        <p className="text-[11px] font-medium text-[#6B7399] tabular-nums">
+                          {formatDate(user.lastSignInAt ?? user.lastContactAt)}
+                        </p>
+                        <p className="mt-0.5 text-[9px] text-[#9BA4C0]">
+                          {daysSince(user.lastSignInAt ?? user.lastContactAt)}
+                        </p>
+                      </div>
                       <ChevronRight size={14} className="text-[#D4D8EC] group-hover:text-[#000666] transition-all group-hover:translate-x-1" />
                     </div>
                   </motion.div>

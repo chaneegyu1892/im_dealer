@@ -32,6 +32,8 @@ export interface AdminUserRecord {
   consultationCount: number;
   contractCount: number;
   expiringSoonCount: number;
+  joinedAt: string | null;
+  lastSignInAt: string | null;
   firstContactAt: string;
   lastContactAt: string;
   userStatus: "active" | "dormant";
@@ -256,6 +258,8 @@ export async function getAdminUsers(): Promise<{
       consultationCount: 0,
       contractCount: 0,
       expiringSoonCount: 0,
+      joinedAt: authUser.createdAt,
+      lastSignInAt: authUser.lastSignInAt,
       firstContactAt: authUser.createdAt,
       lastContactAt: contactDate,
       userStatus: "active",
@@ -305,6 +309,8 @@ export async function getAdminUsers(): Promise<{
         consultationCount: 0,
         contractCount: 0,
         expiringSoonCount: 0,
+        joinedAt: null,
+        lastSignInAt: null,
         firstContactAt: q.createdAt.toISOString(),
         lastContactAt: q.createdAt.toISOString(),
         userStatus: "active",
@@ -386,7 +392,8 @@ export async function getAdminUsers(): Promise<{
 
   users.sort(
     (a, b) =>
-      new Date(b.lastContactAt).getTime() - new Date(a.lastContactAt).getTime()
+      new Date(b.lastSignInAt ?? b.lastContactAt).getTime() -
+      new Date(a.lastSignInAt ?? a.lastContactAt).getTime()
   );
 
   const stats: AdminUsersStats = {
