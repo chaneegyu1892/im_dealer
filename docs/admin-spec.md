@@ -115,9 +115,38 @@ page.tsx (SSR)
 
 ```
 page.tsx (client component, QuotationsContent)
-  └─ 클라이언트에서 /api/admin/quotes fetch (PAGE_SIZE 단위 페이지 로드)
-  └─ 자체 테이블 + 상세 Drawer + 일괄 처리 렌더
+  ├─ 상담 견적 탭
+  │    └─ 클라이언트에서 /api/admin/quotes fetch (PAGE_SIZE 단위 페이지 로드)
+  │    └─ 자체 테이블 + 상세 Drawer + 일괄 처리 렌더
+  └─ 견적만 확인 탭
+       └─ <QuoteCalculationHistory />
+            └─ /api/admin/quote-calculations fetch (최신순, 50건 페이지네이션)
 ```
+
+#### 탭과 데이터 기준
+
+| 탭 | 데이터 소스 | 포함 기준 |
+|----|-------------|-----------|
+| 상담 견적 | `SavedQuote` | 상담 또는 계약 신청으로 저장된 견적 |
+| 견적만 확인 | `QuoteCalcLog` | `clickedApply=false`인 계산 기록. 상담·계약 신청으로 이어진 견적은 제외 |
+
+견적만 확인 탭은 조회 전용이며 계산 시각, 차량/트림, 회원 정보, 계약 조건,
+초기비용, 월 납입금, 최저 금융사를 표시한다. 회원 기록은
+`QuoteCalcLog.userId`와 `User.supabaseId`를 연결해 이름과 연락처를 표시한다.
+
+#### 계산 이력 저장 규칙
+
+- 로그 쓰기는 견적 API 응답 전에 완료한다. 실패가 견적 계산 응답을 막지는 않지만
+  오류 로그와 Sentry에 남겨 운영에서 확인할 수 있어야 한다.
+- `(sessionId, vehicleSlug, scenarioType)`을 고유키로 사용해 슬라이더 재계산과
+  동시 요청에서도 동일 견적이 중복 생성되지 않게 `upsert`한다.
+- 한 번 `clickedApply=true`가 된 행은 이후 재계산으로 false로 되돌리지 않는다.
+- 상담·계약 신청 시 같은 세션/차량의 계산 행을 모두 `clickedApply=true`로 바꿔
+  `견적만 확인` 탭과 `상담 견적` 탭이 서로 중복되지 않게 한다.
+- 차량/트림/옵션/색상/가격 구성은 `QuoteCalcLog`에 스냅샷으로 보존해 원본
+  마스터 데이터가 바뀌어도 당시 견적 구성을 확인할 수 있어야 한다.
+- 회수율 데이터나 트림이 없어 자동 계산이 불가능한 결과도
+  `pricingStatus=CONSULTATION_REQUIRED`와 월 납입금 0원으로 기록한다.
 
 > 참고: 과거 `src/components/admin/quotations/QuotationTable.tsx` 컴포넌트는
 > 제거되었으며, 현재는 `src/app/(admin)/admin/quotations/page.tsx` 의
@@ -172,6 +201,18 @@ page.tsx (client component, QuotationsContent)
 
 5. **서류 확인 결과**
    - `<VerificationResult sessionId={...} />`
+
+---
+
+## 사용자 관리 (`/admin/users`)
+
+- Supabase Auth의 `created_at`은 `joinedAt`, `last_sign_in_at`은
+  `lastSignInAt`으로 별도 유지한다.
+- 전체 사용자 목록의 기본 정렬은 최근 접속/접수 최신순이다.
+- `최초 가입/접수`, `최근 접속/접수` 테이블 헤더를 누르면 각 날짜 기준
+  최신순/오래된순을 전환한다.
+- Auth 회원이 아닌 상담 고객은 가입/접속일이 없으므로 최초/최근 접수일을
+  정렬과 표시에 사용한다.
 
 ---
 
@@ -436,6 +477,7 @@ interface Props {
 |--------|----------|------------|
 | GET | `/api/admin/brands` | `vehicle.groupBy(['brand'])` |
 | GET | `/api/admin/quotes` | savedQuote 목록 (페이지네이션) |
+| GET | `/api/admin/quote-calculations` | quoteCalcLog 계산 이력 (최신순 페이지네이션) |
 | GET | `/api/admin/dashboard/stats` | KPI + 차트 데이터 |
 | GET | `/api/admin/analytics` | 30일 집계 분석 |
 
@@ -457,6 +499,7 @@ interface Props {
 | `getDashboardData()` | 대시보드 | `Promise.all` 다중 집계 |
 | `getAnalyticsData()` | 분석 페이지 | 30일 로그 집계 |
 | `getAdminQuotes(page, limit)` | 견적 페이지 | `savedQuote.findMany` + 포맷 |
+| `getAdminQuoteCalculations(page, limit)` | 견적 계산 이력 탭 | `quoteCalcLog.findMany` + 회원/트림 연결 |
 
 ---
 

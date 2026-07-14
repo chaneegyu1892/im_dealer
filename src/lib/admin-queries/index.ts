@@ -8,3 +8,4 @@ export * from "./finance";
 export * from "./users";
 export * from "./reviews";
 export * from "./quote-calc-stats";
+export * from "./quote-calculations";

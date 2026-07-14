@@ -34,6 +34,46 @@ export interface AdminSavedQuote {
   selectedOptions: { id: string; name: string; price: number }[];
 }
 
+export interface AdminQuoteCalculation {
+  id: string;
+  sessionId: string;
+  userId: string | null;
+  customerName: string | null;
+  phone: string | null;
+  userType: "Member" | "Guest";
+  vehicleId: string;
+  vehicleSlug: string;
+  vehicleName: string;
+  vehicleBrand: string | null;
+  trimId: string | null;
+  trimName: string | null;
+  optionCount: number;
+  selectedOptions: { id: string; name: string; price: number }[];
+  trimPrice: number | null;
+  discountPrice: number | null;
+  extraOptionsPrice: number;
+  optionsTotalPrice: number;
+  exteriorColorName: string | null;
+  interiorColorName: string | null;
+  colorDelta: number;
+  totalVehiclePrice: number | null;
+  contractMonths: number;
+  annualMileage: number;
+  depositRate: number;
+  prepayRate: number;
+  contractType: string;
+  productType: string;
+  customerType: string | null;
+  resultMonthly: number;
+  bestFinanceCompany: string;
+  scenarioType: string;
+  pricingStatus: "CALCULATED" | "CONSULTATION_REQUIRED";
+  clickedApply: boolean;
+  deviceType: string | null;
+  createdAt: string;
+  calculatedAt: string;
+}
+
 export interface AdminNotification {
   id: string;
   type: "NEW_QUOTE" | "SYSTEM" | "INQUIRY";

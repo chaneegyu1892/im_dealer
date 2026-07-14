@@ -23,7 +23,12 @@ export type {
   DashboardStats,
   VehicleQuoteStats,
 } from "./admin-analytics";
-export type { AdminNotification, AdminSavedQuote, QuoteCrmStatus } from "./admin-quotes";
+export type {
+  AdminNotification,
+  AdminQuoteCalculation,
+  AdminSavedQuote,
+  QuoteCrmStatus,
+} from "./admin-quotes";
 export type {
   AdminFinanceCompany,
   CapitalRateSheet,

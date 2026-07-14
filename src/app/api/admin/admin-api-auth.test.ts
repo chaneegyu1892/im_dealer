@@ -136,6 +136,45 @@ describe("admin API role guards", () => {
     expect(getAdminQuotes).toHaveBeenCalledWith(2, 50);
   });
 
+  it("blocks dealers from quote calculation history before querying logs", async () => {
+    const getAdminQuoteCalculations = vi.fn().mockResolvedValue({ data: [], total: 0 });
+
+    vi.doMock("@/lib/admin-auth", () => ({
+      getAdminSession: vi.fn().mockResolvedValue(dealerUser),
+    }));
+    vi.doMock("@/lib/admin-queries", () => ({ getAdminQuoteCalculations }));
+
+    const { GET } = await import("@/app/api/admin/quote-calculations/route");
+    const request = new NextRequest("https://example.com/api/admin/quote-calculations");
+    const response = await GET(request);
+
+    expect(response.status).toBe(403);
+    expect(getAdminQuoteCalculations).not.toHaveBeenCalled();
+  });
+
+  it("allows staff to query paginated quote calculation history", async () => {
+    const getAdminQuoteCalculations = vi.fn().mockResolvedValue({ data: [], total: 0 });
+
+    vi.doMock("@/lib/admin-auth", () => ({
+      getAdminSession: vi.fn().mockResolvedValue(staffUser),
+    }));
+    vi.doMock("@/lib/admin-queries", () => ({ getAdminQuoteCalculations }));
+
+    const { GET } = await import("@/app/api/admin/quote-calculations/route");
+    const request = new NextRequest(
+      "https://example.com/api/admin/quote-calculations?page=2&limit=50"
+    );
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: [],
+      meta: { total: 0, page: 2, limit: 50 },
+    });
+    expect(getAdminQuoteCalculations).toHaveBeenCalledWith(2, 50);
+  });
+
   it("blocks dealers from dashboard stats before querying aggregate data", async () => {
     const vehicleCount = vi.fn().mockResolvedValue(0);
 

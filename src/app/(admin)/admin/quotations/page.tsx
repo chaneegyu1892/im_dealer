@@ -6,14 +6,15 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ExcelJS from "exceljs";
 import {
-  FileText, Search, Download, Filter, X, Phone, User,
+  FileText, Search, Download, X, Phone, User,
   Calendar, Copy, CheckCircle2, Clock, AlertCircle,
-  MessageSquare, ChevronDown, SlidersHorizontal, ChevronRight,
+  MessageSquare, ChevronDown, SlidersHorizontal, ChevronRight, Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logActivity } from "@/lib/activity-store";
 import { AdminSavedQuote } from "@/types/admin";
 import { ReviewLinkSection } from "@/components/admin/quotations/ReviewLinkSection";
+import { QuoteCalculationHistory } from "@/components/admin/quotations/QuoteCalculationHistory";
 import { VerificationResult } from "@/components/admin/VerificationResult";
 import { formatQuoteForClipboard } from "@/lib/admin/quote-clipboard";
 
@@ -47,6 +48,9 @@ const STATUS_LIST: UIQuoteStatus[] = ["상담대기", "연락완료", "상담중
 
 function QuotationsContent() {
   const searchParams = useSearchParams();
+  const [dataView, setDataView] = useState<"consultations" | "calculations">(
+    searchParams?.get("tab") === "calculations" ? "calculations" : "consultations"
+  );
   const [quotes, setQuotes] = useState<AdminSavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -416,22 +420,68 @@ function QuotationsContent() {
       <div className="bg-white border-b border-[#E8EAF0] px-6 py-5 shrink-0 flex items-center justify-between z-10">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-[#F4F5F8] rounded-[8px] text-[#000666]">
-            <MessageSquare size={20} strokeWidth={2.5} />
+            {dataView === "consultations" ? (
+              <MessageSquare size={20} strokeWidth={2.5} />
+            ) : (
+              <Calculator size={20} strokeWidth={2.5} />
+            )}
           </div>
           <div>
             <h1 className="text-[18px] font-bold text-[#1A1A2E]">견적 데이터 실시간 현황</h1>
-            <p className="text-[12px] text-[#6B7399] mt-1">이번 달 접수된 모든 견적 건의 진행 상태 및 히스토리 요약</p>
+            <p className="text-[12px] text-[#6B7399] mt-1">
+              {dataView === "consultations"
+                ? "접수된 상담 견적의 진행 상태 및 히스토리 요약"
+                : "상담 신청 없이 견적 결과만 확인한 기록"}
+            </p>
           </div>
         </div>
-        <div className="flex gap-4">
-          <KPIMini label="전체 누적" value={quotes.length.toString()} highlight />
-          <div className="w-[1px] h-10 bg-[#E8EAF0]" />
-          <KPIMini label="상담 대기" value={quotes.filter(q => q.status === "NEW").length.toString()} color="text-slate-600" />
-          <KPIMini label="상담 진행" value={quotes.filter(q => q.status === "IN_PROGRESS").length.toString()} color="text-blue-600" />
-          <KPIMini label="계약 완료" value={quotes.filter(q => q.status === "CONVERTED").length.toString()} color="text-emerald-600" />
-        </div>
+        {dataView === "consultations" && (
+          <div className="flex gap-4">
+            <KPIMini label="전체 누적" value={quotes.length.toString()} highlight />
+            <div className="w-[1px] h-10 bg-[#E8EAF0]" />
+            <KPIMini label="상담 대기" value={quotes.filter(q => q.status === "NEW").length.toString()} color="text-slate-600" />
+            <KPIMini label="상담 진행" value={quotes.filter(q => q.status === "IN_PROGRESS").length.toString()} color="text-blue-600" />
+            <KPIMini label="계약 완료" value={quotes.filter(q => q.status === "CONVERTED").length.toString()} color="text-emerald-600" />
+          </div>
+        )}
       </div>
 
+      <div className="flex shrink-0 items-center gap-1 border-b border-[#E8EAF0] bg-white px-6">
+        <button
+          type="button"
+          onClick={() => setDataView("consultations")}
+          className={cn(
+            "flex items-center gap-1.5 border-b-2 px-4 py-3 text-[12px] font-semibold transition-colors",
+            dataView === "consultations"
+              ? "border-[#000666] text-[#000666]"
+              : "border-transparent text-[#9BA4C0] hover:text-[#6B7399]"
+          )}
+        >
+          <MessageSquare size={14} />
+          상담 견적
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setDrawerQuote(null);
+            setDataView("calculations");
+          }}
+          className={cn(
+            "flex items-center gap-1.5 border-b-2 px-4 py-3 text-[12px] font-semibold transition-colors",
+            dataView === "calculations"
+              ? "border-[#000666] text-[#000666]"
+              : "border-transparent text-[#9BA4C0] hover:text-[#6B7399]"
+          )}
+        >
+          <Calculator size={14} />
+          견적만 확인
+        </button>
+      </div>
+
+      {dataView === "calculations" ? (
+        <QuoteCalculationHistory />
+      ) : (
+        <>
       {/* 2. 툴바 */}
       <div className="px-6 py-3 bg-[#FAFBFF] border-b border-[#E8EAF0] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -926,6 +976,8 @@ function QuotationsContent() {
           </>
         )}
       </AnimatePresence>
+        </>
+      )}
     </div>
   );
 }
