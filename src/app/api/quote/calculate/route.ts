@@ -14,6 +14,7 @@ import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
+import { upsertQuoteCalcLogs } from "@/lib/quote-calc-log";
 
 const SCENARIO_CONDITIONS = {
   conservative: { depositRate: 20, prepayRate: 0 },
@@ -53,10 +54,10 @@ export async function POST(request: NextRequest) {
         trims: {
           where: PUBLIC_TRIM_WHERE,
           orderBy: { isDefault: "desc" },
-          include: { options: { select: { id: true, price: true } } },
+          include: { options: { select: { id: true, name: true, price: true } } },
         },
         colors: {
-          select: { id: true, kind: true, priceDelta: true },
+          select: { id: true, kind: true, name: true, priceDelta: true },
         },
       },
     });
@@ -81,9 +82,10 @@ export async function POST(request: NextRequest) {
 
     // 옵션 가격 합산
     const selectedOptionIds = new Set(input.selectedOptionIds ?? []);
-    const trimOptionsTotalPrice = trim.options
+    const selectedOptions = trim.options
       .filter((o) => selectedOptionIds.has(o.id))
-      .reduce((sum, o) => sum + o.price, 0);
+      .map((o) => ({ id: o.id, name: o.name, price: o.price }));
+    const trimOptionsTotalPrice = selectedOptions.reduce((sum, o) => sum + o.price, 0);
     const optionsTotalPrice = trimOptionsTotalPrice + (input.extraOptionsPrice ?? 0);
 
     // 색상 priceDelta 합산 (벨리데이션 — kind 일치 확인)
@@ -98,6 +100,45 @@ export async function POST(request: NextRequest) {
     // 할인가: discountPrice 있으면 회수율 계산용 차량가로 사용
     const effectiveTrimPrice = trim.discountPrice ?? trim.price;
     const discountAmount = trim.discountPrice ? trim.price - trim.discountPrice : 0;
+    const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
+
+    const userAgent = request.headers.get("user-agent") ?? undefined;
+    const logSessionId = input.sessionId ?? `anon-${Date.now()}`;
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const calcLogBase = {
+      sessionId: logSessionId,
+      userId: user?.id ?? null,
+      vehicleId: vehicle.id,
+      vehicleSlug: input.vehicleSlug,
+      vehicleName: vehicle.name,
+      vehicleBrand: vehicle.brand,
+      trimId: trim.id,
+      trimName: trim.name,
+      trimPrice: trim.price,
+      discountPrice: trim.discountPrice ?? null,
+      optionIds: selectedOptions.map((option) => option.id),
+      optionSnapshots: selectedOptions,
+      extraOptionsPrice: input.extraOptionsPrice ?? 0,
+      optionsTotalPrice,
+      exteriorColorId: exteriorColor?.id ?? null,
+      exteriorColorName: exteriorColor?.name ?? null,
+      interiorColorId: interiorColor?.id ?? null,
+      interiorColorName: interiorColor?.name ?? null,
+      colorDelta,
+      totalVehiclePrice,
+      contractMonths: input.contractMonths,
+      annualMileage: input.annualMileage,
+      contractType: input.contractType,
+      productType: input.productType,
+      customerType: input.customerType,
+      deviceType: /Mobile|Android|iPhone/i.test(userAgent ?? "") ? "mobile" : "desktop",
+      referrer: request.headers.get("referer") ?? undefined,
+      userAgent,
+      ipHash: hashIp(getClientIp(request)),
+    };
 
     // 2) 회수율 데이터 + 순위 가산 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
@@ -115,6 +156,26 @@ export async function POST(request: NextRequest) {
 
     if (rateSheets.length === 0) {
       // 회수율 시트가 1건도 없으면 "별도 상담 필요" 안내로 분기.
+      try {
+        await upsertQuoteCalcLogs([
+          {
+            ...calcLogBase,
+            depositRate: 0,
+            prepayRate: 0,
+            resultMonthly: 0,
+            bestFinanceCompany: "",
+            scenarioType: "standard",
+            pricingStatus: "CONSULTATION_REQUIRED",
+            rangeExceeded: false,
+          },
+        ]);
+      } catch (err) {
+        console.error("[QuoteCalcLog] 별도 상담 로그 저장 실패:", err);
+        Sentry.captureException(err, {
+          tags: { route: "quote/calculate", op: "consultation-log" },
+        });
+      }
+
       return NextResponse.json({
         success: true,
         data: {
@@ -128,7 +189,7 @@ export async function POST(request: NextRequest) {
           discountAmount,
           optionsTotalPrice,
           colorDelta,
-          totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
+          totalVehiclePrice,
           contractMonths: input.contractMonths,
           annualMileage: input.annualMileage,
           contractType: input.contractType,
@@ -183,7 +244,7 @@ export async function POST(request: NextRequest) {
       const { depositRate, prepayRate } = SCENARIO_CONDITIONS[key];
 
       const calcInput: CalcInput = {
-        vehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
+        vehiclePrice: totalVehiclePrice,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         depositRate,
@@ -245,50 +306,28 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // ── 견적 로그 비동기 저장 ──
-    const ip = getClientIp(request);
-    const ipHash = hashIp(ip);
-    const userAgent = request.headers.get("user-agent") ?? undefined;
-    const logSessionId = input.sessionId ?? `anon-${Date.now()}`;
-
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const userId = user?.id ?? null;
-
-    Promise.all(
-      Object.entries(scenarios).map(([scenarioType, sc]) =>
-        prisma.quoteCalcLog.create({
-          data: {
-            sessionId: logSessionId,
-            userId,
-            vehicleId: vehicle.id,
-            vehicleSlug: input.vehicleSlug,
-            vehicleName: vehicle.name,
-            trimId: trim.id,
-            optionIds: input.selectedOptionIds ?? [],
-            contractMonths: input.contractMonths,
-            annualMileage: input.annualMileage,
-            depositRate: SCENARIO_CONDITIONS[scenarioType as keyof typeof SCENARIO_CONDITIONS]?.depositRate ?? 0,
-            prepayRate: SCENARIO_CONDITIONS[scenarioType as keyof typeof SCENARIO_CONDITIONS]?.prepayRate ?? 0,
-            contractType: input.contractType,
-            productType: input.productType,
-            resultMonthly: sc.monthlyPayment,
-            bestFinanceCompany: sc.bestFinanceCompany,
-            scenarioType,
-            rangeExceeded: sc.rangeExceeded,
-            deviceType: /Mobile|Android|iPhone/i.test(userAgent ?? "") ? "mobile" : "desktop",
-            referrer: request.headers.get("referer") ?? undefined,
-            userAgent,
-            ipHash,
-          },
-        })
-      )
-    ).catch((err) => {
+    // ── 견적 로그 저장 ──
+    try {
+      await upsertQuoteCalcLogs(
+        Object.entries(scenarios).map(([scenarioType, sc]) => ({
+          ...calcLogBase,
+          depositRate:
+            SCENARIO_CONDITIONS[scenarioType as keyof typeof SCENARIO_CONDITIONS]
+              ?.depositRate ?? 0,
+          prepayRate:
+            SCENARIO_CONDITIONS[scenarioType as keyof typeof SCENARIO_CONDITIONS]
+              ?.prepayRate ?? 0,
+          resultMonthly: sc.monthlyPayment,
+          bestFinanceCompany: sc.bestFinanceCompany,
+          scenarioType,
+          pricingStatus: "CALCULATED" as const,
+          rangeExceeded: sc.rangeExceeded,
+        }))
+      );
+    } catch (err) {
       console.error("[QuoteCalcLog] 저장 실패:", err);
       Sentry.captureException(err, { tags: { route: "quote/calculate", op: "log" } });
-    });
+    }
 
     return NextResponse.json({
       success: true,
@@ -303,7 +342,7 @@ export async function POST(request: NextRequest) {
         discountAmount,
         optionsTotalPrice,
         colorDelta,
-        totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
+        totalVehiclePrice,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         contractType: input.contractType,

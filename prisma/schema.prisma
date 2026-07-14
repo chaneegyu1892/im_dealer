@@ -529,43 +529,61 @@ model QuoteCalcLog {
   userId    String?
 
   // ── 입력 조건 (독립 컬럼 → SQL 집계·ML 학습에 최적) ──
-  vehicleId      String
-  vehicleSlug    String
-  vehicleName    String?
-  trimId         String?
-  optionIds      String[]
-  contractMonths Int
-  annualMileage  Int
-  depositRate    Float // 0, 10, 20, 30 등
-  prepayRate     Float // 0, 10, 20, 30 등
-  contractType   String // 반납형 / 인수형
-  productType    String // 장기렌트 / 리스
+  vehicleId         String
+  vehicleSlug       String
+  vehicleName       String?
+  vehicleBrand      String?
+  trimId            String?
+  trimName          String?
+  trimPrice         Int?
+  discountPrice     Int?
+  optionIds         String[]
+  optionSnapshots   Json?
+  extraOptionsPrice Int      @default(0)
+  optionsTotalPrice Int      @default(0)
+  exteriorColorId   String?
+  exteriorColorName String?
+  interiorColorId   String?
+  interiorColorName String?
+  colorDelta        Int      @default(0)
+  totalVehiclePrice Int?
+  contractMonths    Int
+  annualMileage     Int
+  depositRate       Float // 0, 10, 20, 30 등
+  prepayRate        Float // 0, 10, 20, 30 등
+  contractType      String // 반납형 / 인수형
+  productType       String // 장기렌트 / 리스
+  customerType      String?
 
   // ── 계산 결과 (독립 컬럼) ──
   resultMonthly      Int // 최종 월 납입금
   bestFinanceCompany String
   scenarioType       String // conservative / standard / aggressive
+  pricingStatus      QuotePricingStatus @default(CALCULATED)
   // 차량가 + 옵션가가 회수율 시트 범위(min~max)를 초과한 경우 true.
   // 어드민 대시보드 "범위 초과 견적" 위젯에서 집계 — 회수율 데이터 보강 신호.
-  rangeExceeded      Boolean @default(false)
+  rangeExceeded      Boolean            @default(false)
 
   // ── 행동 추적 ──
   clickedApply Boolean @default(false) // 계약 신청 클릭 여부
 
   // ── 메타 ──
-  deviceType String?
-  referrer   String?
-  userAgent  String?
-  ipHash     String?
-  createdAt  DateTime @default(now())
+  deviceType   String?
+  referrer     String?
+  userAgent    String?
+  ipHash       String?
+  createdAt    DateTime @default(now())
+  calculatedAt DateTime @default(now())
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id])
 
+  @@unique([sessionId, vehicleSlug, scenarioType], map: "QuoteCalcLog_session_vehicle_scenario_key")
   @@index([vehicleSlug, createdAt])
   @@index([sessionId])
   @@index([userId])
   @@index([vehicleId, createdAt(sort: Desc)])
   @@index([createdAt])
+  @@index([calculatedAt])
   @@index([scenarioType, createdAt])
 }
 

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   findMemberProfile: vi.fn(),
   upsertSavedQuote: vi.fn(),
   updateCalcLogs: vi.fn(),
+  transaction: vi.fn(),
   calculate: vi.fn(),
   createAdminNotification: vi.fn(),
 }));
@@ -26,6 +27,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     user: { findUnique: mocks.findMemberProfile },
     quoteCalcLog: { updateMany: mocks.updateCalcLogs },
+    $transaction: mocks.transaction,
   },
 }));
 
@@ -100,6 +102,9 @@ describe("POST /api/quote/save", () => {
     mocks.findMemberProfile.mockResolvedValue(null);
     mocks.upsertSavedQuote.mockResolvedValue({ id: "quote-1", sessionId: "session-1" });
     mocks.updateCalcLogs.mockResolvedValue({ count: 1 });
+    mocks.transaction.mockImplementation((operations: Promise<unknown>[]) =>
+      Promise.all(operations)
+    );
     mocks.createAdminNotification.mockResolvedValue(undefined);
     mocks.calculate.mockReturnValue([{
       financeCompanyName: "테스트캐피탈",
@@ -125,6 +130,13 @@ describe("POST /api/quote/save", () => {
         pricingStatus: "CALCULATED",
       }),
       update: {},
+    });
+    expect(mocks.updateCalcLogs).toHaveBeenCalledWith({
+      where: {
+        sessionId: "session-1",
+        vehicleSlug: "test-car",
+      },
+      data: { clickedApply: true },
     });
   });
 
@@ -261,6 +273,13 @@ describe("POST /api/quote/save", () => {
         pricingStatus: "CONSULTATION_REQUIRED",
       }),
       update: {},
+    });
+    expect(mocks.updateCalcLogs).toHaveBeenCalledWith({
+      where: {
+        sessionId: "session-1",
+        vehicleSlug: "test-car",
+      },
+      data: { clickedApply: true },
     });
     const createData = mocks.upsertSavedQuote.mock.calls[0][0].create;
     expect(createData.breakdown).toMatchObject({

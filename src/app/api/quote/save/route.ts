@@ -209,11 +209,20 @@ export async function POST(request: NextRequest) {
         interiorColorId: interiorColor?.id ?? null,
       };
 
-      const savedQuote = await prisma.savedQuote.upsert({
-        where: { sessionId: input.sessionId },
-        create: data,
-        update: existing ? data : {},
-      });
+      const [savedQuote] = await prisma.$transaction([
+        prisma.savedQuote.upsert({
+          where: { sessionId: input.sessionId },
+          create: data,
+          update: existing ? data : {},
+        }),
+        prisma.quoteCalcLog.updateMany({
+          where: {
+            sessionId: input.sessionId,
+            vehicleSlug: input.vehicleSlug,
+          },
+          data: { clickedApply: true },
+        }),
+      ]);
 
       if (!existing) {
         await createAdminNotification({
@@ -338,19 +347,20 @@ export async function POST(request: NextRequest) {
       interiorColorId: interiorColor?.id ?? null,
     };
 
-    const savedQuote = await prisma.savedQuote.upsert({
-      where: { sessionId: input.sessionId },
-      create: data,
-      update: existing ? data : {},
-    });
-
-    await prisma.quoteCalcLog.updateMany({
-      where: {
-        sessionId: input.sessionId,
-        vehicleSlug: input.vehicleSlug,
-      },
-      data: { clickedApply: true },
-    });
+    const [savedQuote] = await prisma.$transaction([
+      prisma.savedQuote.upsert({
+        where: { sessionId: input.sessionId },
+        create: data,
+        update: existing ? data : {},
+      }),
+      prisma.quoteCalcLog.updateMany({
+        where: {
+          sessionId: input.sessionId,
+          vehicleSlug: input.vehicleSlug,
+        },
+        data: { clickedApply: true },
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,

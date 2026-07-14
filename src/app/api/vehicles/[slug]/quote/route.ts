@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
@@ -14,23 +15,32 @@ import { lockQuoteScenario } from "@/lib/member-gate";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
 import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
+import { upsertQuoteCalcLog } from "@/lib/quote-calc-log";
 
-const quoteSchema = z.object({
-  // 견적 페이지에서만 전달 — 있으면 조회/계산 로그를 세션 기준으로 적재한다(비교 기능 등은 미전달).
-  sessionId: z.string().min(1).optional(),
-  trimId: z.string().optional(),
-  selectedOptionIds: z.array(z.string()).optional(),
-  extraOptionsPrice: z.number().int().min(0).optional(),
-  contractMonths: z.number().int().refine((v) => [36, 48, 60].includes(v)),
-  annualMileage: z.number().int().refine((v) => [10000, 20000, 30000].includes(v)),
-  contractType: z.enum(["인수형", "반납형"]),
-  productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
-  customerType: z.enum(["individual", "self_employed", "corporate", "nonprofit"]).default("individual"),
-  customDepositRate: z.number().int().min(0).max(30).optional(),
-  customPrepayRate: z.number().int().min(0).max(30).optional(),
-  exteriorColorId: z.string().nullable().optional(),
-  interiorColorId: z.string().nullable().optional(),
-});
+const quoteSchema = z
+  .object({
+    // 견적 페이지에서만 전달 — 있으면 조회/계산 로그를 세션 기준으로 적재한다(비교 기능 등은 미전달).
+    sessionId: z.string().min(1).optional(),
+    trimId: z.string().optional(),
+    selectedOptionIds: z.array(z.string()).optional(),
+    extraOptionsPrice: z.number().int().min(0).optional(),
+    contractMonths: z.number().int().refine((v) => [36, 48, 60].includes(v)),
+    annualMileage: z.number().int().refine((v) => [10000, 20000, 30000].includes(v)),
+    contractType: z.enum(["인수형", "반납형"]),
+    productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
+    customerType: z
+      .enum(["individual", "self_employed", "corporate", "nonprofit"])
+      .default("individual"),
+    customDepositRate: z.number().int().min(0).max(30).optional(),
+    customPrepayRate: z.number().int().min(0).max(30).optional(),
+    exteriorColorId: z.string().nullable().optional(),
+    interiorColorId: z.string().nullable().optional(),
+  })
+  .refine(
+    (input) =>
+      (input.customDepositRate ?? 0) === 0 || (input.customPrepayRate ?? 0) === 0,
+    { message: "보증금과 선납금은 동시에 적용할 수 없습니다." }
+  );
 
 // ── 시나리오별 보증금·선납금 조건 ───────────────────────
 const SCENARIO_CONDITIONS = {
@@ -82,7 +92,7 @@ export async function POST(
           },
         },
         colors: {
-          select: { id: true, kind: true, priceDelta: true },
+          select: { id: true, kind: true, name: true, priceDelta: true },
         },
       },
     });
@@ -113,6 +123,71 @@ export async function POST(
     }
 
     if (!trim) {
+      if (input.sessionId) {
+        const userAgent = request.headers.get("user-agent") ?? undefined;
+        const exteriorColor = input.exteriorColorId
+          ? vehicle.colors.find(
+              (color) => color.id === input.exteriorColorId && color.kind === "EXTERIOR"
+            )
+          : null;
+        const interiorColor = input.interiorColorId
+          ? vehicle.colors.find(
+              (color) => color.id === input.interiorColorId && color.kind === "INTERIOR"
+            )
+          : null;
+        const colorDelta =
+          (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
+
+        try {
+          await upsertQuoteCalcLog({
+            sessionId: input.sessionId,
+            userId: user?.id ?? null,
+            vehicleId: vehicle.id,
+            vehicleSlug: slug,
+            vehicleName: vehicle.name,
+            vehicleBrand: vehicle.brand,
+            trimId: null,
+            trimName: null,
+            trimPrice: vehicle.basePrice,
+            discountPrice: null,
+            optionIds: [],
+            optionSnapshots: [],
+            extraOptionsPrice: input.extraOptionsPrice ?? 0,
+            optionsTotalPrice: input.extraOptionsPrice ?? 0,
+            exteriorColorId: exteriorColor?.id ?? null,
+            exteriorColorName: exteriorColor?.name ?? null,
+            interiorColorId: interiorColor?.id ?? null,
+            interiorColorName: interiorColor?.name ?? null,
+            colorDelta,
+            totalVehiclePrice:
+              vehicle.basePrice + (input.extraOptionsPrice ?? 0) + colorDelta,
+            contractMonths: input.contractMonths,
+            annualMileage: input.annualMileage,
+            depositRate: isMember ? input.customDepositRate ?? 0 : 0,
+            prepayRate: isMember ? input.customPrepayRate ?? 0 : 0,
+            contractType: input.contractType,
+            productType: input.productType,
+            customerType: input.customerType,
+            resultMonthly: 0,
+            bestFinanceCompany: "",
+            scenarioType: "standard",
+            pricingStatus: "CONSULTATION_REQUIRED",
+            rangeExceeded: false,
+            deviceType: /Mobile|Android|iPhone/i.test(userAgent ?? "")
+              ? "mobile"
+              : "desktop",
+            referrer: request.headers.get("referer") ?? undefined,
+            userAgent,
+            ipHash: hashIp(getClientIp(request)),
+          });
+        } catch (err) {
+          console.error("[vehicles/:slug/quote] 트림 미등록 로그 적재 실패:", err);
+          Sentry.captureException(err, {
+            tags: { route: "vehicles/:slug/quote", op: "missing-trim-log" },
+          });
+        }
+      }
+
       return NextResponse.json({
         success: true,
         data: {
@@ -156,9 +231,10 @@ export async function POST(
     }
 
     // 정규화된 옵션 집합으로 가격 합산 (REQUIRED/INCLUDED 자동 포함분 반영)
-    const trimOptionsTotalPrice = trim.options
+    const selectedOptions = trim.options
       .filter((o) => selectedOptionIds.has(o.id))
-      .reduce((sum, o) => sum + o.price, 0);
+      .map((o) => ({ id: o.id, name: o.name, price: o.price }));
+    const trimOptionsTotalPrice = selectedOptions.reduce((sum, o) => sum + o.price, 0);
     const optionsTotalPrice = trimOptionsTotalPrice + (input.extraOptionsPrice ?? 0);
 
     // 색상 priceDelta (kind 일치 검증)
@@ -173,6 +249,38 @@ export async function POST(
     // 할인가: discountPrice 있으면 그것을 차량가 기준으로 사용
     const effectiveTrimPrice = trim.discountPrice ?? trim.price;
     const discountAmount = trim.discountPrice ? trim.price - trim.discountPrice : 0;
+    const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
+    const userAgent = request.headers.get("user-agent") ?? undefined;
+    const calcLogBase = {
+      userId: user?.id ?? null,
+      vehicleId: vehicle.id,
+      vehicleSlug: slug,
+      vehicleName: vehicle.name,
+      vehicleBrand: vehicle.brand,
+      trimId: trim.id,
+      trimName: trim.name,
+      trimPrice: trim.price,
+      discountPrice: trim.discountPrice ?? null,
+      optionIds: selectedOptions.map((option) => option.id),
+      optionSnapshots: selectedOptions,
+      extraOptionsPrice: input.extraOptionsPrice ?? 0,
+      optionsTotalPrice,
+      exteriorColorId: exteriorColor?.id ?? null,
+      exteriorColorName: exteriorColor?.name ?? null,
+      interiorColorId: interiorColor?.id ?? null,
+      interiorColorName: interiorColor?.name ?? null,
+      colorDelta,
+      totalVehiclePrice,
+      contractMonths: input.contractMonths,
+      annualMileage: input.annualMileage,
+      contractType: input.contractType,
+      productType: input.productType,
+      customerType: input.customerType,
+      deviceType: /Mobile|Android|iPhone/i.test(userAgent ?? "") ? "mobile" : "desktop",
+      referrer: request.headers.get("referer") ?? undefined,
+      userAgent,
+      ipHash: hashIp(getClientIp(request)),
+    };
 
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
@@ -191,6 +299,27 @@ export async function POST(
     if (rateSheets.length === 0) {
       // 해당 트림(라인업)의 회수율 시트가 1건도 등록되지 않은 경우 → "별도 상담 필요" 분기.
       // 자동 견적은 불가하지만 차량/트림 메타정보는 그대로 반환하여 프론트가 안내 카드를 렌더링할 수 있게 함.
+      if (input.sessionId) {
+        try {
+          await upsertQuoteCalcLog({
+            sessionId: input.sessionId,
+            ...calcLogBase,
+            depositRate: isMember ? input.customDepositRate ?? 0 : 0,
+            prepayRate: isMember ? input.customPrepayRate ?? 0 : 0,
+            resultMonthly: 0,
+            bestFinanceCompany: "",
+            scenarioType: "standard",
+            pricingStatus: "CONSULTATION_REQUIRED",
+            rangeExceeded: false,
+          });
+        } catch (err) {
+          console.error("[vehicles/:slug/quote] 별도 상담 로그 적재 실패:", err);
+          Sentry.captureException(err, {
+            tags: { route: "vehicles/:slug/quote", op: "consultation-log" },
+          });
+        }
+      }
+
       return NextResponse.json({
         success: true,
         data: {
@@ -202,7 +331,7 @@ export async function POST(
           discountAmount,
           optionsTotalPrice,
           colorDelta,
-          totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
+          totalVehiclePrice,
           contractMonths: input.contractMonths,
           annualMileage: input.annualMileage,
           contractType: input.contractType,
@@ -272,7 +401,7 @@ export async function POST(
       }
 
       const calcInput: CalcInput = {
-        vehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
+        vehiclePrice: totalVehiclePrice,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         depositRate,
@@ -352,39 +481,19 @@ export async function POST(
     if (input.sessionId) {
       const sessionId = input.sessionId;
       const std = scenarios.standard;
-      const userAgent = request.headers.get("user-agent") ?? undefined;
-      const ipHash = hashIp(getClientIp(request));
       try {
-        // QuoteCalcLog: 세션×차량 1행 유지 — 있으면 최신 조건/결과로 갱신, 없으면 생성.
+        // QuoteCalcLog: 세션×차량×시나리오 고유키로 최신 조건/결과를 원자적으로 갱신.
         const calcData = {
-          userId: user?.id ?? null,
-          vehicleId: vehicle.id,
-          vehicleSlug: slug,
-          vehicleName: vehicle.name,
-          trimId: trim.id,
-          optionIds: [...selectedOptionIds],
-          contractMonths: input.contractMonths,
-          annualMileage: input.annualMileage,
+          ...calcLogBase,
           depositRate: stdDeposit,
           prepayRate: stdPrepay,
-          contractType: input.contractType,
-          productType: input.productType,
           resultMonthly: std?.monthlyPayment ?? 0,
           bestFinanceCompany: std?.bestFinanceCompany ?? "",
           scenarioType: "standard",
+          pricingStatus: "CALCULATED" as const,
           rangeExceeded: std?.rangeExceeded ?? false,
-          deviceType: /Mobile|Android|iPhone/i.test(userAgent ?? "") ? "mobile" : "desktop",
-          referrer: request.headers.get("referer") ?? undefined,
-          userAgent,
-          ipHash,
         };
-        const updated = await prisma.quoteCalcLog.updateMany({
-          where: { sessionId, vehicleSlug: slug },
-          data: calcData,
-        });
-        if (updated.count === 0) {
-          await prisma.quoteCalcLog.create({ data: { sessionId, ...calcData } });
-        }
+        await upsertQuoteCalcLog({ sessionId, ...calcData });
 
         // ExplorationLog(quote_start): 세션×차량 최초 1건만 — 대시보드/분석 "견적 조회" 소스.
         const existingView = await prisma.explorationLog.findFirst({
@@ -403,13 +512,16 @@ export async function POST(
                 annualMileage: input.annualMileage,
               },
               userAgent,
-              ipHash,
+              ipHash: calcLogBase.ipHash,
             },
           });
         }
       } catch (err) {
         // 로그 적재 실패는 견적 응답에 영향 주지 않는다.
         console.error("[vehicles/:slug/quote] 로그 적재 실패:", err);
+        Sentry.captureException(err, {
+          tags: { route: "vehicles/:slug/quote", op: "calculation-log" },
+        });
       }
     }
 
@@ -424,7 +536,7 @@ export async function POST(
         discountAmount,
         optionsTotalPrice,
         colorDelta,
-        totalVehiclePrice: effectiveTrimPrice + optionsTotalPrice + colorDelta,
+        totalVehiclePrice,
         contractMonths: input.contractMonths,
         annualMileage: input.annualMileage,
         contractType: input.contractType,
