@@ -52,6 +52,7 @@ function validProfile() {
 function rateSheet(rate: number) {
   return {
     id: "rate-1",
+    productType: "장기렌트",
     isActive: true,
     minVehiclePrice: 30_000_000,
     maxVehiclePrice: 50_000_000,
@@ -82,6 +83,7 @@ function snapshot(): OperationalVehicleSnapshot {
         id: "trim-default",
         name: "2026년형 기본",
         price: 40_000_000,
+        discountPrice: null,
         isDefault: true,
         isVisible: true,
         lineup: { name: "2026년형", isVisible: true },
@@ -148,5 +150,34 @@ describe("assessOperationalEligibility", () => {
     const result = assessOperationalEligibility(value, 20_000);
     expect(result.status).toBe("eligible");
     if (result.status === "eligible") expect(result.selectedTrim.id).toBe("trim-a");
+  });
+
+  it("rejects lease-only sheets from the public rental recommendation contract", () => {
+    const original = snapshot();
+    const value: OperationalVehicleSnapshot = {
+      ...original,
+      trims: [{
+        ...original.trims[0],
+        rateSheets: [{ ...rateSheet(0.02), productType: "리스" }],
+      }],
+    };
+
+    expect(assessOperationalEligibility(value, 20_000).status).toBe("no_valid_active_rate");
+  });
+
+  it("uses discountPrice for its representative monthly estimate", () => {
+    const fullPrice = snapshot();
+    const discounted: OperationalVehicleSnapshot = {
+      ...fullPrice,
+      trims: [{ ...fullPrice.trims[0], discountPrice: 35_000_000 }],
+    };
+    const fullResult = assessOperationalEligibility(fullPrice, 20_000);
+    const discountedResult = assessOperationalEligibility(discounted, 20_000);
+
+    expect(fullResult.status).toBe("eligible");
+    expect(discountedResult.status).toBe("eligible");
+    if (fullResult.status === "eligible" && discountedResult.status === "eligible") {
+      expect(discountedResult.estimatedMonthly).toBeLessThan(fullResult.estimatedMonthly);
+    }
   });
 });

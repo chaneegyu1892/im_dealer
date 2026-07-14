@@ -111,7 +111,11 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
     vehicles.map((v) => ({
       vehicleId: v.id,
       vehicleSurchargeRate: v.surchargeRate,
-      trims: v.trims.map((t) => ({ trimId: t.id, vehiclePrice: t.price })),
+      trims: v.trims.map((t) => ({
+        trimId: t.id,
+        vehiclePrice: t.price,
+        discountPrice: t.discountPrice,
+      })),
     }))
   );
 

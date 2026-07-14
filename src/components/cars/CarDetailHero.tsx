@@ -120,7 +120,7 @@ export function CarDetailHero({
               quotes={representativeQuotes}
               tone="dark"
               size="xl"
-              captionText="60개월 · 초기 비용 0원 · 2만km 기준"
+              captionText="60개월 · 연 2만km · 무보증"
               emptyText="견적 준비 중"
               className="mb-4"
             />

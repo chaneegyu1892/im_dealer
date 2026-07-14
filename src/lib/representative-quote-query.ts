@@ -24,7 +24,11 @@ export interface VehicleQuoteInput {
   /** 결과 Map의 key */
   vehicleId: string;
   vehicleSurchargeRate: number;
-  trims: { trimId: string; vehiclePrice: number }[];
+  trims: {
+    trimId: string;
+    vehiclePrice: number;
+    discountPrice?: number | null;
+  }[];
 }
 
 /**
@@ -81,7 +85,7 @@ export async function getRepresentativeQuotesByVehicle(
       const sheets = sheetsByTrim.get(trim.trimId);
       if (!sheets || sheets.length === 0) return [];
       return calcRepresentativeQuotes({
-        vehiclePrice: trim.vehiclePrice,
+        vehiclePrice: trim.discountPrice ?? trim.vehiclePrice,
         vehicleSurchargeRate: vehicle.vehicleSurchargeRate,
         rankSurchargeRates: rankRates,
         rateSheets: sheets,

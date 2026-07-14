@@ -7,7 +7,7 @@ import {
 } from "@/lib/representative-quote";
 
 /**
- * 대표 견적가 표시 — 60개월 / 초기 비용 0원 / 2만km 기준.
+ * 대표 견적가 표시 — 60개월 / 연 2만km / 무보증 기준.
  * 장기렌트·리스가 모두 있으면 두 줄로 나란히 노출.
  * 목록 카드·홈 인기차량·차량 상세에서 공통 사용해 표기를 통일한다.
  */
@@ -34,7 +34,7 @@ interface RepresentativeQuotePriceProps {
   className?: string;
 }
 
-const DEFAULT_CAPTION = "월 납입금 · 60개월 · 초기 비용 0원";
+const DEFAULT_CAPTION = "월 납입금 · 60개월 · 연 2만km · 무보증";
 
 const NUMBER_SIZE: Record<Size, string> = {
   sm: "text-[20px]",

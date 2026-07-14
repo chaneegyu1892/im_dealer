@@ -15,6 +15,10 @@ import { parseOverlapRuntimeInput } from "./overlap-runtime-input";
 import { scoreOverlapVehicle, type OverlapScoringInput } from "./overlap-scoring";
 import { generateOverlapReason } from "./reason";
 import { buildRecommendScenarios } from "./recommend-scenarios";
+import {
+  DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
+  PUBLIC_CARD_QUOTE_CONDITION,
+} from "@/constants/quote-defaults";
 
 interface RuntimeScoredCandidate extends RankableOverlapCandidate {
   readonly vehicle: OverlapRuntimeVehicle;
@@ -38,7 +42,10 @@ function scoreEligibleVehicles(
   const candidates: RuntimeScoredCandidate[] = [];
   const diagnostics: OverlapEligibilityDiagnostic[] = [];
   for (const vehicle of snapshot.vehicles) {
-    const eligibility = assessOperationalEligibility(vehicle, input.annualMileage);
+    const eligibility = assessOperationalEligibility(
+      vehicle,
+      PUBLIC_CARD_QUOTE_CONDITION.annualMileage,
+    );
     diagnostics.push({ slug: vehicle.slug, status: eligibility.status });
     if (eligibility.status !== "eligible") continue;
     candidates.push({
@@ -69,6 +76,14 @@ function toRecommendedVehicle(
 ): OverlapRecommendedVehicle {
   const { vehicle, eligibility, profile, score } = candidate;
   const trim = eligibility.selectedTrim;
+  const effectiveTrimPrice = trim.discountPrice ?? trim.price;
+  const scenarios = buildRecommendScenarios({
+    vehiclePrice: effectiveTrimPrice,
+    vehicleSurchargeRate: vehicle.surchargeRate,
+    rankSurchargeRates,
+    rateConfigs: eligibility.rateConfigs,
+    estimatedMonthly: eligibility.estimatedMonthly,
+  });
   return {
     vehicleId: vehicle.vehicleId,
     rank,
@@ -87,7 +102,7 @@ function toRecommendedVehicle(
     },
     reason: generateOverlapReason(score.contributions),
     highlights: [...vehicle.highlights].slice(0, 4),
-    estimatedMonthly: eligibility.estimatedMonthly,
+    estimatedMonthly: scenarios.standard.monthlyPayment,
     vehicle: {
       name: vehicle.name,
       brand: vehicle.brand,
@@ -96,6 +111,9 @@ function toRecommendedVehicle(
       imageUrls: [...vehicle.imageUrls],
       defaultTrimName: trim.name,
       defaultTrimPrice: trim.price,
+      recommendedTrimId: trim.id,
+      effectiveTrimPrice,
+      productType: DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
       slug: vehicle.slug,
       popularConfigs: vehicle.popularConfigs.map((config) => ({
         id: config.id,
@@ -104,14 +122,7 @@ function toRecommendedVehicle(
         items: config.items.map((item) => ({ ...item })),
       })),
     },
-    scenarios: buildRecommendScenarios({
-      vehiclePrice: trim.price,
-      annualMileage: input.annualMileage,
-      vehicleSurchargeRate: vehicle.surchargeRate,
-      rankSurchargeRates,
-      rateConfigs: eligibility.rateConfigs,
-      estimatedMonthly: eligibility.estimatedMonthly,
-    }),
+    scenarios,
   };
 }
 

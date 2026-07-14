@@ -1,5 +1,8 @@
 import { estimateMonthly, type RateConfigData } from "@/lib/quote-calculator";
 import {
+  DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
+} from "@/constants/quote-defaults";
+import {
   filterLatestRecommendationTrims,
   getRecommendationModelYear,
 } from "./latest-model";
@@ -15,6 +18,7 @@ export type SupportedRecommendationMileage = 10_000 | 20_000 | 30_000;
 
 export interface OperationalRateSheet {
   readonly id: string;
+  readonly productType: string;
   readonly isActive: boolean;
   readonly minVehiclePrice: number;
   readonly maxVehiclePrice: number;
@@ -34,6 +38,7 @@ export interface OperationalTrimSnapshot {
   readonly id: string;
   readonly name: string;
   readonly price: number;
+  readonly discountPrice: number | null;
   readonly isDefault: boolean;
   readonly isVisible: boolean;
   readonly lineup?: { readonly name: string; readonly isVisible: boolean } | null;
@@ -88,7 +93,11 @@ interface ViableTrim {
 function parseRateConfigs(trim: OperationalTrimSnapshot): RateConfigData[] {
   const configs: RateConfigData[] = [];
   for (const sheet of trim.rateSheets) {
-    if (!sheet.isActive || !sheet.financeCompany.isActive) continue;
+    if (
+      sheet.productType !== DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE
+      || !sheet.isActive
+      || !sheet.financeCompany.isActive
+    ) continue;
     const minRateMatrix = parseRateSheetRaw(sheet.minRateMatrix);
     const maxRateMatrix = parseRateSheetRaw(sheet.maxRateMatrix);
     if (!minRateMatrix || !maxRateMatrix) continue;
@@ -107,6 +116,10 @@ function parseRateConfigs(trim: OperationalTrimSnapshot): RateConfigData[] {
   return configs;
 }
 
+function effectiveTrimPrice(trim: OperationalTrimSnapshot): number {
+  return trim.discountPrice ?? trim.price;
+}
+
 function bestMonthly(
   price: number,
   configs: readonly RateConfigData[],
@@ -122,7 +135,8 @@ function bestMonthly(
 
 function compareViableTrims(left: ViableTrim, right: ViableTrim): number {
   if (left.trim.isDefault !== right.trim.isDefault) return left.trim.isDefault ? -1 : 1;
-  if (left.trim.price !== right.trim.price) return left.trim.price - right.trim.price;
+  const priceDifference = effectiveTrimPrice(left.trim) - effectiveTrimPrice(right.trim);
+  if (priceDifference !== 0) return priceDifference;
   return left.trim.id.localeCompare(right.trim.id);
 }
 
@@ -158,7 +172,7 @@ export function assessOperationalEligibility(
   const viable: ViableTrim[] = withRates
     .map((item) => ({
       ...item,
-      estimatedMonthly: bestMonthly(item.trim.price, item.rateConfigs, annualMileage),
+      estimatedMonthly: bestMonthly(effectiveTrimPrice(item.trim), item.rateConfigs, annualMileage),
     }))
     .filter((item) => item.estimatedMonthly > 0)
     .sort(compareViableTrims);

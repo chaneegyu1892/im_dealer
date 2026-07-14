@@ -145,11 +145,13 @@ export async function getVehicleAiConfigs(): Promise<VehicleAiConfigDto[]> {
         id: trim.id,
         name: trim.name,
         price: trim.price,
+        discountPrice: trim.discountPrice,
         isDefault: trim.isDefault,
         isVisible: trim.isVisible,
         lineup: trim.lineup,
         rateSheets: trim.rateSheets.map((sheet) => ({
           id: sheet.id,
+          productType: sheet.productType,
           isActive: sheet.isActive,
           minVehiclePrice: sheet.minVehiclePrice,
           maxVehiclePrice: sheet.maxVehiclePrice,

@@ -34,7 +34,7 @@ export function MobileQuoteSummary({
             quotes={quotes}
             tone="brand"
             size="lg"
-            captionText="60개월 · 초기 비용 0원 · 2만km 기준"
+            captionText="60개월 · 연 2만km · 무보증"
             className="min-w-0"
           />
           <ChannelTalkButton
@@ -117,7 +117,7 @@ function MobileStickyQuoteBar({
                   quotes={quotes}
                   tone="brand"
                   size="sm"
-                  captionText="60개월 · 초기 비용 0원 · 2만km 기준"
+                  captionText="60개월 · 연 2만km · 무보증"
                   captionClassName="text-[10.5px]"
                   className="min-w-0"
                 />
@@ -184,7 +184,7 @@ export function CarDetailSidebar({
             quotes={quotes}
             tone="light"
             size="lg"
-            captionText="월 납입금 (초기 비용 0원)"
+            captionText="월 납입금 · 무보증"
           />
           <p className="mt-0.5 text-[11.5px] text-ink-label">
             60개월 · 연 2만km · 반납형 기준

@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           price: true,
+          discountPrice: true,
         },
       },
     },
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
       trims: vehicle.trims.map((trim) => ({
         trimId: trim.id,
         vehiclePrice: trim.price,
+        discountPrice: trim.discountPrice,
       })),
     })),
   );

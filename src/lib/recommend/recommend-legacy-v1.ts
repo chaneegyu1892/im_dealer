@@ -8,7 +8,10 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { buildVehicleAttrs } from "@/lib/recommend/vehicle-attributes";
+import {
+  buildVehicleAttrs,
+  matchesRecommendFuelPreference,
+} from "@/lib/recommend/vehicle-attributes";
 import { scoreVehicle } from "@/lib/recommend/scoring";
 import {
   getRecommendationModelKey,
@@ -21,7 +24,11 @@ import {
   estimateMonthly,
   type RateConfigData,
 } from "@/lib/quote-calculator";
-import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import {
+  DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
+  PUBLIC_CARD_QUOTE_CONDITION,
+  RANK_SURCHARGE_RATES,
+} from "@/constants/quote-defaults";
 import { PREFERENCE_OPTIONS } from "@/constants/recommend-options";
 import type {
   RecommendInput,
@@ -64,7 +71,11 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
 
   // 2) 활성 capitalRateSheet 전체 조회 (trimId → RateConfigData[] 맵)
   const allSheets = await prisma.capitalRateSheet.findMany({
-    where: { isActive: true, financeCompany: { isActive: true } },
+    where: {
+      productType: DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
+      isActive: true,
+      financeCompany: { isActive: true },
+    },
     include: { financeCompany: true },
   });
 
@@ -98,15 +109,10 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
     ratesByTrimId.set(rs.trimId, existing);
   }
 
-  // 약정거리 매핑 (고객 입력 → 가장 가까운 키)
-  const mileageKey = closestMileage(input.annualMileage);
-
   // 3) 차량별 점수 계산
   const scored: LegacyScoredVehicle[] = [];
 
   const preferences = input.preferences ?? [];
-  // "고급"(구 임원용·의전)은 6천만원 미만 제외 + 최상위 트림 노출 게이트를 유지한다.
-  const isOfficial = preferences.includes("고급");
   // LLM 추천 이유용 라벨 — 신규는 선호 라벨, 옛 세션은 목적 문자열
   const preferenceLabel =
     preferences.length > 0
@@ -114,21 +120,31 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
       : input.purpose ?? "";
 
   for (const v of vehicles) {
-    const defaultTrim = pickRecommendationTrim(v.trims, isOfficial);
+    // 연료 선호와 장기렌트 회수율을 먼저 적용한다. 혼합 연료 라인업 차량도
+    // 사용자가 고른 연료군 안에서 최신 기본 트림을 선택해야 한다.
+    const eligibleTrims = v.trims.filter((trim) =>
+      matchesRecommendFuelPreference(input.fuelPreference, trim.engineType)
+      && (ratesByTrimId.get(trim.id)?.length ?? 0) > 0
+    );
+    const defaultTrim = pickRecommendationTrim(eligibleTrims);
     if (!defaultTrim) continue;
-    // 임원용·의전은 6천만원 미만 차량을 추천 후보에서 하드 제외(노출 안 함).
-    // scoring-rules의 의전 가격 패널티(-15/-25)는 이 게이트가 제거될 경우의 방어선.
-    if (isOfficial && defaultTrim.price < 60_000_000) continue;
 
     // trimId로 RateConfigData 찾기
     const configs = ratesByTrimId.get(defaultTrim.id);
     if (!configs || configs.length === 0) continue;
 
-    // 최저가 금융사 찾기 (표준형, 48개월 기준)
+    const effectiveTrimPrice = defaultTrim.discountPrice ?? defaultTrim.price;
+
+    // 카드 대표 조건(60개월·2만km·무보증)에서 계산 가능한 최저 금융사 확인
     let bestMonthly = Infinity;
 
     for (const cfg of configs) {
-      const monthly = estimateMonthly(defaultTrim.price, cfg, 48, mileageKey);
+      const monthly = estimateMonthly(
+        effectiveTrimPrice,
+        cfg,
+        PUBLIC_CARD_QUOTE_CONDITION.contractMonths,
+        PUBLIC_CARD_QUOTE_CONDITION.annualMileage,
+      );
       if (monthly > 0 && monthly < bestMonthly) {
         bestMonthly = monthly;
       }
@@ -193,8 +209,7 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
     }
 
     const scenarios = buildRecommendScenarios({
-      vehiclePrice: defaultTrim.price,
-      annualMileage: mileageKey,
+      vehiclePrice: effectiveTrimPrice,
       vehicleSurchargeRate: v.surchargeRate,
       rankSurchargeRates: rankRates,
       rateConfigs: configs,
@@ -218,7 +233,7 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
       score,
       reason,
       highlights: highlights.slice(0, 4),
-      estimatedMonthly: bestMonthly,
+      estimatedMonthly: scenarios.standard.monthlyPayment,
       detail: {
         name: v.name,
         brand: v.brand,
@@ -227,6 +242,9 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
         imageUrls: canUseLegacyImageFallback(v) ? v.imageUrls : [],
         defaultTrimName: defaultTrim.name,
         defaultTrimPrice: defaultTrim.price,
+        recommendedTrimId: defaultTrim.id,
+        effectiveTrimPrice,
+        productType: DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
         slug: v.slug,
         popularConfigs: v.popularConfigs.map((c) => ({
           id: c.id,
@@ -245,19 +263,4 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
   const top = latestScored.slice(0, 3);
 
   return finalizeLegacyRecommendations(top, input, preferenceLabel);
-}
-
-/** 고객 입력 연간주행거리를 가장 가까운 회수율 키로 매핑 */
-function closestMileage(annualMileage: number): 10_000 | 20_000 | 30_000 {
-  const options = [10_000, 20_000, 30_000] as const;
-  let closest: (typeof options)[number] = options[0];
-  let minDiff = Math.abs(annualMileage - options[0]);
-  for (const opt of options) {
-    const diff = Math.abs(annualMileage - opt);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closest = opt;
-    }
-  }
-  return closest;
 }

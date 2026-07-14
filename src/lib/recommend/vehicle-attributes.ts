@@ -123,10 +123,43 @@ export function resolveAdvancedSafety(p: {
 
 const FUELS = ["EV", "하이브리드", "디젤", "가솔린", "LPG", "수소"] as const;
 
-function normalizeFuel(engineType: string): VehicleAttrs["fuel"] {
+export type RecommendFuelGroup = "EV" | "HEV" | "ICE" | "OTHER";
+
+export function normalizeFuel(engineType: string): VehicleAttrs["fuel"] {
+  const normalized = engineType.trim().toUpperCase();
+  if (normalized === "EV" || normalized.includes("ELECTRIC") || engineType.includes("전기")) {
+    return "EV";
+  }
+  if (normalized === "HEV" || normalized === "PHEV" || engineType.includes("하이브리드")) {
+    return "하이브리드";
+  }
+  if (normalized.includes("DIESEL") || engineType.includes("디젤")) return "디젤";
+  if (normalized.includes("GASOLINE") || engineType.includes("가솔린")) return "가솔린";
+  if (normalized.includes("LPG")) return "LPG";
+  if (normalized.includes("HYDROGEN") || engineType.includes("수소")) return "수소";
   return (FUELS as readonly string[]).includes(engineType)
     ? (engineType as VehicleAttrs["fuel"])
     : "기타";
+}
+
+export function getRecommendFuelGroup(engineType: string): RecommendFuelGroup {
+  const fuel = normalizeFuel(engineType);
+  if (fuel === "EV") return "EV";
+  if (fuel === "하이브리드") return "HEV";
+  if (fuel === "가솔린" || fuel === "디젤") return "ICE";
+  return "OTHER";
+}
+
+export function matchesRecommendFuelPreference(
+  fuelPreference: string | undefined,
+  engineType: string,
+): boolean {
+  if (!fuelPreference || fuelPreference === "상관없음") return true;
+  const group = getRecommendFuelGroup(engineType);
+  if (fuelPreference === "전기차") return group === "EV";
+  if (fuelPreference === "하이브리드") return group === "HEV";
+  if (fuelPreference === "가솔린/디젤") return group === "ICE";
+  return false;
 }
 
 // ─────────────────────────────────────────────

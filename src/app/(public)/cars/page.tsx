@@ -52,6 +52,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
           id: true,
           name: true,
           price: true,
+          discountPrice: true,
           evSubsidy: true,
           engineType: true,
           fuelEfficiency: true,
@@ -91,7 +92,11 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     spotlightVehicles.map((v) => ({
       vehicleId: v.id,
       vehicleSurchargeRate: v.surchargeRate,
-      trims: v.trims.map((t) => ({ trimId: t.id, vehiclePrice: t.price })),
+      trims: v.trims.map((t) => ({
+        trimId: t.id,
+        vehiclePrice: t.price,
+        discountPrice: t.discountPrice,
+      })),
     }))
   );
 

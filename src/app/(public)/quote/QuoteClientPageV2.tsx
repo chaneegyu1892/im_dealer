@@ -51,6 +51,10 @@ import {
   FinanceSectionV2,
   CostCheckpointV2,
 } from "./QuoteInfoSectionsV2";
+import {
+  DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
+  PUBLIC_CARD_QUOTE_CONDITION,
+} from "@/constants/quote-defaults";
 
 // ─── 상수 ────────────────────────────────────────────────
 const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
@@ -123,10 +127,23 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefillSlug = searchParams?.get("vehicle") ?? undefined;
+  const prefillTrimId = searchParams?.get("trim") ?? undefined;
   const customerTypeParam = searchParams?.get("customerType") ?? null;
   const initialCustomerType = isCustomerType(customerTypeParam) ? customerTypeParam : null;
   const isRestoreReturn = searchParams?.get("restore") === "1";
   const prefillOptionsParam = searchParams?.get("options") ?? "";
+  const productTypeParam = searchParams?.get("productType");
+  const initialProductType = productTypeParam === "리스"
+    ? "리스"
+    : DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE;
+  const contractMonthsParam = Number(searchParams?.get("contractMonths"));
+  const initialContractMonths = [36, 48, 60].includes(contractMonthsParam)
+    ? contractMonthsParam
+    : PUBLIC_CARD_QUOTE_CONDITION.contractMonths;
+  const annualMileageParam = Number(searchParams?.get("annualMileage"));
+  const initialAnnualMileage = [10_000, 20_000, 30_000].includes(annualMileageParam)
+    ? annualMileageParam
+    : PUBLIC_CARD_QUOTE_CONDITION.annualMileage;
   const draftSource = searchParams?.get("source") === "AI" ? "AI" : "DETAIL" as const;
 
   const [quoteSessionId] = useState(() =>
@@ -170,10 +187,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [exteriorColorId, setExteriorColorId] = useState<string | null>(null);
   const [interiorColorId, setInteriorColorId] = useState<string | null>(null);
 
-  const [contractCategory, setContractCategory] = useState<"장기렌트" | "리스">("장기렌트");
+  const [contractCategory, setContractCategory] = useState<"장기렌트" | "리스">(initialProductType);
   const [conditions, setConditions] = useState<{ contractMonths: number; annualMileage: number }>({
-    contractMonths: 60,
-    annualMileage: 20000,
+    contractMonths: initialContractMonths,
+    annualMileage: initialAnnualMileage,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,10 +223,6 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     setColors([]);
     setExteriorColorId(null);
     setInteriorColorId(null);
-
-    // v2: 트림 자동 선택 비활성화 — 사용자가 직접 트림을 고르게 해 "먼저 트림을 골라주세요"
-    // 안내가 보이도록. (복원 restoreRef가 있을 때는 저장본의 트림을 복원한다.)
-    const shouldPrefill = false;
 
     fetch(`/api/vehicles/${slug}/colors`)
       .then((r) => r.json())
@@ -260,31 +273,23 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
             const toSelect = restore.selectedOptionIds.filter((id) => validIds.has(id));
             if (toSelect.length > 0) setSelectedOptionIds(new Set(toSelect));
           }
-        } else if (shouldPrefill) {
+        } else if (prefillTrimId && !hasPrefilled.current) {
           hasPrefilled.current = true;
           const lineupNameOf = (t: TrimData): string =>
             t.lineup?.name ?? (t.specs as Record<string, string> | null)?.lineup ?? "";
           const hasLineup = loadedTrims.some((t) => lineupNameOf(t));
-          let defaultTrim = loadedTrims.find((t) => t.isDefault) ?? loadedTrims[0];
-          if (hasLineup) {
-            const topLineup = sortLineups([
-              ...new Set(loadedTrims.map(lineupNameOf).filter(Boolean)),
-            ])[0];
-            const topLineupTrims = loadedTrims.filter((t) => lineupNameOf(t) === topLineup);
-            if (topLineupTrims.length > 0) {
-              defaultTrim = topLineupTrims.find((t) => t.isDefault) ?? topLineupTrims[0];
-            }
-          }
-          const resolvedLineupName = lineupNameOf(defaultTrim);
+          const recommendedTrim = loadedTrims.find((t) => t.id === prefillTrimId);
+          if (!recommendedTrim) return;
+          const resolvedLineupName = lineupNameOf(recommendedTrim);
           if (hasLineup && resolvedLineupName) {
             setSelectedLineup(resolvedLineupName);
-            setSelectedTrimId(defaultTrim.id);
+            setSelectedTrimId(recommendedTrim.id);
           } else {
-            setSelectedLineup(defaultTrim.id);
+            setSelectedLineup(recommendedTrim.id);
           }
           const prefillOptionIds = prefillOptionsParam.split(",").filter(Boolean);
           if (prefillOptionIds.length > 0) {
-            const validIds = new Set(defaultTrim.options.map((o: TrimOption) => o.id));
+            const validIds = new Set(recommendedTrim.options.map((o: TrimOption) => o.id));
             const toSelect = prefillOptionIds.filter((id) => validIds.has(id));
             if (toSelect.length > 0) setSelectedOptionIds(new Set(toSelect));
           }
@@ -295,7 +300,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         setTrimsError(true);
       })
       .finally(() => setTrimsLoading(false));
-  }, [selectedVehicle, prefillOptionsParam]);
+  }, [selectedVehicle, prefillOptionsParam, prefillTrimId]);
 
   useEffect(() => {
     loadVehicleDetails();

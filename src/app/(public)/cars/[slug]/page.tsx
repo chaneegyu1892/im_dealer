@@ -129,7 +129,11 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     {
       vehicleId: vehicle.id,
       vehicleSurchargeRate: vehicle.surchargeRate,
-      trims: vehicle.trims.map((t) => ({ trimId: t.id, vehiclePrice: t.price })),
+      trims: vehicle.trims.map((t) => ({
+        trimId: t.id,
+        vehiclePrice: t.price,
+        discountPrice: t.discountPrice,
+      })),
     },
   ]);
   const representativeQuotes: RepresentativeQuote[] =

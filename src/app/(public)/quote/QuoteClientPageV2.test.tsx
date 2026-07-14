@@ -197,4 +197,76 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       expect.stringContaining("source%3DAI")
     );
   });
+
+  it("prefills the exact AI-recommended trim and quote contract", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&source=AI&trim=trim-ai&productType=장기렌트&contractMonths=60&annualMileage=20000"
+    );
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url.endsWith("/trims")) {
+        return Response.json({
+          success: true,
+          data: [
+            {
+              id: "trim-default",
+              name: "기본 트림",
+              price: 38_000_000,
+              discountPrice: null,
+              evSubsidy: null,
+              engineType: "GASOLINE",
+              fuelEfficiency: 10,
+              isDefault: true,
+              specs: null,
+              options: [],
+              rules: [],
+              lineupId: null,
+              lineup: null,
+            },
+            {
+              id: "trim-ai",
+              name: "AI 추천 트림",
+              price: 40_000_000,
+              discountPrice: 39_000_000,
+              evSubsidy: null,
+              engineType: "HEV",
+              fuelEfficiency: 16,
+              isDefault: false,
+              specs: null,
+              options: [],
+              rules: [],
+              lineupId: null,
+              lineup: null,
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/quote")) {
+        return Response.json({ success: false, error: "request captured" }, { status: 400 });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "월 납입금 확인하기" }));
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(([request]) => request.toString().endsWith("/quote"))).toBe(true);
+    });
+    const quoteCall = fetchMock.mock.calls.find(([request]) => request.toString().endsWith("/quote"));
+    expect(JSON.parse(String(quoteCall?.[1]?.body))).toMatchObject({
+      trimId: "trim-ai",
+      productType: "장기렌트",
+      contractMonths: 60,
+      annualMileage: 20_000,
+      contractType: "반납형",
+    });
+  });
 });

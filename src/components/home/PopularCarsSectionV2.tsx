@@ -76,7 +76,7 @@ function PopularCardV2({ vehicle, index }: { vehicle: VehicleListItem; index: nu
             quotes={vehicle.representativeQuotes}
             tone="brand"
             size="xl"
-            captionText="월 납입금"
+            captionText="월 납입금 · 60개월 · 연 2만km · 무보증"
             captionClassName="mb-1.5 text-[12px] font-bold leading-none text-text-muted"
             numberClassName="text-[30px] md:text-[32px]"
             unitClassName="text-[14px] font-bold"
@@ -106,7 +106,7 @@ export function PopularCarsSectionV2({ vehicles }: { vehicles: VehicleListItem[]
             월 납입금이 보이는 차량
           </h2>
           <p className="mt-2 break-keep text-[14px] text-text-body md:text-[15px]">
-            60개월 · 초기 비용 0원 기준. 차량을 고르면 조건별 견적으로 바로 이어져요.
+            60개월 · 연 2만km · 무보증 기준. 차량을 고르면 조건별 견적으로 바로 이어져요.
           </p>
         </div>
 

@@ -168,7 +168,7 @@ function FeaturedVehicleCard({ vehicle }: { vehicle: VehicleListItem }) {
             quotes={vehicle.representativeQuotes}
             tone="brand"
             size="xl"
-            captionText="월 납입금"
+            captionText="월 납입금 · 60개월 · 연 2만km · 무보증"
             captionClassName="mb-1.5 text-[12px] font-bold leading-none text-text-muted"
             numberClassName="text-[36px]"
             unitClassName="text-[15px] font-bold"

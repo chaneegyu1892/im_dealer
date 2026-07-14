@@ -14,14 +14,10 @@ import {
   type RateConfigData,
 } from "./quote-calculator";
 import type { RateSheetRaw } from "@/types/admin";
+import { PUBLIC_CARD_QUOTE_CONDITION } from "@/constants/quote-defaults";
 
 /** 대표 견적가 표시 조건: 60개월 / 무보증 / 연 2만km */
-export const REPRESENTATIVE_CONDITION = {
-  contractMonths: 60,
-  annualMileage: 20000,
-  depositRate: 0,
-  prepayRate: 0,
-} as const;
+export const REPRESENTATIVE_CONDITION = PUBLIC_CARD_QUOTE_CONDITION;
 
 /** productType 표시 순서 — 장기렌트 먼저, 리스 다음 */
 const PRODUCT_TYPE_ORDER = ["장기렌트", "리스"] as const;

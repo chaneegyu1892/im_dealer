@@ -56,15 +56,12 @@ export function filterLatestRecommendationTrims<T extends RecommendationTrimCand
 }
 
 export function pickRecommendationTrim<T extends RecommendationTrimCandidate>(
-  trims: readonly T[],
-  useMostExpensive: boolean
+  trims: readonly T[]
 ): T | undefined {
   const latestTrims = filterLatestRecommendationTrims(trims);
   if (latestTrims.length === 0) return undefined;
-  if (useMostExpensive) {
-    return latestTrims.reduce((max, trim) => (trim.price > max.price ? trim : max));
-  }
-  return latestTrims.find((trim) => trim.isDefault) ?? latestTrims[0];
+  return latestTrims.find((trim) => trim.isDefault)
+    ?? [...latestTrims].sort((left, right) => left.price - right.price)[0];
 }
 
 export function getRecommendationModelKey(input: RecommendationModelIdentity): string {

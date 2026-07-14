@@ -5,11 +5,38 @@ import {
   detectRefrigerated,
   extractCargoKg,
   extractSeating,
+  getRecommendFuelGroup,
+  matchesRecommendFuelPreference,
+  normalizeFuel,
   resolveAdvancedSafety,
   resolveSlidingDoor,
   type AttrTrimInput,
   type AttrVehicleInput,
 } from "./vehicle-attributes";
+
+describe("recommend fuel matching", () => {
+  it.each([
+    ["GASOLINE", "가솔린", "ICE"],
+    ["DIESEL", "디젤", "ICE"],
+    ["HEV", "하이브리드", "HEV"],
+    ["PHEV", "하이브리드", "HEV"],
+    ["ELECTRIC", "EV", "EV"],
+    ["전기", "EV", "EV"],
+  ] as const)("normalizes %s to %s / %s", (engineType, fuel, group) => {
+    expect(normalizeFuel(engineType)).toBe(fuel);
+    expect(getRecommendFuelGroup(engineType)).toBe(group);
+  });
+
+  it("treats a selected fuel as a hard filter", () => {
+    expect(matchesRecommendFuelPreference("가솔린/디젤", "GASOLINE")).toBe(true);
+    expect(matchesRecommendFuelPreference("가솔린/디젤", "EV")).toBe(false);
+    expect(matchesRecommendFuelPreference("하이브리드", "HEV")).toBe(true);
+    expect(matchesRecommendFuelPreference("하이브리드", "DIESEL")).toBe(false);
+    expect(matchesRecommendFuelPreference("전기차", "ELECTRIC")).toBe(true);
+    expect(matchesRecommendFuelPreference("전기차", "PHEV")).toBe(false);
+    expect(matchesRecommendFuelPreference("상관없음", "EV")).toBe(true);
+  });
+});
 
 // ─────────────────────────────────────────────
 // 1.1 AWD 판별

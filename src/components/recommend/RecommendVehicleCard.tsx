@@ -14,6 +14,10 @@ import { ChevronRight, Trophy, Check, Users } from "lucide-react";
 import { industryToCustomerType } from "@/constants/customer-types";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import { MemberGate } from "@/components/auth/MemberGate";
+import {
+  DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
+  PUBLIC_CARD_QUOTE_CONDITION,
+} from "@/constants/quote-defaults";
 
 interface RecommendVehicleCardProps {
   vehicle: RecommendedVehicle;
@@ -57,7 +61,7 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
 
   const hasConfigs = detail.popularConfigs.length > 0;
 
-  // 48개월 실부담(돌려받지 못하는 실제 비용) 계산
+  // 카드 공통 계약기간 실부담(돌려받지 못하는 실제 비용) 계산
   // - 무보증/보증금형: 월납 × 개월수 (보증금은 계약 종료 시 환급되므로 실부담에서 제외)
   // - 선납형: 월납 × 개월수 + 선납금(환급 안 됨)
   const months = scenarios.standard.contractMonths || 48;
@@ -72,8 +76,14 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
     const params = new URLSearchParams({
       vehicle: detail.slug,
       customerType: industryToCustomerType(industry),
+      productType: detail.productType ?? DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
+      contractMonths: String(PUBLIC_CARD_QUOTE_CONDITION.contractMonths),
+      annualMileage: String(PUBLIC_CARD_QUOTE_CONDITION.annualMileage),
       source: "AI",
     });
+    if (detail.recommendedTrimId) {
+      params.set("trim", detail.recommendedTrimId);
+    }
     if (selectedItems.size > 0) {
       const allItems = detail.popularConfigs.flatMap((c) => c.items);
       const trimOptionIds = Array.from(selectedItems)
@@ -243,7 +253,7 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
         <div>
           <div className="mb-3">
             <p className="text-[13.5px] font-medium text-text-body">
-              예상 월 납입금 ({months}개월)
+              예상 월 납입금 ({months}개월 · 연 {(scenarios.standard.annualMileage / 10_000).toLocaleString("ko-KR")}만km)
             </p>
             <p className="text-[12px] text-text-muted mt-0.5">
               조건별 월 납입금과 실부담을 함께 비교해 보세요

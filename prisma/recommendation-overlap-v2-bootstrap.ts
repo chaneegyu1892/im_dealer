@@ -27,12 +27,14 @@ const vehicleSelect = {
       id: true,
       name: true,
       price: true,
+      discountPrice: true,
       isDefault: true,
       isVisible: true,
       lineup: { select: { name: true, isVisible: true } },
       rateSheets: {
         select: {
           id: true,
+          productType: true,
           isActive: true,
           minVehiclePrice: true,
           maxVehiclePrice: true,
@@ -110,6 +112,7 @@ function toOperationalSnapshot(
       id: trim.id,
       name: trim.name,
       price: trim.price,
+      discountPrice: trim.discountPrice,
       isDefault: trim.isDefault,
       isVisible: trim.isVisible,
       lineup: trim.lineup,

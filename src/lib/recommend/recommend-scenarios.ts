@@ -3,11 +3,11 @@ import {
   type CalcInput,
   type RateConfigData,
 } from "@/lib/quote-calculator";
+import { PUBLIC_CARD_QUOTE_CONDITION } from "@/constants/quote-defaults";
 import type { RecommendScenario, RecommendScenarios } from "@/types/recommendation";
 
 interface ScenarioBuildInput {
   readonly vehiclePrice: number;
-  readonly annualMileage: 10_000 | 20_000 | 30_000;
   readonly vehicleSurchargeRate: number;
   readonly rankSurchargeRates: readonly number[];
   readonly rateConfigs: readonly RateConfigData[];
@@ -21,8 +21,8 @@ function calculateScenario(
 ): RecommendScenario {
   const calcInput: CalcInput = {
     vehiclePrice: input.vehiclePrice,
-    contractMonths: 48,
-    annualMileage: input.annualMileage,
+    contractMonths: PUBLIC_CARD_QUOTE_CONDITION.contractMonths,
+    annualMileage: PUBLIC_CARD_QUOTE_CONDITION.annualMileage,
     depositRate,
     prepayRate,
     vehicleSurchargeRate: input.vehicleSurchargeRate,
@@ -34,16 +34,16 @@ function calculateScenario(
     monthlyPayment: best.monthlyPayment,
     depositAmount: best.breakdown.depositAmount,
     prepayAmount: best.breakdown.prepayAmount,
-    contractMonths: 48,
-    annualMileage: input.annualMileage,
-    contractType: "반납형",
+    contractMonths: PUBLIC_CARD_QUOTE_CONDITION.contractMonths,
+    annualMileage: PUBLIC_CARD_QUOTE_CONDITION.annualMileage,
+    contractType: PUBLIC_CARD_QUOTE_CONDITION.contractType,
   } : {
     monthlyPayment: input.estimatedMonthly,
     depositAmount: 0,
     prepayAmount: 0,
-    contractMonths: 48,
-    annualMileage: input.annualMileage,
-    contractType: "반납형",
+    contractMonths: PUBLIC_CARD_QUOTE_CONDITION.contractMonths,
+    annualMileage: PUBLIC_CARD_QUOTE_CONDITION.annualMileage,
+    contractType: PUBLIC_CARD_QUOTE_CONDITION.contractType,
   };
 }
 

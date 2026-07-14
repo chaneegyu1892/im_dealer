@@ -37,11 +37,13 @@ function vehicle(slug: string, name: string, configuredProfile: unknown): Overla
       id: `trim-${slug}`,
       name: "기본",
       price: 40_000_000,
+      discountPrice: null,
       isDefault: true,
       isVisible: true,
       lineup: { name: "2027년형", isVisible: true },
       rateSheets: [{
         id: `rate-${slug}`,
+        productType: "장기렌트",
         isActive: true,
         minVehiclePrice: 30_000_000,
         maxVehiclePrice: 50_000_000,
@@ -116,6 +118,16 @@ describe("recommendOverlapV2FromSnapshot", () => {
     expect(first?.scenarios.conservative.depositAmount).toBe(8_000_000);
     expect(first?.scenarios.standard.depositAmount).toBe(0);
     expect(first?.scenarios.aggressive.prepayAmount).toBe(12_000_000);
+    expect(first?.scenarios.standard).toMatchObject({
+      contractMonths: 60,
+      annualMileage: 20_000,
+      prepayAmount: 0,
+    });
+    expect(first?.vehicle).toMatchObject({
+      recommendedTrimId: "trim-hev",
+      effectiveTrimPrice: 40_000_000,
+      productType: "장기렌트",
+    });
   });
 
   it("changes only the bounded detail/charging contribution", () => {

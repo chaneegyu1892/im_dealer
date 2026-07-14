@@ -34,6 +34,9 @@ const vehicleDetailSchema = z.object({
   imageUrls: z.array(z.string()).optional(),
   defaultTrimName: z.string(),
   defaultTrimPrice: z.number(),
+  recommendedTrimId: z.string().min(1).optional(),
+  effectiveTrimPrice: z.number().positive().optional(),
+  productType: z.enum(["장기렌트", "리스"]).optional(),
   slug: z.string().min(1),
   popularConfigs: z.array(popularConfigSchema),
 }).passthrough();

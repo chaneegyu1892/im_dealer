@@ -100,6 +100,12 @@ export interface RecommendedVehicleDetail {
   imageUrls?: string[];
   defaultTrimName: string;
   defaultTrimPrice: number;
+  /** 신규 추천 결과가 견적 화면까지 동일 트림을 유지하기 위한 식별자. 과거 동결 결과에는 없음. */
+  recommendedTrimId?: string;
+  /** 월 납입금 계산에 실제 사용한 할인가 우선 차량가. */
+  effectiveTrimPrice?: number;
+  /** 추천 카드 대표 금액의 금융 상품. 과거 동결 결과에는 없음. */
+  productType?: "장기렌트" | "리스";
   slug: string;
   popularConfigs: PopularConfig[];
 }

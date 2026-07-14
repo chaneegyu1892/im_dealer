@@ -109,7 +109,7 @@ export function CarCard({ vehicle }: CarCardProps) {
                 unitClassName="text-[12px] font-bold"
               />
               <p className="mt-0.5 text-[10px] font-medium text-text-muted">
-                월 납입금 · 60개월 · 초기 비용 0원
+                월 납입금 · 60개월 · 연 2만km · 무보증
               </p>
             </div>
           </div>

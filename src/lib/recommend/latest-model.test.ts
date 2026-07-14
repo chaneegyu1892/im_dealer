@@ -62,12 +62,12 @@ describe("filterLatestRecommendationTrims", () => {
 
 describe("pickRecommendationTrim", () => {
   it("일반 추천은 최신 후보 중 기본 트림을 우선한다", () => {
-    const trim = pickRecommendationTrim(TRIMS_WITH_LINEUP, false);
+    const trim = pickRecommendationTrim(TRIMS_WITH_LINEUP);
 
     expect(trim?.price).toBe(43_000_000);
   });
 
-  it("의전 추천은 최신 후보 중 가장 비싼 트림을 선택한다", () => {
+  it("고급 선호와 무관하게 최신 후보 중 기본 또는 가장 저렴한 트림을 선택한다", () => {
     const trim = pickRecommendationTrim(
       [
         ...TRIMS_WITH_LINEUP,
@@ -77,11 +77,10 @@ describe("pickRecommendationTrim", () => {
           isDefault: false,
           lineup: { name: "2026년형 가솔린 2.5", isVisible: true },
         },
-      ],
-      true
+      ]
     );
 
-    expect(trim?.price).toBe(47_000_000);
+    expect(trim?.price).toBe(43_000_000);
   });
 });
 
