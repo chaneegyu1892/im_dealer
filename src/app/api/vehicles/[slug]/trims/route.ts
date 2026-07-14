@@ -51,6 +51,13 @@ export async function GET(
             targetOptionId: true,
           },
         },
+        rateSheets: {
+          where: {
+            isActive: true,
+            financeCompany: { isActive: true },
+          },
+          select: { productType: true },
+        },
       },
     });
 
@@ -62,9 +69,19 @@ export async function GET(
     const latestNames = latestYearLineupNames(
       visibleTrims.map((t) => t.lineup?.name).filter((n): n is string => Boolean(n))
     );
-    const filteredTrims = visibleTrims.filter(
+    const normallyFilteredTrims = visibleTrims.filter(
       (t) => !t.lineup || latestNames.has(t.lineup.name)
     );
+
+    // 운영 데이터 동기화 과정에서 차량은 공개 상태지만 모든 라인업만 숨겨지는 경우가 있다.
+    // 이때 고객이 원하는 트림조차 고르지 못하는 막다른 흐름이 생기므로, 전체 트림 중
+    // 최신 연식만 복구 노출한다. 공개 라인업이 하나라도 있으면 기존 숨김 정책을 유지한다.
+    const fallbackLatestNames = latestYearLineupNames(
+      trims.map((t) => t.lineup?.name).filter((n): n is string => Boolean(n))
+    );
+    const filteredTrims = normallyFilteredTrims.length > 0
+      ? normallyFilteredTrims
+      : trims.filter((t) => !t.lineup || fallbackLatestNames.has(t.lineup.name));
 
     return NextResponse.json({
       success: true,
@@ -85,6 +102,13 @@ export async function GET(
         rules: t.rules,
         lineupId: t.lineupId,
         lineup: t.lineup ? { id: t.lineup.id, name: t.lineup.name } : null,
+        availableProducts: Array.from(
+          new Set(
+            t.rateSheets
+              .map((rateSheet) => rateSheet.productType)
+              .filter((productType) => productType === "장기렌트" || productType === "리스")
+          )
+        ),
       })),
     });
   } catch {

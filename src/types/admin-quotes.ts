@@ -16,8 +16,11 @@ export interface AdminSavedQuote {
   depositRate: number;
   prepayRate: number;
   contractType: string;
+  customerType: string;
+  productType: "장기렌트" | "리스";
   monthlyPayment: number;
   totalCost: number;
+  pricingStatus: "CALCULATED" | "CONSULTATION_REQUIRED";
   status: "NEW" | "CONTACTED" | "IN_PROGRESS" | "CONVERTED" | "LOST";
   internalMemo: string | null;
   userType: "Member" | "Guest";
@@ -28,6 +31,7 @@ export interface AdminSavedQuote {
   exteriorColorHex: string | null;
   interiorColorName: string | null;
   interiorColorHex: string | null;
+  selectedOptions: { id: string; name: string; price: number }[];
 }
 
 export interface AdminNotification {

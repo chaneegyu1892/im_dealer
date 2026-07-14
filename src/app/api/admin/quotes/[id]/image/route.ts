@@ -49,6 +49,12 @@ export async function GET(
   if (!quote) {
     return NextResponse.json({ error: "견적을 찾을 수 없습니다." }, { status: 404 });
   }
+  if (quote.pricingStatus === "CONSULTATION_REQUIRED") {
+    return NextResponse.json(
+      { error: "자동 견적 데이터가 없어 견적서 이미지를 생성할 수 없습니다." },
+      { status: 409 }
+    );
+  }
 
   const vehicle = await prisma.vehicle.findUnique({
     where: { id: quote.vehicleId },

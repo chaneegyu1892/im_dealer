@@ -11,6 +11,7 @@ import {
 } from "@/lib/quote-calculator";
 import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { createAdminNotification } from "@/lib/admin-notification";
 import { saveQuoteSchema } from "./request-schema";
 
 const SCENARIO_CONDITIONS = {
@@ -86,6 +87,41 @@ export async function POST(request: NextRequest) {
     // 할인가: discountPrice 있으면 그것을 차량가 기준으로 사용
     const effectiveTrimPrice = trim.discountPrice ?? trim.price;
     const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
+    const condition = input.customDepositRate !== undefined || input.customPrepayRate !== undefined
+      ? {
+          depositRate: input.customDepositRate ?? 0,
+          prepayRate: input.customPrepayRate ?? 0,
+        }
+      : SCENARIO_CONDITIONS[input.scenarioType];
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
+
+    const existing = await prisma.savedQuote.findUnique({
+      where: { sessionId: input.sessionId },
+      select: {
+        id: true,
+        userId: true,
+        deletedAt: true,
+        status: true,
+        pricingStatus: true,
+      },
+    });
+
+    if (existing?.deletedAt) {
+      return NextResponse.json({ error: "삭제된 견적입니다." }, { status: 410 });
+    }
+    if (existing?.userId && existing.userId !== user?.id) {
+      return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
+    }
+    if (existing && existing.status !== "NEW") {
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: existing.id,
+          sessionId: input.sessionId,
+          requiresConsultation: existing.pricingStatus === "CONSULTATION_REQUIRED",
+        },
+      });
+    }
 
     const [rateSheets, rankSurcharges] = await Promise.all([
       prisma.capitalRateSheet.findMany({
@@ -101,10 +137,84 @@ export async function POST(request: NextRequest) {
     ]);
 
     if (rateSheets.length === 0) {
-      return NextResponse.json(
-        { error: "이 차량의 견적 데이터가 아직 준비되지 않았습니다." },
-        { status: 404 }
-      );
+      const breakdown = JSON.parse(JSON.stringify({
+        scenarioType: input.scenarioType,
+        productType: input.productType,
+        customerType: input.customerType,
+        vehicleSlug: input.vehicleSlug,
+        vehicleName: vehicle.name,
+        vehicleBrand: vehicle.brand,
+        trimName: trim.name,
+        trimPrice: trim.price,
+        selectedOptions: selectedOptions.map((option) => ({
+          id: option.id,
+          name: option.name,
+          price: option.price,
+        })),
+        exteriorColor: exteriorColor
+          ? { id: exteriorColor.id, name: exteriorColor.name, hexCode: exteriorColor.hexCode, priceDelta: exteriorColor.priceDelta }
+          : null,
+        interiorColor: interiorColor
+          ? { id: interiorColor.id, name: interiorColor.name, hexCode: interiorColor.hexCode, priceDelta: interiorColor.priceDelta }
+          : null,
+        colorDelta,
+        optionsTotalPrice,
+        totalVehiclePrice,
+        contractMonths: input.contractMonths,
+        annualMileage: input.annualMileage,
+        contractType: input.contractType,
+        depositRate: condition.depositRate,
+        prepayRate: condition.prepayRate,
+        requiresConsultation: true,
+        consultationReason: "RATE_SHEET_UNAVAILABLE",
+      })) as Prisma.InputJsonObject;
+
+      const data = {
+        sessionId: input.sessionId,
+        userId: user?.id ?? existing?.userId ?? null,
+        vehicleId: vehicle.id,
+        trimId: trim.id,
+        contractMonths: input.contractMonths,
+        annualMileage: input.annualMileage,
+        depositRate: condition.depositRate,
+        prepayRate: condition.prepayRate,
+        contractType: input.contractType,
+        customerType: input.customerType,
+        quoteType: input.quoteType,
+        monthlyPayment: 0,
+        totalCost: 0,
+        pricingStatus: "CONSULTATION_REQUIRED" as const,
+        breakdown,
+        expiresAt,
+        exteriorColorId: exteriorColor?.id ?? null,
+        interiorColorId: interiorColor?.id ?? null,
+      };
+
+      const savedQuote = await prisma.savedQuote.upsert({
+        where: { sessionId: input.sessionId },
+        create: data,
+        update: existing ? data : {},
+      });
+
+      if (!existing) {
+        await createAdminNotification({
+          type: "NEW_QUOTE",
+          title: "별도 상담 견적 요청",
+          content: `${vehicle.name} ${trim.name} · ${input.productType} · 별도 상담 필요`,
+          linkUrl: `/admin/quotations?id=${savedQuote.id}`,
+        }).catch((notificationError) => {
+          console.error("[POST /api/quote/save] consultation notification", notificationError);
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: savedQuote.id,
+          sessionId: savedQuote.sessionId,
+          requiresConsultation: true,
+        },
+      });
     }
 
     const configs: RateConfigData[] = rateSheets.map((rs) => ({
@@ -122,13 +232,6 @@ export async function POST(request: NextRequest) {
     const rankRates = rankSurcharges.length > 0
       ? rankSurcharges.map((r) => r.rate)
       : [...RANK_SURCHARGE_RATES];
-    const condition = input.customDepositRate !== undefined || input.customPrepayRate !== undefined
-      ? {
-          depositRate: input.customDepositRate ?? 0,
-          prepayRate: input.customPrepayRate ?? 0,
-        }
-      : SCENARIO_CONDITIONS[input.scenarioType];
-
     const calcInput: CalcInput = {
       vehiclePrice: totalVehiclePrice,
       contractMonths: input.contractMonths,
@@ -152,7 +255,6 @@ export async function POST(request: NextRequest) {
     const purchaseSurcharge =
       input.contractType === "인수형" ? Math.round(best.monthlyPayment * 0.12) : 0;
     const monthlyPayment = best.monthlyPayment + purchaseSurcharge;
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
 
     const breakdown = JSON.parse(JSON.stringify({
       scenarioType: input.scenarioType,
@@ -194,24 +296,6 @@ export async function POST(request: NextRequest) {
       }),
     })) as Prisma.InputJsonObject;
 
-    const existing = await prisma.savedQuote.findUnique({
-      where: { sessionId: input.sessionId },
-      select: { id: true, userId: true, deletedAt: true, status: true },
-    });
-
-    if (existing?.deletedAt) {
-      return NextResponse.json({ error: "삭제된 견적입니다." }, { status: 410 });
-    }
-    if (existing?.userId && existing.userId !== user?.id) {
-      return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
-    }
-    if (existing && existing.status !== "NEW") {
-      return NextResponse.json({
-        success: true,
-        data: { id: existing.id, sessionId: input.sessionId },
-      });
-    }
-
     const data = {
       sessionId: input.sessionId,
       userId: user?.id ?? existing?.userId ?? null,
@@ -226,6 +310,7 @@ export async function POST(request: NextRequest) {
       quoteType: input.quoteType,
       monthlyPayment,
       totalCost: monthlyPayment * input.contractMonths,
+      pricingStatus: "CALCULATED" as const,
       breakdown,
       expiresAt,
       exteriorColorId: exteriorColor?.id ?? null,

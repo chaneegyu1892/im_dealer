@@ -12,6 +12,7 @@ export function formatQuoteForClipboard(quote: AdminSavedQuote): string {
     .join(" · ");
 
   const conditionLine = [
+    quote.productType,
     `${quote.contractMonths}개월`,
     `연 ${quote.annualMileage.toLocaleString("ko-KR")}km`,
     formatRateLine(quote),
@@ -20,15 +21,24 @@ export function formatQuoteForClipboard(quote: AdminSavedQuote): string {
   const colorLines: string[] = [];
   if (quote.exteriorColorName) colorLines.push(`외장: ${quote.exteriorColorName}`);
   if (quote.interiorColorName) colorLines.push(`내장: ${quote.interiorColorName}`);
+  const optionLines = quote.selectedOptions.length > 0
+    ? [`옵션: ${quote.selectedOptions.map((option) => option.name).join(", ")}`]
+    : [];
+  const priceLines = quote.pricingStatus === "CONSULTATION_REQUIRED"
+    ? ["월 납입금  별도 상담 필요"]
+    : [
+        `월 납입금  ${quote.monthlyPayment.toLocaleString("ko-KR")}원`,
+        `총 비용     ${quote.totalCost.toLocaleString("ko-KR")}원`,
+      ];
 
   const lines = [
     "[아임딜러 견적]",
     trimLine,
     conditionLine,
     ...colorLines,
+    ...optionLines,
     "",
-    `월 납입금  ${quote.monthlyPayment.toLocaleString("ko-KR")}원`,
-    `총 비용     ${quote.totalCost.toLocaleString("ko-KR")}원`,
+    ...priceLines,
   ];
 
   return lines.join("\n");

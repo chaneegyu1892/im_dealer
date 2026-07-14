@@ -203,7 +203,12 @@ function QuotationsContent() {
       const matchDateTo = !filterDateTo || q.createdAt <= filterDateTo;
       const min = filterPaymentMin ? Number(filterPaymentMin) * 10000 : 0;
       const max = filterPaymentMax ? Number(filterPaymentMax) * 10000 : Infinity;
-      const matchPayment = q.monthlyPayment >= min && q.monthlyPayment <= max;
+      const hasPaymentFilter = Boolean(filterPaymentMin || filterPaymentMax);
+      const matchPayment = !hasPaymentFilter || (
+        q.pricingStatus === "CALCULATED" &&
+        q.monthlyPayment >= min &&
+        q.monthlyPayment <= max
+      );
       return matchSearch && matchStatus && matchUserType && matchQuoteType && matchFC && matchDateFrom && matchDateTo && matchPayment;
     });
   }, [quotes, search, statusFilter, userTypeFilter, quoteTypeFilter, filterFC, filterDateFrom, filterDateTo, filterPaymentMin, filterPaymentMax]);
@@ -243,7 +248,13 @@ function QuotationsContent() {
         "고객명": q.customerName ?? "",
         "연락처": q.phone ?? "",
         "차량명": q.vehicleName,
-        "월 납입금 (원)": q.monthlyPayment,
+        "트림": q.trimName,
+        "상품 유형": q.productType,
+        "계약 기간": `${q.contractMonths}개월`,
+        "연간 약정거리": q.annualMileage,
+        "선택 옵션": q.selectedOptions.map(option => option.name).join(", "),
+        "가격 상태": q.pricingStatus === "CONSULTATION_REQUIRED" ? "별도 상담" : "산출 완료",
+        "월 납입금 (원)": q.pricingStatus === "CALCULATED" ? q.monthlyPayment : "",
         "브랜드": q.vehicleBrand,
         "진행 상태": q.status,
         "접수일": q.createdAt,
@@ -259,6 +270,12 @@ function QuotationsContent() {
         { header: "고객명", key: "고객명", width: 8 },
         { header: "연락처", key: "연락처", width: 16 },
         { header: "차량명", key: "차량명", width: 30 },
+        { header: "트림", key: "트림", width: 30 },
+        { header: "상품 유형", key: "상품 유형", width: 12 },
+        { header: "계약 기간", key: "계약 기간", width: 12 },
+        { header: "연간 약정거리", key: "연간 약정거리", width: 14 },
+        { header: "선택 옵션", key: "선택 옵션", width: 40 },
+        { header: "가격 상태", key: "가격 상태", width: 12 },
         { header: "월 납입금 (원)", key: "월 납입금 (원)", width: 14 },
         { header: "브랜드", key: "브랜드", width: 16 },
         { header: "진행 상태", key: "진행 상태", width: 10 },
@@ -652,7 +669,11 @@ function QuotationsContent() {
                     </div>
                   </td>
                   <td className="py-4 px-4">
-                    <span className="text-[13px] font-bold text-[#000666] bg-blue-50/50 px-2.5 py-1 rounded-[4px]">{q.monthlyPayment.toLocaleString()} 원</span>
+                    {q.pricingStatus === "CONSULTATION_REQUIRED" ? (
+                      <span className="text-[12px] font-bold text-[#6066EE] bg-indigo-50 px-2.5 py-1 rounded-[4px]">별도 상담</span>
+                    ) : (
+                      <span className="text-[13px] font-bold text-[#000666] bg-blue-50/50 px-2.5 py-1 rounded-[4px]">{q.monthlyPayment.toLocaleString()} 원</span>
+                    )}
                   </td>
                   <td className="py-4 px-4 text-[12px] font-medium text-[#4A5270]">{q.vehicleBrand}</td>
                   <td className="py-4 px-4">
@@ -805,6 +826,11 @@ function QuotationsContent() {
                     {[
                       ["모델명", drawerQuote.vehicleName],
                       ["트림", drawerQuote.trimName],
+                      ["상품 유형", drawerQuote.productType],
+                      ["계약 조건", `${drawerQuote.contractMonths}개월 · 연 ${drawerQuote.annualMileage.toLocaleString()}km · ${drawerQuote.contractType}`],
+                      ["외장 색상", drawerQuote.exteriorColorName ?? "미선택"],
+                      ["내장 색상", drawerQuote.interiorColorName ?? "미선택"],
+                      ["선택 옵션", drawerQuote.selectedOptions.length > 0 ? drawerQuote.selectedOptions.map(option => option.name).join(", ") : "없음"],
                     ].map(([label, val]) => (
                       <div key={label} className="flex justify-between">
                         <span className="text-[12px] text-[#6B7399]">{label}</span>
@@ -820,8 +846,12 @@ function QuotationsContent() {
                     <p className="text-[11px] text-[#9BA4C0] font-medium mb-1 relative z-10">최종 렌트/리스 조건 요약</p>
                     <div className="flex justify-between items-end relative z-10">
                       <div>
-                        <p className="text-[18px] font-bold mt-1 text-white">{drawerQuote.monthlyPayment.toLocaleString()} <span className="text-[12px] font-medium text-[#C0C5DC]">원 / 월</span></p>
-                        <p className="text-[11px] text-[#6B7399] mt-1">{drawerQuote.vehicleBrand} · {drawerQuote.contractMonths}개월</p>
+                        {drawerQuote.pricingStatus === "CONSULTATION_REQUIRED" ? (
+                          <p className="text-[18px] font-bold mt-1 text-white">별도 상담 필요</p>
+                        ) : (
+                          <p className="text-[18px] font-bold mt-1 text-white">{drawerQuote.monthlyPayment.toLocaleString()} <span className="text-[12px] font-medium text-[#C0C5DC]">원 / 월</span></p>
+                        )}
+                        <p className="text-[11px] text-[#9BA4C0] mt-1">{drawerQuote.vehicleBrand} · {drawerQuote.productType} · {drawerQuote.contractMonths}개월</p>
                       </div>
                       <button
                         type="button"
@@ -849,16 +879,20 @@ function QuotationsContent() {
                     <button
                       type="button"
                       onClick={() => handleDownloadImage(drawerQuote)}
-                      disabled={imageDownloading}
+                      disabled={imageDownloading || drawerQuote.pricingStatus === "CONSULTATION_REQUIRED"}
                       className={cn(
                         "w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] text-[12px] font-medium transition-colors border",
-                        imageDownloading
+                        imageDownloading || drawerQuote.pricingStatus === "CONSULTATION_REQUIRED"
                           ? "bg-[#F4F5F8] text-[#9BA4C0] border-[#E8EAF0] cursor-wait"
                           : "bg-white text-[#000666] border-[#000666] hover:bg-[#000666] hover:text-white"
                       )}
                     >
                       <Download size={13} />
-                      {imageDownloading ? "이미지 생성 중…" : "견적서 이미지 다운로드"}
+                      {drawerQuote.pricingStatus === "CONSULTATION_REQUIRED"
+                        ? "자동 견적 산출 후 다운로드 가능"
+                        : imageDownloading
+                          ? "이미지 생성 중…"
+                          : "견적서 이미지 다운로드"}
                     </button>
                     {imageError && (
                       <p className="text-[11px] text-red-500 flex items-center gap-1">

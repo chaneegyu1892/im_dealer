@@ -85,4 +85,32 @@ describe("POST /api/vehicles/[slug]/quote", () => {
       },
     });
   });
+
+  it("requires an explicit trim instead of silently choosing the default", async () => {
+    prismaMock.vehicle.findUnique.mockResolvedValue({
+      id: "vehicle-preparing",
+      name: "준비중 차량",
+      slug: "preparing-car",
+      basePrice: 40_000_000,
+      surchargeRate: 0,
+      isVisible: true,
+      trims: [{
+        id: "trim-default",
+        name: "임의 선택되면 안 되는 트림",
+        isDefault: true,
+        price: 40_000_000,
+        options: [],
+        rules: [],
+      }],
+      colors: [],
+    });
+
+    const response = await POST(quoteRequest(), {
+      params: Promise.resolve({ slug: "preparing-car" }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "트림을 선택해 주세요." });
+    expect(prismaMock.rankSurchargeConfig.findMany).not.toHaveBeenCalled();
+  });
 });

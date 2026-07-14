@@ -290,6 +290,11 @@ enum QuoteStatus {
   LOST
 }
 
+enum QuotePricingStatus {
+  CALCULATED
+  CONSULTATION_REQUIRED
+}
+
 enum ColorKind {
   EXTERIOR
   INTERIOR
@@ -396,8 +401,8 @@ model VehicleImageStorageCleanup {
 }
 
 model SavedQuote {
-  id                    String    @id @default(cuid())
-  sessionId             String    @unique
+  id                    String             @id @default(cuid())
+  sessionId             String             @unique
   userId                String?
   vehicleId             String
   trimId                String
@@ -406,12 +411,13 @@ model SavedQuote {
   depositRate           Int
   prepayRate            Int
   contractType          String
-  customerType          String    @default("individual")
+  customerType          String             @default("individual")
   monthlyPayment        Int
   totalCost             Int
+  pricingStatus         QuotePricingStatus @default(CALCULATED)
   breakdown             Json
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
   expiresAt             DateTime
   deletedAt             DateTime?
   verificationSessionId String?
@@ -438,6 +444,7 @@ model SavedQuote {
   reviewTokens ReviewRequestToken[]
 
   @@index([status])
+  @@index([pricingStatus])
   @@index([assigneeId])
   @@index([userId])
   @@index([expiresAt])

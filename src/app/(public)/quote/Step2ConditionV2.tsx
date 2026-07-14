@@ -32,6 +32,7 @@ export interface TrimDataV2 {
   fuelEfficiency: number | null;
   options: TrimOptionV2[];
   rules: TrimRuleV2[];
+  availableProducts: ("장기렌트" | "리스")[];
 }
 
 interface Step2ConditionV2Props {
@@ -125,8 +126,12 @@ export function Step2ConditionV2({
     canRequestConsultation && !trimsLoading && !trimsError && trimOptions.length === 0;
   const canShowConditionSections = !!selectedTrim || canSkipTrimSelection;
   const canCalculate = canShowConditionSections && !isLoading && !trimsError;
+  const productRequiresConsultation = !!selectedTrim &&
+    !selectedTrim.availableProducts.includes(contractCategory);
   const ctaLabel = selectedTrim
-    ? "월 납입금 확인하기"
+    ? productRequiresConsultation
+      ? "선택 조건 확인하기"
+      : "월 납입금 확인하기"
     : canSkipTrimSelection
       ? "상담 필요 견적 확인하기"
       : "트림을 선택하세요";
@@ -289,6 +294,12 @@ export function Step2ConditionV2({
                 {fmtMan(selectedTrim.price - selectedTrim.discountPrice)} 할인
               </p>
             )}
+            {productRequiresConsultation && (
+              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11.5px] font-bold text-brand">
+                <AlertCircle size={12} />
+                자동 견적 준비중 · 상담 가능
+              </p>
+            )}
           </motion.div>
         )}
       </section>
@@ -436,6 +447,14 @@ export function Step2ConditionV2({
             <p className="mt-2 rounded-[10px] bg-[#F8FAFC] p-2.5 text-[12px] leading-relaxed text-text-muted">
               리스 견적은 임시 데이터 기준이에요. 실제 금융사 조건과 다를 수 있어요.
             </p>
+          )}
+          {productRequiresConsultation && (
+            <div className="mt-2.5 flex items-start gap-2 rounded-[12px] bg-brand-soft p-3 text-[12.5px] leading-relaxed text-text-body">
+              <AlertCircle size={15} className="mt-0.5 shrink-0 text-brand" />
+              <p>
+                선택한 트림의 {contractCategory} 자동 견적은 준비중이에요. 트림·옵션·색상·계약조건은 그대로 저장해 상담에 전달합니다.
+              </p>
+            </div>
           )}
         </div>
 

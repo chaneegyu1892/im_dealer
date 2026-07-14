@@ -47,6 +47,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  delete window.ChannelIO;
   window.localStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -78,7 +79,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(screen.getByText("연 2만km")).toBeInTheDocument();
     expect(screen.getByText("월 납입금")).toBeInTheDocument();
     expect(screen.getByText("별도 상담 필요")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "선택 조건으로 상담 요청하기" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText("문제가 발생했습니다")).not.toBeInTheDocument();
     });
@@ -131,7 +132,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(screen.getByText("준비중 차량")).toBeInTheDocument();
     expect(screen.getByText("월 납입금")).toBeInTheDocument();
     expect(screen.getByText("별도 상담 필요")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "선택 조건으로 상담 요청하기" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText("트림을 선택하세요")).not.toBeInTheDocument();
     });
@@ -227,6 +228,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
               rules: [],
               lineupId: null,
               lineup: null,
+              availableProducts: ["장기렌트"],
             },
             {
               id: "trim-ai",
@@ -242,6 +244,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
               rules: [],
               lineupId: null,
               lineup: null,
+              availableProducts: [],
             },
           ],
         });
@@ -255,7 +258,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "월 납입금 확인하기" }));
+    fireEvent.click(await screen.findByRole("button", { name: "선택 조건 확인하기" }));
 
     await waitFor(() => {
       expect(fetchMock.mock.calls.some(([request]) => request.toString().endsWith("/quote"))).toBe(true);
@@ -268,5 +271,59 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       annualMileage: 20_000,
       contractType: "반납형",
     });
+  });
+
+  it("saves consultation conditions before opening ChannelTalk with the quote id", async () => {
+    writeConsultationRestore();
+    const channelCalls: unknown[][] = [];
+    window.ChannelIO = (...args: unknown[]) => channelCalls.push(args);
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: {
+            id: "consultation-quote-1",
+            sessionId: "consultation-session-1",
+            requiresConsultation: true,
+          },
+        });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    fireEvent.click(await screen.findByRole("button", {
+      name: "선택 조건으로 상담 요청하기",
+    }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/save",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+    const saveCall = fetchMock.mock.calls.find(([input]) => input.toString() === "/api/quote/save");
+    expect(JSON.parse(String(saveCall?.[1]?.body))).toMatchObject({
+      trimId: "trim-preparing",
+      productType: "장기렌트",
+      contractMonths: 60,
+      annualMileage: 20_000,
+    });
+    expect(channelCalls).toEqual([
+      ["track", "quote_consultation_requested", expect.objectContaining({
+        quoteId: "consultation-quote-1",
+        sessionId: "consultation-session-1",
+        trimName: "프리미엄",
+      })],
+      ["showMessenger"],
+    ]);
   });
 });

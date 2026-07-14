@@ -94,7 +94,7 @@ export function createFetchMock(saveStatus = 200) {
     if (url === "/api/quote/save") {
       return Response.json(
         saveStatus === 200
-          ? { success: true, data: { id: "saved-quote" } }
+          ? { success: true, data: { id: "saved-quote", sessionId: "session-1" } }
           : { error: "save failed" },
         { status: saveStatus }
       );

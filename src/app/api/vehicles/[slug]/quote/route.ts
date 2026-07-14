@@ -93,9 +93,23 @@ export async function POST(
       );
     }
 
+    if (!input.trimId && vehicle.trims.length > 0) {
+      return NextResponse.json(
+        { error: "트림을 선택해 주세요." },
+        { status: 400 }
+      );
+    }
+
     const trim = input.trimId
       ? vehicle.trims.find((t) => t.id === input.trimId)
-      : vehicle.trims.find((t) => t.isDefault) ?? vehicle.trims[0];
+      : undefined;
+
+    if (input.trimId && !trim) {
+      return NextResponse.json(
+        { error: "선택한 트림이 차량에 속하지 않습니다." },
+        { status: 400 }
+      );
+    }
 
     if (!trim) {
       return NextResponse.json({

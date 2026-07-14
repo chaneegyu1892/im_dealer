@@ -88,7 +88,9 @@ export async function POST(request: NextRequest) {
         await createAdminNotification({
           type: "NEW_QUOTE",
           title: "새로운 견적 신청",
-          content: `${contactData.customerName}님이 새로운 견적 상담을 신청했습니다. (${currentQuote.monthlyPayment.toLocaleString()}원/월)`,
+          content: currentQuote.pricingStatus === "CONSULTATION_REQUIRED"
+            ? `${contactData.customerName}님이 별도 상담 견적을 신청했습니다.`
+            : `${contactData.customerName}님이 새로운 견적 상담을 신청했습니다. (${currentQuote.monthlyPayment.toLocaleString()}원/월)`,
           linkUrl: `/admin/quotations?id=${currentQuote.id}`,
           client: tx,
         });
@@ -98,7 +100,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: { id: savedQuote.id, sessionId: savedQuote.sessionId },
+      data: {
+        id: savedQuote.id,
+        sessionId: savedQuote.sessionId,
+        requiresConsultation: savedQuote.pricingStatus === "CONSULTATION_REQUIRED",
+      },
     });
   } catch (error) {
     if (error instanceof QuoteRequestError) {

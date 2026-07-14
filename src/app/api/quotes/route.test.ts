@@ -76,6 +76,7 @@ describe("POST /api/quotes", () => {
       id: "quote-1",
       sessionId: "session-1",
       monthlyPayment: 650000,
+      pricingStatus: "CALCULATED",
       internalMemo: "admin-only",
     });
     mocks.updateQuotes.mockResolvedValue({ count: 1 });
@@ -118,7 +119,27 @@ describe("POST /api/quotes", () => {
     expect(mocks.createQuote).not.toHaveBeenCalled();
     expect(await response.json()).toEqual({
       success: true,
-      data: { id: "quote-1", sessionId: "session-1" },
+      data: { id: "quote-1", sessionId: "session-1", requiresConsultation: false },
+    });
+  });
+
+  it("labels a no-rate request as consultation instead of notifying 0 won", async () => {
+    mocks.findCurrentQuote.mockResolvedValue({
+      id: "quote-1",
+      sessionId: "session-1",
+      monthlyPayment: 0,
+      pricingStatus: "CONSULTATION_REQUIRED",
+    });
+
+    const response = await POST(request());
+
+    expect(mocks.createAdminNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: "홍길동님이 별도 상담 견적을 신청했습니다.",
+      })
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      data: { requiresConsultation: true },
     });
   });
 

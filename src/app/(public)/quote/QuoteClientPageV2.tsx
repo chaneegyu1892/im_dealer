@@ -21,6 +21,7 @@ import { isSupabaseStorageUrl } from "@/lib/image-url";
 import { sortLineups } from "@/lib/lineup-sort";
 import { TossPrice } from "@/components/ui/TossPrice";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
+import { openChannelTalkWithQuote } from "@/lib/channel-talk";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { type ComparisonTrimData } from "@/components/quote/VehicleConfigPanel";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
@@ -118,6 +119,7 @@ interface TrimData {
   rules: TrimRule[];
   lineupId: string | null;
   lineup: { id: string; name: string } | null;
+  availableProducts: ("장기렌트" | "리스")[];
 }
 
 // ════════════════════════════════════════════════════════════
@@ -195,6 +197,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isApplying, setIsApplying] = useState(false);
+  const [isConsultationSubmitting, setIsConsultationSubmitting] = useState(false);
+  const [consultationError, setConsultationError] = useState<string | null>(null);
 
   // ─── 보증금/선납/CTA 상태 (v1 계약 그대로) ─────────────
   const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
@@ -552,6 +556,88 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteResult, customRates]);
 
+  const saveCurrentQuote = useCallback(async () => {
+    if (!quoteResult?.trimId) {
+      throw new Error("상담 요청을 저장하려면 트림을 선택해 주세요.");
+    }
+
+    const saveRes = await fetch("/api/quote/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: quoteSessionId,
+        vehicleSlug: quoteResult.vehicleSlug,
+        trimId: quoteResult.trimId,
+        selectedOptionIds: Array.from(selectedOptionIds),
+        contractMonths: quoteResult.contractMonths,
+        annualMileage: quoteResult.annualMileage,
+        contractType: "반납형",
+        customerType,
+        productType: contractCategory,
+        scenarioType: "standard",
+        customDepositRate: customRates.depositRate,
+        customPrepayRate: customRates.prepayRate,
+        exteriorColorId,
+        interiorColorId,
+        quoteType: draftSource,
+      }),
+    });
+    const json = await saveRes.json().catch(() => null);
+    if (!saveRes.ok || !json?.success) {
+      throw new Error(json?.error ?? "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
+    return json.data as {
+      id: string;
+      sessionId: string;
+      requiresConsultation?: boolean;
+    };
+  }, [
+    quoteResult,
+    quoteSessionId,
+    selectedOptionIds,
+    customerType,
+    contractCategory,
+    customRates,
+    exteriorColorId,
+    interiorColorId,
+    draftSource,
+  ]);
+
+  const handleConsultationRequest = useCallback(async () => {
+    if (!quoteResult || isConsultationSubmitting) return;
+    setIsConsultationSubmitting(true);
+    setConsultationError(null);
+    try {
+      const savedQuote = await saveCurrentQuote();
+      const opened = openChannelTalkWithQuote({
+        quoteId: savedQuote.id,
+        sessionId: savedQuote.sessionId,
+        vehicleName: selectedVehicle?.name ?? "",
+        trimName: quoteResult.trimName,
+        productType: contractCategory,
+        contractMonths: quoteResult.contractMonths,
+        annualMileage: quoteResult.annualMileage,
+      });
+      if (!opened) {
+        setConsultationError("상담창을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      }
+    } catch (saveError) {
+      setConsultationError(
+        saveError instanceof Error
+          ? saveError.message
+          : "상담 요청 저장에 실패했습니다. 잠시 후 다시 시도해주세요."
+      );
+    } finally {
+      setIsConsultationSubmitting(false);
+    }
+  }, [
+    quoteResult,
+    isConsultationSubmitting,
+    saveCurrentQuote,
+    selectedVehicle,
+    contractCategory,
+  ]);
+
   // ─── 견적 초안 저장 + /verify 이동 (v1 계약 그대로) ────
   const handleContractApply = useCallback(async () => {
     if (!quoteResult || isApplying) return;
@@ -583,37 +669,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
 
       setError(null);
       try {
-        const saveRes = await fetch("/api/quote/save", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId: quoteSessionId,
-            vehicleSlug: quoteResult.vehicleSlug,
-            trimId: quoteResult.trimId,
-            selectedOptionIds: Array.from(selectedOptionIds),
-            contractMonths: quoteResult.contractMonths,
-            annualMileage: quoteResult.annualMileage,
-            contractType: "반납형",
-            customerType,
-            productType: contractCategory,
-            scenarioType: "standard",
-            customDepositRate: customRates.depositRate,
-            customPrepayRate: customRates.prepayRate,
-            exteriorColorId,
-            interiorColorId,
-            quoteType: draftSource,
-          }),
-        });
-        if (!saveRes.ok) {
-          setError("견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
-          return;
-        }
-      } catch (saveError) {
-        setError(
-          saveError instanceof Error
-            ? "견적 저장 중 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
-            : "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요."
-        );
+        await saveCurrentQuote();
+      } catch {
+        setError("견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
         return;
       }
 
@@ -631,7 +689,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   }, [
     router, quoteSessionId, selectedVehicle?.slug, quoteResult, customerType,
     selectedOptionIds, contractCategory, customRates, exteriorColorId, interiorColorId, draftSource,
-    isApplying,
+    isApplying, saveCurrentQuote,
   ]);
 
   // ─── 이미지 다운로드 (v1 계약 그대로) ─────────────────────
@@ -772,6 +830,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
           sourceOptionId: r.sourceOptionId,
           targetOptionId: r.targetOptionId,
         })),
+        availableProducts: selectedTrim.availableProducts,
       }
     : null;
 
@@ -913,6 +972,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               isRecalculating={isRecalculating}
               isApplying={isApplying}
               applyError={error}
+              isConsultationSubmitting={isConsultationSubmitting}
+              consultationError={consultationError}
               isImageDownloading={isImageDownloading}
               imageError={imageError}
               onCustomRatesChange={setCustomRates}
@@ -920,6 +981,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               onReset={restoreBaseStandardScenario}
               onMemberLogin={handleGateLogin}
               onContractApply={handleContractApply}
+              onConsultationRequest={handleConsultationRequest}
               onImageDownload={handleImageDownload}
               onPrev={() => {
                 setQuoteResult(null);
@@ -1046,6 +1108,8 @@ function Step3ResultHeader({
   isRecalculating,
   isApplying,
   applyError,
+  isConsultationSubmitting,
+  consultationError,
   isImageDownloading,
   imageError,
   onCustomRatesChange,
@@ -1053,6 +1117,7 @@ function Step3ResultHeader({
   onReset,
   onMemberLogin,
   onContractApply,
+  onConsultationRequest,
   onImageDownload,
   onPrev,
 }: {
@@ -1073,6 +1138,8 @@ function Step3ResultHeader({
   isRecalculating: boolean;
   isApplying: boolean;
   applyError: string | null;
+  isConsultationSubmitting: boolean;
+  consultationError: string | null;
   isImageDownloading: boolean;
   imageError: string | null;
   onCustomRatesChange: (rates: { depositRate: number; prepayRate: number }) => void;
@@ -1080,6 +1147,7 @@ function Step3ResultHeader({
   onReset: () => void;
   onMemberLogin: () => void;
   onContractApply: () => void;
+  onConsultationRequest: () => void;
   onImageDownload: () => void;
   onPrev: () => void;
 }) {
@@ -1214,9 +1282,16 @@ function Step3ResultHeader({
             </p>
             <ChannelTalkButton
               vehicleName={selectedVehicle?.name}
-              label="상담하기"
+              label="선택 조건으로 상담 요청하기"
+              onClick={onConsultationRequest}
+              loading={isConsultationSubmitting}
               className="mt-5 h-[48px] rounded-[14px] bg-white px-4 text-[14px] font-bold text-brand hover:bg-white/95"
             />
+            {consultationError && (
+              <p role="alert" className="mt-3 rounded-[10px] bg-white/10 px-3 py-2 text-[12.5px] leading-relaxed text-white">
+                {consultationError}
+              </p>
+            )}
           </div>
 
           <div className="rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">

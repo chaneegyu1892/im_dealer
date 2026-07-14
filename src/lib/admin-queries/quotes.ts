@@ -1,6 +1,26 @@
 import { prisma } from "../prisma";
 import type { AdminSavedQuote } from "@/types/admin";
 
+function readBreakdown(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function readSelectedOptions(value: unknown): AdminSavedQuote["selectedOptions"] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const option = item as Record<string, unknown>;
+    if (
+      typeof option.id !== "string" ||
+      typeof option.name !== "string" ||
+      typeof option.price !== "number"
+    ) return [];
+    return [{ id: option.id, name: option.name, price: option.price }];
+  });
+}
+
 export async function getAdminQuotes(page = 1, limit = 20): Promise<{
   data: AdminSavedQuote[];
   total: number;
@@ -41,6 +61,8 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
   const data: AdminSavedQuote[] = quotes.map((q) => {
     const vehicle = vehicleMap.get(q.vehicleId);
     const trim = trimMap.get(q.trimId);
+    const breakdown = readBreakdown(q.breakdown);
+    const productType = breakdown.productType === "리스" ? "리스" : "장기렌트";
     return {
       id: q.id,
       sessionId: q.sessionId,
@@ -57,8 +79,11 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       depositRate: q.depositRate,
       prepayRate: q.prepayRate,
       contractType: q.contractType,
+      customerType: q.customerType,
+      productType,
       monthlyPayment: q.monthlyPayment,
       totalCost: q.totalCost,
+      pricingStatus: q.pricingStatus,
       status: q.status as AdminSavedQuote["status"],
       internalMemo: q.internalMemo,
       userType: q.userId ? "Member" : "Guest",
@@ -69,6 +94,7 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       exteriorColorHex: q.exteriorColor?.hexCode ?? null,
       interiorColorName: q.interiorColor?.name ?? null,
       interiorColorHex: q.interiorColor?.hexCode ?? null,
+      selectedOptions: readSelectedOptions(breakdown.selectedOptions),
     };
   });
 
