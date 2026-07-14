@@ -52,11 +52,13 @@ describe("getVehicleAiConfigs", () => {
         id: "trim",
         name: "기본",
         price: 40_000_000,
+        discountPrice: null,
         isDefault: true,
         isVisible: true,
         lineup: { name: "2027년형", isVisible: true },
         rateSheets: [{
           id: "rate",
+          productType: "장기렌트",
           isActive: true,
           minVehiclePrice: 30_000_000,
           maxVehiclePrice: 50_000_000,
