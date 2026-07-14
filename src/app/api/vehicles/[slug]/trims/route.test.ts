@@ -29,6 +29,7 @@ function trim({
     engineType: "GASOLINE",
     fuelEfficiency: 10,
     isDefault: false,
+    isVisible: true,
     specs: null,
     options: [],
     rules: [],
@@ -67,7 +68,7 @@ describe("GET /api/vehicles/[slug]/trims", () => {
     });
   });
 
-  it("recovers only the latest trims when every lineup was hidden", async () => {
+  it("does not resurrect trims from lineups explicitly hidden by an operator", async () => {
     prismaMock.trim.findMany.mockResolvedValue([
       trim({ id: "old", lineupName: "2025년형 가솔린", lineupVisible: false }),
       trim({ id: "latest", lineupName: "2026년형 가솔린", lineupVisible: false }),
@@ -79,11 +80,25 @@ describe("GET /api/vehicles/[slug]/trims", () => {
     );
     const payload = await response.json();
 
+    expect(payload.data).toEqual([]);
+  });
+
+  it("returns the latest visible lineup and ignores a hidden older lineup", async () => {
+    prismaMock.trim.findMany.mockResolvedValue([
+      trim({ id: "old", lineupName: "2025년형 가솔린", lineupVisible: false }),
+      trim({ id: "latest", lineupName: "2027년형 가솔린", lineupVisible: true }),
+    ]);
+
+    const response = await GET(
+      new NextRequest("https://example.com/api/vehicles/test-car/trims"),
+      { params: Promise.resolve({ slug: "test-car" }) }
+    );
+    const payload = await response.json();
+
     expect(payload.data).toHaveLength(1);
     expect(payload.data[0]).toMatchObject({
       id: "latest",
-      lineup: { name: "2026년형 가솔린" },
-      availableProducts: [],
+      lineup: { name: "2027년형 가솔린" },
     });
   });
 });

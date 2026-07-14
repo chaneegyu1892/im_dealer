@@ -17,6 +17,7 @@ import {
   publicThumbnailProjectionInclude,
   resolvePublicThumbnailUrl,
 } from "@/lib/vehicle-images/public";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 const DEV_REVIEW_CONTENTS = [
   "처음에는 월 납입금 차이를 잘 몰랐는데, 조건별로 비교하니까 상담 전에 기준을 잡기 쉬웠어요.",
@@ -77,7 +78,7 @@ async function getPopularVehicles(): Promise<VehicleListItem[]> {
     take: 6,
     include: {
       trims: {
-        where: { isVisible: true },
+        where: PUBLIC_TRIM_WHERE,
         orderBy: { isDefault: "desc" },
         include: {
           inventory: {

@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { QuoteClientPageV2 } from "./QuoteClientPageV2";
 import {
   publicThumbnailProjectionInclude,
@@ -28,7 +29,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     orderBy: [{ isPopular: "desc" }, { displayOrder: "asc" }],
     include: {
       trims: {
-        where: { isVisible: true },
+        where: PUBLIC_TRIM_WHERE,
         orderBy: { isDefault: "desc" },
       },
       recConfigs: {

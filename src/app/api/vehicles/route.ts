@@ -6,6 +6,7 @@ import {
 } from "@/lib/vehicle-images/public";
 import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
 import { lowestMonthly } from "@/lib/representative-quote";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 // ─── GET /api/vehicles ──────────────────────────────────
 // 공개 차량 목록 조회
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         include: {
           trims: {
-            where: { isVisible: true },
+            where: PUBLIC_TRIM_WHERE,
             orderBy: [{ isDefault: "desc" }, { price: "asc" }],
           },
           recConfigs: {

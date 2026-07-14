@@ -8,6 +8,7 @@ export const revalidate = 600;
 
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
 import type { RepresentativeQuote } from "@/lib/representative-quote";
@@ -49,7 +50,7 @@ async function getVehicleMeta(slug: string) {
       description: true,
       isVisible: true,
       trims: {
-        where: { isVisible: true },
+        where: PUBLIC_TRIM_WHERE,
         select: { price: true },
         orderBy: { price: "asc" },
       },
@@ -106,7 +107,7 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     where: { slug },
     include: {
       trims: {
-        where: { isVisible: true },
+        where: PUBLIC_TRIM_WHERE,
         orderBy: [{ isDefault: "desc" }, { price: "asc" }],
         include: { options: true },
       },

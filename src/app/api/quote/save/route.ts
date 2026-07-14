@@ -13,6 +13,7 @@ import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import { createAdminNotification } from "@/lib/admin-notification";
 import { saveQuoteSchema } from "./request-schema";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 const SCENARIO_CONDITIONS = {
   conservative: { depositRate: 20, prepayRate: 0 },
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
       where: { slug: input.vehicleSlug },
       include: {
         trims: {
-          where: { isVisible: true },
+          where: PUBLIC_TRIM_WHERE,
           include: { options: { select: { id: true, price: true, name: true } } },
         },
         colors: {

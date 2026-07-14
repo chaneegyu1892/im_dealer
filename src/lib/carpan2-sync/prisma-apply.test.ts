@@ -55,4 +55,53 @@ describe("applyExistingVehiclesToPrisma", () => {
     expect(data).not.toHaveProperty("imageUrls");
     await Promise.all([prisma.$disconnect(), tx.$disconnect()]);
   });
+
+  it("Carpan2 state=2/3을 신규·기존 트림 노출 상태에 동일하게 반영한다", async () => {
+    const prisma = new PrismaClient();
+    const tx = new PrismaClient();
+    vi.spyOn(prisma.vehicle, "findMany").mockResolvedValue([vehicleRow]);
+    vi.spyOn(tx.brand, "upsert").mockResolvedValue(brandRow);
+    vi.spyOn(tx.vehicle, "update").mockResolvedValue(vehicleRow);
+    vi.spyOn(tx.vehicleLineup, "upsert").mockResolvedValue({ id: "lineup-1" } as never);
+    const trimUpsert = vi.spyOn(tx.trim, "upsert")
+      .mockResolvedValueOnce({ id: "trim-sold" } as never)
+      .mockResolvedValueOnce({ id: "trim-ended" } as never);
+
+    const vehicleWithTrims: CrawlVehicleSnapshot = {
+      ...crawlVehicle,
+      lineups: [{ lineupId: "lineup-1", name: "2027년형", year: "2027", state: "2" }],
+      trims: [
+        {
+          trimId: "trim-sold", lineupId: "lineup-1", name: "판매 중", price: 40_000_000,
+          state: "2", engineCode: "G", displace: null, person: null, carry: null, options: [],
+        },
+        {
+          trimId: "trim-ended", lineupId: "lineup-1", name: "판매 종료", price: 41_000_000,
+          state: "3", engineCode: "G", displace: null, person: null, carry: null, options: [],
+        },
+      ],
+    };
+
+    await applyExistingVehiclesToPrisma({
+      prisma,
+      crawlVehicles: [vehicleWithTrims],
+      transactionRunner: (mutation) => mutation(tx),
+    });
+
+    expect(trimUpsert.mock.calls[0]?.[0]).toMatchObject({
+      create: { isVisible: true },
+      update: {
+        isVisible: true,
+        detailedSpecs: { externalRaw: { state: "2" } },
+      },
+    });
+    expect(trimUpsert.mock.calls[1]?.[0]).toMatchObject({
+      create: { isVisible: false },
+      update: {
+        isVisible: false,
+        detailedSpecs: { externalRaw: { state: "3" } },
+      },
+    });
+    await Promise.all([prisma.$disconnect(), tx.$disconnect()]);
+  });
 });

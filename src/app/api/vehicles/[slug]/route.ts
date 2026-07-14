@@ -14,6 +14,7 @@ import {
 } from "@/lib/vehicle-images/public";
 import type { RateSheetKey, RateSheetRaw } from "@/types/admin";
 import type { VehicleDetail } from "@/types/api";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 function legacyRateCell(value: unknown, key: RateSheetKey): number {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return 0;
@@ -53,7 +54,7 @@ export async function GET(
       where: { slug },
       include: {
         trims: {
-          where: { isVisible: true },
+          where: PUBLIC_TRIM_WHERE,
           orderBy: [{ isDefault: "desc" }, { price: "asc" }],
           include: { options: true },
         },

@@ -342,6 +342,15 @@ interface BasicInfoFormData {
 
 트림 탭은 트림 목록과 하위 옵션을 관리한다.
 
+### 라인업/트림 노출 정책
+
+- `Vehicle.isVisible`: 차량 전체 노출 게이트
+- `VehicleLineup.isVisible`: 운영자가 승인한 연식/라인업 게이트
+- `Trim.isVisible`: Carpan2 원본 판매 상태(`state=2`) 또는 수동 트림 운영 상태
+- 고객에게는 세 조건을 모두 만족하는 최신 연식 트림만 노출한다.
+- 라인업을 숨겨도 트림 판매 상태는 보존하며, 다시 노출할 때 Carpan2 `state=2` 트림만 복구한다.
+- 숨긴 라인업을 고객 API에서 임의로 복구하는 fallback은 두지 않는다.
+
 **트림 모달 필드**
 
 ```
@@ -350,7 +359,6 @@ interface BasicInfoFormData {
 엔진 타입     가솔린 | 디젤 | 하이브리드 | EV
 연비          km/L
 기본 트림     체크박스
-노출          체크박스
 ```
 
 **옵션 모달 필드 (`OptionManager`)**

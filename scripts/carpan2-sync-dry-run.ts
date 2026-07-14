@@ -163,9 +163,10 @@ function assertSafeToApply(plan: Carpan2SyncPlan): void {
   if (
     plan.ratedSafety.missingRatedVehicles.length > 0 ||
     plan.ratedSafety.missingRatedTrims.length > 0 ||
+    plan.ratedSafety.stateChangedRatedTrims.length > 0 ||
     plan.ratedSafety.valueChangedRatedTrims.length > 0
   ) {
-    throw new CliArgumentError("회수율 보유 데이터의 누락/값 변경 위험이 있어 apply를 중단했습니다.");
+    throw new CliArgumentError("회수율 보유 데이터의 누락/판매상태/값 변경 위험이 있어 apply를 중단했습니다.");
   }
 }
 

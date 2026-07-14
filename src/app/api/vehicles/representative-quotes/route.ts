@@ -4,6 +4,7 @@ import {
   getRepresentativeQuotesByVehicle,
 } from "@/lib/representative-quote-query";
 import { lowestMonthly } from "@/lib/representative-quote";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 const MAX_IDS = 80;
 
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
       id: true,
       surchargeRate: true,
       trims: {
-        where: { isVisible: true },
+        where: PUBLIC_TRIM_WHERE,
         select: {
           id: true,
           price: true,

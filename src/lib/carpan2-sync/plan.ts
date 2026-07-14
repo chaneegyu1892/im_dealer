@@ -9,6 +9,7 @@ import type {
   InvalidVehicleCandidate,
   RatedTrimRisk,
 } from "./types";
+import { isCurrentlySold } from "../vehicle-import-mappings";
 
 export type {
   BuildCarpan2SyncPlanInput,
@@ -201,10 +202,6 @@ export function invalidTrimReason(
   if (trim.price > DATABASE_INT_MAX) return "trim price exceeds database Int range";
   if (parentVehicleInvalid) return `parent vehicle ${vehicle.modelId} is invalid`;
   return null;
-}
-
-function isCurrentlySold(state: string | null): boolean {
-  return state === "2";
 }
 
 function toRatedTrimRisk(

@@ -13,6 +13,7 @@ import { normalizeSelectedOptions } from "@/lib/option-rules";
 import { lockQuoteScenario } from "@/lib/member-gate";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
 import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 const quoteSchema = z.object({
   // 견적 페이지에서만 전달 — 있으면 조회/계산 로그를 세션 기준으로 적재한다(비교 기능 등은 미전달).
@@ -67,7 +68,7 @@ export async function POST(
       where: { slug },
       include: {
         trims: {
-          where: { isVisible: true },
+          where: PUBLIC_TRIM_WHERE,
           orderBy: { isDefault: "desc" },
           include: {
             options: { select: { id: true, name: true, price: true } },

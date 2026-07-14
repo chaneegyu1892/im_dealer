@@ -20,6 +20,7 @@ import {
   pickRecommendationTrim,
 } from "@/lib/recommend/latest-model";
 import { parseRateSheetRaw } from "@/lib/recommend/rate-sheet";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import {
   estimateMonthly,
   type RateConfigData,
@@ -52,7 +53,7 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
     where: { isVisible: true },
     include: {
       trims: {
-        where: { isVisible: true },
+        where: PUBLIC_TRIM_WHERE,
         orderBy: { isDefault: "desc" },
         include: {
           options: { select: { name: true } },

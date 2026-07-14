@@ -6,6 +6,7 @@ import {
   publicThumbnailProjectionInclude,
   resolvePublicThumbnailUrl,
 } from "@/lib/vehicle-images/public";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 export interface OverlapRuntimePopularConfig {
   readonly id: string;
@@ -39,6 +40,7 @@ export async function loadOverlapCandidateSnapshot(): Promise<OverlapCandidateSn
       include: {
         recConfigs: true,
         trims: {
+          where: PUBLIC_TRIM_WHERE,
           include: {
             lineup: { select: { name: true, isVisible: true } },
             rateSheets: { include: { financeCompany: true } },

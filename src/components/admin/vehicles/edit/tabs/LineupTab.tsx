@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Save, X, Eye, EyeOff, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AdminVehicleDetail, AdminVehicleLineup } from "@/types/admin";
@@ -13,6 +14,7 @@ interface LineupTabProps {
 }
 
 export function LineupTab({ vehicle }: LineupTabProps) {
+  const router = useRouter();
   const [lineups, setLineups] = useState<AdminVehicleLineup[]>(vehicle.lineups);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -80,10 +82,11 @@ export function LineupTab({ vehicle }: LineupTabProps) {
       });
       const result = await resp.json();
       if (!resp.ok || !result.success) {
-        alert("변경 중 오류가 발생했습니다.");
+        alert(result.error ?? "변경 중 오류가 발생했습니다.");
         return;
       }
       setLineups(lineups.map((l) => (l.id === lineup.id ? { ...l, isVisible: result.data.isVisible } : l)));
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert("변경 중 오류가 발생했습니다.");
@@ -119,7 +122,7 @@ export function LineupTab({ vehicle }: LineupTabProps) {
         <Info size={15} className="mt-0.5 shrink-0 text-[#000666]" />
         <p className="text-[12px] leading-relaxed">
           같은 차량군은 고객 화면에 <b className="text-[#000666]">최신 연식만</b> 자동 노출됩니다.
-          특정 연식을 숨기거나 이전 연식을 대신 노출하려면 해당 라인업의 <b>노출</b> 토글을 끄세요.
+          라인업을 숨기면 소속 트림도 고객 화면에서 함께 숨겨지며, 다시 노출할 때 판매 중인 트림만 복구됩니다.
         </p>
       </div>
 
@@ -193,7 +196,13 @@ export function LineupTab({ vehicle }: LineupTabProps) {
                         <div className="w-8 h-8 rounded-full bg-[#E5E5FA] flex items-center justify-center text-[#000666] text-[12px] font-bold">
                           L
                         </div>
-                        <span className="text-[14px] font-medium text-[#1A1A2E]">{lineup.name}</span>
+                        <div>
+                          <span className="text-[14px] font-medium text-[#1A1A2E]">{lineup.name}</span>
+                          <p className="mt-0.5 text-[11px] text-[#9BA4C0]">
+                            판매 중 {vehicle.trims.filter((trim) => trim.lineupId === lineup.id && trim.isVisible).length}개
+                            {" / "}전체 {vehicle.trims.filter((trim) => trim.lineupId === lineup.id).length}개
+                          </p>
+                        </div>
                         {!lineup.isVisible && (
                           <span className="text-[10px] text-red-500 bg-red-50 px-1.5 py-0.5 rounded-[4px]">
                             비노출

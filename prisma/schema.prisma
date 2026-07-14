@@ -138,6 +138,8 @@ model Trim {
   engineType     String
   fuelEfficiency Float?
   isDefault      Boolean            @default(false)
+  // Carpan2 트림은 원본 판매 상태(state=2)를 반영한다. 최종 고객 노출은
+  // Vehicle.isVisible && VehicleLineup.isVisible && Trim.isVisible 조건으로 판정한다.
   isVisible      Boolean            @default(true)
   specs          Json?
   // 외부 차량 데이터 소스 식별자 및 풍부한 메타(tm/division/displace/person/tax/spec/specoption/documents/colorPriceMap)

@@ -14,6 +14,7 @@ import {
   publicThumbnailProjectionSelect,
   resolvePublicThumbnailUrl,
 } from "@/lib/vehicle-images/public";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 type CarsPageProps = {
   readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -46,7 +47,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       tags: true,
       surchargeRate: true,
       trims: {
-        where: { isVisible: true },
+        where: PUBLIC_TRIM_WHERE,
         orderBy: { isDefault: "desc" },
         select: {
           id: true,

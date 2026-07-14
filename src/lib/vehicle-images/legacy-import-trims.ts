@@ -56,6 +56,7 @@ export async function importLegacyLineupsAndTrims(
         vehicleId: request.vehicleId,
         name: lineup.name ?? `lineup-${externalId}`,
         externalId,
+        isVisible: false,
         metadata: toPrismaJson(lineup),
       },
       update: {

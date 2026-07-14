@@ -1,5 +1,9 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { mapOptionKind, pickPrimaryEngine } from "../vehicle-import-mappings";
+import {
+  isCurrentlySold,
+  mapOptionKind,
+  pickPrimaryEngine,
+} from "../vehicle-import-mappings";
 import { buildVehicleUpdatePolicy } from "./apply-policy";
 import { invalidTrimReason, invalidVehicleReason } from "./plan";
 import { upsertColors } from "./prisma-apply-colors";
@@ -205,6 +209,8 @@ async function upsertTrim(
 ): Promise<{ readonly id: string }> {
   const engineCode = input.trim.engineCode ?? input.vehicle.engineCode ?? "G";
   const specs = buildTrimSpecs(input.trim);
+  const detailedSpecs = buildTrimDetailedSpecs(input.trim);
+  const isVisible = isCurrentlySold(input.trim.state);
   return tx.trim.upsert({
     where: { externalId: input.trim.trimId },
     create: {
@@ -214,9 +220,9 @@ async function upsertTrim(
       name: input.trim.name ?? `trim-${input.trim.trimId}`,
       price: input.trim.price ?? 0,
       engineType: pickPrimaryEngine(engineCode),
-      isVisible: false,
+      isVisible,
       specs,
-      detailedSpecs: buildTrimDetailedSpecs(input.trim),
+      detailedSpecs,
     },
     update: {
       vehicleId: input.vehicleId,
@@ -224,7 +230,9 @@ async function upsertTrim(
       name: input.trim.name ?? `trim-${input.trim.trimId}`,
       price: input.trim.price ?? 0,
       engineType: pickPrimaryEngine(engineCode),
+      isVisible,
       specs,
+      detailedSpecs,
     },
     select: { id: true },
   });

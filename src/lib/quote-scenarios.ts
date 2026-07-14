@@ -7,6 +7,7 @@ import {
 import type { FinanceQuoteResult, QuoteScenarioDetails } from "@/types/quote";
 import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 const SCENARIO_CONDITIONS = {
   conservative: { depositRate: 20, prepayRate: 0 },
@@ -85,7 +86,7 @@ export async function buildVehicleScenarios(
     where: { slug: input.vehicleSlugOrId },
     include: {
       trims: {
-        where: { isVisible: true },
+        where: PUBLIC_TRIM_WHERE,
         orderBy: { isDefault: "desc" },
         include: { options: { select: { id: true, name: true, price: true } } },
       },
@@ -100,7 +101,7 @@ export async function buildVehicleScenarios(
       where: { id: input.vehicleSlugOrId },
       include: {
         trims: {
-          where: { isVisible: true },
+          where: PUBLIC_TRIM_WHERE,
           orderBy: { isDefault: "desc" },
           include: { options: { select: { id: true, name: true, price: true } } },
         },
