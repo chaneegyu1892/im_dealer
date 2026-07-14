@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   findRateSheets: vi.fn(),
   findRankSurcharges: vi.fn(),
   findSavedQuote: vi.fn(),
+  findMemberProfile: vi.fn(),
   upsertSavedQuote: vi.fn(),
   updateCalcLogs: vi.fn(),
   calculate: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: mocks.findSavedQuote,
       upsert: mocks.upsertSavedQuote,
     },
+    user: { findUnique: mocks.findMemberProfile },
     quoteCalcLog: { updateMany: mocks.updateCalcLogs },
   },
 }));
@@ -95,6 +97,7 @@ describe("POST /api/quote/save", () => {
     }]);
     mocks.findRankSurcharges.mockResolvedValue([]);
     mocks.findSavedQuote.mockResolvedValue(null);
+    mocks.findMemberProfile.mockResolvedValue(null);
     mocks.upsertSavedQuote.mockResolvedValue({ id: "quote-1", sessionId: "session-1" });
     mocks.updateCalcLogs.mockResolvedValue({ count: 1 });
     mocks.createAdminNotification.mockResolvedValue(undefined);
@@ -138,6 +141,60 @@ describe("POST /api/quote/save", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.upsertSavedQuote).not.toHaveBeenCalled();
+  });
+
+  it("stores the linked member profile when the quote has no verified contact yet", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "member-1" } } });
+    mocks.findMemberProfile.mockResolvedValue({
+      name: "카카오회원",
+      phone: "010-1234-5678",
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    expect(mocks.findMemberProfile).toHaveBeenCalledWith({
+      where: { supabaseId: "member-1" },
+      select: { name: true, phone: true },
+    });
+    expect(mocks.upsertSavedQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          userId: "member-1",
+          customerName: "카카오회원",
+          phone: "010-1234-5678",
+        }),
+      })
+    );
+  });
+
+  it("keeps verified quote contact ahead of the linked member profile", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "member-1" } } });
+    mocks.findSavedQuote.mockResolvedValue({
+      id: "quote-1",
+      userId: "member-1",
+      deletedAt: null,
+      status: "NEW",
+      pricingStatus: "CALCULATED",
+      customerName: "본인확인 이름",
+      phone: "010-9999-9999",
+    });
+    mocks.findMemberProfile.mockResolvedValue({
+      name: "카카오회원",
+      phone: "010-1234-5678",
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    expect(mocks.upsertSavedQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          customerName: "본인확인 이름",
+          phone: "010-9999-9999",
+        }),
+      })
+    );
   });
 
   it("persists the full selected configuration when rate data is unavailable", async () => {

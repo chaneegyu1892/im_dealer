@@ -14,6 +14,7 @@ import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
 import { createAdminNotification } from "@/lib/admin-notification";
 import { saveQuoteSchema } from "./request-schema";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
+import { resolveQuoteContact } from "@/lib/quote-contact";
 
 const SCENARIO_CONDITIONS = {
   conservative: { depositRate: 20, prepayRate: 0 },
@@ -104,6 +105,8 @@ export async function POST(request: NextRequest) {
         deletedAt: true,
         status: true,
         pricingStatus: true,
+        customerName: true,
+        phone: true,
       },
     });
 
@@ -123,6 +126,19 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
+    const memberProfile = user
+      ? await prisma.user.findUnique({
+          where: { supabaseId: user.id },
+          select: { name: true, phone: true },
+        })
+      : null;
+    const contact = resolveQuoteContact({
+      quoteName: existing?.customerName,
+      quotePhone: existing?.phone,
+      memberName: memberProfile?.name,
+      memberPhone: memberProfile?.phone,
+    });
 
     const [rateSheets, rankSurcharges] = await Promise.all([
       prisma.capitalRateSheet.findMany({
@@ -187,6 +203,8 @@ export async function POST(request: NextRequest) {
         pricingStatus: "CONSULTATION_REQUIRED" as const,
         breakdown,
         expiresAt,
+        customerName: contact.customerName,
+        phone: contact.phone,
         exteriorColorId: exteriorColor?.id ?? null,
         interiorColorId: interiorColor?.id ?? null,
       };
@@ -314,6 +332,8 @@ export async function POST(request: NextRequest) {
       pricingStatus: "CALCULATED" as const,
       breakdown,
       expiresAt,
+      customerName: contact.customerName,
+      phone: contact.phone,
       exteriorColorId: exteriorColor?.id ?? null,
       interiorColorId: interiorColor?.id ?? null,
     };
