@@ -112,12 +112,20 @@ export function Footer() {
             </summary>
             <div className="space-y-3 px-4 pb-4 text-[11.5px] font-medium leading-relaxed text-text-body">
               <div>
-              {BUSINESS_LINES.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
+                {BUSINESS_LINES.map((line) => (
+                  <p key={line} className="break-keep text-pretty">
+                    {line}
+                  </p>
+                ))}
               </div>
-              <p>
-                (주)모빌페이브는 금융상품판매대리·중개업자로서 제휴 금융사의 자동차 렌트·리스 상품을 안내합니다.
+              <p className="break-keep text-pretty">
+                (주)모빌페이브는{" "}
+                <span className="whitespace-nowrap">
+                  금융상품판매대리·중개업자로서
+                </span>{" "}
+                제휴 금융사의 자동차{" "}
+                <span className="whitespace-nowrap">렌트·리스</span> 상품을
+                안내합니다.
               </p>
               <Link
                 href="/finance-terms"
@@ -131,7 +139,9 @@ export function Footer() {
 
         <div className="mt-4 flex flex-col gap-1 text-[11px] font-medium leading-relaxed text-text-muted lg:mt-7 lg:border-t lg:border-border-subtle lg:pt-5 lg:text-[11.5px] lg:flex-row lg:items-center lg:justify-between">
           <p>© {year} 아임딜러. All rights reserved.</p>
-          <p>아임딜러는 고객에게 별도의 수수료를 요구하거나 수취하지 않습니다.</p>
+          <p className="break-keep text-pretty">
+            아임딜러는 고객에게 별도의 수수료를 요구하거나 수취하지 않습니다.
+          </p>
         </div>
       </div>
     </footer>

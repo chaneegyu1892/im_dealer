@@ -5,6 +5,7 @@ import {
   type FinanceProduct,
   type FinanceTable,
 } from "./finance-products";
+import { LegalText } from "./LegalText";
 
 export const metadata: Metadata = {
   title: "서비스 법적 고지 및 금융상품 안내 | 아임딜러",
@@ -15,7 +16,8 @@ export const metadata: Metadata = {
 const TABLE = "w-full min-w-[640px] border-collapse text-xs sm:text-sm";
 const TH =
   "border border-border-subtle bg-surface-soft px-3 py-2 text-left font-semibold text-text-strong whitespace-nowrap";
-const TD = "border border-border-subtle px-3 py-2 align-top text-text-body";
+const TD =
+  "break-keep border border-border-subtle px-3 py-2 align-top text-pretty text-text-body";
 const TD_HEAD =
   "border border-border-subtle bg-surface-soft px-3 py-2 align-top font-medium text-text-strong whitespace-nowrap";
 
@@ -23,7 +25,9 @@ function DataTable({ caption, headers, rows }: FinanceTable) {
   return (
     <div className="mt-3">
       {caption && (
-        <p className="mb-2 text-[13px] font-medium text-text-strong">{caption}</p>
+        <p className="mb-2 break-keep text-pretty text-[13px] font-medium text-text-strong">
+          <LegalText text={caption} />
+        </p>
       )}
       <div className="overflow-x-auto rounded-[14px] border border-border-subtle bg-surface">
         <table className={TABLE}>
@@ -31,7 +35,7 @@ function DataTable({ caption, headers, rows }: FinanceTable) {
             <tr>
               {headers.map((h, i) => (
                 <th key={i} className={TH}>
-                  {h}
+                  <LegalText text={h} />
                 </th>
               ))}
             </tr>
@@ -41,7 +45,7 @@ function DataTable({ caption, headers, rows }: FinanceTable) {
               <tr key={ri}>
                 {row.map((cell, ci) => (
                   <td key={ci} className={ci === 0 ? TD_HEAD : TD}>
-                    {cell}
+                    <LegalText text={cell} />
                   </td>
                 ))}
               </tr>
@@ -56,9 +60,9 @@ function DataTable({ caption, headers, rows }: FinanceTable) {
 function ProductCard({ product }: { product: FinanceProduct }) {
   return (
     <div className="pt-2">
-      <h3 className="mb-1 flex items-center gap-1.5 text-[15px] font-semibold text-brand">
+      <h3 className="mb-1 flex break-keep items-center gap-1.5 text-pretty text-[15px] font-semibold text-brand">
         <ChevronRight size={16} aria-hidden="true" />
-        {product.title}
+        <LegalText text={product.title} />
       </h3>
       <DataTable {...product.table} />
 
@@ -67,9 +71,9 @@ function ProductCard({ product }: { product: FinanceProduct }) {
           {product.formulas.map((formula, i) => (
             <p
               key={i}
-              className="rounded-[12px] border border-border-subtle bg-surface-soft px-3 py-2 text-[13px] text-text-body"
+              className="break-keep rounded-[12px] border border-border-subtle bg-surface-soft px-3 py-2 text-pretty text-[13px] text-text-body"
             >
-              {formula}
+              <LegalText text={formula} />
             </p>
           ))}
         </div>
@@ -78,9 +82,11 @@ function ProductCard({ product }: { product: FinanceProduct }) {
       {product.subTable && <DataTable {...product.subTable} />}
 
       {product.notes && product.notes.length > 0 && (
-        <ul className="list-disc pl-5 space-y-1 mt-3 text-[13px] text-text-body">
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-[13px] text-text-body">
           {product.notes.map((note, i) => (
-            <li key={i}>{note}</li>
+            <li key={i} className="break-keep text-pretty">
+              <LegalText text={note} />
+            </li>
           ))}
         </ul>
       )}
@@ -88,8 +94,11 @@ function ProductCard({ product }: { product: FinanceProduct }) {
       {product.approvals && product.approvals.length > 0 && (
         <div className="mt-3 space-y-0.5">
           {product.approvals.map((approval, i) => (
-            <p key={i} className="text-[11px] text-text-muted">
-              {approval}
+            <p
+              key={i}
+              className="break-keep text-pretty text-[11px] text-text-muted"
+            >
+              <LegalText text={approval} />
             </p>
           ))}
         </div>
@@ -105,7 +114,6 @@ const COMMON_NOTICES_BEFORE_REGISTRY = [
   "주식회사 모빌페이브는 금융상품 계약을 직접 체결하거나 금융회사를 대신하여 금융상품을 승인·실행할 권한이 없습니다.",
   "금융상품에 관한 실제 상담, 상품 설명, 계약 조건 안내, 신청서 접수 및 금융회사 전달 등의 금융상품 판매대리·중개 업무는 금융회사와 위탁계약을 체결하고 관련 금융업협회에 등록된 금융상품판매대리·중개업자가 직접 수행합니다.",
   "아임딜러를 통해 금융상품 상담 및 중개 업무를 수행하는 등록 모집인은 다음과 같습니다.",
-  "1. 성명: 오영택 / 등록번호: 10-00052163 / 취급상품: 리스·렌트",
 ] as const;
 
 const COMMON_NOTICES_AFTER_REGISTRY = [
@@ -119,7 +127,7 @@ const COMMON_NOTICES_AFTER_REGISTRY = [
   "상환능력에 비해 금융부담이 과도할 경우 개인신용평점이 하락할 수 있으며, 개인신용평점 하락 시 금융거래와 관련된 불이익이 발생할 수 있습니다. 일정 기간 월 납입금 또는 원리금을 연체할 경우 차량 반환, 계약 해지, 연체이자 부과 또는 계약상 채무 전액의 변제 의무가 발생할 수 있습니다.",
 ] as const;
 
-const COMMON_CAUTIONS: string[] = [
+const COMMON_CAUTIONS = [
   "금융소비자는 「금융소비자 보호에 관한 법률」 제19조 제1항에 따라 해당 상품 또는 서비스에 대하여 설명을 받을 권리가 있으며, 충분히 이해한 후 거래하시기 바랍니다.",
   "상환능력에 비해 대출금이 과도할 경우 귀하의 개인신용평점이 하락할 수 있습니다.",
   "개인신용평점 하락 시 금융거래와 관련된 불이익이 발생할 수 있습니다.",
@@ -127,77 +135,99 @@ const COMMON_CAUTIONS: string[] = [
   "대출취급이 부적정한 경우(연체금 보유, 신용점수 낮음 등) 대출이 제한될 수 있습니다.",
   "계약 체결 전 반드시 상품설명서와 약관을 확인하시기 바랍니다.",
   "(주)모빌페이브(아임딜러)는 고객에게 별도의 수수료를 요구하거나 수취하지 않습니다.",
-];
+] as const;
 
 export default function FinanceTermsPage() {
   return (
     <main className="public-app-page min-h-screen">
       <div className="page-container mx-auto max-w-3xl px-5 pt-12 pb-[calc(128px+env(safe-area-inset-bottom,0px))] md:py-16">
-        <h1 className="mb-2 text-[26px] font-extrabold leading-tight text-text-strong md:text-[32px]">
+        <h1 className="mb-2 break-keep text-pretty text-[26px] font-extrabold leading-tight text-text-strong md:text-[32px]">
           아임딜러 서비스 법적 고지 및{" "}
           <span className="whitespace-nowrap">금융상품 안내</span>
         </h1>
-        <p className="mb-10 text-sm text-text-muted">
+        <p className="mb-10 break-keep text-pretty text-sm text-text-muted">
           (주)모빌페이브 | 아임딜러(IM DEALER)
         </p>
 
         <section className="space-y-10">
           <div>
-            <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-text-strong">
+            <h2 className="mb-3 flex break-keep items-center gap-2 text-pretty text-base font-semibold text-text-strong">
               <Info size={18} className="text-brand" aria-hidden="true" />
               서비스 공통 안내사항
             </h2>
-            <ul className="list-disc pl-5 space-y-2 text-[13px] leading-relaxed text-text-body">
+            <ul className="list-disc space-y-2 pl-5 text-[13px] leading-relaxed text-text-body">
               {COMMON_NOTICES_BEFORE_REGISTRY.map((notice, i) => (
-                <li key={i}>{notice}</li>
+                <li key={i} className="break-keep text-pretty">
+                  <LegalText text={notice} />
+                </li>
               ))}
-              <li>
+              <li className="break-keep text-pretty">
+                <span className="whitespace-nowrap">성명: 오영택 /</span>{" "}
+                <span className="whitespace-nowrap">등록번호: 10-00052163 /</span>{" "}
+                <span className="whitespace-nowrap">취급상품: 리스·렌트</span>
+              </li>
+              <li className="break-keep text-pretty">
                 대출모집인 조회(
                 <a
                   href="https://www.loanconsultant.or.kr"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-brand underline"
+                  className="break-words text-brand underline"
                 >
                   www.loanconsultant.or.kr
                 </a>
-                ) 및 대출성 상품 금융상품 판매대리·중개업 등록증표를 통해 신원 확인이 가능합니다.
+                ){" "}
+                <LegalText text="및 대출성 상품 금융상품 판매대리·중개업 등록증표를 통해 신원 확인이 가능합니다." />
               </li>
               {COMMON_NOTICES_AFTER_REGISTRY.map((notice, i) => (
-                <li key={i}>{notice}</li>
+                <li key={i} className="break-keep text-pretty">
+                  <LegalText text={notice} />
+                </li>
               ))}
             </ul>
           </div>
 
-        <div>
-          <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-text-strong">
-            <ClipboardList size={18} className="text-brand" aria-hidden="true" />
-            제휴 금융사별 상품 안내
-          </h2>
-          <div className="space-y-6 divide-y divide-border-subtle">
-            {FINANCE_PRODUCTS.map((product, i) => (
-              <ProductCard key={i} product={product} />
-            ))}
+          <div>
+            <h2 className="mb-3 flex break-keep items-center gap-2 text-pretty text-base font-semibold text-text-strong">
+              <ClipboardList
+                size={18}
+                className="text-brand"
+                aria-hidden="true"
+              />
+              제휴 금융사별 상품 안내
+            </h2>
+            <div className="space-y-6 divide-y divide-border-subtle">
+              {FINANCE_PRODUCTS.map((product, i) => (
+                <ProductCard key={i} product={product} />
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div>
-          <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-text-strong">
-            <ShieldAlert size={18} className="text-status-warning" aria-hidden="true" />
-            공통 유의사항
-          </h2>
-          <p className="text-[13px] text-text-body mb-2">
-            모든 금융상품에 공통으로 적용되는 사항입니다.
-          </p>
-          <ul className="list-disc pl-5 space-y-2 text-[13px] text-text-body leading-relaxed">
-            {COMMON_CAUTIONS.map((caution, i) => (
-              <li key={i}>{caution}</li>
-            ))}
-          </ul>
-        </div>
+          <div>
+            <h2 className="mb-3 flex break-keep items-center gap-2 text-pretty text-base font-semibold text-text-strong">
+              <ShieldAlert
+                size={18}
+                className="text-status-warning"
+                aria-hidden="true"
+              />
+              공통 유의사항
+            </h2>
+            <p className="mb-2 break-keep text-pretty text-[13px] text-text-body">
+              모든 금융상품에 공통으로 적용되는 사항입니다.
+            </p>
+            <ul className="list-disc space-y-2 pl-5 text-[13px] leading-relaxed text-text-body">
+              {COMMON_CAUTIONS.map((caution, i) => (
+                <li key={i} className="break-keep text-pretty">
+                  <LegalText text={caution} />
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <div className="border-t border-border-subtle pt-4">
-            <p className="text-xs text-text-muted">시행일: 2026년 6월 17일</p>
+            <p className="break-keep text-pretty text-xs text-text-muted">
+              시행일: 2026년 6월 17일
+            </p>
           </div>
         </section>
       </div>
