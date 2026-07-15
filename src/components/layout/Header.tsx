@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { CarFront, ClipboardCheck, Home, Info, MessageCircle, UserRound } from "lucide-react";
+import { CarFront, ClipboardCheck, Home, Info, Menu, MessageCircle, UserRound, X } from "lucide-react";
 import { openChannelTalk } from "@/lib/channel-talk";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -25,7 +25,9 @@ export function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [dbRole, setDbRole] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -75,18 +77,13 @@ export function Header() {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
       }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // 견적 플로우는 전용 미니 헤더(STEP/진행바)를 모바일에서 쓰므로,
-  // 사이트 헤더와 겹쳐 단계 표시가 가려지는 문제를 막기 위해 모바일에서만 숨긴다.
-  // 데스크톱은 견적 미니 헤더가 md:hidden 이라 사이트 헤더를 그대로 노출해 로그인·네비 유지.
-  // 모든 Hook 뒤에 위치시켜 rules-of-hooks 위반을 피한다.
-  if (pathname.startsWith("/quote")) {
-    return <div className="h-0 md:hidden" aria-hidden />;
-  }
 
   async function handleLogout() {
     const supabase = createClient();
@@ -171,12 +168,69 @@ export function Header() {
           </nav>
 
           {/* 우측: 로그인 상태 */}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            <div className="relative lg:hidden" ref={mobileMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen((open) => !open);
+                  setDropdownOpen(false);
+                }}
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-pill text-text-strong transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                aria-label={mobileMenuOpen ? "메뉴 닫기" : "메뉴 열기"}
+                aria-controls="mobile-primary-menu"
+                aria-expanded={mobileMenuOpen}
+              >
+                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+              {mobileMenuOpen && (
+                <nav
+                  id="mobile-primary-menu"
+                  className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-card border border-border-subtle bg-surface-raised p-1 shadow-mobile-float"
+                  aria-label="주요 메뉴"
+                >
+                  {NAV_LINKS.map(({ href, label, icon: Icon, exact }) => {
+                    const active = isActive(href, exact);
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          "flex min-h-11 items-center gap-3 rounded-btn px-3 text-[14px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40",
+                          active
+                            ? "bg-brand-soft text-brand"
+                            : "text-text-body hover:bg-surface-soft hover:text-text-strong"
+                        )}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        <Icon size={18} strokeWidth={active ? 2.4 : 2} />
+                        {label}
+                      </Link>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      openChannelTalk();
+                    }}
+                    className="flex min-h-11 w-full items-center gap-3 rounded-btn px-3 text-left text-[14px] font-bold text-text-body transition-colors hover:bg-surface-soft hover:text-text-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
+                  >
+                    <MessageCircle size={18} strokeWidth={2} />
+                    상담
+                  </button>
+                </nav>
+              )}
+            </div>
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"
-                  onClick={() => setDropdownOpen((v) => !v)}
+                  onClick={() => {
+                    setDropdownOpen((open) => !open);
+                    setMobileMenuOpen(false);
+                  }}
                   className="flex min-h-11 items-center gap-1.5 rounded-pill border border-transparent px-2 py-1 text-text-strong transition-colors hover:border-border-subtle hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface md:gap-2 md:px-3"
                   aria-expanded={dropdownOpen}
                   aria-haspopup="menu"

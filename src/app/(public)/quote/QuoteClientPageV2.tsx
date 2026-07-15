@@ -838,8 +838,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
 
   return (
     <div className="min-h-screen bg-white pb-[calc(96px+env(safe-area-inset-bottom,0px))] md:pb-0">
-      {/* 모바일 미니멀 헤더 */}
-      <header className="sticky top-0 z-40 border-b border-[#E5E8EB] bg-white/95 backdrop-blur-md md:hidden">
+      <header className="sticky top-14 z-40 border-b border-[#E5E8EB] bg-white/95 backdrop-blur-md md:hidden">
         <div className="flex h-14 items-center gap-3 px-5">
           <button
             type="button"
@@ -1033,7 +1032,7 @@ function Step1CustomerType({
           <br />
           계약하시나요?
         </h2>
-        <p className="mt-3 text-[15px] leading-relaxed text-text-body">
+        <p className="mt-3 break-keep text-[15px] leading-relaxed text-text-body">
           선택한 유형은 견적 저장과 계약 신청 서류 확인에 사용돼요.
         </p>
       </div>
@@ -1065,7 +1064,7 @@ function Step1CustomerType({
                 <span className="block text-[17px] font-bold leading-tight text-text-strong md:text-[18px]">
                   {option.title}
                 </span>
-                <span className="mt-1 block text-[13.5px] leading-snug text-text-body">
+                <span className="mt-1 block break-keep text-[13.5px] leading-snug text-text-body">
                   {option.desc}
                 </span>
               </span>
