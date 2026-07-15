@@ -4,12 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { CarFront, ClipboardCheck, Home, Info, Menu, MessageCircle, UserRound, X } from "lucide-react";
+import { CarFront, ClipboardCheck, Home, Info, MessageCircle, UserRound } from "lucide-react";
 import { openChannelTalk } from "@/lib/channel-talk";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { ADMIN_ROLES, type AdminRole } from "@/lib/admin-roles";
+import { HeaderCallButton } from "@/components/layout/HeaderCallButton";
 
 const NAV_LINKS = [
   { href: "/", label: "홈", icon: Home, exact: true },
@@ -25,9 +26,7 @@ export function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [dbRole, setDbRole] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -76,9 +75,6 @@ export function Header() {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
-      }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
-        setMobileMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -169,68 +165,12 @@ export function Header() {
 
           {/* 우측: 로그인 상태 */}
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
-            <div className="relative lg:hidden" ref={mobileMenuRef}>
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen((open) => !open);
-                  setDropdownOpen(false);
-                }}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-pill text-text-strong transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                aria-label={mobileMenuOpen ? "메뉴 닫기" : "메뉴 열기"}
-                aria-controls="mobile-primary-menu"
-                aria-expanded={mobileMenuOpen}
-              >
-                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-              </button>
-              {mobileMenuOpen && (
-                <nav
-                  id="mobile-primary-menu"
-                  className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-card border border-border-subtle bg-surface-raised p-1 shadow-mobile-float"
-                  aria-label="주요 메뉴"
-                >
-                  {NAV_LINKS.map(({ href, label, icon: Icon, exact }) => {
-                    const active = isActive(href, exact);
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={cn(
-                          "flex min-h-11 items-center gap-3 rounded-btn px-3 text-[14px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40",
-                          active
-                            ? "bg-brand-soft text-brand"
-                            : "text-text-body hover:bg-surface-soft hover:text-text-strong"
-                        )}
-                        aria-current={active ? "page" : undefined}
-                      >
-                        <Icon size={18} strokeWidth={active ? 2.4 : 2} />
-                        {label}
-                      </Link>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      openChannelTalk();
-                    }}
-                    className="flex min-h-11 w-full items-center gap-3 rounded-btn px-3 text-left text-[14px] font-bold text-text-body transition-colors hover:bg-surface-soft hover:text-text-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
-                  >
-                    <MessageCircle size={18} strokeWidth={2} />
-                    상담
-                  </button>
-                </nav>
-              )}
-            </div>
+            <HeaderCallButton />
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"
-                  onClick={() => {
-                    setDropdownOpen((open) => !open);
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => setDropdownOpen((open) => !open)}
                   className="flex min-h-11 items-center gap-1.5 rounded-pill border border-transparent px-2 py-1 text-text-strong transition-colors hover:border-border-subtle hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface md:gap-2 md:px-3"
                   aria-expanded={dropdownOpen}
                   aria-haspopup="menu"
