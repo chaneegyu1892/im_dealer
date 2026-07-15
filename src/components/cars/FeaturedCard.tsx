@@ -30,7 +30,7 @@ export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
       <Link href={`/cars/${vehicle.slug}`} className="block h-full">
         <div
           className={cn(
-            "relative grid h-full grid-cols-[38%_1fr] items-center gap-4",
+            "relative grid h-full grid-cols-[38%_1fr] items-center gap-4 lg:grid-cols-[48%_1fr] lg:gap-3",
             size === "large"
               ? "min-h-[218px] p-4 md:min-h-[230px] md:p-5"
               : "min-h-[204px] p-4 md:min-h-[218px] md:p-5",
