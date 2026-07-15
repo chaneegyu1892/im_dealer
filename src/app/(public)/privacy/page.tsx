@@ -375,11 +375,11 @@ export default function PrivacyPage() {
               <tbody>
                 <tr>
                   <td className={TD}>성명</td>
-                  <td className={TD}>(기재 예정)</td>
+                  <td className={TD}>조수형</td>
                 </tr>
                 <tr>
                   <td className={TD}>직책</td>
-                  <td className={TD}>(기재 예정)</td>
+                  <td className={TD}>대표</td>
                 </tr>
                 <tr>
                   <td className={TD}>이메일</td>
