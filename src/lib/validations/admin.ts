@@ -2,6 +2,11 @@ import { z } from "zod";
 import { overlapProfileSchema } from "@/lib/recommend/overlap-profile";
 
 // ─── Vehicle ────────────────────────────────────────────
+export const scraperRefsSchema = z.record(
+  z.string(),
+  z.object({ brandCd: z.string(), modelName: z.string() })
+);
+
 const vehicleFields = {
   name: z.string().min(1, "차량명을 입력하세요"),
   brand: z.string().min(1, "브랜드를 입력하세요"),
@@ -18,6 +23,8 @@ const vehicleFields = {
   slidingDoorOverride: z.boolean().nullable().optional(),
   advancedSafetyOverride: z.boolean().nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(20)).max(10).optional(),
+  // 캐피탈사 회수율 스크래퍼 연결 (캐피탈사 코드 → { 브랜드코드, 모델명 })
+  scraperRefs: scraperRefsSchema.nullable().optional(),
 } as const;
 
 export const vehicleCreateSchema = z.object(vehicleFields).strict();
@@ -223,6 +230,145 @@ export const aiConfigMutationSchema = z.union([
   aiConfigCreateSchema,
   aiConfigDeactivateSchema,
 ]);
+
+// ─── 캐피탈사 회수율 스크래핑 ───────────────────────────
+const rateSheetRawSchema = z.record(z.string(), z.number());
+
+// 작업 생성 (POST /api/admin/scrape-jobs)
+export const scrapeJobCreateSchema = z.object({
+  financeCompanyId: z.string().min(1),
+  productType: z.string().min(1).default("장기렌트"),
+  weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "weekOf 형식은 YYYY-MM-DD"),
+  trimIds: z.array(z.string().min(1)).min(1, "트림을 1개 이상 선택하세요"),
+  vehicleId: z.string().min(1),
+  lineupIds: z.array(z.string().min(1)).default([]),
+  minVehiclePrice: z.number().int().positive(),
+  maxVehiclePrice: z.number().int().positive(),
+  // 가져오기마다 관리자가 직접 입력하는 개인 캐피탈 로그인 (저장하지 않음)
+  username: z.string().min(1, "ID를 입력하세요"),
+  password: z.string().min(1, "비밀번호를 입력하세요"),
+});
+
+// 카탈로그 전량 수집 작업 생성 (POST /api/admin/scrape-jobs, body.jobType === "catalog")
+export const catalogJobCreateSchema = z.object({
+  jobType: z.literal("catalog"),
+  financeCompanyId: z.string().min(1),
+  productType: z.string().min(1).default("장기렌트"),
+  weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "weekOf 형식은 YYYY-MM-DD"),
+  brands: z
+    .array(z.object({ brandCd: z.string().min(1), name: z.string().min(1) }))
+    .min(1, "브랜드를 1개 이상 선택하세요"),
+  username: z.string().min(1, "ID를 입력하세요"),
+  password: z.string().min(1, "비밀번호를 입력하세요"),
+});
+
+// 트림 매핑 upsert (POST /api/admin/capital-catalog/mappings)
+export const catalogMappingUpsertSchema = z.object({
+  financeCompanyId: z.string().min(1),
+  trimId: z.string().min(1),
+  productType: z.string().min(1).default("장기렌트"),
+  catalogTrimId: z.string().min(1),
+  source: z.enum(["auto", "manual"]),
+  confidence: z.enum(["exact", "fuzzy"]).nullish(),
+});
+
+// 카탈로그 → 정확값 시트 반영 (POST /api/admin/capital-rates/apply-catalog)
+export const applyCatalogSchema = z.object({
+  financeCompanyId: z.string().min(1),
+  productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
+  weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "weekOf 형식은 YYYY-MM-DD"),
+  trimIds: z.array(z.string().min(1)).min(1, "트림을 1개 이상 선택하세요"),
+});
+
+// 작업 상태 변경 (PATCH /api/admin/scrape-jobs/[id])
+export const scrapeJobActionSchema = z.object({
+  action: z.enum(["cancel", "resume"]),
+});
+
+// 워커 결과 보고 (POST /api/worker/scrape-jobs/[id]/result)
+// catalog 잡 완료 요약 (워커 → ScrapeJob.draft 저장)
+export const catalogScrapeSummarySchema = z.object({
+  mode: z.literal("catalog"),
+  total: z.number().int().min(0),
+  skipped: z.number().int().min(0),
+  failed: z.number().int().min(0),
+  brands: z.array(z.object({ brandCd: z.string(), name: z.string(), trims: z.number().int().min(0) })),
+  finishedAt: z.string(),
+});
+
+export const workerJobResultSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    // trim_rates 잡은 draft, catalog 잡은 catalogSummary — 라우트가 jobType 에 맞게 하나를 요구한다.
+    catalogSummary: catalogScrapeSummarySchema.optional(),
+    draft: z.object({
+      scrapedAt: z.string(),
+      productType: z.string(),
+      weekOf: z.string(),
+      trims: z.array(
+        z.object({
+          trimId: z.string(),
+          matchConfidence: z.enum(["exact", "fuzzy", "unmatched"]),
+          externalTrimLabel: z.string(),
+          vehiclePrice: z.number(),
+          // 트림별 월 지불액(원) — 라인업별 그룹핑용 (없을 수 있음)
+          baseRates: rateSheetRawSchema.optional(),
+          depositRates: rateSheetRawSchema.optional(),
+          prepayRates: rateSheetRawSchema.optional(),
+        })
+      ),
+      minVehiclePrice: z.number(),
+      maxVehiclePrice: z.number(),
+      minBaseRates: rateSheetRawSchema,
+      minDepositRates: rateSheetRawSchema,
+      minPrepayRates: rateSheetRawSchema,
+      maxBaseRates: rateSheetRawSchema,
+      maxDepositRates: rateSheetRawSchema,
+      maxPrepayRates: rateSheetRawSchema,
+      warnings: z.array(z.string()),
+    }).optional(),
+  }),
+  z.object({
+    ok: z.literal(false),
+    error: z.string().min(1),
+    authFailed: z.boolean().optional(), // 자격증명 인증 실패 → 워커가 자격증명 비활성화 요청(잠금 방지)
+  }),
+]);
+
+// 워커 하트비트 (POST /api/worker/scrape-jobs/[id]/heartbeat)
+export const workerHeartbeatSchema = z.object({
+  status: z.enum(["running", "needs_human"]).optional(),
+  humanPrompt: z.string().optional(),
+  progress: z.record(z.string(), z.unknown()).optional(), // catalog 잡 진행률 (정보성)
+});
+
+// 워커 카탈로그 증분 저장 (POST /api/worker/catalog/results)
+export const workerCatalogResultsSchema = z.object({
+  jobId: z.string().min(1),
+  financeCompanyId: z.string().min(1),
+  productType: z.string().min(1),
+  weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "weekOf 형식은 YYYY-MM-DD"),
+  entries: z
+    .array(
+      z.object({
+        brandCd: z.string().min(1),
+        brandName: z.string().min(1),
+        modelCd: z.string().min(1),
+        modelName: z.string().min(1),
+        dtMdlCd: z.string().min(1),
+        dtMdlName: z.string().optional(),
+        mdelCd: z.string().min(1),
+        trimName: z.string().min(1),
+        modelYear: z.string().optional(),
+        vehiclePrice: z.number().int().min(0),
+        baseRates: rateSheetRawSchema, // partial 허용 — 서버가 9칸으로 정규화
+        depositRate36_10000: z.number().int().min(0).optional(),
+        prepayRate36_10000: z.number().int().min(0).optional(),
+        warnings: z.array(z.string()),
+      })
+    )
+    .min(1),
+});
 
 // ─── Slug 생성 유틸 ─────────────────────────────────────
 export function generateSlug(brand: string, name: string): string {

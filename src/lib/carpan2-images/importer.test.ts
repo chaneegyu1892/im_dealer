@@ -34,7 +34,7 @@ const vehicleRow = (overrides: Partial<Vehicle> = {}): Vehicle => ({
   imageRevision: 0,
   surchargeRate: 0, isVisible: true, isPopular: false, isSpotlight: false,
   slidingDoorOverride: null, advancedSafetyOverride: null, displayOrder: 0, description: null,
-  tags: [], detailedSpecs: null, createdAt: now, updatedAt: now, ...overrides,
+  tags: [], detailedSpecs: null, scraperRefs: null, createdAt: now, updatedAt: now, ...overrides,
 });
 
 async function applyWith(persistence: Carpan2ImagePersistence, candidates: readonly Carpan2ImageCandidate[], mirror = vi.fn(async (sourceUrl: string | null | undefined) => ({ url: (sourceUrl ?? "").replace("carpan", "storage"), uploaded: true }))) {

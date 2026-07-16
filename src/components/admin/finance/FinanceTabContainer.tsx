@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Calculator, Settings2, Database } from "lucide-react";
+import { Calculator, Settings2, Database, Landmark, type LucideIcon } from "lucide-react";
 import CapitalRateManager from "./CapitalRateManager";
+import CapitalCatalogManager from "./catalog/CapitalCatalogManager";
 import QuoteLogicSimulator from "./QuoteLogicSimulator";
 import SurchargePolicy from "./SurchargePolicy";
 
@@ -12,13 +13,15 @@ interface Props {
 }
 
 export default function FinanceTabContainer({ financeCompanies, vehicles }: Props) {
-  const [activeTab, setActiveTab] = useState<"simulator" | "policy" | "data">("simulator");
+  type TabId = "simulator" | "policy" | "data" | "capital";
+  const [activeTab, setActiveTab] = useState<TabId>("simulator");
 
   const tabs = [
     { id: "simulator", label: "견적 시뮬레이터", icon: Calculator },
     { id: "policy", label: "가산 정책 관리", icon: Settings2 },
     { id: "data", label: "회수율 데이터 관리", icon: Database },
-  ];
+    { id: "capital", label: "캐피탈사 데이터", icon: Landmark },
+  ] satisfies ReadonlyArray<{ id: TabId; label: string; icon: LucideIcon }>;
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-hidden">
@@ -28,7 +31,7 @@ export default function FinanceTabContainer({ financeCompanies, vehicles }: Prop
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? "bg-[#6066EE] text-white shadow-md shadow-indigo-100"
@@ -64,6 +67,12 @@ export default function FinanceTabContainer({ financeCompanies, vehicles }: Prop
                 vehicles={vehicles}
               />
             </div>
+          </div>
+        )}
+
+        {activeTab === "capital" && (
+          <div className="animate-in fade-in duration-300">
+            <CapitalCatalogManager financeCompanies={financeCompanies} vehicles={vehicles} />
           </div>
         )}
       </div>

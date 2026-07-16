@@ -1,6 +1,12 @@
 import type { VehicleImageKind } from "./api";
 import type { EngineType, VehicleCategory } from "./vehicle";
 
+export interface AdminVehicleLite {
+  id: string;
+  brand: string;
+  name: string;
+}
+
 export interface AdminVehicle {
   id: string;
   slug: string;
@@ -20,6 +26,7 @@ export interface AdminVehicle {
   displayOrder: number;
   tags: string[];
   description: string | null;
+  scraperRefs?: Record<string, { brandCd: string; modelName: string }> | null;
   createdAt: string;
   updatedAt: string;
   _count?: { trims: number };

@@ -1,4 +1,5 @@
 import type { AdminOptionRule, AdminVehicleDetail } from "@/types/admin";
+import { scraperRefsSchema } from "@/lib/validations/admin";
 import { prisma } from "../prisma";
 
 export async function getVehicleById(id: string): Promise<AdminVehicleDetail | null> {
@@ -26,6 +27,7 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
   });
 
   if (!vehicle) return null;
+  const scraperRefs = scraperRefsSchema.safeParse(vehicle.scraperRefs);
 
   return {
     id: vehicle.id,
@@ -46,6 +48,7 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
     displayOrder: vehicle.displayOrder,
     tags: vehicle.tags,
     description: vehicle.description,
+    scraperRefs: scraperRefs.success ? scraperRefs.data : null,
     createdAt: vehicle.createdAt.toISOString(),
     updatedAt: vehicle.updatedAt.toISOString(),
     thumbnailImageId: vehicle.thumbnailImageId,

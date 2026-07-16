@@ -6,6 +6,7 @@ import { logAdminAction } from "@/lib/audit";
 import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 import { deleteVehicleWithStorageCleanup } from "@/lib/vehicle-images/storage-cleanup";
 import { imageRouteError } from "./images/http";
+import { Prisma } from "@prisma/client";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -61,9 +62,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "차량을 찾을 수 없습니다." }, { status: 404 });
     }
 
+    const { scraperRefs, ...data } = parsed.data;
     const vehicle = await prisma.vehicle.update({
       where: { id },
-      data: parsed.data,
+      data: {
+        ...data,
+        ...(scraperRefs === undefined
+          ? {}
+          : { scraperRefs: scraperRefs === null ? Prisma.DbNull : scraperRefs }),
+      },
     });
 
     await logAdminAction({

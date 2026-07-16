@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { slug: customSlug, ...data } = parsed.data;
+    const { slug: customSlug, scraperRefs, ...data } = parsed.data;
     const slug = customSlug ?? generateSlug(data.brand, data.name);
 
     // slug 중복 확인
@@ -113,7 +113,13 @@ export async function POST(request: NextRequest) {
     }
 
     const vehicle = await prisma.vehicle.create({
-      data: { ...data, slug, thumbnailUrl: "", imageUrls: [] },
+      data: {
+        ...data,
+        ...(scraperRefs ? { scraperRefs } : {}),
+        slug,
+        thumbnailUrl: "",
+        imageUrls: [],
+      },
     });
 
     await logAdminAction({

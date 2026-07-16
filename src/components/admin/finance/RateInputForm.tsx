@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { CapitalRateSheet, RateSheetRaw, RateSheetKey } from "@/types/admin";
+import type { ScrapeDraft } from "@/types/scraper";
 import {
   calcRateMatrix,
   calcDepositDiscountRate,
@@ -18,6 +19,8 @@ interface Props {
   initialMaxPrice: number;
   productType: string;
   existingSheet?: CapitalRateSheet;
+  /** 자동 수집 초안 — 있으면 6개 요율표·가격·기준주를 프리필한다(검토 후 저장). */
+  draftPrefill?: ScrapeDraft | null;
   onSaved: (savedTrimIds: string[]) => void;
 }
 
@@ -69,6 +72,7 @@ export default function RateInputForm({
   initialMaxPrice,
   productType,
   existingSheet,
+  draftPrefill,
   onSaved,
 }: Props) {
   const [weekOf, setWeekOf] = useState(getWeekOf());
@@ -94,7 +98,20 @@ export default function RateInputForm({
   }
 
   useEffect(() => {
-    if (existingSheet) {
+    if (draftPrefill) {
+      // 자동 수집 초안 우선 — 기존 시트가 있어도 새로 가져온 값으로 덮어쓰기 검토
+      setMinVehiclePrice(draftPrefill.minVehiclePrice);
+      setMaxVehiclePrice(draftPrefill.maxVehiclePrice);
+      setMinBaseRates(draftPrefill.minBaseRates);
+      setMinDepositRates(pickSingleKey(draftPrefill.minDepositRates, "36_10000"));
+      setMinPrepayRates(pickSingleKey(draftPrefill.minPrepayRates, "36_10000"));
+      setMaxBaseRates(draftPrefill.maxBaseRates);
+      setMaxDepositRates(pickSingleKey(draftPrefill.maxDepositRates, "36_10000"));
+      setMaxPrepayRates(pickSingleKey(draftPrefill.maxPrepayRates, "36_10000"));
+      setMemo("자동 수집 초안 (검토 필요)");
+      setWeekOf(draftPrefill.weekOf);
+      setPriceManuallyEdited(true);
+    } else if (existingSheet) {
       setMinVehiclePrice(existingSheet.minVehiclePrice);
       setMaxVehiclePrice(existingSheet.maxVehiclePrice);
       setMinBaseRates(existingSheet.minBaseRates);
@@ -120,7 +137,7 @@ export default function RateInputForm({
       setPriceManuallyEdited(false);
     }
     setPreview(null);
-  }, [existingSheet, trimIds.join(","), initialMinPrice, initialMaxPrice]);
+  }, [existingSheet, draftPrefill, trimIds.join(","), initialMinPrice, initialMaxPrice]);
 
   // 라인업 선택 변경 → 자동 가격 갱신 (단, 사용자가 수동 편집한 경우는 유지)
   useEffect(() => {
