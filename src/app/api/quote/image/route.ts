@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
 import { strictRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { parseQuoteScenarioType } from "@/lib/quote-scenario-selection";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
     contractMonths: body.contractMonths ?? 48,
     annualMileage: body.annualMileage ?? 20000,
     contractType: body.contractType ?? "반납형",
+    scenarioType: parseQuoteScenarioType(body.scenarioType),
     scenarios: body.scenarios,
     userEmail: user.email ?? "이메일 미등록",
     exteriorColor: body.exteriorColor ?? null,

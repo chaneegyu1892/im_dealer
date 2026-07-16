@@ -97,5 +97,7 @@ export interface QuoteScenarioDetails {
   aggressive: QuoteScenarioDetail;
 }
 
+export type QuoteScenarioType = keyof QuoteScenarioDetails;
+
 export type ContractType = "인수형" | "반납형";
 export type ProductType = "렌트" | "리스";

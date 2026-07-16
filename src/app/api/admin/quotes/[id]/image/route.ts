@@ -8,6 +8,7 @@ import {
   type ContractTypeKor,
   type SelectedOptionSnapshot,
 } from "@/lib/quote-scenarios";
+import { parseQuoteScenarioType } from "@/lib/quote-scenario-selection";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -116,6 +117,7 @@ export async function GET(
     contractMonths: quote.contractMonths,
     annualMileage: quote.annualMileage,
     contractType,
+    scenarioType: parseQuoteScenarioType(breakdown.scenarioType),
     scenarios: outcome.data.scenarios,
     userEmail,
     exteriorColor: outcome.data.exteriorColor
