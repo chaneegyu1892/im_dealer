@@ -31,6 +31,24 @@ yarn-error.log*
 .env
 .env*.local
 
+# Scraper worker secrets, browser state, and capture artifacts
+/scripts/scraper-worker/.env*
+!/scripts/scraper-worker/.env.example
+/scripts/scraper-worker/try-config*.json
+!/scripts/scraper-worker/try-config*.example.json
+/scripts/scraper-worker/captures/
+/scripts/scraper-worker/screenshots/
+/scripts/scraper-worker/profile/
+/scripts/scraper-worker/profiles/
+/scripts/scraper-worker/user-data/
+/scripts/scraper-worker/.puppeteer-profile*/
+/scripts/scraper-worker/*.har
+/scripts/scraper-worker/*.jsonl
+/scripts/scraper-worker/*.log
+/scripts/scraper-worker/cookies*.json
+/scripts/scraper-worker/storage-state*.json
+/scripts/scraper-worker/credentials*.json
+
 # vercel
 .vercel
 
