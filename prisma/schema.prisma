@@ -9,16 +9,16 @@ datasource db {
 }
 
 model FinanceCompany {
-  id            String             @id @default(cuid())
-  name          String             @unique
-  code          String             @unique
-  surchargeRate Float              @default(0)
+  id            String               @id @default(cuid())
+  name          String               @unique
+  code          String               @unique
+  surchargeRate Float                @default(0)
   // 견적서 이미지의 "시나리오별 견적 비교" 테이블에 금융사명 옆 로고로 노출. 어드민 업로드 URL.
   logoUrl       String?
-  isActive      Boolean            @default(true)
-  displayOrder  Int                @default(0)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  isActive      Boolean              @default(true)
+  displayOrder  Int                  @default(0)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
   rateSheets    CapitalRateSheet[]
   inventories   Inventory[]
   scrapeJobs    ScrapeJob[]
@@ -76,7 +76,7 @@ model Brand {
   // 공개 페이지에서 "인기 브랜드" 섹션으로 묶어 보여줄 수 있다.
   isFeatured   Boolean  @default(false)
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime @default(now()) @updatedAt
 }
 
 model Vehicle {
@@ -133,33 +133,33 @@ model Vehicle {
 }
 
 model Trim {
-  id             String             @id @default(cuid())
-  vehicleId      String
-  name           String
-  price          Int
-  discountPrice  Int?
+  id              String               @id @default(cuid())
+  vehicleId       String
+  name            String
+  price           Int
+  discountPrice   Int?
   // 전기차 보조금(안내용). 견적 계산에는 반영하지 않으며 화면 표기 전용. null=보조금 없음.
-  evSubsidy      Int?
-  engineType     String
-  fuelEfficiency Float?
-  isDefault      Boolean            @default(false)
+  evSubsidy       Int?
+  engineType      String
+  fuelEfficiency  Float?
+  isDefault       Boolean              @default(false)
   // Carpan2 트림은 원본 판매 상태(state=2)를 반영한다. 최종 고객 노출은
   // Vehicle.isVisible && VehicleLineup.isVisible && Trim.isVisible 조건으로 판정한다.
-  isVisible      Boolean            @default(true)
-  specs          Json?
+  isVisible       Boolean              @default(true)
+  specs           Json?
   // 외부 차량 데이터 소스 식별자 및 풍부한 메타(tm/division/displace/person/tax/spec/specoption/documents/colorPriceMap)
-  externalId     String?            @unique
-  detailedSpecs  Json?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  quoteVars      QuoteVariable[]
-  lineupId       String?
-  lineup         VehicleLineup?     @relation(fields: [lineupId], references: [id], onDelete: Cascade)
-  vehicle        Vehicle            @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  options        TrimOption[]
-  rules          OptionRule[]
-  inventory      Inventory[]
-  rateSheets     CapitalRateSheet[]
+  externalId      String?              @unique
+  detailedSpecs   Json?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  quoteVars       QuoteVariable[]
+  lineupId        String?
+  lineup          VehicleLineup?       @relation(fields: [lineupId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle              @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  options         TrimOption[]
+  rules           OptionRule[]
+  inventory       Inventory[]
+  rateSheets      CapitalRateSheet[]
   capitalMappings CapitalTrimMapping[]
 
   @@index([vehicleId])
@@ -402,7 +402,7 @@ model VehicleImageStorageCleanup {
   attempts         Int                              @default(0)
   lastError        String?
   createdAt        DateTime                         @default(now())
-  updatedAt        DateTime                         @updatedAt
+  updatedAt        DateTime                         @default(now()) @updatedAt
 
   @@index([status, availableAt])
   @@index([leaseExpiresAt])
@@ -492,7 +492,7 @@ model RecommendationLog {
   result                Json?
   industryDetail        String?
   // 「원하는 차」 선호 특징 (신규 흐름). 옛 세션은 purpose/purposeDetail 사용.
-  preferences           String[]
+  preferences           String[]  @default([])
   childDetail           String?
   cargoDetail           String?
   purposeDetail         String?
@@ -591,6 +591,17 @@ model QuoteCalcLog {
   @@index([createdAt])
   @@index([calculatedAt])
   @@index([scenarioType, createdAt])
+  @@index([rangeExceeded, createdAt])
+}
+
+model QuotaLog {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  computedAt      DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  totalBytes      BigInt   @map("total_bytes") @db.BigInt
+  attachmentCount Int      @map("attachment_count") @db.Integer
+
+  @@index([computedAt(sort: Desc)], map: "quota_log_computed_at_idx")
+  @@map("quota_log")
 }
 
 model RecommendationConfig {
@@ -652,7 +663,7 @@ model User {
   kakaoNickname    String?
   marketingConsent Boolean   @default(false)
   createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  updatedAt        DateTime  @default(now()) @updatedAt
 
   auditLogs AdminAuditLog[]
 
@@ -699,6 +710,7 @@ model CustomerVerification {
   documents VerificationDocument[]
 
   @@index([sessionId])
+  @@index([verifiedAt, piiPurgedAt])
 }
 
 // 간편인증으로 발급받은 공문서(PDF) 원본 저장. contentEnc 는 AES-256-GCM 암호화.
@@ -819,11 +831,11 @@ model AdminNotification {
 // 로그인 자격증명은 저장하지 않는다. 각 관리자가 가져오기 할 때마다 입력한 ID/PW 를
 // AES-256-GCM 암호문으로 이 작업에만 임시 저장하고, 완료/실패/취소 시 즉시 폐기(null)한다.
 model ScrapeJob {
-  id               String    @id @default(cuid())
+  id               String         @id @default(cuid())
   financeCompanyId String
-  jobType          String    @default("trim_rates") // trim_rates(차량·트림 지정 수집) | catalog(브랜드 전량 수집)
-  status           String    @default("pending") // pending|running|needs_human|completed|failed|canceled
-  productType      String    @default("장기렌트")
+  jobType          String         @default("trim_rates") // trim_rates(차량·트림 지정 수집) | catalog(브랜드 전량 수집)
+  status           String         @default("pending") // pending|running|needs_human|completed|failed|canceled
+  productType      String         @default("장기렌트")
   params           Json // trim_rates: { trimIds, vehicleId, ... } / catalog: { mode:"catalog", brands, weekOf, productType }
   credUsernameEnc  String? // encryptString(평문 ID) — 진행 중에만 존재, 종료 시 null
   credPasswordEnc  String? // encryptString(평문 PW) — 진행 중에만 존재, 종료 시 null
@@ -835,8 +847,8 @@ model ScrapeJob {
   heartbeatAt      DateTime? // 워커 생존 신호 (스테일 작업 회수용)
   finishedAt       DateTime?
   createdById      String
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
   financeCompany   FinanceCompany @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
 
   @@index([status, createdAt])
@@ -846,29 +858,29 @@ model ScrapeJob {
 // 캐피탈사 원본 카탈로그 — 캐피탈사에 등록된 트림 단위 견적(월납입금 9칸)의 최신본.
 // (financeCompanyId, productType, mdelCd) 당 1행 upsert. 주별 이력은 반영 후 CapitalRateSheet 가 담당.
 model CapitalCatalogTrim {
-  id               String         @id @default(cuid())
-  financeCompanyId String
-  productType      String         @default("장기렌트")
-  brandCd          String // 캐피탈사 브랜드코드 (ORIX: CA1000xx)
-  brandName        String // 표시용 ("현대" 등)
-  modelCd          String // ORIX MDL_CD
-  modelName        String // ORIX MDL_NM
-  dtMdlCd          String // ORIX DT_MDL_CD (세부차종)
-  dtMdlName        String?
-  mdelCd           String // ORIX MDEL_CD (외부 트림코드)
-  trimName         String // ORIX MDEL_NAME2
-  modelYear        String? // ORIX MDEL_YEAR
-  vehiclePrice     Int // ORIX MDEL_PRICE
-  baseRates        Json // RATE_KEYS 9칸 월납입금(원), 0=미산출
+  id                  String               @id @default(cuid())
+  financeCompanyId    String
+  productType         String               @default("장기렌트")
+  brandCd             String // 캐피탈사 브랜드코드 (ORIX: CA1000xx)
+  brandName           String // 표시용 ("현대" 등)
+  modelCd             String // ORIX MDL_CD
+  modelName           String // ORIX MDL_NM
+  dtMdlCd             String // ORIX DT_MDL_CD (세부차종)
+  dtMdlName           String?
+  mdelCd              String // ORIX MDEL_CD (외부 트림코드)
+  trimName            String // ORIX MDEL_NAME2
+  modelYear           String? // ORIX MDEL_YEAR
+  vehiclePrice        Int // ORIX MDEL_PRICE
+  baseRates           Json // RATE_KEYS 9칸 월납입금(원), 0=미산출
   depositRate36_10000 Int? // 36개월/1만km 보증금10% 월납입금(원), null=미수집
   prepayRate36_10000  Int? // 36개월/1만km 선납금10% 월납입금(원), null=미수집
-  warnings         Json?
-  weekOf           DateTime // 마지막 수집 주 (월요일)
-  scrapedAt        DateTime
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  financeCompany   FinanceCompany @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
-  mappings         CapitalTrimMapping[]
+  warnings            Json?
+  weekOf              DateTime // 마지막 수집 주 (월요일)
+  scrapedAt           DateTime
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  financeCompany      FinanceCompany       @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
+  mappings            CapitalTrimMapping[]
 
   @@unique([financeCompanyId, productType, mdelCd])
   @@index([financeCompanyId, brandCd])
