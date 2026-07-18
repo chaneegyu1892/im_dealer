@@ -41,6 +41,19 @@ const vehicleDetailSchema = z.object({
   popularConfigs: z.array(popularConfigSchema),
 }).passthrough();
 
+const popularitySchema = z.object({
+  period: z.literal("2026-05"),
+  rank: z.number().int().min(1).max(30).nullable(),
+  registrationCount: z.number().int().positive().nullable(),
+}).strict().superRefine((popularity, context) => {
+  if ((popularity.rank === null) !== (popularity.registrationCount === null)) {
+    context.addIssue({
+      code: "custom",
+      message: "인기순위와 등록대수는 함께 있거나 함께 null이어야 합니다.",
+    });
+  }
+});
+
 const baseVehicleShape = {
   vehicleId: z.string().min(1),
   rank: z.number().int().positive(),
@@ -54,6 +67,7 @@ const baseVehicleShape = {
     standard: scenarioSchema,
     aggressive: scenarioSchema,
   }).passthrough(),
+  popularity: popularitySchema.optional(),
 };
 
 const legacyVehicleSchema = z.object({
@@ -90,7 +104,7 @@ const overlapVehicleSchema = z.object({
   tieBreak: z.object({
     modelYear: z.number().int().min(0),
     companyPriority: z.number().int().min(0).max(100),
-    isPopular: z.boolean(),
+    isPopular: z.boolean().optional(),
     profitPriority: z.number().int().min(0).max(100),
     slug: z.string().min(1),
   }).strict(),

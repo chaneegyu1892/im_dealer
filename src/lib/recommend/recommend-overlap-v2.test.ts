@@ -102,13 +102,36 @@ describe("recommendOverlapV2FromSnapshot", () => {
   });
 
   it("keeps scenario formulas and frozen scoring evidence together", () => {
+    const baseProfile = profile("더 뉴 카니발 HEV");
+    const compatibleProfile: OverlapProfile = {
+      ...baseProfile,
+      scores: {
+        ...baseProfile.scores,
+        primaryPreference: {
+          ...baseProfile.scores.primaryPreference,
+          안정감: "fit",
+        },
+        additionalCondition: {
+          ...baseProfile.scores.additionalCondition,
+          family: {
+            ...baseProfile.scores.additionalCondition.family,
+            details: {
+              ...baseProfile.scores.additionalCondition.family.details,
+              영유아: "fit",
+            },
+          },
+        },
+      },
+    };
     const result = recommendOverlapV2FromSnapshot({
       ...baseInput,
       fuelPreference: "하이브리드",
       primaryPreference: "안정감",
       situationPreference: "가족",
       childDetail: "영유아",
-    }, mixed);
+    }, snapshot([
+      vehicle("hev", "더 뉴 카니발 HEV", compatibleProfile),
+    ]));
     const first = result.vehicles[0];
     expect(first?.score).toBe(first?.rankScore);
     expect(first?.documentScore).toBeGreaterThanOrEqual(0);
@@ -127,6 +150,11 @@ describe("recommendOverlapV2FromSnapshot", () => {
       recommendedTrimId: "trim-hev",
       effectiveTrimPrice: 40_000_000,
       productType: "장기렌트",
+    });
+    expect(first?.popularity).toEqual({
+      period: "2026-05",
+      rank: null,
+      registrationCount: null,
     });
   });
 
@@ -156,4 +184,5 @@ describe("recommendOverlapV2FromSnapshot", () => {
     );
     expect(withinBudget.vehicles).toEqual([]);
   });
+
 });

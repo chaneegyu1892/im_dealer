@@ -1,10 +1,12 @@
 import { generateReason } from "@/lib/llm-reason";
 import type {
   RecommendInput,
+  RecommendationPopularityEvidence,
   RecommendedVehicle,
   RecommendedVehicleDetail,
   RecommendScenarios,
 } from "@/types/recommendation";
+import type { RecommendationCompatibility } from "./popularity-selector";
 
 export interface LegacyScoredVehicle {
   readonly vehicleId: string;
@@ -16,6 +18,8 @@ export interface LegacyScoredVehicle {
   readonly detail: RecommendedVehicleDetail;
   readonly scenarios: RecommendScenarios;
   readonly estimatedMonthly: number;
+  readonly compatibility: RecommendationCompatibility;
+  readonly popularity: RecommendationPopularityEvidence;
 }
 
 export async function finalizeLegacyRecommendations(
@@ -44,5 +48,6 @@ export async function finalizeLegacyRecommendations(
     estimatedMonthly: scored.estimatedMonthly,
     vehicle: scored.detail,
     scenarios: scored.scenarios,
+    popularity: scored.popularity,
   }));
 }

@@ -81,10 +81,65 @@ describe("stored recommendation result boundary", () => {
     expect(result).toEqual({ kind: "legacy", vehicles: value });
   });
 
+  it("keeps new legacy popularity evidence unchanged", () => {
+    const withPopularity = {
+      ...legacyVehicle,
+      popularity: {
+        period: "2026-05",
+        rank: 19,
+        registrationCount: 1_722,
+      },
+    };
+    expect(parseStoredResultState([withPopularity])).toEqual({
+      kind: "legacy",
+      vehicles: [withPopularity],
+    });
+  });
+
   it("keeps a populated v2 envelope with complete evidence", () => {
     const value = { version: "overlap-v2", vehicles: [v2Vehicle] };
     const result = parseStoredResultState(value);
     expect(result).toEqual({ kind: "v2", vehicles: [v2Vehicle] });
+  });
+
+  it("keeps new v2 popularity evidence unchanged", () => {
+    const withPopularity = {
+      ...v2Vehicle,
+      popularity: {
+        period: "2026-05",
+        rank: null,
+        registrationCount: null,
+      },
+    };
+    const value = { version: "overlap-v2", vehicles: [withPopularity] };
+    expect(parseStoredResultState(value)).toEqual({
+      kind: "v2",
+      vehicles: [withPopularity],
+    });
+  });
+
+  it.each([
+    {
+      period: "2026-04",
+      rank: 1,
+      registrationCount: 100,
+    },
+    {
+      period: "2026-05",
+      rank: null,
+      registrationCount: 100,
+    },
+    {
+      period: "2026-05",
+      rank: 31,
+      registrationCount: 100,
+    },
+  ])("rejects malformed popularity evidence", (popularity) => {
+    const result = parseStoredResultState([{
+      ...legacyVehicle,
+      popularity,
+    }]);
+    expect(result.kind).toBe("invalid");
   });
 
   it("keeps an empty v2 envelope frozen", () => {

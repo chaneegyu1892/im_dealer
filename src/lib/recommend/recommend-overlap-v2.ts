@@ -22,6 +22,8 @@ import {
   buildStandardRecommendScenario,
 } from "./recommend-scenarios";
 import { isWithinRecommendationBudget } from "./recommendation-budget";
+import { getPopularityEvidence } from "./popularity-snapshot";
+import { getOverlapRecommendationCompatibility } from "./recommend-compatibility";
 import {
   DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
   PUBLIC_CARD_QUOTE_CONDITION,
@@ -58,6 +60,7 @@ function scoreEligibleVehicles(
     if (eligibility.status !== "eligible") continue;
     const effectiveTrimPrice = eligibility.selectedTrim.discountPrice
       ?? eligibility.selectedTrim.price;
+    const score = scoreOverlapVehicle(input, eligibility.profile);
     candidates.push({
       vehicleId: vehicle.vehicleId,
       slug: vehicle.slug,
@@ -68,9 +71,11 @@ function scoreEligibleVehicles(
         lineupName: eligibility.selectedTrim.lineup?.name,
       }),
       modelYear: eligibility.modelYear,
-      isPopular: vehicle.isPopular,
       profile: eligibility.profile,
-      score: scoreOverlapVehicle(input, eligibility.profile),
+      score,
+      fitScore: score.rankScore,
+      compatibility: getOverlapRecommendationCompatibility(score),
+      popularity: getPopularityEvidence(vehicle.slug),
       vehicle,
       eligibility,
       standardMonthlyPayment: buildStandardRecommendScenario({
@@ -112,7 +117,6 @@ function toRecommendedVehicle(
     tieBreak: {
       modelYear: candidate.modelYear,
       companyPriority: profile.companyPriority,
-      isPopular: vehicle.isPopular,
       profitPriority: profile.profitPriority,
       slug: vehicle.slug,
     },
@@ -139,6 +143,7 @@ function toRecommendedVehicle(
       })),
     },
     scenarios,
+    popularity: candidate.popularity,
   };
 }
 

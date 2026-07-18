@@ -48,6 +48,26 @@ const rateMatrix = {
 function projectionSnapshot(thumbnailUrl: string): OverlapCandidateSnapshot {
   const catalog = compileOverlapCatalog().find((candidate) => candidate.documentName === "더 뉴 카니발 HEV");
   if (!catalog) throw new TypeError("missing recommendation projection fixture");
+  const profile = {
+    ...catalog.profile,
+    scores: {
+      ...catalog.profile.scores,
+      primaryPreference: {
+        ...catalog.profile.scores.primaryPreference,
+        안정감: "fit" as const,
+      },
+      additionalCondition: {
+        ...catalog.profile.scores.additionalCondition,
+        family: {
+          ...catalog.profile.scores.additionalCondition.family,
+          details: {
+            ...catalog.profile.scores.additionalCondition.family.details,
+            미취학: "fit" as const,
+          },
+        },
+      },
+    },
+  };
   return {
     rankSurchargeRates: [1, 1.5, 2, 2.5],
     vehicles: [{
@@ -68,7 +88,7 @@ function projectionSnapshot(thumbnailUrl: string): OverlapCandidateSnapshot {
         note: "동일 구성",
         items: [{ id: "item-1", name: "옵션", price: 1_000_000, trimOptionId: null }],
       }],
-      config: { isActive: true, profile: catalog.profile },
+      config: { isActive: true, profile },
       trims: [{
         id: "trim-1",
         name: "2027년형 기본",
@@ -153,6 +173,11 @@ describe("POST /api/recommend", () => {
         rank: 1,
         score: expect.any(Number),
         contributions: expect.any(Array),
+        popularity: {
+          period: "2026-05",
+          rank: null,
+          registrationCount: null,
+        },
         reason: expect.any(String),
         scenarios: {
           conservative: expect.any(Object),

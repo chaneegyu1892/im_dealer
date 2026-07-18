@@ -1,12 +1,3 @@
-/**
- * AI 추천 엔진 — 회수율 기반 견적 + 규칙 기반 스코어링 (예산 제거 버전)
- *
- * 1) 노출 가능 차량 조회
- * 2) vehicleCode로 RateConfig 매핑 → 최저가 금융사 견적 산출 (결과 표시용 bestMonthly)
- * 3) 차량 카테고리 × 업종·목적 가중치 → 상위 3개 추천 (예산 비교·필터 없음)
- * 4) 3개 시나리오(무보증/보증금/선납금) 계산
- */
-
 import { prisma } from "@/lib/prisma";
 import {
   buildVehicleAttrs,
@@ -16,7 +7,6 @@ import { scoreVehicle } from "@/lib/recommend/scoring";
 import {
   getRecommendationModelKey,
   getRecommendationModelYear,
-  latestByRecommendationModel,
   pickRecommendationTrim,
 } from "@/lib/recommend/latest-model";
 import { parseRateSheetRaw } from "@/lib/recommend/rate-sheet";
@@ -51,6 +41,9 @@ import {
   finalizeLegacyRecommendations,
   type LegacyScoredVehicle,
 } from "./recommend-legacy-results";
+import { getPopularityEvidence } from "./popularity-snapshot";
+import { getLegacyRecommendationCompatibility } from "./recommend-compatibility";
+import { selectLegacyRecommendationCandidates } from "./recommend-legacy-selection";
 
 export async function recommendLegacyV1(input: RecommendInput): Promise<RecommendedVehicle[]> {
   // 1) 노출 가능 차량 + 추천설정 조회
@@ -184,26 +177,28 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
       input.purpose,
     );
 
+    const scoringInput = {
+      industry: input.industry,
+      preferences,
+      primaryPreference: input.primaryPreference,
+      situationPreference: input.situationPreference,
+      childDetail: input.childDetail,
+      cargoDetail: input.cargoDetail,
+      annualMileage: input.annualMileage,
+      residenceRegion: input.residenceRegion,
+      fuelPreference: input.fuelPreference,
+      chargingEnvironment: input.chargingEnvironment,
+    };
+    const scoringContext = {
+      category: v.category ?? "",
+      price: defaultTrim.price,
+      fuelEfficiency: defaultTrim.fuelEfficiency,
+      scoreMatrixBonus,
+    };
     const { score, reasons } = scoreVehicle(
-      {
-        industry: input.industry,
-        preferences,
-        primaryPreference: input.primaryPreference,
-        situationPreference: input.situationPreference,
-        childDetail: input.childDetail,
-        cargoDetail: input.cargoDetail,
-        annualMileage: input.annualMileage,
-        residenceRegion: input.residenceRegion,
-        fuelPreference: input.fuelPreference,
-        chargingEnvironment: input.chargingEnvironment,
-      },
+      scoringInput,
       attrs,
-      {
-        category: v.category ?? "",
-        price: defaultTrim.price,
-        fuelEfficiency: defaultTrim.fuelEfficiency,
-        scoreMatrixBonus,
-      },
+      scoringContext,
     );
 
     // ── 추천 이유 / 배지 ─────────────────────────────
@@ -267,13 +262,16 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
         })),
       },
       scenarios,
+      compatibility: getLegacyRecommendationCompatibility({
+        input: scoringInput,
+        attrs,
+        context: scoringContext,
+      }),
+      popularity: getPopularityEvidence(v.slug),
     });
   }
 
-  // 4) 점수 정렬 → 상위 3개
-  const latestScored = latestByRecommendationModel(scored);
-  latestScored.sort((a, b) => b.score - a.score);
-  const top = latestScored.slice(0, 3);
+  const top = selectLegacyRecommendationCandidates(scored);
 
   return finalizeLegacyRecommendations(top, input, preferenceLabel);
 }

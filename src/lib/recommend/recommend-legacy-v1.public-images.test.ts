@@ -29,8 +29,7 @@ function matrix(value: number) {
 
 const input: RecommendInput = {
   industry: "개인",
-  preferences: ["안정감"],
-  primaryPreference: "안정감",
+  preferences: [],
   annualMileage: 20_000,
   returnType: "반납형",
 };
@@ -189,7 +188,7 @@ describe("recommendLegacyV1 recommendation contract", () => {
   it("does not force the most expensive trim for a luxury preference", async () => {
     const vehicle = rawVehicle("active");
     vehicle.trims = [
-      { ...vehicle.trims[0], id: "trim-default", price: 40_000_000, isDefault: true },
+      { ...vehicle.trims[0], id: "trim-default", price: 50_000_000, isDefault: true },
       { ...vehicle.trims[0], id: "trim-top", price: 80_000_000, isDefault: false },
     ];
     mocks.findManyVehicles.mockResolvedValue([vehicle]);
@@ -205,7 +204,7 @@ describe("recommendLegacyV1 recommendation contract", () => {
     });
 
     expect(result?.vehicle.recommendedTrimId).toBe("trim-default");
-    expect(result?.vehicle.defaultTrimPrice).toBe(40_000_000);
+    expect(result?.vehicle.defaultTrimPrice).toBe(50_000_000);
   });
 
   it("calculates every displayed scenario from the discounted price", async () => {
@@ -226,4 +225,5 @@ describe("recommendLegacyV1 recommendation contract", () => {
     expect(result?.scenarios.conservative.depositAmount).toBe(8_000_000);
     expect(result?.scenarios.aggressive.prepayAmount).toBe(12_000_000);
   });
+
 });

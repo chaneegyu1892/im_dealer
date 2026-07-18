@@ -28,6 +28,12 @@ export interface RecommendResult {
   vehicles: RecommendedVehicle[];
 }
 
+export interface RecommendationPopularityEvidence {
+  readonly period: "2026-05";
+  readonly rank: number | null;
+  readonly registrationCount: number | null;
+}
+
 export interface RecommendedVehicleBase {
   vehicleId: string;
   rank: number;
@@ -37,6 +43,7 @@ export interface RecommendedVehicleBase {
   estimatedMonthly: number;
   vehicle: RecommendedVehicleDetail;
   scenarios: RecommendScenarios;
+  readonly popularity?: RecommendationPopularityEvidence;
 }
 
 export interface RecommendationScoreContribution {
@@ -70,7 +77,7 @@ export interface OverlapRecommendedVehicle extends RecommendedVehicleBase {
   readonly tieBreak: {
     readonly modelYear: number;
     readonly companyPriority: number;
-    readonly isPopular: boolean;
+    readonly isPopular?: boolean;
     readonly profitPriority: number;
     readonly slug: string;
   };

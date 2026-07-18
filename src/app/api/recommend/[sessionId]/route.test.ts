@@ -130,6 +130,28 @@ describe("GET /api/recommend/:sessionId", () => {
     expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
   });
 
+  it("replays frozen popularity evidence without recalculation", async () => {
+    const popularity = {
+      period: "2026-05",
+      rank: 2,
+      registrationCount: 7_086,
+    } as const;
+    const result = {
+      version: "overlap-v2",
+      vehicles: [{ ...frozenVehicle, popularity }],
+    } as const;
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "member" } } });
+    mocks.findFirst.mockResolvedValue({ ...baseLog, result });
+    mocks.findManyVehicles.mockResolvedValue([{ id: "vehicle-active" }]);
+
+    const response = await GET(request, context);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.vehicles[0]?.popularity).toEqual(popularity);
+    expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
+  });
+
   it("fails closed for invalid non-null storage", async () => {
     mocks.findFirst.mockResolvedValue({ ...baseLog, result: { vehicles: [] } });
     const response = await GET(request, context);
