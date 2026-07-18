@@ -120,10 +120,16 @@ export function RecommendResultView() {
 
   const { input, vehicles } = result;
 
+  const budgetLabel = input.budgetMax && input.budgetMax > 0
+    ? `월 ${Math.round(input.budgetMax / 10_000)}만원 이하`
+    : "월 예산 미정";
+
   const summaryTags = [
     LABEL_MAP[input.industry] ?? input.industry,
     LABEL_MAP[input.purpose] ?? input.purpose,
-    input.annualMileage ? `연 ${(input.annualMileage / 10000).toFixed(0)}만km` : "",
+    budgetLabel,
+    "월 납입금 60개월·2만km·무보증",
+    input.annualMileage ? `연간 주행 ${(input.annualMileage / 10000).toFixed(0)}만km` : "",
     input.fuelPreference,
   ].filter(Boolean);
 

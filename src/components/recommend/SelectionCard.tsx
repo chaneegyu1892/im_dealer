@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 
@@ -5,7 +6,7 @@ interface SelectionCardProps {
   label: string;
   desc?: string;
   detail?: string;
-  icon?: string;
+  icon?: ReactNode;
   selected: boolean;
   recommended?: boolean;
   onClick: () => void;

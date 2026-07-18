@@ -1,9 +1,9 @@
 // AI 추천 4단계 선택지 데이터
 
 export const INDUSTRY_OPTIONS = [
+  { value: "개인", label: "개인", desc: "직장인·프리랜서·비사업자 모두 포함", icon: "👤" },
   { value: "법인", label: "법인", desc: "법인 명의 차량 등록", icon: "🏢" },
   { value: "개인사업자", label: "개인사업자", desc: "사업자등록증 보유", icon: "📋" },
-  { value: "개인", label: "개인", desc: "직장인·프리랜서·비사업자 모두 포함", icon: "👤" },
 ] as const;
 
 // 호환용 전체 옵션 풀. 분기 매칭 실패 시 fallback으로 쓰이거나
@@ -84,9 +84,10 @@ export const PREFERENCE_DETAIL_QUESTION: Record<string, { title: string; subtitl
 };
 
 export const BUDGET_RANGE_OPTIONS = [
-  { value: "~50", label: "50만원 이하", budgetMin: 0, budgetMax: 500_000 },
-  { value: "50~100", label: "50 – 100만원", budgetMin: 500_000, budgetMax: 1_000_000 },
-  { value: "100~", label: "100만원 이상", budgetMin: 1_000_000, budgetMax: 99_999_999 },
+  { label: "월 50만원 이하", desc: "부담을 가장 낮게 보고 싶어요", budgetMax: 500_000 },
+  { label: "월 100만원 이하", desc: "선택 폭과 월 부담을 함께 봐요", budgetMax: 1_000_000 },
+  { label: "월 150만원 이하", desc: "고급·대형 차량까지 살펴봐요", budgetMax: 1_500_000 },
+  { label: "예산 아직 미정", desc: "차량 조건을 먼저 비교하고 싶어요", budgetMax: 0 },
 ] as const;
 
 export const PAYMENT_STYLE_OPTIONS = [

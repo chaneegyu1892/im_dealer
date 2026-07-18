@@ -1,0 +1,53 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { StepIndustry } from "./StepIndustry";
+
+describe("StepIndustry", () => {
+  it("고객 유형을 고른 뒤 모든 유형에 같은 무보증 월예산 질문을 보여준다", () => {
+    const onChange = vi.fn();
+    const onBudgetChange = vi.fn();
+
+    const { rerender } = render(
+      <StepIndustry
+        value=""
+        onChange={onChange}
+        budgetMax={null}
+        onBudgetChange={onBudgetChange}
+      />
+    );
+
+    expect(screen.queryByRole("heading", { name: "월 납입금 예산은 어느 정도인가요?" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /개인 직장인/ }));
+    expect(onChange).toHaveBeenCalledWith("개인");
+
+    rerender(
+      <StepIndustry
+        value="개인"
+        onChange={onChange}
+        budgetMax={null}
+        onBudgetChange={onBudgetChange}
+      />
+    );
+
+    expect(screen.getByRole("heading", { name: "월 납입금 예산은 어느 정도인가요?" })).toBeInTheDocument();
+    expect(screen.getByText(/60개월 · 연 2만km · 무보증/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /월 100만원 이하/ }));
+    expect(onBudgetChange).toHaveBeenCalledWith(1_000_000);
+  });
+
+  it("50만·100만·150만원과 예산 미정 선택지를 제공한다", () => {
+    render(
+      <StepIndustry
+        value="법인"
+        onChange={vi.fn()}
+        budgetMax={null}
+        onBudgetChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /월 50만원 이하/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /월 100만원 이하/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /월 150만원 이하/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /예산 아직 미정/ })).toBeInTheDocument();
+  });
+});

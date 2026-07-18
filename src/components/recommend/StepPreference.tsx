@@ -5,6 +5,7 @@ import {
   NO_SIMPLE_PREFERENCE_VALUE,
   NO_SITUATION_PREFERENCE_VALUE,
 } from "@/constants/recommend-options";
+import { CircleOff } from "lucide-react";
 import { SelectionCard } from "./SelectionCard";
 
 type SituationPreference = "가족" | "화물";
@@ -24,7 +25,7 @@ const SIMPLE_NONE_OPTION = {
   value: NO_SIMPLE_PREFERENCE_VALUE,
   label: "해당 없음",
   desc: "딱 맞는 차종 기준이 없어요",
-  icon: "",
+  icon: <CircleOff size={17} aria-hidden />,
   kind: "feel",
 } as const;
 
@@ -32,7 +33,7 @@ const SITUATION_NONE_OPTION = {
   value: NO_SITUATION_PREFERENCE_VALUE,
   label: "해당 없음",
   desc: "추가 조건이 따로 없어요",
-  icon: "",
+  icon: <CircleOff size={17} aria-hidden />,
   kind: "situation",
 } as const;
 

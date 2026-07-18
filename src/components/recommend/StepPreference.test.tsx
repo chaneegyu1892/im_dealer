@@ -60,6 +60,16 @@ describe("StepPreference", () => {
     expect(onSituationChange).toHaveBeenCalledWith(NO_SITUATION_PREFERENCE_VALUE);
   });
 
+  it("각 해당 없음 선택지 왼쪽에도 아이콘을 표시한다", () => {
+    renderStepPreference();
+
+    const simpleSection = sectionForHeading("먼저 가장 중요한 방향을 골라주세요");
+    const situationSection = sectionForHeading("아이나 짐 관련 조건이 있나요?");
+
+    expect(within(simpleSection).getByRole("button", { name: /해당 없음/ }).querySelector("svg")).not.toBeNull();
+    expect(within(situationSection).getByRole("button", { name: /해당 없음/ }).querySelector("svg")).not.toBeNull();
+  });
+
   it("심화 질문에서 해당 없음을 고르면 추가 질문을 보여주지 않는다", () => {
     renderStepPreference({
       simpleValue: "경제성",

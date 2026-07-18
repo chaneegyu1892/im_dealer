@@ -6,8 +6,8 @@ async function choose(page: Page, name: string) {
 
 async function completeHevFamilyFlow(page: Page) {
   await page.goto("/recommend");
-  await choose(page, "👤 개인 직장인·프리랜서·비사업자 모두 포함");
-  await choose(page, "👥 2~3명이 함께 타요 가끔 동승자가 있어요");
+  await choose(page, "개인 직장인·프리랜서·비사업자 모두 포함");
+  await choose(page, "월 100만원 이하 선택 폭과 월 부담을 함께 봐요");
   await choose(page, "다음");
   await choose(page, "🚙 크고 안정감 있는 차 든든한 주행감");
   await choose(page, "👨‍👩‍👧 아이와 함께 타요 가족·안전 우선");
@@ -27,7 +27,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1280, height: 900 
         const payload = route.request().postDataJSON();
         expect(payload).toMatchObject({
           industry: "개인",
-          industryDetail: "2~3명",
+          budgetMax: 1_000_000,
           primaryPreference: "안정감",
           situationPreference: "가족",
           childDetail: "미취학",
