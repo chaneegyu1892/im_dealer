@@ -1,12 +1,17 @@
 import { estimateMonthly, type RateConfigData } from "@/lib/quote-calculator";
 import {
   DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
+  PUBLIC_CARD_QUOTE_CONDITION,
 } from "@/constants/quote-defaults";
 import {
   filterLatestRecommendationTrims,
   getRecommendationModelYear,
 } from "./latest-model";
-import { getRecommendationExclusion, type RecommendationExclusion } from "./excluded-vehicles";
+import {
+  getRecommendationExclusion,
+  isExcludedRecommendationTrim,
+  type RecommendationExclusion,
+} from "./excluded-vehicles";
 import {
   parseOverlapProfile,
   type OverlapProfile,
@@ -127,7 +132,12 @@ function bestMonthly(
 ): number {
   let best = Number.POSITIVE_INFINITY;
   for (const config of configs) {
-    const monthly = estimateMonthly(price, config, 48, annualMileage);
+    const monthly = estimateMonthly(
+      price,
+      config,
+      PUBLIC_CARD_QUOTE_CONDITION.contractMonths,
+      annualMileage
+    );
     if (monthly > 0 && monthly < best) best = monthly;
   }
   return Number.isFinite(best) ? best : 0;
@@ -160,7 +170,9 @@ export function assessOperationalEligibility(
     };
   }
 
-  const visibleTrims = vehicle.trims.filter((trim) => trim.isVisible);
+  const visibleTrims = vehicle.trims.filter(
+    (trim) => trim.isVisible && !isExcludedRecommendationTrim(trim)
+  );
   const latestTrims = filterLatestRecommendationTrims(visibleTrims);
   if (latestTrims.length === 0) return { status: "no_visible_latest_trim" };
 

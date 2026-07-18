@@ -30,6 +30,7 @@ const valid = {
   fuelPreference: "하이브리드",
   residenceRegion: "일반",
   returnType: "미정",
+  budgetMax: 1_000_000,
 };
 
 const rateMatrix = {
@@ -122,6 +123,7 @@ describe("POST /api/recommend", () => {
     expect(mocks.recommendForVersion).toHaveBeenCalledOnce();
     expect(mocks.recommendForVersion.mock.calls[0]?.[0].preferences).toEqual(["안정감", "가족"]);
     expect(mocks.create.mock.calls[0]?.[0].data.result).toEqual({ version: "overlap-v2", vehicles: [] });
+    expect(mocks.create.mock.calls[0]?.[0].data).toMatchObject({ budgetMin: 0, budgetMax: 1_000_000 });
   });
 
   it("keeps legacy mode frozen as the historical array shape", async () => {

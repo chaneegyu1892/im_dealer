@@ -142,4 +142,18 @@ describe("recommendOverlapV2FromSnapshot", () => {
     expect(external?.documentScore).toBe(none?.documentScore);
     expect(external?.chargingAdjustment).not.toBe(none?.chargingAdjustment);
   });
+
+  it("filters recommendations above the selected no-deposit monthly budget", () => {
+    const withoutBudget = recommendOverlapV2FromSnapshot(
+      { ...baseInput, fuelPreference: "하이브리드" },
+      mixed
+    );
+    expect(withoutBudget.vehicles[0]?.scenarios.standard.monthlyPayment).toBeGreaterThan(500_000);
+
+    const withinBudget = recommendOverlapV2FromSnapshot(
+      { ...baseInput, fuelPreference: "하이브리드", budgetMax: 500_000 },
+      mixed
+    );
+    expect(withinBudget.vehicles).toEqual([]);
+  });
 });

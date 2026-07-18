@@ -15,6 +15,17 @@ const valid = {
 };
 
 describe("recommend request", () => {
+  it("accepts the unified customer type and monthly budget payload", () => {
+    const parsed = recommendRequestSchema.parse({
+      ...valid,
+      industryDetail: undefined,
+      budgetMax: 1_000_000,
+    });
+
+    expect(parsed.budgetMax).toBe(1_000_000);
+    expect(parsed.industryDetail).toBeUndefined();
+  });
+
   it("accepts the unchanged UI payload and normalizes preference order", () => {
     const parsed = recommendRequestSchema.parse(valid);
     expect(parsed.preferences).toEqual(["안정감", "가족"]);
@@ -31,6 +42,7 @@ describe("recommend request", () => {
     ["missing cargo", { ...valid, situationPreference: "화물", childDetail: undefined, preferences: ["안정감", "화물"] }, "cargoDetail"],
     ["non-EV charging", { ...valid, chargingEnvironment: "자택" }, "chargingEnvironment"],
     ["missing EV charging", { ...valid, fuelPreference: "전기차" }, "chargingEnvironment"],
+    ["unsupported budget", { ...valid, budgetMax: 750_000 }, "budgetMax"],
   ])("rejects %s at %s", (_label, value, expectedPath) => {
     const parsed = recommendRequestSchema.safeParse(value);
     expect(parsed.success).toBe(false);

@@ -26,8 +26,6 @@ export async function POST(request: NextRequest) {
       : vehicles;
 
     // 추천 로그 저장 (AI 고도화용 데이터 축적)
-    // 새 흐름은 budget 계열을 받지 않으므로 DB NOT NULL 컬럼은 기본값(0/"표준형")으로 저장.
-    // 옛 세션이 보낸 값이 있다면 그대로 보존.
     await prisma.recommendationLog.create({
       data: {
         sessionId,
@@ -39,7 +37,7 @@ export async function POST(request: NextRequest) {
         childDetail: input.childDetail,
         cargoDetail: input.cargoDetail,
         budgetMin: 0,
-        budgetMax: 0,
+        budgetMax: input.budgetMax ?? 0,
         paymentStyle: "표준형",
         annualMileage: input.annualMileage,
         returnType: input.returnType,

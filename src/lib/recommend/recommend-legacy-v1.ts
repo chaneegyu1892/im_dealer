@@ -41,7 +41,12 @@ import {
   resolvePublicThumbnailUrl,
 } from "@/lib/vehicle-images/public";
 import { buildRecommendScenarios } from "./recommend-scenarios";
+import { isWithinRecommendationBudget } from "./recommendation-budget";
 import { readLegacyScoreMatrixBonus } from "./recommend-legacy-score-matrix";
+import {
+  getRecommendationExclusion,
+  isExcludedRecommendationTrim,
+} from "./excluded-vehicles";
 import {
   finalizeLegacyRecommendations,
   type LegacyScoredVehicle,
@@ -121,10 +126,13 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
       : input.purpose ?? "";
 
   for (const v of vehicles) {
+    if (getRecommendationExclusion(v)) continue;
+
     // 연료 선호와 장기렌트 회수율을 먼저 적용한다. 혼합 연료 라인업 차량도
     // 사용자가 고른 연료군 안에서 최신 기본 트림을 선택해야 한다.
     const eligibleTrims = v.trims.filter((trim) =>
-      matchesRecommendFuelPreference(input.fuelPreference, trim.engineType)
+      !isExcludedRecommendationTrim(trim)
+      && matchesRecommendFuelPreference(input.fuelPreference, trim.engineType)
       && (ratesByTrimId.get(trim.id)?.length ?? 0) > 0
     );
     const defaultTrim = pickRecommendationTrim(eligibleTrims);
@@ -216,6 +224,10 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
       rateConfigs: configs,
       estimatedMonthly: bestMonthly,
     });
+    if (!isWithinRecommendationBudget(
+      scenarios.standard.monthlyPayment,
+      input.budgetMax
+    )) continue;
 
     scored.push({
       vehicleId: v.id,

@@ -28,14 +28,50 @@ const EXCLUSION_BY_SLUG = new Map(
 
 export type RecommendationExclusion =
   | { readonly kind: "document_slug"; readonly documentName: string }
+  | { readonly kind: "vehicle_variant"; readonly documentName: string }
   | { readonly kind: "truck_category"; readonly documentName: null };
+
+interface RecommendationVariantIdentity {
+  readonly vehicleName?: string;
+  readonly trimName?: string;
+  readonly lineupName?: string | null;
+}
+
+const PERFORMANCE_VARIANT_PATTERN = /(?:^|[\s-])(?:GT|N)(?=$|[\s-])/i;
+const BLACK_INK_PATTERN = /블랙\s*(?:잉크|링크)/;
+
+function isExcludedRecommendationVariant(
+  identity: RecommendationVariantIdentity
+): boolean {
+  return [identity.vehicleName, identity.trimName, identity.lineupName].some(
+    (name) => typeof name === "string"
+      && (PERFORMANCE_VARIANT_PATTERN.test(name) || BLACK_INK_PATTERN.test(name))
+  );
+}
+
+export function isExcludedRecommendationTrim(trim: {
+  readonly name: string;
+  readonly lineup?: { readonly name: string } | null;
+}): boolean {
+  return isExcludedRecommendationVariant({
+    trimName: trim.name,
+    lineupName: trim.lineup?.name,
+  });
+}
 
 export function getRecommendationExclusion(vehicle: {
   readonly slug: string;
   readonly category: string;
+  readonly name?: string;
 }): RecommendationExclusion | null {
   const documentName = EXCLUSION_BY_SLUG.get(vehicle.slug);
   if (documentName) return { kind: "document_slug", documentName };
   if (vehicle.category === "트럭") return { kind: "truck_category", documentName: null };
+  if (
+    vehicle.name
+    && isExcludedRecommendationVariant({ vehicleName: vehicle.name })
+  ) {
+    return { kind: "vehicle_variant", documentName: vehicle.name };
+  }
   return null;
 }

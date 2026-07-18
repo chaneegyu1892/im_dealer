@@ -15,7 +15,8 @@ type ChargingEnvironment = "자택" | "직장" | "외부" | "없음";
 
 interface BaseScoringInput {
   readonly industry: Industry;
-  readonly industryDetail: string;
+  readonly industryDetail?: string;
+  readonly budgetMax?: number;
   readonly primaryPreference?: PrimaryPreference;
   readonly annualMileage: 10_000 | 20_000 | 30_000;
   readonly residenceRegion: ResidenceRegion;

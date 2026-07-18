@@ -50,7 +50,13 @@ function calculateScenario(
 export function buildRecommendScenarios(input: ScenarioBuildInput): RecommendScenarios {
   return {
     conservative: calculateScenario(input, 20, 0),
-    standard: calculateScenario(input, 0, 0),
+    standard: buildStandardRecommendScenario(input),
     aggressive: calculateScenario(input, 0, 30),
   };
+}
+
+export function buildStandardRecommendScenario(
+  input: ScenarioBuildInput
+): RecommendScenario {
+  return calculateScenario(input, 0, 0);
 }

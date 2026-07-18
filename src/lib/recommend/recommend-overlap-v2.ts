@@ -1,4 +1,7 @@
-import type { RecommendInput, OverlapRecommendedVehicle } from "@/types/recommendation";
+import type {
+  RecommendInput,
+  OverlapRecommendedVehicle,
+} from "@/types/recommendation";
 import { getRecommendationModelKey } from "./latest-model";
 import {
   loadOverlapCandidateSnapshot,
@@ -14,7 +17,11 @@ import { rankOverlapCandidates, type RankableOverlapCandidate } from "./overlap-
 import { parseOverlapRuntimeInput } from "./overlap-runtime-input";
 import { scoreOverlapVehicle, type OverlapScoringInput } from "./overlap-scoring";
 import { generateOverlapReason } from "./reason";
-import { buildRecommendScenarios } from "./recommend-scenarios";
+import {
+  buildRecommendScenarios,
+  buildStandardRecommendScenario,
+} from "./recommend-scenarios";
+import { isWithinRecommendationBudget } from "./recommendation-budget";
 import {
   DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
   PUBLIC_CARD_QUOTE_CONDITION,
@@ -23,6 +30,7 @@ import {
 interface RuntimeScoredCandidate extends RankableOverlapCandidate {
   readonly vehicle: OverlapRuntimeVehicle;
   readonly eligibility: EligibleOperationalResult;
+  readonly standardMonthlyPayment: number;
 }
 
 export interface OverlapEligibilityDiagnostic {
@@ -48,6 +56,8 @@ function scoreEligibleVehicles(
     );
     diagnostics.push({ slug: vehicle.slug, status: eligibility.status });
     if (eligibility.status !== "eligible") continue;
+    const effectiveTrimPrice = eligibility.selectedTrim.discountPrice
+      ?? eligibility.selectedTrim.price;
     candidates.push({
       vehicleId: vehicle.vehicleId,
       slug: vehicle.slug,
@@ -63,6 +73,13 @@ function scoreEligibleVehicles(
       score: scoreOverlapVehicle(input, eligibility.profile),
       vehicle,
       eligibility,
+      standardMonthlyPayment: buildStandardRecommendScenario({
+        vehiclePrice: effectiveTrimPrice,
+        vehicleSurchargeRate: vehicle.surchargeRate,
+        rankSurchargeRates: snapshot.rankSurchargeRates,
+        rateConfigs: eligibility.rateConfigs,
+        estimatedMonthly: eligibility.estimatedMonthly,
+      }).monthlyPayment,
     });
   }
   return { candidates, diagnostics };
@@ -70,7 +87,6 @@ function scoreEligibleVehicles(
 
 function toRecommendedVehicle(
   candidate: RuntimeScoredCandidate,
-  input: OverlapScoringInput,
   rankSurchargeRates: readonly number[],
   rank: number
 ): OverlapRecommendedVehicle {
@@ -132,9 +148,17 @@ export function recommendOverlapV2FromSnapshot(
 ): OverlapRecommendationRun {
   const input = parseOverlapRuntimeInput(rawInput);
   const scored = scoreEligibleVehicles(input, snapshot);
-  const ranked = rankOverlapCandidates(scored.candidates, input.fuelPreference);
+  const withinBudget = scored.candidates.filter((candidate) =>
+    isWithinRecommendationBudget(
+      candidate.standardMonthlyPayment,
+      input.budgetMax
+    )
+  );
+  const ranked = rankOverlapCandidates(withinBudget, input.fuelPreference);
   return {
-    vehicles: ranked.map((candidate, index) => toRecommendedVehicle(candidate, input, snapshot.rankSurchargeRates, index + 1)),
+    vehicles: ranked.map((candidate, index) =>
+      toRecommendedVehicle(candidate, snapshot.rankSurchargeRates, index + 1)
+    ),
     diagnostics: scored.diagnostics,
   };
 }

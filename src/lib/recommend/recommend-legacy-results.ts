@@ -26,7 +26,7 @@ export async function finalizeLegacyRecommendations(
   const llmReasons = await Promise.all(top.map((scored) => generateReason({
     industry: input.industry,
     purpose: preferenceLabel,
-    budgetMax: 0,
+    budgetMax: input.budgetMax ?? 0,
     annualMileage: input.annualMileage,
     vehicleName: scored.detail.name,
     brand: scored.detail.brand,
