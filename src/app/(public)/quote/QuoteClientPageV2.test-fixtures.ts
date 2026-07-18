@@ -25,6 +25,22 @@ export const vehicles = [{
   tags: [],
 }] satisfies VehicleListItem[];
 
+function quoteScenario(monthlyPayment: number, depositAmount: number, prepayAmount: number) {
+  return {
+    monthlyPayment,
+    depositAmount,
+    prepayAmount,
+    contractMonths: 60,
+    annualMileage: 20000,
+    contractType: "반납형",
+    bestFinanceCompany: "테스트캐피탈",
+    purchaseSurcharge: 0,
+    breakdown: null,
+    surcharges: null,
+    allFinanceResults: [],
+  };
+}
+
 function writeRestore(requiresConsultation: boolean): void {
   window.localStorage.setItem(
     "quote_image_restore",
@@ -42,6 +58,7 @@ function writeRestore(requiresConsultation: boolean): void {
       },
       customRates: { depositRate: requiresConsultation ? 0 : 10, prepayRate: 0 },
       costMode: requiresConsultation ? "none" : "initial",
+      baseStandard: requiresConsultation ? null : quoteScenario(700_000, 0, 0),
       quoteResult: {
         vehicleSlug: "preparing-car",
         trimId: "trim-preparing",
@@ -55,19 +72,9 @@ function writeRestore(requiresConsultation: boolean): void {
         contractType: "반납형",
         customerType: "individual",
         scenarios: requiresConsultation ? {} : {
-          standard: {
-            monthlyPayment: 650_000,
-            depositAmount: 4_000_000,
-            prepayAmount: 0,
-            contractMonths: 60,
-            annualMileage: 20000,
-            contractType: "반납형",
-            bestFinanceCompany: "테스트캐피탈",
-            purchaseSurcharge: 0,
-            breakdown: null,
-            surcharges: null,
-            allFinanceResults: [],
-          },
+          conservative: quoteScenario(610_000, 8_000_000, 0),
+          standard: quoteScenario(650_000, 4_000_000, 0),
+          aggressive: quoteScenario(530_000, 0, 12_000_000),
         },
         requiresConsultation,
       },

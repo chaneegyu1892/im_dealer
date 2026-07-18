@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
@@ -14,11 +15,11 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    const before = await (prisma as any).capitalRateSheet.findUnique({ where: { id } });
+    const before = await prisma.capitalRateSheet.findUnique({ where: { id } });
     if (!before) {
       return NextResponse.json({ error: "없는 시트" }, { status: 404 });
     }
-    await (prisma as any).capitalRateSheet.delete({ where: { id } });
+    await prisma.capitalRateSheet.delete({ where: { id } });
 
     await logAdminAction({
       request,
@@ -47,12 +48,16 @@ export async function PATCH(
 
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { memo, setActive } = body as { memo?: string; setActive?: boolean };
-    const db = prisma as any;
+    const body: unknown = await request.json();
+    const parsedBody = z
+      .object({ memo: z.string().optional(), setActive: z.boolean().optional() })
+      .strict()
+      .parse(body);
+    const { memo, setActive } = parsedBody;
+    const db = prisma;
     const before = await db.capitalRateSheet.findUnique({ where: { id } });
 
-    if (setActive) {
+    if (setActive === true) {
       if (!before) return NextResponse.json({ error: "없는 시트" }, { status: 404 });
 
       // 형제 시트 비활성화 + 대상 활성화를 단일 트랜잭션으로 묶어
@@ -64,6 +69,10 @@ export async function PATCH(
         }),
         db.capitalRateSheet.update({ where: { id }, data: { isActive: true } }),
       ]);
+    } else if (setActive === false) {
+      // 비활성화 — 해당 트림을 '데이터 없음' 상태로(시트는 이력에 남아 재활성화 가능)
+      if (!before) return NextResponse.json({ error: "없는 시트" }, { status: 404 });
+      await db.capitalRateSheet.update({ where: { id }, data: { isActive: false } });
     } else if (memo !== undefined) {
       await db.capitalRateSheet.update({ where: { id }, data: { memo } });
     }

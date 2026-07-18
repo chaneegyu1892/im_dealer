@@ -155,6 +155,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       );
     });
     const saveCall = fetchMock.mock.calls.find(([input]) => input.toString() === "/api/quote/save");
+    expect(String(saveCall?.[1]?.body)).toContain('"scenarioType":"conservative"');
     expect(String(saveCall?.[1]?.body)).toContain('"customDepositRate":10');
     expect(String(saveCall?.[1]?.body)).toContain('"quoteType":"DETAIL"');
     const draftKey = Object.keys(window.localStorage).find((key) => key.startsWith("quote_draft_"));
@@ -164,6 +165,52 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(navigationMock.router.push).toHaveBeenCalledWith(
       expect.stringContaining("/login?next=")
     );
+  });
+
+  it("realigns the custom deposit quote to the conservative image scenario", async () => {
+    // Given: the customer selected a 10% deposit and recalculation replaced standard
+    writeCalculatedRestore();
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/quote/image") {
+        return new Response(new Blob(["png"]), { status: 200 });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: vi.fn(() => "blob:quote-image"),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    // When: the customer downloads the quote image
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(await screen.findByRole("button", { name: "견적서 받기" }));
+
+    // Then: semantic selection and custom/base values are carried distinctly
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/image",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+    const imageCall = fetchMock.mock.calls.find(([input]) => input.toString() === "/api/quote/image");
+    const imageBody = JSON.parse(String(imageCall?.[1]?.body));
+    expect(imageBody).toMatchObject({
+      scenarioType: "conservative",
+      scenarios: {
+        conservative: { monthlyPayment: 650_000 },
+        standard: { monthlyPayment: 700_000 },
+        aggressive: { monthlyPayment: 530_000 },
+      },
+    });
   });
 
   it("shows an inline error and stays on the quote when persistence fails", async () => {

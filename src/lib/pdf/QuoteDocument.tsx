@@ -1,7 +1,8 @@
 import React from "react";
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
-import type { QuoteScenarioDetail } from "@/types/quote";
+import type { QuoteScenarioDetail, QuoteScenarioType } from "@/types/quote";
 import type { PDFQuoteData, PDFQuoteColor } from "@/lib/quote-pdf-template";
+import { parseQuoteScenarioType } from "@/lib/quote-scenario-selection";
 
 // ── 보험 조건 기본값 (장기렌트 기준 고정값) ─────────────────
 // 데이터 소스가 없는 표준 약관 기준값이므로 상수로 관리한다.
@@ -47,6 +48,33 @@ const C = {
   highlight: "#EEEEFA",
   thText: "#5A607A",
 };
+
+const SCENARIO_PRESENTATION = {
+  conservative: {
+    label: "보증금",
+    description: "보증금 20% · 월납입 절약",
+    selectedDescription: "보증금 적용 · 월납입 절약",
+  },
+  standard: {
+    label: "무보증",
+    description: "초기비용 없음 · 기본 추천",
+    selectedDescription: "초기비용 없음 · 기본 추천",
+  },
+  aggressive: {
+    label: "선납금",
+    description: "선납금 30% · 월납입 최소",
+    selectedDescription: "선납금 적용 · 월납입 최소",
+  },
+} as const satisfies Record<
+  QuoteScenarioType,
+  { readonly label: string; readonly description: string; readonly selectedDescription: string }
+>;
+
+const SCENARIO_ORDER = {
+  conservative: ["standard", "conservative", "aggressive"],
+  standard: ["conservative", "standard", "aggressive"],
+  aggressive: ["conservative", "aggressive", "standard"],
+} as const satisfies Record<QuoteScenarioType, readonly QuoteScenarioType[]>;
 
 const s = StyleSheet.create({
   page: {
@@ -248,7 +276,11 @@ export function QuoteDocument({
   const today = formatDate();
   const expiry = formatExpiryDate();
   const mileageLabel = `연 ${(data.annualMileage / 10000).toFixed(0)}만km`;
-  const { conservative, standard, aggressive } = data.scenarios;
+  const explicitScenarioType = parseQuoteScenarioType(data.scenarioType);
+  const selectedScenarioType = explicitScenarioType ?? "standard";
+  const scenarioOrder = SCENARIO_ORDER[selectedScenarioType];
+  const selectedScenario = data.scenarios[selectedScenarioType];
+  const selectedPresentation = SCENARIO_PRESENTATION[selectedScenarioType];
   const isProductRent = data.productType === "장기렌트";
   const hasColor = !!(data.exteriorColor || data.interiorColor);
 
@@ -376,55 +408,80 @@ export function QuoteDocument({
             {/* thead */}
             <View style={s.row}>
               <View style={[s.scThead, { width: "20%" }]} />
-              <View style={[s.scThead, { width: "26.66%" }]}>
-                <Text style={s.thLabel}>보증금</Text>
-                <Text style={s.thDesc}>보증금 20% · 월납입 절약</Text>
-              </View>
-              <View style={[s.scThead, s.scTheadHi, { width: "26.66%" }]}>
-                <Text style={[s.thLabel, s.thLabelHi]}>무보증 ★</Text>
-                <Text style={[s.thDesc, s.thDescHi]}>초기비용 없음 · 기본 추천</Text>
-              </View>
-              <View style={[s.scThead, { width: "26.68%" }]}>
-                <Text style={s.thLabel}>선납금</Text>
-                <Text style={s.thDesc}>선납금 30% · 월납입 최소</Text>
-              </View>
+              {scenarioOrder.map((scenarioType, index) => {
+                const isSelected = index === 1;
+                const presentation = SCENARIO_PRESENTATION[scenarioType];
+                return (
+                  <View
+                    key={scenarioType}
+                    style={[
+                      s.scThead,
+                      isSelected ? s.scTheadHi : {},
+                      { width: index === 2 ? "26.68%" : "26.66%" },
+                    ]}
+                  >
+                    <Text style={[s.thLabel, isSelected ? s.thLabelHi : {}]}>
+                      {presentation.label}{isSelected ? " ★" : ""}
+                    </Text>
+                    <Text style={[s.thDesc, isSelected ? s.thDescHi : {}]}>
+                      {isSelected && explicitScenarioType
+                        ? presentation.selectedDescription
+                        : presentation.description}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
             {/* 월 납입금 */}
             <View style={s.row}>
               <Text style={[s.th, { width: "20%" }]}>월 납입금</Text>
-              <View style={{ width: "26.66%" }}><ScenarioCell sc={conservative} hi={false} /></View>
-              <View style={{ width: "26.66%" }}><ScenarioCell sc={standard} hi /></View>
-              <View style={{ width: "26.68%" }}><ScenarioCell sc={aggressive} hi={false} /></View>
+              {scenarioOrder.map((scenarioType, index) => (
+                <View key={scenarioType} style={{ width: index === 2 ? "26.68%" : "26.66%" }}>
+                  <ScenarioCell sc={data.scenarios[scenarioType]} hi={index === 1} />
+                </View>
+              ))}
             </View>
             {/* 최우선 금융사 */}
             <View style={s.row}>
               <Text style={[s.th, { width: "20%" }]}>최우선 금융사</Text>
-              <View style={[s.td, { width: "26.66%" }]}>
-                <FinanceName name={conservative.bestFinanceCompany} logos={financeLogos} />
-              </View>
-              <View style={[s.td, s.scCellHi, { width: "26.66%" }]}>
-                <FinanceName name={standard.bestFinanceCompany} logos={financeLogos} hi />
-              </View>
-              <View style={[s.td, { width: "26.68%" }]}>
-                <FinanceName name={aggressive.bestFinanceCompany} logos={financeLogos} />
-              </View>
+              {scenarioOrder.map((scenarioType, index) => {
+                const isSelected = index === 1;
+                return (
+                  <View
+                    key={scenarioType}
+                    style={[
+                      s.td,
+                      isSelected ? s.scCellHi : {},
+                      { width: index === 2 ? "26.68%" : "26.66%" },
+                    ]}
+                  >
+                    <FinanceName
+                      name={data.scenarios[scenarioType].bestFinanceCompany}
+                      logos={financeLogos}
+                      hi={isSelected}
+                    />
+                  </View>
+                );
+              })}
             </View>
           </View>
         </View>
 
-        {/* 기본 추천 견적 (무보증) */}
+        {/* 선택/기본 추천 견적 */}
         <View style={s.section}>
-          <Text style={s.secTitle}>{nResult}. 기본 추천 견적 (무보증)</Text>
+          <Text style={s.secTitle}>
+            {nResult}. {explicitScenarioType ? "선택 견적" : "기본 추천 견적"} ({selectedPresentation.label})
+          </Text>
           <View style={s.resultBox}>
             <View>
               <Text style={s.resLabel}>최종 월 납입금</Text>
               <Text style={s.resSub}>
-                금융사: {standard.bestFinanceCompany} · 아임딜러 최저가 매칭
-                {standard.purchaseSurcharge > 0 ? `\n인수형 가산: +${fmt(standard.purchaseSurcharge)} 포함` : ""}
+                금융사: {selectedScenario.bestFinanceCompany} · 아임딜러 최저가 매칭
+                {selectedScenario.purchaseSurcharge > 0 ? `\n인수형 가산: +${fmt(selectedScenario.purchaseSurcharge)} 포함` : ""}
               </Text>
             </View>
             <View>
-              <Text style={s.resValue}>{fmtMonthly(standard.monthlyPayment)}</Text>
+              <Text style={s.resValue}>{fmtMonthly(selectedScenario.monthlyPayment)}</Text>
               {isProductRent && <Text style={s.resValueSub}>취등록세 · 자동차세 · 보험료 포함</Text>}
             </View>
           </View>

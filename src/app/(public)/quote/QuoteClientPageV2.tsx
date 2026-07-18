@@ -33,6 +33,10 @@ import {
 import type { VehicleListItem, QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
 import type { PDFQuoteData } from "@/lib/quote-pdf-template";
+import {
+  deriveQuoteScenarioType,
+  realignSelectedQuoteScenarios,
+} from "@/lib/quote-scenario-selection";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
 import {
   type LineupChoice,
@@ -574,7 +578,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         contractType: "반납형",
         customerType,
         productType: contractCategory,
-        scenarioType: "standard",
+        scenarioType: deriveQuoteScenarioType(customRates),
         customDepositRate: customRates.depositRate,
         customPrepayRate: customRates.prepayRate,
         exteriorColorId,
@@ -699,6 +703,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     setImageError(null);
 
     const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({ name, price }));
+    const scenarioType = deriveQuoteScenarioType(customRates);
     const payload: Partial<PDFQuoteData> = {
       vehicleName: selectedVehicle.name,
       vehicleBrand: selectedVehicle.brand,
@@ -712,7 +717,12 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       contractMonths: quoteResult.contractMonths,
       annualMileage: quoteResult.annualMileage,
       contractType: "반납형",
-      scenarios: quoteResult.scenarios,
+      scenarioType,
+      scenarios: realignSelectedQuoteScenarios(
+        quoteResult.scenarios,
+        scenarioType,
+        baseStandardScenario.current ?? quoteResult.scenarios.standard
+      ),
       exteriorColor: selectedExteriorColor
         ? { name: selectedExteriorColor.name, hexCode: selectedExteriorColor.hexCode, priceDelta: selectedExteriorColor.priceDelta }
         : null,

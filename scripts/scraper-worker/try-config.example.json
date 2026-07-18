@@ -1,0 +1,23 @@
+{
+  "_설명": "이 파일을 try-config.json 으로 복사해 채우세요. try-config.json 은 .gitignore 처리됩니다. 자격증명은 .env(SCRAPER_TEST_USER/PASS)에 두는 것을 권장합니다.",
+  "loginUrl": "https://캐피탈사-로그인-URL",
+  "username": "(권장: .env 의 SCRAPER_TEST_USER 사용. 여기 두면 파일에 평문 저장됨)",
+  "password": "(권장: .env 의 SCRAPER_TEST_PASS 사용)",
+  "config": {
+    "usernameSelector": "#username",
+    "passwordSelector": "#password",
+    "loginButtonSelector": "#login-btn",
+    "extendButtonSelector": "#extend-btn",
+    "twoFactorSelector": null,
+    "quoteUrlTemplate": "https://캐피탈사/quote?trim={code}",
+    "trimMap": {
+      "우리DB의-trimId-1": "사이트-트림코드-A",
+      "우리DB의-trimId-2": "사이트-트림코드-B"
+    }
+  },
+  "trimIds": ["우리DB의-trimId-1", "우리DB의-trimId-2"],
+  "weekOf": "2026-06-08",
+  "minVehiclePrice": 30000000,
+  "maxVehiclePrice": 40000000,
+  "productType": "장기렌트"
+}
