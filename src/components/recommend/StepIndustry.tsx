@@ -35,7 +35,7 @@ export function StepIndustry({
     <div className="space-y-3">
       <div className="mb-6">
         <span className="t-kick">STEP 01</span>
-        <h2 className="t-h1 mt-2">
+        <h2 className="t-h1 mt-2 break-keep">
           어떤 형태로 <span className="text-brand">차량을 등록</span>하실 건가요?
         </h2>
         <p className="t-sub mt-2">
