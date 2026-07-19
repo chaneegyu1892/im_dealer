@@ -6,6 +6,7 @@ describe("StepIndustry", () => {
   it("고객 유형을 고른 뒤 모든 유형에 같은 무보증 월예산 질문을 보여준다", () => {
     const onChange = vi.fn();
     const onBudgetChange = vi.fn();
+    const onComplete = vi.fn();
 
     const { rerender } = render(
       <StepIndustry
@@ -13,6 +14,7 @@ describe("StepIndustry", () => {
         onChange={onChange}
         budgetMax={null}
         onBudgetChange={onBudgetChange}
+        onComplete={onComplete}
       />
     );
 
@@ -26,6 +28,7 @@ describe("StepIndustry", () => {
         onChange={onChange}
         budgetMax={null}
         onBudgetChange={onBudgetChange}
+        onComplete={onComplete}
       />
     );
 
@@ -33,6 +36,7 @@ describe("StepIndustry", () => {
     expect(screen.getByText(/60개월 · 연 2만km · 무보증/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /월 100만원 이하/ }));
     expect(onBudgetChange).toHaveBeenCalledWith(1_000_000);
+    expect(onComplete).toHaveBeenCalledOnce();
   });
 
   it("50만·100만·150만원과 예산 미정 선택지를 제공한다", () => {
@@ -42,6 +46,7 @@ describe("StepIndustry", () => {
         onChange={vi.fn()}
         budgetMax={null}
         onBudgetChange={vi.fn()}
+        onComplete={vi.fn()}
       />
     );
 

@@ -5,8 +5,10 @@ import {
   NO_SIMPLE_PREFERENCE_VALUE,
   NO_SITUATION_PREFERENCE_VALUE,
 } from "@/constants/recommend-options";
+import { useRef } from "react";
 import { CircleOff } from "lucide-react";
 import { SelectionCard } from "./SelectionCard";
+import { useRecommendAutoScroll } from "./use-recommend-auto-scroll";
 
 type SituationPreference = "가족" | "화물";
 
@@ -19,6 +21,7 @@ interface StepPreferenceProps {
   onChildDetailChange: (value: string) => void;
   cargoDetail: string;
   onCargoDetailChange: (value: string) => void;
+  onComplete: () => void;
 }
 
 const SIMPLE_NONE_OPTION = {
@@ -50,7 +53,11 @@ export function StepPreference({
   onChildDetailChange,
   cargoDetail,
   onCargoDetailChange,
+  onComplete,
 }: StepPreferenceProps) {
+  const situationRef = useRef<HTMLElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const requestScroll = useRecommendAutoScroll();
   const situation = isSituationPreference(situationValue) ? situationValue : "";
   const detailValue = situation === "가족" ? childDetail : cargoDetail;
   const onDetailChange =
@@ -59,6 +66,26 @@ export function StepPreference({
     ? PREFERENCE_DETAIL_OPTIONS[situation] ?? []
     : [];
   const detailQuestion = situation ? PREFERENCE_DETAIL_QUESTION[situation] : null;
+
+  const handleSimpleChange = (value: string) => {
+    onSimpleChange(value);
+    requestScroll(situationRef);
+  };
+
+  const handleSituationChange = (value: string) => {
+    onSituationChange(value);
+    if (isSituationPreference(value)) {
+      requestScroll(detailRef);
+      return;
+    }
+
+    onComplete();
+  };
+
+  const handleDetailChange = (value: string) => {
+    onDetailChange(value);
+    onComplete();
+  };
 
   const feelOptions = [
     ...PREFERENCE_OPTIONS.filter((o) => o.kind === "feel"),
@@ -78,7 +105,7 @@ export function StepPreference({
         desc={opt.desc}
         icon={opt.icon}
         selected={isSelected}
-        onClick={() => onSimpleChange(opt.value)}
+        onClick={() => handleSimpleChange(opt.value)}
       />
     );
   };
@@ -92,7 +119,7 @@ export function StepPreference({
         desc={opt.desc}
         icon={opt.icon}
         selected={isSelected}
-        onClick={() => onSituationChange(opt.value)}
+        onClick={() => handleSituationChange(opt.value)}
       />
     );
   };
@@ -126,7 +153,11 @@ export function StepPreference({
         </div>
       </section>
 
-      <section aria-labelledby="situationPreferenceTitle" className="space-y-3 pt-4">
+      <section
+        ref={situationRef}
+        aria-labelledby="situationPreferenceTitle"
+        className="scroll-mt-24 space-y-3 pt-4"
+      >
         <div className="flex items-center justify-between gap-3">
           <div>
             <span className="t-kick text-[11px]">추가 조건</span>
@@ -144,7 +175,11 @@ export function StepPreference({
       </section>
 
       {situation && detailQuestion && (
-        <div key={situation} className="t-gray mt-6 animate-slide-down p-4">
+        <div
+          key={situation}
+          ref={detailRef}
+          className="t-gray mt-6 scroll-mt-24 animate-slide-down p-4"
+        >
           <div className="mb-4">
             <span className="t-kick text-[11px]">추가 질문</span>
             <h3 className="mt-1.5 text-[18px] font-extrabold leading-snug tracking-[-0.03em] text-text-strong">
@@ -162,7 +197,7 @@ export function StepPreference({
                 desc={opt.desc}
                 icon={opt.icon}
                 selected={detailValue === opt.value}
-                onClick={() => onDetailChange(opt.value)}
+                onClick={() => handleDetailChange(opt.value)}
               />
             ))}
           </div>

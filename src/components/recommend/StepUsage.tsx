@@ -1,9 +1,11 @@
 import { CHARGING_OPTIONS } from "@/constants/recommend-options";
+import { useRef } from "react";
 import type { RecommendFlowState } from "./recommend-flow-state";
 import { SelectionCard } from "./SelectionCard";
 import { StepFuelPreference } from "./StepFuelPreference";
 import { StepMileage } from "./StepMileage";
 import { StepRegion } from "./StepRegion";
+import { useRecommendAutoScroll } from "./use-recommend-auto-scroll";
 
 type UsageState = Pick<
   RecommendFlowState,
@@ -13,30 +15,59 @@ type UsageState = Pick<
 interface StepUsageProps {
   readonly value: UsageState;
   readonly onChange: (patch: Partial<UsageState>) => void;
+  readonly onComplete: () => void;
 }
 
-export function StepUsage({ value, onChange }: StepUsageProps) {
+export function StepUsage({ value, onChange, onComplete }: StepUsageProps) {
+  const fuelRef = useRef<HTMLDivElement>(null);
+  const chargingRef = useRef<HTMLDivElement>(null);
+  const regionRef = useRef<HTMLDivElement>(null);
+  const requestScroll = useRecommendAutoScroll();
+
+  const handleMileageChange = (annualMileage: number) => {
+    onChange({ annualMileage });
+    requestScroll(fuelRef);
+  };
+
   const handleFuelChange = (fuelPreference: string) => {
     onChange({
       fuelPreference,
       chargingEnvironment:
         fuelPreference === "전기차" ? value.chargingEnvironment : "",
     });
+    requestScroll(fuelPreference === "전기차" ? chargingRef : regionRef);
+  };
+
+  const handleChargingChange = (
+    chargingEnvironment: UsageState["chargingEnvironment"]
+  ) => {
+    onChange({ chargingEnvironment });
+    requestScroll(regionRef);
+  };
+
+  const handleRegionChange = (
+    residenceRegion: UsageState["residenceRegion"]
+  ) => {
+    onChange({ residenceRegion });
+    onComplete();
   };
 
   return (
     <div className="space-y-8">
       <StepMileage
         value={value.annualMileage}
-        onChange={(annualMileage) => onChange({ annualMileage })}
+        onChange={handleMileageChange}
       />
-      <div className="border-t border-border-subtle pt-7">
+      <div ref={fuelRef} className="scroll-mt-24 border-t border-border-subtle pt-7">
         <StepFuelPreference
           value={value.fuelPreference}
           onChange={handleFuelChange}
         />
         {value.fuelPreference === "전기차" && (
-          <div className="mt-5 rounded-[16px] border border-brand/15 bg-brand-soft p-4 transition-all duration-200">
+          <div
+            ref={chargingRef}
+            className="mt-5 scroll-mt-24 rounded-[16px] border border-brand/15 bg-brand-soft p-4 transition-all duration-200"
+          >
             <h3 className="text-[15px] font-extrabold text-text-strong">
               충전 환경이 있나요?
             </h3>
@@ -48,9 +79,7 @@ export function StepUsage({ value, onChange }: StepUsageProps) {
                 <SelectionCard
                   key={option.value}
                   selected={value.chargingEnvironment === option.value}
-                  onClick={() => onChange({
-                    chargingEnvironment: option.value,
-                  })}
+                  onClick={() => handleChargingChange(option.value)}
                   icon={option.icon}
                   label={option.label}
                   desc={option.desc}
@@ -60,10 +89,10 @@ export function StepUsage({ value, onChange }: StepUsageProps) {
           </div>
         )}
       </div>
-      <div className="border-t border-border-subtle pt-7">
+      <div ref={regionRef} className="scroll-mt-24 border-t border-border-subtle pt-7">
         <StepRegion
           value={value.residenceRegion}
-          onChange={(residenceRegion) => onChange({ residenceRegion })}
+          onChange={handleRegionChange}
         />
       </div>
     </div>

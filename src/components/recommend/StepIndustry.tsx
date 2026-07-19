@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import {
   BriefcaseBusiness,
   Building2,
@@ -11,12 +11,14 @@ import {
   INDUSTRY_OPTIONS,
 } from "@/constants/recommend-options";
 import { SelectionCard } from "./SelectionCard";
+import { useRecommendAutoScroll } from "./use-recommend-auto-scroll";
 
 interface StepIndustryProps {
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly budgetMax: number | null;
   readonly onBudgetChange: (value: number) => void;
+  readonly onComplete: () => void;
 }
 
 const INDUSTRY_ICONS = {
@@ -30,7 +32,21 @@ export function StepIndustry({
   onChange,
   budgetMax,
   onBudgetChange,
+  onComplete,
 }: StepIndustryProps) {
+  const budgetRef = useRef<HTMLElement>(null);
+  const requestScroll = useRecommendAutoScroll();
+
+  const handleIndustryChange = (industry: string) => {
+    onChange(industry);
+    requestScroll(budgetRef);
+  };
+
+  const handleBudgetChange = (budget: number) => {
+    onBudgetChange(budget);
+    onComplete();
+  };
+
   return (
     <div className="space-y-3">
       <div className="mb-6">
@@ -51,15 +67,16 @@ export function StepIndustry({
             desc={option.desc}
             icon={INDUSTRY_ICONS[option.value]}
             selected={value === option.value}
-            onClick={() => onChange(option.value)}
+            onClick={() => handleIndustryChange(option.value)}
           />
         ))}
       </div>
 
       {value !== "" && (
         <section
+          ref={budgetRef}
           aria-labelledby="monthlyBudgetTitle"
-          className="t-gray mt-6 animate-slide-down p-4"
+          className="t-gray mt-6 scroll-mt-24 animate-slide-down p-4"
         >
           <div className="mb-4">
             <span className="t-kick text-[11px]">공통 추가 질문</span>
@@ -87,7 +104,7 @@ export function StepIndustry({
                 desc={option.desc}
                 icon={<CircleDollarSign size={18} aria-hidden />}
                 selected={budgetMax === option.budgetMax}
-                onClick={() => onBudgetChange(option.budgetMax)}
+                onClick={() => handleBudgetChange(option.budgetMax)}
               />
             ))}
           </div>

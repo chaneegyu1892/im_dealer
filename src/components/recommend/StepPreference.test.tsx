@@ -16,6 +16,7 @@ function renderStepPreference(overrides?: {
   const onSituationChange = vi.fn();
   const onChildDetailChange = vi.fn();
   const onCargoDetailChange = vi.fn();
+  const onComplete = vi.fn();
 
   render(
     <StepPreference
@@ -27,6 +28,7 @@ function renderStepPreference(overrides?: {
       onChildDetailChange={onChildDetailChange}
       cargoDetail={overrides?.cargoDetail ?? ""}
       onCargoDetailChange={onCargoDetailChange}
+      onComplete={onComplete}
     />
   );
 
@@ -35,6 +37,7 @@ function renderStepPreference(overrides?: {
     onSituationChange,
     onChildDetailChange,
     onCargoDetailChange,
+    onComplete,
   };
 }
 
@@ -48,7 +51,7 @@ function sectionForHeading(name: string): HTMLElement {
 
 describe("StepPreference", () => {
   it("단순 질문과 심화 질문의 해당 없음 선택을 각각 받는다", () => {
-    const { onSimpleChange, onSituationChange } = renderStepPreference();
+    const { onSimpleChange, onSituationChange, onComplete } = renderStepPreference();
 
     const simpleSection = sectionForHeading("먼저 가장 중요한 방향을 골라주세요");
     const situationSection = sectionForHeading("아이나 짐 관련 조건이 있나요?");
@@ -58,6 +61,7 @@ describe("StepPreference", () => {
 
     expect(onSimpleChange).toHaveBeenCalledWith(NO_SIMPLE_PREFERENCE_VALUE);
     expect(onSituationChange).toHaveBeenCalledWith(NO_SITUATION_PREFERENCE_VALUE);
+    expect(onComplete).toHaveBeenCalledOnce();
   });
 
   it("각 해당 없음 선택지 왼쪽에도 아이콘을 표시한다", () => {
@@ -80,7 +84,7 @@ describe("StepPreference", () => {
   });
 
   it("가족을 고르면 가족 상세 질문을 보여준다", () => {
-    const { onChildDetailChange } = renderStepPreference({
+    const { onChildDetailChange, onComplete } = renderStepPreference({
       simpleValue: "안정감",
       situationValue: "가족",
     });
@@ -89,5 +93,6 @@ describe("StepPreference", () => {
 
     expect(screen.getByText("자녀 연령대는 어떻게 되나요?")).toBeInTheDocument();
     expect(onChildDetailChange).toHaveBeenCalledWith("영유아");
+    expect(onComplete).toHaveBeenCalledOnce();
   });
 });

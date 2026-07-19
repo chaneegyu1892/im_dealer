@@ -12,12 +12,18 @@ import {
   buildRecommendInput,
   isRecommendStepValid,
 } from "./recommend-flow-state";
+import {
+  getRecommendScrollBehavior,
+  useRecommendAutoScroll,
+} from "./use-recommend-auto-scroll";
 
 const TOTAL_STEPS = 3;
 
 export function RecommendFlow() {
   const router = useRouter();
   const flowRef = useRef<HTMLDivElement>(null);
+  const actionRef = useRef<HTMLButtonElement>(null);
+  const requestScroll = useRecommendAutoScroll();
   const [step, setStep] = useState<StepId>(1);
   const [state, setState] = useState(INITIAL_RECOMMEND_FLOW_STATE);
   const [loading, setLoading] = useState(false);
@@ -26,12 +32,14 @@ export function RecommendFlow() {
   const canProceed = isRecommendStepValid(step, state);
 
   useEffect(() => {
+    const behavior = getRecommendScrollBehavior();
+
     if (step === 1) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior });
       return;
     }
 
-    flowRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    flowRef.current?.scrollIntoView({ block: "start", behavior });
   }, [step]);
 
   const handleNext = async () => {
@@ -90,6 +98,10 @@ export function RecommendFlow() {
     }));
   };
 
+  const handleStepComplete = () => {
+    requestScroll(actionRef, "nearest");
+  };
+
   const stepLabel = (STEPS.find((s) => s.id === step) ?? STEPS[0]).label;
 
   return (
@@ -132,6 +144,7 @@ export function RecommendFlow() {
             onChange={(industry) => setState((current) => ({ ...current, industry }))}
             budgetMax={state.budgetMax}
             onBudgetChange={(budgetMax) => setState((current) => ({ ...current, budgetMax }))}
+            onComplete={handleStepComplete}
           />
         )}
         {step === 2 && (
@@ -148,12 +161,14 @@ export function RecommendFlow() {
             onCargoDetailChange={(v) =>
               setState((s) => ({ ...s, cargoDetail: v }))
             }
+            onComplete={handleStepComplete}
           />
         )}
         {step === 3 && (
           <StepUsage
             value={state}
             onChange={(patch) => setState((current) => ({ ...current, ...patch }))}
+            onComplete={handleStepComplete}
           />
         )}
       </div>
@@ -178,6 +193,7 @@ export function RecommendFlow() {
               </button>
             )}
             <button
+              ref={actionRef}
               type="button"
               disabled={!canProceed || loading}
               onClick={handleNext}
