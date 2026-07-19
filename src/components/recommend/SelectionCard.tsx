@@ -26,10 +26,10 @@ export function SelectionCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-[16px] p-4 text-left transition-all duration-200 active:scale-[0.99]",
+        "flex w-full items-center gap-3 rounded-[16px] p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.99]",
         selected
           ? "bg-brand-soft ring-[1.5px] ring-brand"
-          : "bg-[#F8FAFC] ring-[1.5px] ring-transparent hover:ring-[#E5E8EB]"
+          : "bg-surface-soft ring-[1.5px] ring-transparent hover:ring-border-subtle"
       )}
     >
       {icon && (
@@ -75,7 +75,7 @@ export function SelectionCard({
       <span
         className={cn(
           "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors",
-          selected ? "border-brand bg-brand" : "border-[#D7DCE2] bg-transparent"
+          selected ? "border-brand bg-brand" : "border-border-strong bg-transparent"
         )}
       >
         {selected && <Check size={13} className="text-white" strokeWidth={3} />}

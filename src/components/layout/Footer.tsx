@@ -48,7 +48,8 @@ export function Footer() {
               className="h-5 w-auto lg:h-6"
             />
             <p className="mt-2 max-w-[280px] break-keep text-[12.5px] font-medium leading-relaxed text-text-muted lg:mt-3 lg:text-[13px]">
-              허위견적 없이, 장기렌트·리스 조건을 먼저 비교하는 견적 서비스
+              허위견적 없이, 장기렌트·리스 조건을 먼저 비교하는{" "}
+              <span className="whitespace-nowrap">견적 서비스</span>
             </p>
             <div className="mt-4 flex flex-wrap gap-2 lg:mt-5">
               <a
