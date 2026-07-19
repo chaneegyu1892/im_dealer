@@ -61,7 +61,6 @@ export function buildRecommendInput(state: RecommendFlowState): RecommendInput {
 
   return {
     industry: state.industry,
-    budgetMin: 0,
     budgetMax: state.budgetMax ?? 0,
     preferences,
     annualMileage: state.annualMileage,
