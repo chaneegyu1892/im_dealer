@@ -42,20 +42,19 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
               상담은 원할 때만 이어갑니다.
             </p>
 
-            {/* 단일 메인 CTA + AI 추천 보조 */}
             <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
               <Link
-                href="/cars"
+                href="/recommend"
                 className="flex h-[56px] w-[180px] items-center justify-center gap-2 rounded-[14px] bg-brand px-3 text-[16px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99] md:text-[17px]"
               >
-                차량 둘러보기
+                AI 추천 받기
                 <ArrowRight size={17} strokeWidth={2.4} />
               </Link>
               <Link
-                href="/recommend"
+                href="/cars"
                 className="flex h-[56px] w-[180px] items-center justify-center gap-2 rounded-[14px] bg-[#F8FAFC] px-3 text-[16px] font-bold text-text-strong ring-[1.5px] ring-transparent transition-all hover:ring-[#E5E8EB] active:scale-[0.99] md:text-[17px]"
               >
-                AI 추천 받기
+                차량 둘러보기
               </Link>
             </div>
 
