@@ -119,7 +119,7 @@ function InitialCostControl({
   };
 
   return (
-    <div className="space-y-3 bg-white border border-line2 rounded-card p-4">
+    <div className="space-y-3 bg-surface border border-line2 rounded-card p-4">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <p className="text-[12px] font-bold text-text-secondary uppercase tracking-wider">
@@ -147,7 +147,7 @@ function InitialCostControl({
                 "py-3 px-3 rounded-card border-2 text-left transition-all duration-150",
                 isActive
                   ? "border-brand bg-brand-soft"
-                  : "border-line2 bg-white hover:border-brand/30"
+                  : "border-line2 bg-surface hover:border-brand/30"
               )}
             >
               <span className="block text-[10px] font-medium uppercase tracking-wider text-text-muted mb-0.5">
@@ -246,7 +246,7 @@ function InitialCostControl({
                       className={cn(
                         "px-3.5 py-2 rounded-full border text-[12px] font-bold transition-all duration-150",
                         activeRate === r
-                          ? "bg-brand text-white border-brand"
+                          ? "bg-brand text-[var(--color-brand-ink)] border-brand"
                           : "bg-surface text-text-secondary border-line2 hover:border-brand/40"
                       )}
                     >
@@ -765,7 +765,7 @@ export function ComparisonSection({
               className={cn(
                 "w-full py-3 rounded-btn text-[14px] font-bold transition-all",
                 canCompare && !isComparing
-                  ? "bg-brand text-white hover:bg-brand-dark shadow-lift"
+                  ? "bg-brand text-[var(--color-brand-ink)] hover:bg-brand-dark shadow-lift"
                   : "bg-sec text-text-muted cursor-not-allowed"
               )}
             >

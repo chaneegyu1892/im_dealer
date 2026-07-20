@@ -989,7 +989,7 @@ function Step1CustomerType({
               <span
                 className={cn(
                   "flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] transition-colors",
-                  selected ? "bg-brand text-white" : "bg-surface text-text-body"
+                  selected ? "bg-brand text-[var(--color-brand-ink)]" : "bg-surface text-text-body"
                 )}
               >
                 {option.icon}
@@ -1005,7 +1005,7 @@ function Step1CustomerType({
               <span
                 className={cn(
                   "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all",
-                  selected ? "bg-brand text-white" : "bg-border-subtle text-transparent"
+                  selected ? "bg-brand text-[var(--color-brand-ink)]" : "bg-border-subtle text-transparent"
                 )}
               >
                 <Check size={14} strokeWidth={2.6} />
@@ -1379,7 +1379,7 @@ function FixedCTA({
         <button
           type="button"
           onClick={onClick}
-          className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99]"
+          className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-[var(--color-brand-ink)] shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99]"
         >
           {icon}
           {label}

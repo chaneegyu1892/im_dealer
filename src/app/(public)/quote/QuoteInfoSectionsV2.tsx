@@ -91,7 +91,7 @@ const RANK_STYLE: Record<number, { badgeClass: string; label: string }> = {
   0: { badgeClass: "bg-brand-soft text-brand", label: "최저가" },
   1: { badgeClass: "bg-status-positive-soft text-status-positive", label: "2순위" },
   2: { badgeClass: "bg-status-warning-soft text-status-warning", label: "3순위" },
-  3: { badgeClass: "bg-[#F8FAFC] text-text-muted", label: "기타" },
+  3: { badgeClass: "bg-surface-soft text-text-muted", label: "기타" },
 };
 
 export function FinanceSectionV2({ results }: { results: FinanceCompanyQuote[] }) {
@@ -104,16 +104,16 @@ export function FinanceSectionV2({ results }: { results: FinanceCompanyQuote[] }
   const best = sorted[0];
 
   return (
-    <div className="overflow-hidden rounded-[20px] bg-[#F8FAFC]">
+    <div className="overflow-hidden rounded-[20px] bg-surface-soft">
       {/* 헤더 */}
-      <div className="flex items-center gap-2 border-b border-[#E5E8EB] bg-white/50 px-5 py-3.5">
+      <div className="flex items-center gap-2 border-b border-border-subtle bg-surface/50 px-5 py-3.5">
         <Trophy size={13} className="text-brand" />
         <span className="text-[12px] font-bold uppercase tracking-[0.06em] text-text-body">금융사별 견적</span>
         <span className="num ml-auto text-[11.5px] text-text-muted tabular-nums">{sorted.length}개사</span>
       </div>
 
       {/* 상위 2개 항상 노출 */}
-      <div className="divide-y divide-[#E5E8EB] bg-white">
+      <div className="divide-y divide-border-subtle bg-surface">
         {top2.map((r, i) => (
           <FinanceRowV2 key={`${r.financeCompanyName}-${i}`} result={r} rank={i} best={best} />
         ))}
@@ -125,7 +125,7 @@ export function FinanceSectionV2({ results }: { results: FinanceCompanyQuote[] }
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="flex w-full items-center justify-center gap-1.5 border-t border-[#E5E8EB] bg-white/50 py-3 text-[12px] font-bold text-text-muted transition-colors hover:bg-[#F2F4F6]"
+            className="flex w-full items-center justify-center gap-1.5 border-t border-border-subtle bg-surface/50 py-3 text-[12px] font-bold text-text-muted transition-colors hover:bg-surface-soft"
           >
             {expanded ? (
               <>접기 <ChevronUp size={13} /></>
@@ -134,7 +134,7 @@ export function FinanceSectionV2({ results }: { results: FinanceCompanyQuote[] }
             )}
           </button>
           {expanded && (
-            <div className="divide-y divide-[#E5E8EB] border-t border-[#E5E8EB] bg-white">
+            <div className="divide-y divide-border-subtle border-t border-border-subtle bg-surface">
               {rest.map((r, i) => (
                 <FinanceRowV2 key={`${r.financeCompanyName}-${i}`} result={r} rank={i + 2} best={best} />
               ))}

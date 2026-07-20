@@ -35,7 +35,7 @@ export function QuoteResultActions({
           onClick={onContractApply}
           disabled={isApplying}
           aria-busy={isApplying}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-btn bg-brand px-3 text-[14px] font-extrabold text-white transition-colors duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-btn bg-brand px-3 text-[14px] font-extrabold text-[var(--color-brand-ink)] transition-colors duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <ClipboardCheck aria-hidden="true" size={17} />
           {isApplying ? "견적 저장 중…" : "심사 요청하기"}
@@ -65,7 +65,7 @@ export function QuoteResultActions({
           <button
             type="button"
             onClick={() => setIsPreparationOpen(false)}
-            className="inline-flex min-h-12 w-full items-center justify-center rounded-btn bg-brand px-5 text-[14px] font-extrabold text-white transition-colors duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-btn bg-brand px-5 text-[14px] font-extrabold text-[var(--color-brand-ink)] transition-colors duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
           >
             확인
           </button>

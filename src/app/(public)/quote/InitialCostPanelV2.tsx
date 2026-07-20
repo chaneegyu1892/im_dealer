@@ -199,7 +199,7 @@ export function InitialCostPanelV2({
                   className={cn(
                     "rounded-full border px-3.5 py-2 text-[12px] font-bold transition-all duration-150",
                     activeRate === 0
-                      ? "border-text-strong bg-text-strong text-white"
+                      ? "border-text-strong bg-text-strong text-surface"
                       : "border-border-subtle bg-surface text-text-body hover:border-text-strong/40"
                   )}
                 >
@@ -213,7 +213,7 @@ export function InitialCostPanelV2({
                     className={cn(
                       "rounded-full border px-3.5 py-2 text-[12px] font-bold transition-all duration-150",
                       activeRate === r
-                        ? "border-brand bg-brand text-white"
+                        ? "border-brand bg-brand text-[var(--color-brand-ink)]"
                       : "border-border-subtle bg-surface text-text-body hover:border-brand/40"
                     )}
                   >
