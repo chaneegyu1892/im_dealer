@@ -1187,23 +1187,23 @@ function Step3ResultHeader({
 
       {quoteResult.requiresConsultation === true || !standardScenario ? (
         <>
-          <div className="rounded-[24px] bg-brand p-6 text-white md:p-7">
-            <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
+          <div className="rounded-[24px] bg-brand p-6 text-[var(--color-brand-ink)] md:p-7">
+            <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[rgb(var(--color-brand-ink-rgb)/0.7)]">월 납입금</p>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[30px] font-extrabold leading-tight text-white sm:text-[36px]">
+                <p className="text-[30px] font-extrabold leading-tight text-[var(--color-brand-ink)] sm:text-[36px]">
                   별도 상담 필요
                 </p>
-                <p className="mt-2 text-[14px] font-bold text-white/90">
+                <p className="mt-2 text-[14px] font-bold text-[rgb(var(--color-brand-ink-rgb)/0.9)]">
                   이 차량은 별도 상담이 필요합니다
                 </p>
               </div>
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-white/85">
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-[rgb(var(--color-brand-ink-rgb)/0.85)]">
                 <AlertCircle size={12} />
                 견적 준비중
               </span>
             </div>
-            <p className="mt-4 text-[13.5px] leading-relaxed text-white/75">
+            <p className="mt-4 text-[13.5px] leading-relaxed text-[rgb(var(--color-brand-ink-rgb)/0.75)]">
               현재 자동 견적에 필요한 데이터가 등록되지 않아 정확한 월 납입금을 즉시 산출하기 어렵습니다.
               선택하신 조건 기준으로 상담을 통해 맞춤 견적을 안내해드릴게요.
             </p>
@@ -1212,10 +1212,10 @@ function Step3ResultHeader({
               label="선택 조건으로 상담 요청하기"
               onClick={onConsultationRequest}
               loading={isConsultationSubmitting}
-              className="mt-5 h-[48px] rounded-[14px] bg-white px-4 text-[14px] font-bold text-brand hover:bg-white/95"
+              className="mt-5 h-[48px] rounded-[14px] bg-white px-4 text-[14px] font-bold text-[var(--color-kakao-ink)] hover:bg-white/95"
             />
             {consultationError && (
-              <p role="alert" className="mt-3 rounded-[10px] bg-white/10 px-3 py-2 text-[12.5px] leading-relaxed text-white">
+              <p role="alert" className="mt-3 rounded-[10px] bg-white/10 px-3 py-2 text-[12.5px] leading-relaxed text-[var(--color-brand-ink)]">
                 {consultationError}
               </p>
             )}
@@ -1237,11 +1237,11 @@ function Step3ResultHeader({
       ) : (
         <>
           {/* ── 2) 월 납입금 대형 강조 (실제 데이터) ── */}
-          <div className="rounded-[24px] bg-brand p-6 text-white md:p-7">
+          <div className="rounded-[24px] bg-brand p-6 text-[var(--color-brand-ink)] md:p-7">
             <div className="flex items-center justify-between">
-              <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
+              <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[rgb(var(--color-brand-ink-rgb)/0.7)]">월 납입금</p>
               {isRecalculating && (
-                <span className="flex items-center gap-1.5 text-[11.5px] text-white/70">
+                <span className="flex items-center gap-1.5 text-[11.5px] text-[rgb(var(--color-brand-ink-rgb)/0.7)]">
                   <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                   재계산 중…
                 </span>
@@ -1250,13 +1250,13 @@ function Step3ResultHeader({
             <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <TossPrice won={standardScenario.monthlyPayment} size="xl" tone="white" />
               {standardScenario.bestFinanceCompany && (
-                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-white/85">
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-[rgb(var(--color-brand-ink-rgb)/0.85)]">
                   <Building2 size={11} />
                   {standardScenario.bestFinanceCompany}
                 </span>
               )}
             </div>
-            <p className="mt-3 text-[13.5px] text-white/75">
+            <p className="mt-3 text-[13.5px] text-[rgb(var(--color-brand-ink-rgb)/0.75)]">
               {CUSTOMER_TYPE_LABELS[customerType]} · {contractCategory}
             </p>
           </div>
