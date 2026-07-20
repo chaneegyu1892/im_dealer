@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  */
 
 type TossPriceSize = "sm" | "md" | "lg" | "xl";
-type TossPriceTone = "ink" | "brand" | "white";
+type TossPriceTone = "ink" | "brand" | "white" | "onBrand";
 
 interface TossPriceProps {
   won: number;
@@ -32,6 +32,7 @@ const TONE: Record<TossPriceTone, { num: string; unit: string }> = {
   ink: { num: "text-text-strong", unit: "text-text-body" },
   brand: { num: "text-brand", unit: "text-text-body" },
   white: { num: "text-white", unit: "text-white/70" },
+  onBrand: { num: "text-[var(--color-brand-ink)]", unit: "text-[var(--color-brand-ink)]" },
 };
 
 export function TossPrice({ won, size = "md", tone = "ink", prefix, className }: TossPriceProps) {

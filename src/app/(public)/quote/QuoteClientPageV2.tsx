@@ -1024,8 +1024,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const stepLabel = STEPS[step - 1];
 
   return (
-    <div className="min-h-screen bg-white pb-[calc(96px+env(safe-area-inset-bottom,0px))] md:pb-0">
-      <header className="sticky top-14 z-40 border-b border-[#E5E8EB] bg-white/95 backdrop-blur-md md:hidden">
+    <div className="min-h-screen bg-app-bg pb-[calc(96px+env(safe-area-inset-bottom,0px))] md:pb-0">
+      <header className="sticky top-14 z-40 border-b border-border-subtle bg-surface/95 backdrop-blur-md md:hidden">
         <div className="flex h-14 items-center gap-3 px-5">
           <button
             type="button"
@@ -1052,7 +1052,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
             {step}<span className="text-text-muted">/{STEPS.length}</span>
           </span>
         </div>
-        <div className="h-[2px] bg-[#E5E8EB]">
+        <div className="h-[2px] bg-border-subtle">
           <motion.div
             className="h-full bg-brand"
             initial={false}
@@ -1063,7 +1063,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       </header>
 
       {/* 데스크톱 헤더 */}
-      <div className="hidden border-b border-[#E5E8EB] bg-white md:block">
+      <div className="hidden border-b border-border-subtle bg-surface md:block">
         <div className="mx-auto max-w-[680px] px-8 py-10">
           <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-[12px] font-bold text-brand">
             실시간 견적
@@ -1238,13 +1238,13 @@ function Step1CustomerType({
                 "flex w-full items-center gap-4 rounded-[20px] px-5 py-5 text-left transition-all duration-200 md:px-6 md:py-6",
                 selected
                   ? "bg-brand-soft ring-[1.5px] ring-brand"
-                  : "bg-[#F8FAFC] ring-[1.5px] ring-transparent hover:ring-[#E5E8EB]"
+                  : "bg-surface-soft ring-[1.5px] ring-transparent hover:ring-border-subtle"
               )}
             >
               <span
                 className={cn(
                   "flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] transition-colors",
-                  selected ? "bg-brand text-white" : "bg-white text-text-body"
+                  selected ? "bg-brand text-[var(--color-brand-ink)]" : "bg-surface text-text-body"
                 )}
               >
                 {option.icon}
@@ -1260,7 +1260,7 @@ function Step1CustomerType({
               <span
                 className={cn(
                   "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all",
-                  selected ? "bg-brand text-white" : "bg-[#E5E8EB] text-transparent"
+                  selected ? "bg-brand text-[var(--color-brand-ink)]" : "bg-border-subtle text-transparent"
                 )}
               >
                 <Check size={14} strokeWidth={2.6} />
@@ -1357,9 +1357,9 @@ function Step3ResultHeader({
       className="space-y-5"
     >
       {/* ── 1) 차량 정보 카드 (실제 데이터) ── */}
-      <div className="rounded-[24px] bg-[#F8FAFC] p-5 md:p-6">
+      <div className="rounded-[24px] bg-surface-soft p-5 md:p-6">
         <div className="flex items-center gap-4">
-          <div className="relative h-[72px] w-[108px] shrink-0 overflow-hidden rounded-[14px] bg-white">
+          <div className="relative h-[72px] w-[108px] shrink-0 overflow-hidden rounded-[14px] bg-surface">
             {selectedVehicle?.thumbnailUrl ? (
               <Image
                 src={selectedVehicle.thumbnailUrl}
@@ -1393,7 +1393,7 @@ function Step3ResultHeader({
               {selectedOptionDetails.map((o) => (
                 <span
                   key={o.id}
-                  className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-text-body ring-[1px] ring-[#E5E8EB]"
+                  className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-[12px] font-bold text-text-body ring-[1px] ring-border-subtle"
                 >
                   {o.name}
                 </span>
@@ -1420,7 +1420,7 @@ function Step3ResultHeader({
           )}
         </div>
 
-        <div className="my-4 h-[1px] bg-[#E5E8EB]" />
+        <div className="my-4 h-[1px] bg-border-subtle" />
 
         {/* 계약 조건 */}
         <div className="grid grid-cols-3 gap-2">
@@ -1438,7 +1438,7 @@ function Step3ResultHeader({
           </div>
         </div>
 
-        <div className="my-4 h-[1px] bg-[#E5E8EB]" />
+        <div className="my-4 h-[1px] bg-border-subtle" />
 
         <div className="flex items-center justify-between">
           <span className="text-[12.5px] text-text-body">
@@ -1452,23 +1452,23 @@ function Step3ResultHeader({
 
       {quoteResult.requiresConsultation === true || !standardScenario ? (
         <>
-          <div className="rounded-[24px] bg-brand p-6 text-white md:p-7">
-            <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
+          <div className="rounded-[24px] bg-brand p-6 text-[var(--color-brand-ink)] md:p-7">
+            <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[var(--color-brand-ink)]">월 납입금</p>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[30px] font-extrabold leading-tight text-white sm:text-[36px]">
+                <p className="text-[30px] font-extrabold leading-tight text-[var(--color-brand-ink)] sm:text-[36px]">
                   별도 상담 필요
                 </p>
-                <p className="mt-2 text-[14px] font-bold text-white/90">
+                <p className="mt-2 text-[14px] font-bold text-[var(--color-brand-ink)]">
                   이 차량은 별도 상담이 필요합니다
                 </p>
               </div>
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-white/85">
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-[var(--color-brand-ink)]">
                 <AlertCircle size={12} />
                 견적 준비중
               </span>
             </div>
-            <p className="mt-4 text-[13.5px] leading-relaxed text-white/75">
+            <p className="mt-4 text-[13.5px] leading-relaxed text-[var(--color-brand-ink)]">
               현재 자동 견적에 필요한 데이터가 등록되지 않아 정확한 월 납입금을 즉시 산출하기 어렵습니다.
               선택하신 조건 기준으로 상담을 통해 맞춤 견적을 안내해드릴게요.
             </p>
@@ -1477,16 +1477,16 @@ function Step3ResultHeader({
               label="선택 조건으로 상담 요청하기"
               onClick={onConsultationRequest}
               loading={isConsultationSubmitting}
-              className="mt-5 h-[48px] rounded-[14px] bg-white px-4 text-[14px] font-bold text-brand hover:bg-white/95"
+              className="mt-5 h-[48px] rounded-[14px] bg-white px-4 text-[14px] font-bold text-[var(--color-kakao-ink)] hover:bg-white/95"
             />
             {consultationError && (
-              <p role="alert" className="mt-3 rounded-[10px] bg-white/10 px-3 py-2 text-[12.5px] leading-relaxed text-white">
+              <p role="alert" className="mt-3 rounded-[10px] bg-white/10 px-3 py-2 text-[12.5px] leading-relaxed text-[var(--color-brand-ink)]">
                 {consultationError}
               </p>
             )}
           </div>
 
-          <div className="rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
+          <div className="rounded-[16px] bg-surface-soft p-4 text-[12px] leading-relaxed text-text-muted">
             옵션·계약조건에 따라 캐피탈사별 금액이 크게 달라질 수 있어 상담을 통한 견적이 더 정확합니다.
           </div>
 
@@ -1502,26 +1502,26 @@ function Step3ResultHeader({
       ) : (
         <>
           {/* ── 2) 월 납입금 대형 강조 (실제 데이터) ── */}
-          <div className="rounded-[24px] bg-brand p-6 text-white md:p-7">
+          <div className="rounded-[24px] bg-brand p-6 text-[var(--color-brand-ink)] md:p-7">
             <div className="flex items-center justify-between">
-              <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
+              <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[var(--color-brand-ink)]">월 납입금</p>
               {isRecalculating && (
-                <span className="flex items-center gap-1.5 text-[11.5px] text-white/70">
-                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                <span className="flex items-center gap-1.5 text-[11.5px] text-[var(--color-brand-ink)]">
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[rgb(var(--color-brand-ink-rgb)/0.35)] border-t-[var(--color-brand-ink)]" />
                   재계산 중…
                 </span>
               )}
             </div>
             <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <TossPrice won={standardScenario.monthlyPayment} size="xl" tone="white" />
+              <TossPrice won={standardScenario.monthlyPayment} size="xl" tone="onBrand" />
               {standardScenario.bestFinanceCompany && (
-                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-white/85">
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-[var(--color-brand-ink)]">
                   <Building2 size={11} />
                   {standardScenario.bestFinanceCompany}
                 </span>
               )}
             </div>
-            <p className="mt-3 text-[13.5px] text-white/75">
+            <p className="mt-3 text-[13.5px] text-[var(--color-brand-ink)]">
               {CUSTOMER_TYPE_LABELS[customerType]} · {contractCategory}
             </p>
           </div>
@@ -1591,9 +1591,10 @@ function Step3ResultHeader({
           <CostCheckpointV2 contractType="반납형" customerType={customerType} />
 
           {/* ── 11) 안내 + CTA ── */}
-          <div className="break-keep rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
-            위 견적은 실제 계약 가능한 기준이나, 최종 금액은 차량 상태·옵션·프로모션에 따라
-            달라질 수 있어요. 전문가 상담으로 확정 견적을 받아보세요.
+          <div className="break-keep rounded-[16px] bg-surface-soft p-4 text-[12px] leading-relaxed text-text-body">
+            <span className="inline-block">위 견적은 실제 계약 가능한 기준이나, 최종 금액은</span>{" "}
+            <span className="inline-block">차량 상태·옵션·프로모션에 따라 달라질 수 있어요.</span>{" "}
+            <span className="inline-block">전문가 상담으로 확정 견적을 받아보세요.</span>
           </div>
 
           <QuoteResultActions
@@ -1634,13 +1635,13 @@ function FixedCTA({
   onPrev?: () => void;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E5E8EB] bg-white/95 px-5 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border-subtle bg-surface/95 px-5 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
       <div className="mx-auto flex max-w-[680px] gap-2">
         {onPrev && (
           <button
             type="button"
             onClick={onPrev}
-            className="flex h-[52px] items-center justify-center rounded-[14px] border border-[#E5E8EB] bg-white px-5 text-[15px] font-bold text-text-body transition-colors hover:bg-[#F8FAFC]"
+            className="flex h-[52px] items-center justify-center rounded-[14px] border border-border-subtle bg-surface px-5 text-[15px] font-bold text-text-body transition-colors hover:bg-surface-soft"
           >
             이전
           </button>
@@ -1648,7 +1649,7 @@ function FixedCTA({
         <button
           type="button"
           onClick={onClick}
-          className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99]"
+          className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-[var(--color-brand-ink)] shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99]"
         >
           {icon}
           {label}

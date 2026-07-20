@@ -131,7 +131,7 @@ export function ComparisonTable({ primary, comparison }: ComparisonTableProps) {
   );
 
   return (
-    <div className="bg-white rounded-card border border-line2 shadow-soft overflow-hidden">
+    <div className="bg-surface rounded-card border border-line2 shadow-soft overflow-hidden">
       <div className="hidden md:block">
         <DesktopTable columns={columns} totalCosts={totalCosts} />
       </div>
@@ -169,7 +169,7 @@ function DesktopTable({ columns, totalCosts }: RowProps) {
       {/* Header */}
       <div className="bg-sec" />
       {columns.map((col, i) => (
-        <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-white")}>
+        <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-surface")}>
           <p className="text-[11px] font-bold text-brand uppercase tracking-wider mb-1">{col.label}</p>
           <p className="text-[12px] text-ink-caption">{col.brand}</p>
           <p className="text-[15px] font-medium text-ink leading-snug">{col.vehicleName}</p>
@@ -299,7 +299,7 @@ function MobileStack({ columns, totalCosts }: RowProps) {
   return (
     <div className="divide-y divide-border-subtle">
       {columns.map((col, i) => (
-        <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-white")}>
+        <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-surface")}>
           <div className="flex items-start gap-2 mb-3">
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-bold text-brand uppercase tracking-wider mb-0.5">{col.label}</p>
@@ -338,7 +338,7 @@ function MobileStack({ columns, totalCosts }: RowProps) {
           )}
 
           {/* 월 납입금 */}
-          <div className="bg-white rounded-[10px] border border-line2 p-3 mb-2">
+          <div className="bg-surface rounded-[10px] border border-line2 p-3 mb-2">
             <div className="flex items-center justify-between flex-wrap gap-1">
               <p className="text-[12px] text-ink-label">월 납입금</p>
               <div className="flex items-center flex-wrap gap-1">

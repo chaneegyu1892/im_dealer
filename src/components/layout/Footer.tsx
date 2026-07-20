@@ -45,7 +45,7 @@ export function Footer() {
               width={137}
               height={28}
               unoptimized
-              className="h-5 w-auto lg:h-6"
+              className="public-brand-logo h-5 w-auto lg:h-6"
             />
             <p className="mt-2 max-w-[280px] break-keep text-[12.5px] font-medium leading-relaxed text-text-muted lg:mt-3 lg:text-[13px]">
               허위견적 없이, 장기렌트·리스 조건을 먼저 비교하는{" "}
