@@ -6,6 +6,14 @@ import type { Carpan2ImagePersistence } from "./persistence";
 import type { Carpan2ImageCandidate } from "./types";
 import { mirrorImage, type MirrorContext } from "../vehicle-image-mirror";
 
+const storageCleanupMocks = vi.hoisted(() => ({
+  enqueueStorageCleanup: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock("../vehicle-images/storage-cleanup", () => ({
+  enqueueStorageCleanup: storageCleanupMocks.enqueueStorageCleanup,
+}));
+
 const dbVehicle = { id: "vehicle-1", externalId: "model-1", brand: "기아", name: "쏘렌토" };
 const ctx: MirrorContext = { cache: new Map<string, string>(), timeoutMs: 1, supabase: createClient("http://127.0.0.1:54321", "fake-key") };
 
