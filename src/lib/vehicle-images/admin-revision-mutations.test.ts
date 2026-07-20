@@ -37,6 +37,8 @@ function image(overrides: Partial<VehicleImage> = {}): VehicleImage {
     sourceUrl: null,
     sourceKey: "admin:image-1",
     adminStoragePath: "admin/vehicle-1/image.webp",
+    listThumbnailUrl: "/list-thumbnail.webp",
+    listThumbnailStoragePath: "list-thumbnails/v1/admin/vehicle-1/image.webp",
     displayOrder: 0,
     isVisible: true,
     deletedAt: null,

@@ -366,21 +366,23 @@ model VehicleColor {
 }
 
 model VehicleImage {
-  id               String             @id @default(cuid())
-  vehicleId        String
-  type             VehicleImageType
-  origin           VehicleImageOrigin @default(CARPAN2)
-  title            String?
-  storageUrl       String
-  sourceUrl        String?
-  sourceKey        String
-  adminStoragePath String?            @unique
-  displayOrder     Int                @default(0)
-  isVisible        Boolean            @default(true)
-  deletedAt        DateTime?
-  metadata         Json?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id                       String             @id @default(cuid())
+  vehicleId                String
+  type                     VehicleImageType
+  origin                   VehicleImageOrigin @default(CARPAN2)
+  title                    String?
+  storageUrl               String
+  sourceUrl                String?
+  sourceKey                String
+  adminStoragePath         String?            @unique
+  listThumbnailUrl         String?
+  listThumbnailStoragePath String?
+  displayOrder             Int                @default(0)
+  isVisible                Boolean            @default(true)
+  deletedAt                DateTime?
+  metadata                 Json?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
   vehicle          Vehicle  @relation("VehicleImages", fields: [vehicleId], references: [id], onDelete: Cascade)
   representativeOf Vehicle? @relation("VehicleRepresentativeImage")
@@ -388,6 +390,7 @@ model VehicleImage {
   @@unique([vehicleId, sourceKey])
   @@index([vehicleId, type, isVisible, displayOrder])
   @@index([sourceUrl])
+  @@index([listThumbnailStoragePath])
 }
 
 model VehicleImageStorageCleanup {

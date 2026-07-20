@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   deleteMany: vi.fn(),
   findUnique: vi.fn(),
   uploadObject: vi.fn(),
+  renderThumbnail: vi.fn(),
   withLocked: vi.fn(),
 }));
 
@@ -40,6 +41,11 @@ vi.mock("@/lib/supabase/storage", () => ({
   uploadVehicleImageObject: mocks.uploadObject,
 }));
 vi.mock("./transaction", () => ({ withLockedVehicleImages: mocks.withLocked }));
+vi.mock("./list-thumbnail", () => ({
+  VEHICLE_LIST_THUMBNAIL_CONTENT_TYPE: "image/webp",
+  renderVehicleListThumbnail: mocks.renderThumbnail,
+  vehicleListThumbnailPath: (path: string) => `list-thumbnails/v1/${path.replace(/\.[^.]+$/, ".webp")}`,
+}));
 
 import { VehicleImageStorageError } from "@/lib/supabase/storage";
 import { uploadVehicleImage } from "./upload";
@@ -54,6 +60,8 @@ const IMAGE = {
   sourceUrl: null,
   sourceKey: "admin:path",
   adminStoragePath: "admin/vehicle-1/image.webp",
+  listThumbnailUrl: "https://storage/list-thumbnail.webp",
+  listThumbnailStoragePath: "list-thumbnails/v1/admin/vehicle-1/image.webp",
   displayOrder: 0,
   isVisible: true,
   deletedAt: null,
@@ -63,8 +71,12 @@ const IMAGE = {
 };
 
 function input() {
+  const file = new File(["image"], "image.webp", { type: "image/webp" });
+  Object.defineProperty(file, "arrayBuffer", {
+    value: async () => Uint8Array.from([1, 2, 3]).buffer,
+  });
   return {
-    file: new File(["image"], "image.webp", { type: "image/webp" }),
+    file,
     title: "커버",
     type: "COVER" as const,
     isVisible: true,
@@ -113,7 +125,9 @@ describe("upload reservation durability readback", () => {
     mocks.findUnique.mockImplementation(({ where }: { readonly where: { readonly storagePath: string } }) => (
       Promise.resolve(reservations.get(where.storagePath) ?? null)
     ));
-    mocks.uploadObject.mockResolvedValue(IMAGE.storageUrl);
+    mocks.renderThumbnail.mockResolvedValue(Uint8Array.from([4, 5, 6]));
+    mocks.uploadObject.mockImplementation(async () =>
+      mocks.uploadObject.mock.calls.length === 2 ? IMAGE.listThumbnailUrl : IMAGE.storageUrl);
     mocks.withLocked.mockImplementation(async (_request, mutation) => {
       const reservationSnapshot = new Map([...reservations].map(([path, row]) => [path, { ...row }]));
       const imageSnapshot = [...createdImageIds];

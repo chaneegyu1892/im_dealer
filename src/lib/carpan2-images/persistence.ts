@@ -6,12 +6,20 @@ import {
   type VehicleImageLockRequest,
 } from "../vehicle-images/transaction";
 import type { Carpan2ImageCandidate, ImageMetadata } from "./types";
+import { enqueueStorageCleanup } from "../vehicle-images/storage-cleanup";
+import {
+  markVehicleImageStorageReservationReady,
+  releaseVehicleImageStorageReservation,
+  type VehicleImageStorageReservation,
+} from "../vehicle-images/storage-reservation";
 
 export type ExistingCarpan2Image = {
   readonly id: string;
   readonly origin: "CARPAN2" | "ADMIN";
   readonly sourceUrl: string | null;
   readonly storageUrl: string;
+  readonly listThumbnailUrl: string | null;
+  readonly listThumbnailStoragePath: string | null;
 };
 
 export type CandidateWriteResult = "upserted" | "skipped";
@@ -24,6 +32,9 @@ export type Carpan2ImagePersistence = {
     readonly existingImageId: string | null;
     readonly candidate: Carpan2ImageCandidate;
     readonly storageUrl: string;
+    readonly listThumbnailUrl: string | null;
+    readonly listThumbnailStoragePath: string | null;
+    readonly listThumbnailReservation: VehicleImageStorageReservation | null;
   }) => Promise<CandidateWriteResult>;
   readonly finalizeVehicleRepresentative: (vehicleId: string) => Promise<RepresentativeFinalizeResult>;
 };
@@ -40,7 +51,14 @@ export function createCarpan2ImagePersistence(
   return {
     findExisting: async (vehicleId, sourceKey) => prisma.vehicleImage.findUnique({
       where: { vehicleId_sourceKey: { vehicleId, sourceKey } },
-      select: { id: true, origin: true, sourceUrl: true, storageUrl: true },
+      select: {
+        id: true,
+        origin: true,
+        sourceUrl: true,
+        storageUrl: true,
+        listThumbnailUrl: true,
+        listThumbnailStoragePath: true,
+      },
     }),
     applyMirroredCandidate: async (input) => lockRunner(
       {
@@ -67,6 +85,9 @@ async function applyMirroredCandidate(
     readonly vehicleId: string;
     readonly candidate: Carpan2ImageCandidate;
     readonly storageUrl: string;
+    readonly listThumbnailUrl: string | null;
+    readonly listThumbnailStoragePath: string | null;
+    readonly listThumbnailReservation: VehicleImageStorageReservation | null;
   },
 ): Promise<CandidateWriteResult> {
   const vehicle = await tx.vehicle.findUnique({
@@ -75,11 +96,31 @@ async function applyMirroredCandidate(
   });
   const target = await tx.vehicleImage.findUnique({
     where: { vehicleId_sourceKey: { vehicleId: input.vehicleId, sourceKey: input.candidate.sourceKey } },
-    select: { id: true, origin: true, sourceUrl: true, storageUrl: true },
+    select: {
+      id: true,
+      origin: true,
+      sourceUrl: true,
+      storageUrl: true,
+      listThumbnailUrl: true,
+      listThumbnailStoragePath: true,
+    },
   });
-  if (!vehicle) return "skipped";
-  if (target?.origin === "ADMIN") return "skipped";
-  if (target && target.sourceUrl === input.candidate.sourceUrl && target.storageUrl === input.storageUrl) {
+  if (!vehicle) {
+    await finalizeListThumbnailReservation(tx, input.listThumbnailReservation, false);
+    return "skipped";
+  }
+  if (target?.origin === "ADMIN") {
+    await finalizeListThumbnailReservation(tx, input.listThumbnailReservation, false);
+    return "skipped";
+  }
+  if (
+    target
+    && target.sourceUrl === input.candidate.sourceUrl
+    && target.storageUrl === input.storageUrl
+    && target.listThumbnailUrl === input.listThumbnailUrl
+    && target.listThumbnailStoragePath === input.listThumbnailStoragePath
+  ) {
+    await finalizeListThumbnailReservation(tx, input.listThumbnailReservation, true);
     return "skipped";
   }
   if (!target) {
@@ -90,6 +131,8 @@ async function applyMirroredCandidate(
         type: input.candidate.type,
         title: input.candidate.title,
         storageUrl: input.storageUrl,
+        listThumbnailUrl: input.listThumbnailUrl,
+        listThumbnailStoragePath: input.listThumbnailStoragePath,
         sourceUrl: input.candidate.sourceUrl,
         sourceKey: input.candidate.sourceKey,
         displayOrder: input.candidate.displayOrder,
@@ -97,13 +140,22 @@ async function applyMirroredCandidate(
       },
     });
     await advanceVehicleImageRevision(tx, vehicle);
+    await finalizeListThumbnailReservation(tx, input.listThumbnailReservation, true);
     return "upserted";
+  }
+  if (
+    target.listThumbnailStoragePath
+    && target.listThumbnailStoragePath !== input.listThumbnailStoragePath
+  ) {
+    await enqueueStorageCleanup(tx, target.listThumbnailStoragePath, "IMAGE_PURGE");
   }
   await tx.vehicleImage.update({
     where: { id: target.id },
     data: {
       sourceUrl: input.candidate.sourceUrl,
       storageUrl: input.storageUrl,
+      listThumbnailUrl: input.listThumbnailUrl,
+      listThumbnailStoragePath: input.listThumbnailStoragePath,
       metadata: toPrismaJson(input.candidate.metadata),
     },
   });
@@ -112,7 +164,21 @@ async function applyMirroredCandidate(
     vehicle,
     vehicle.thumbnailImageId === target.id ? { thumbnailUrl: input.storageUrl } : {},
   );
+  await finalizeListThumbnailReservation(tx, input.listThumbnailReservation, true);
   return "upserted";
+}
+
+async function finalizeListThumbnailReservation(
+  tx: Prisma.TransactionClient,
+  reservation: VehicleImageStorageReservation | null,
+  attachedToImage: boolean,
+): Promise<void> {
+  if (reservation === null) return;
+  if (attachedToImage) {
+    await releaseVehicleImageStorageReservation(tx, reservation);
+    return;
+  }
+  await markVehicleImageStorageReservationReady(tx, reservation);
 }
 
 async function finalizeVehicleRepresentative(

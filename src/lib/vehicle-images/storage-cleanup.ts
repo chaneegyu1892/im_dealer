@@ -111,7 +111,12 @@ export async function processStorageCleanupOnce(options: ProcessOptions = {}): P
   const job = await claimCleanup(now, options.storagePath);
   if (!job) return { kind: "idle" };
   const owner = await prisma.vehicleImage.findFirst({
-    where: { origin: "ADMIN", adminStoragePath: job.storagePath },
+    where: {
+      OR: [
+        { adminStoragePath: job.storagePath },
+        { listThumbnailStoragePath: job.storagePath },
+      ],
+    },
     select: { id: true },
   });
   if (owner) {
@@ -155,7 +160,8 @@ export async function recoverExpiredReservations(options: RecoveryOptions): Prom
          AND cleanup."availableAt" <= ($3::timestamptz AT TIME ZONE 'UTC')
          AND NOT EXISTS (
            SELECT 1 FROM "VehicleImage" image
-           WHERE image."origin" = 'ADMIN' AND image."adminStoragePath" = cleanup."storagePath"
+           WHERE image."adminStoragePath" = cleanup."storagePath"
+              OR image."listThumbnailStoragePath" = cleanup."storagePath"
          )`,
       job.id, now, cutoff,
     );
@@ -208,18 +214,36 @@ export async function purgeVehicleImage(
     if (!image) throw new VehicleImageMutationTargetError();
     assertImageVersion(image.updatedAt, input.expectedUpdatedAt);
     purgeImage(image, vehicle.thumbnailImageId);
-    if (image.adminStoragePath) {
-      await enqueueStorageCleanup(tx, image.adminStoragePath, "IMAGE_PURGE");
+    for (const storagePath of imageCleanupPaths(image)) {
+      await enqueueStorageCleanup(tx, storagePath, "IMAGE_PURGE");
     }
     await tx.vehicleImage.delete({ where: { id: image.id } });
     const revision = await advanceVehicleImageRevision(tx, vehicle);
     return { before: image, imageRevision: revision.imageRevision, vehicleUpdatedAt: revision.updatedAt };
   });
-  if (!mutation.before.adminStoragePath) {
+  const cleanupPaths = imageCleanupPaths(mutation.before);
+  if (cleanupPaths.length === 0) {
     return { ...mutation, storageCleanup: "deleted" };
   }
-  const result = await processStorageCleanupOnce({ storagePath: mutation.before.adminStoragePath });
-  return { ...mutation, storageCleanup: result.kind === "deleted" ? "deleted" : "deferred" };
+  const results = await Promise.all(
+    cleanupPaths.map((storagePath) => processStorageCleanupOnce({ storagePath })),
+  );
+  return {
+    ...mutation,
+    storageCleanup: results.every((result) => result.kind === "deleted")
+      ? "deleted"
+      : "deferred",
+  };
+}
+
+function imageCleanupPaths(image: {
+  readonly adminStoragePath: string | null;
+  readonly listThumbnailStoragePath: string | null;
+}): readonly string[] {
+  return [...new Set([
+    image.adminStoragePath,
+    image.listThumbnailStoragePath,
+  ].filter((path): path is string => typeof path === "string" && path.length > 0))];
 }
 
 export async function deleteVehicleWithStorageCleanup(vehicleId: string): Promise<{
@@ -235,12 +259,17 @@ export async function deleteVehicleWithStorageCleanup(vehicleId: string): Promis
       vehicleId,
     );
     const images = await tx.vehicleImage.findMany({
-      where: { vehicleId, origin: "ADMIN", adminStoragePath: { not: null } },
+      where: { vehicleId },
+      select: {
+        adminStoragePath: true,
+        listThumbnailStoragePath: true,
+      },
       orderBy: { id: "asc" },
     });
     let cleanupJobs = 0;
-    for (const image of images) {
-      if (image.adminStoragePath && await enqueueStorageCleanup(tx, image.adminStoragePath, "VEHICLE_DELETE")) {
+    const storagePaths = new Set(images.flatMap((image) => imageCleanupPaths(image)));
+    for (const storagePath of storagePaths) {
+      if (await enqueueStorageCleanup(tx, storagePath, "VEHICLE_DELETE")) {
         cleanupJobs += 1;
       }
     }
