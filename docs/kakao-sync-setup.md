@@ -78,28 +78,55 @@
 
 ---
 
-## 3. 준비된 코드 (스캐폴딩)
+## 3. 구현된 코드 (배선 완료)
 
-| 파일 | 상태 |
+| 파일 | 역할 |
 |---|---|
-| `src/lib/kakao/channel.ts` | ✅ 채널추가 확인 유틸(`getChannelRelation`, `parseChannelRelation`) — 검증/배선에 사용 |
-| `src/lib/kakao/channel.test.ts` | ✅ 파싱 로직 단위테스트(7 케이스) |
-| `src/app/auth/callback/route.ts` | 전화번호 저장까지 구현됨. **채널 relation·마케팅동의 저장은 검증 후 배선** |
+| `src/lib/kakao/scopes.ts` | 요청 스코프 단일 소스 + `isKakaoSyncEnabled()` 플래그 |
+| `src/lib/kakao/account.ts` | `/v2/user/me`(회원번호·실명·이메일·전화번호), `/v1/user/service/terms`(약관 동의 tag) |
+| `src/lib/kakao/channel.ts` | 채널추가 확인(`getChannelRelation`) |
+| `src/app/auth/callback/route.ts` | 위 3개를 호출해 `User` 에 저장 |
 
-**검증 통과 후 배선 예정 작업(별도 PR):**
-- 콜백에서 `getChannelRelation`으로 채널추가 확인 → 결과에 따라 분기(가입 완료 / 채널추가 재안내)
-- 마케팅 수신동의 저장(`User.marketingConsent`, 컬럼 이미 존재)
-- 견적서 자동발송 연결(플랜 Phase 2~3)
+싱크 ON 시 요청 스코프: `profile_nickname profile_image account_email name phone_number plusfriends`
+
+콜백이 저장하는 값(`User`):
+
+| 컬럼 | 출처 |
+|---|---|
+| `kakaoId` | `/v2/user/me` 의 `id` — 이후 친구톡 발송 키 |
+| `name` | 동의항목 "이름"(실명). 없으면 기존 닉네임 기반 표시명 유지 |
+| `email` / `phone` | 동의항목. 전화번호는 카카오 원본(`+82 10-...`) 그대로 저장 |
+| `channelRelation` | `ADDED` / `BLOCKED` / `NONE` |
+| `marketingConsent` | `channelRelation === "ADDED"` 또는 약관 tag 동의 시 true. **한 번 켜지면 끄지 않음**(철회는 별도 경로) |
+| `consentedAt` | 싱크 동의창 통과 시각 |
+
+> 모든 카카오 API 호출은 실패 시 soft-fail(값 없음)로 처리 — 로그인 흐름을 막지 않는다.
+
+**남은 작업:** 견적서 자동발송 연결(플랜 Phase 2~3), `channelRelation !== "ADDED"` 회원 대상 채널추가 재안내 UI.
 
 ---
 
-## 4. 환경변수 (예정)
+## 4. 환경변수
 
 ```
-KAKAO_CHANNEL_ID=            # 채널 UUID 또는 encoded_id(_xxxxx) — 채널추가 확인용
-# 활성화 플래그(전화번호와 동일 패턴, 검수/검증 후 ON)
-NEXT_PUBLIC_KAKAO_REQUEST_PHONE=true   # 전화번호 수집(별도 문서)
+NEXT_PUBLIC_KAKAO_SYNC=true      # 싱크 모드 ON. 콘솔 동의항목 "승인" 후에만 켤 것
+KAKAO_CHANNEL_ID=                # 채널 UUID 또는 encoded_id(_xxxxx) — 미설정 시 채널추가 확인만 skip
+KAKAO_MARKETING_TERMS_TAG=marketing   # 콘솔에 등록한 마케팅 약관 tag (기본값 marketing)
+
+# 견적서 카카오톡 전송용
+KAKAO_REST_API_KEY=              # 앱 REST API 키 — 액세스 토큰 재발급에 필요
+KAKAO_CLIENT_SECRET=             # 콘솔에서 client_secret 을 켠 경우에만
 ```
+
+> 리프레시 토큰 암호화는 기존 `PII_ENCRYPTION_KEY` 를 재사용한다(`src/lib/pii.ts`).
+> 이 키를 분실·교체하면 본인확인 서류와 함께 저장된 리프레시 토큰도 복호화 불가가 되어,
+> 회원들이 재로그인해야 전송 기능이 복구된다.
+
+> `NEXT_PUBLIC_KAKAO_REQUEST_PHONE` 은 **제거됨** — 전화번호가 싱크 스코프에 포함되어 `NEXT_PUBLIC_KAKAO_SYNC` 로 통합.
+> 문제 발생 시 `NEXT_PUBLIC_KAKAO_SYNC` 를 끄면 프로필-only 로그인으로 즉시 롤백된다(재빌드 필요).
+
+**DB 마이그레이션:** `prisma/migrations/20260720000000_kakao_sync_consent/` — 전부 nullable 추가 컬럼.
+⚠️ 이 저장소의 마이그레이션 히스토리는 현재 `prisma migrate dev` 로 재생되지 않는다(선행 마이그레이션 `20260501000000_add_inventory_fields` 가 shadow DB 에서 실패). 해당 SQL 을 Supabase SQL Editor 에서 직접 실행할 것.
 
 ## 5. 주의사항
 

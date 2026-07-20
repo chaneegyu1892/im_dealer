@@ -28,6 +28,7 @@ const nextConfig = {
   // 정적 분석으로 추적되지 않으므로 native canvas 패키지도 함께 명시한다.
   outputFileTracingIncludes: {
     "/api/quote/image": quoteImageTraceIncludes,
+    "/api/quote/deliver": quoteImageTraceIncludes,
     "/api/admin/quotes/[id]/image": quoteImageTraceIncludes,
     "/api/admin/quotes/*/image": quoteImageTraceIncludes,
   },

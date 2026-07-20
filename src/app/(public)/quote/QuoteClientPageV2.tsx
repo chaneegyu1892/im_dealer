@@ -14,6 +14,8 @@ import {
   ClipboardCheck,
   Download,
   AlertCircle,
+  MessageSquare,
+  CheckCircle2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -210,6 +212,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [isImageDownloading, setIsImageDownloading] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [isDelivering, setIsDelivering] = useState(false);
+  const [deliverSuccess, setDeliverSuccess] = useState(false);
   const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
   const recalculateRequestId = useRef(0);
   const lastQuotedSlug = useRef<string | null>(null);
@@ -696,15 +700,13 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     isApplying, saveCurrentQuote,
   ]);
 
-  // ─── 이미지 다운로드 (v1 계약 그대로) ─────────────────────
-  async function handleImageDownload() {
-    if (!quoteResult || !selectedVehicle) return;
-    setIsImageDownloading(true);
-    setImageError(null);
+  // 견적서 페이로드 — 다운로드(/api/quote/image)와 카톡 전송(/api/quote/deliver)이 공유한다.
+  function buildQuotePayload(): Partial<PDFQuoteData> | null {
+    if (!quoteResult || !selectedVehicle) return null;
 
     const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({ name, price }));
     const scenarioType = deriveQuoteScenarioType(customRates);
-    const payload: Partial<PDFQuoteData> = {
+    return {
       vehicleName: selectedVehicle.name,
       vehicleBrand: selectedVehicle.brand,
       trimName: quoteResult.trimName,
@@ -730,6 +732,14 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         ? { name: selectedInteriorColor.name, hexCode: selectedInteriorColor.hexCode, priceDelta: selectedInteriorColor.priceDelta }
         : null,
     };
+  }
+
+  // ─── 이미지 다운로드 (v1 계약 그대로) ─────────────────────
+  async function handleImageDownload() {
+    const payload = buildQuotePayload();
+    if (!payload || !selectedVehicle) return;
+    setIsImageDownloading(true);
+    setImageError(null);
 
     try {
       const response = await fetch("/api/quote/image", {
@@ -759,6 +769,40 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       setImageError("이미지 다운로드 중 네트워크 오류가 발생했습니다.");
     } finally {
       setIsImageDownloading(false);
+    }
+  }
+
+  // ─── 카카오톡으로 견적서 전송 ─────────────────────────────
+  async function handleQuoteDeliver() {
+    const payload = buildQuotePayload();
+    if (!payload) return;
+    setIsDelivering(true);
+    setImageError(null);
+    setDeliverSuccess(false);
+
+    try {
+      const response = await fetch("/api/quote/deliver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        // 리프레시 토큰 만료 — 재로그인해야 전송 권한이 복구된다.
+        if (json?.code === "KAKAO_REAUTH_REQUIRED") {
+          router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+          return;
+        }
+        setImageError(json?.error ?? "카카오톡 전송에 실패했습니다.");
+        return;
+      }
+
+      setDeliverSuccess(true);
+    } catch {
+      setImageError("전송 중 네트워크 오류가 발생했습니다.");
+    } finally {
+      setIsDelivering(false);
     }
   }
 
@@ -985,6 +1029,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               consultationError={consultationError}
               isImageDownloading={isImageDownloading}
               imageError={imageError}
+              isDelivering={isDelivering}
+              deliverSuccess={deliverSuccess}
+              onQuoteDeliver={handleQuoteDeliver}
               onCustomRatesChange={setCustomRates}
               onCostModeChange={setCostMode}
               onReset={restoreBaseStandardScenario}
@@ -1121,6 +1168,9 @@ function Step3ResultHeader({
   consultationError,
   isImageDownloading,
   imageError,
+  isDelivering,
+  deliverSuccess,
+  onQuoteDeliver,
   onCustomRatesChange,
   onCostModeChange,
   onReset,
@@ -1151,6 +1201,9 @@ function Step3ResultHeader({
   consultationError: string | null;
   isImageDownloading: boolean;
   imageError: string | null;
+  isDelivering: boolean;
+  deliverSuccess: boolean;
+  onQuoteDeliver: () => void;
   onCustomRatesChange: (rates: { depositRate: number; prepayRate: number }) => void;
   onCostModeChange: (mode: CostMode) => void;
   onReset: () => void;
@@ -1412,6 +1465,25 @@ function Step3ResultHeader({
             위 견적은 실제 계약 가능한 기준이나, 최종 금액은 차량 상태·옵션·프로모션에 따라
             달라질 수 있어요. 전문가 상담으로 확정 견적을 받아보세요.
           </div>
+
+          {/* 메인 CTA: 카카오톡으로 견적서 전송 */}
+          <button
+            type="button"
+            onClick={onQuoteDeliver}
+            disabled={isDelivering}
+            aria-busy={isDelivering}
+            className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#FEE500] text-[15.5px] font-bold text-[#191919] shadow-[0_4px_12px_rgba(0,0,0,0.10)] transition-all hover:brightness-[0.97] active:scale-[0.99] disabled:cursor-wait disabled:opacity-60"
+          >
+            <MessageSquare size={17} strokeWidth={2.2} />
+            {isDelivering ? "전송 중…" : "카카오톡으로 견적서 받기"}
+          </button>
+
+          {deliverSuccess && (
+            <div role="status" className="flex items-start gap-2 rounded-[12px] border border-brand/20 bg-brand-soft p-3 text-[12px] text-brand">
+              <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
+              <p>카카오톡으로 견적서를 보냈어요. 나와의 채팅에서 확인해 주세요.</p>
+            </div>
+          )}
 
           {/* 메인 CTA: 심사 요청 */}
           <button
