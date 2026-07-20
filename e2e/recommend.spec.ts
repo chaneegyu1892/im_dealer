@@ -28,6 +28,19 @@ async function completeHevFamilyFlow(page: Page) {
   await choose(page, "추천 결과 확인하기");
 }
 
+test("recommendation starts with the first question without the browse panel", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/recommend");
+
+  await expect(
+    page.getByRole("heading", { name: "어떤 형태로 차량을 등록하실 건가요?" })
+  ).toBeVisible();
+  await expect(page.getByText("조건", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("차량", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("견적", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "차량을 직접 둘러보기" })).toHaveCount(0);
+});
+
 test("answer selection scrolls every next recommendation question into reading position", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/recommend");
