@@ -200,6 +200,9 @@ describe("POST /api/quote/deliver", () => {
     const res = await POST(request());
 
     expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toEqual({
+      error: "카카오톡 전송에 실패했습니다. 다시 시도하거나 상담하기를 이용해 주세요.",
+    });
     expect(mocks.updateDelivery).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

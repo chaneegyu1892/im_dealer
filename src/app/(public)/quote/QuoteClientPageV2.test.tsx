@@ -165,7 +165,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
-    const apply = await screen.findByRole("button", { name: "이 조건으로 심사 요청하기" });
+    const apply = await screen.findByRole("button", { name: "심사 요청하기" });
     fireEvent.click(apply);
 
     await waitFor(() => {
@@ -187,50 +187,49 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     );
   });
 
-  it("realigns the custom deposit quote to the conservative image scenario", async () => {
-    // Given: the customer selected a 10% deposit and recalculation replaced standard
+  it("keeps the range warning readable on narrow Korean layouts", async () => {
     writeCalculatedRestore();
-    const fetchMock = vi.fn<
-      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-    >(async (input) => {
-      const url = input.toString();
-      if (url.endsWith("/colors") || url.endsWith("/trims")) {
-        return Response.json({ success: true, data: [] });
-      }
-      if (url === "/api/quote/image") {
-        return new Response(new Blob(["png"]), { status: 200 });
-      }
-      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("URL", {
-      ...URL,
-      createObjectURL: vi.fn(() => "blob:quote-image"),
-      revokeObjectURL: vi.fn(),
-    });
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const storedRestore = window.localStorage.getItem("quote_image_restore");
+    if (!storedRestore) throw new Error("quote restore fixture is missing");
+    const restore = JSON.parse(storedRestore) as {
+      quoteResult: {
+        scenarios: {
+          standard: {
+            rangeExceeded?: boolean;
+          };
+        };
+      };
+    };
+    restore.quoteResult.scenarios.standard.rangeExceeded = true;
+    window.localStorage.setItem("quote_image_restore", JSON.stringify(restore));
+    vi.stubGlobal("fetch", createFetchMock());
 
-    // When: the customer downloads the quote image
     render(<QuoteClientPageV2 vehicles={vehicles} />);
-    fireEvent.click(await screen.findByRole("button", { name: "견적서 받기" }));
 
-    // Then: semantic selection and custom/base values are carried distinctly
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/quote/image",
-        expect.objectContaining({ method: "POST" })
-      );
+    const warning = await screen.findByText(/선택하신 옵션 조합으로 차량가가/);
+    expect(warning).toHaveClass("break-keep");
+  });
+
+  it("starts Kakao consent from the successful-result delivery action", async () => {
+    // Given: a calculated quote has been restored and normal render fetches are available
+    writeCalculatedRestore();
+    const fetchMock = createFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    // When: the customer opens the send action
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    const deliveryButton = await screen.findByRole("button", {
+      name: "카카오톡으로 견적서 받기",
     });
-    const imageCall = fetchMock.mock.calls.find(([input]) => input.toString() === "/api/quote/image");
-    const imageBody = JSON.parse(String(imageCall?.[1]?.body));
-    expect(imageBody).toMatchObject({
-      scenarioType: "conservative",
-      scenarios: {
-        conservative: { monthlyPayment: 650_000 },
-        standard: { monthlyPayment: 700_000 },
-        aggressive: { monthlyPayment: 530_000 },
-      },
-    });
+    expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+    fireEvent.click(deliveryButton);
+
+    // Then: anonymous users enter Kakao consent before any delivery request
+    await waitFor(() => expect(supabaseMock.signInWithOAuth).toHaveBeenCalledTimes(1));
+    const requestedUrls = fetchMock.mock.calls.map(([input]) => input.toString());
+    expect(requestedUrls.some((url) => url === "/api/quote/image")).toBe(false);
+    expect(requestedUrls.some((url) => url === "/api/quote/deliver")).toBe(false);
   });
 
   it("saves the exact quote before delivering it to Kakao", async () => {
@@ -413,7 +412,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
-    await screen.findByRole("button", { name: "견적서 받기" });
+    await screen.findByRole("button", { name: "심사 요청하기" });
     expect(
       screen.queryByRole("button", { name: "카카오톡으로 견적서 받기" })
     ).not.toBeInTheDocument();
@@ -425,7 +424,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "이 조건으로 심사 요청하기" }));
+    fireEvent.click(await screen.findByRole("button", { name: "심사 요청하기" }));
 
     const message = await screen.findByText(
       "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요."

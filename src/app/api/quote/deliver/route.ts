@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
       await removeUploadedQuote(path);
       console.error("[quote/deliver] kakao send failed:", result.reason);
       return NextResponse.json(
-        { error: "카카오톡 전송에 실패했습니다. 견적서 받기로 저장해 주세요." },
+        { error: "카카오톡 전송에 실패했습니다. 다시 시도하거나 상담하기를 이용해 주세요." },
         { status: 502 }
       );
     }
