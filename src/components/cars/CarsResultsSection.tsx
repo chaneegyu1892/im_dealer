@@ -50,7 +50,7 @@ export function CarsResultsSection({
             </p>
             <h2 className="break-keep text-[22px] font-extrabold leading-tight tracking-[-0.03em] text-text-strong md:text-[28px]">
               브랜드나 용도를 고르면
-              <br className="hidden sm:block" />
+              <br className="hidden sm:block" />{" "}
               맞는 차량만 추려드릴게요
             </h2>
             <p className="mt-3 break-keep text-[13.5px] font-medium leading-relaxed text-text-muted md:text-[14.5px]">
@@ -166,7 +166,7 @@ export function CarsResultsSection({
               initial={false}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18 }}
-              className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+              className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:gap-4"
             >
               {vehicles.map((vehicle) => (
                 <CarCard key={vehicle.id} vehicle={vehicle} />
@@ -206,7 +206,7 @@ export function CarsResultsSection({
           <p className="mb-5 text-[14px] text-text-muted">
             같은 카테고리의 다른 차량들이에요.
           </p>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:gap-4">
             {suggestedVehicles.map((vehicle) => (
               <CarCard key={vehicle.id} vehicle={vehicle} />
             ))}

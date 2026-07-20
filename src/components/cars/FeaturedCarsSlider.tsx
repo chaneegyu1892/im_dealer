@@ -10,7 +10,7 @@ import { FeaturedCard } from "@/components/cars/FeaturedCard";
  * "주목할 차량" 슬라이더 — 어드민이 지정한(isSpotlight) 차량을 가로 슬라이드로 노출.
  * - 좌우 이전/다음 버튼으로 수동 이동 (자동 넘김 없음)
  * - 카드 호버 시 살짝 확대 + 강조
- * - 데스크톱 3장 / 태블릿 2장 / 모바일 1장 노출(scroll-snap)
+ * - 데스크톱·태블릿 2장 / 모바일 1장 노출(scroll-snap)
  */
 export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -81,7 +81,7 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
             key={vehicle.id}
             className={cn(
               "snap-start shrink-0 transition-transform duration-300 ease-out hover:z-10",
-              "w-[calc(100%-4px)] sm:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)]",
+              "w-[calc(100%-4px)] sm:w-[calc(50%-10px)]",
             )}
           >
             <FeaturedCard vehicle={vehicle} size="small" />

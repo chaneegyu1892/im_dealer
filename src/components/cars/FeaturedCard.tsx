@@ -42,7 +42,7 @@ export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
                 src={vehicle.thumbnailUrl}
                 alt={vehicle.name}
                 fill
-                sizes="(max-width: 767px) 38vw, 180px"
+                sizes="(max-width: 767px) 38vw, (max-width: 1023px) 180px, 248px"
                 unoptimized={isSupabaseStorageUrl(vehicle.thumbnailUrl)}
                 className="!relative !inset-auto !h-auto !w-full max-h-full max-w-full rounded-card object-contain"
               />
@@ -55,16 +55,16 @@ export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
 
           <div className="flex min-h-[172px] min-w-0 flex-col pb-12 md:min-h-[188px]">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="shrink-0 whitespace-nowrap rounded-pill bg-surface-soft px-2.5 py-1 text-[10px] font-bold text-text-body">
+              <span className="shrink-0 whitespace-nowrap rounded-pill bg-surface-soft px-2.5 py-1 text-[10px] font-bold text-text-body lg:text-[11px]">
                 {vehicle.brand}
               </span>
               {vehicle.isPopular && (
-                <span className="rounded-pill bg-brand-soft px-2.5 py-1 text-[10px] font-bold text-brand">
+                <span className="rounded-pill bg-brand-soft px-2.5 py-1 text-[10px] font-bold text-brand lg:text-[11px]">
                   인기
                 </span>
               )}
               {vehicle.hasAvailableInventory && (
-                <span className="rounded-pill bg-status-positive-soft px-2.5 py-1 text-[10px] font-bold text-status-positive">
+                <span className="rounded-pill bg-status-positive-soft px-2.5 py-1 text-[10px] font-bold text-status-positive lg:text-[11px]">
                   즉시출고
                 </span>
               )}
@@ -84,7 +84,7 @@ export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
                 {vehicle.hashtags.slice(0, 2).map((tag) => (
                   <span
                     key={tag}
-                    className="max-w-full truncate rounded-pill bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand"
+                    className="max-w-full truncate rounded-pill bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand lg:text-[11px]"
                   >
                     {tag}
                   </span>
@@ -114,7 +114,7 @@ export function FeaturedCard({ vehicle, size = "large" }: FeaturedCardProps) {
                 numberClassName="text-[23px] md:text-[27px]"
                 unitClassName="text-[12px] font-bold"
               />
-              <p className="mt-0.5 text-[9.5px] font-medium leading-tight text-text-muted">
+              <p className="mt-0.5 text-[9.5px] font-medium leading-tight text-text-muted lg:text-[11px]">
                 월 납입금 · 60개월 · 연 2만km · 무보증
               </p>
             </div>
