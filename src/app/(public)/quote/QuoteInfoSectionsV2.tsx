@@ -49,7 +49,7 @@ const APPROVAL_COPY: Record<ApprovalLevel, {
   low: {
     label: "증빙 필요",
     message: "소득 증빙 또는 보증금 확대를 권장해요",
-    badgeClass: "bg-status-danger-soft text-status-danger",
+    badgeClass: "bg-status-danger-soft text-text-strong",
     containerClass: "border-status-danger/25 bg-status-danger-soft",
     iconClass: "text-status-danger",
   },
@@ -207,7 +207,7 @@ export function CostCheckpointV2({
     : [];
 
   return (
-    <div className="rounded-[20px] bg-[#F8FAFC] p-4">
+    <div className="rounded-[20px] bg-surface-soft p-4">
       <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.06em] text-text-body">체크포인트</p>
       <div className="space-y-1.5">
         {points.map((p) => (
@@ -218,7 +218,7 @@ export function CostCheckpointV2({
         ))}
       </div>
       {customerPoints.length > 0 && (
-        <div className="mt-3 space-y-1.5 border-t border-[#E5E8EB] pt-3">
+        <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3">
           <p className="text-[12px] font-bold uppercase tracking-[0.06em] text-text-body">고객 유형 안내</p>
           {customerPoints.map((p) => (
             <p key={p} className="flex items-start gap-2 text-[12.5px] text-text-body">

@@ -151,10 +151,10 @@
     --color-status-warning-rgb: 236 126 0;
     --color-status-warning-soft: #FFF4E6;
     --color-status-warning-soft-rgb: 255 244 230;
-    --color-status-danger: #E23B4A;
-    --color-status-danger-rgb: 226 59 74;
-    --color-status-danger-soft: #FFECEF;
-    --color-status-danger-soft-rgb: 255 236 239;
+    --color-status-danger: #FF7A86;
+    --color-status-danger-rgb: 255 122 134;
+    --color-status-danger-soft: #3B2025;
+    --color-status-danger-soft-rgb: 59 32 37;
     --color-status-info: #376CD5;
     --color-status-info-rgb: 55 108 213;
     --color-status-info-soft: #EEF3FF;
@@ -463,38 +463,20 @@
   }
 
   .home-showroom-scope {
-    --color-app-bg: #F5F6FA;
-    --color-app-bg-rgb: 245 246 250;
-    --color-surface: #FFFFFF;
-    --color-surface-rgb: 255 255 255;
-    --color-surface-raised: #FFFFFF;
-    --color-surface-raised-rgb: 255 255 255;
-    --color-surface-soft: #F7F8FA;
-    --color-surface-soft-rgb: 247 248 250;
-    --color-text-strong: #191F28;
-    --color-text-strong-rgb: 25 31 40;
-    --color-text-body: #4E5968;
-    --color-text-body-rgb: 78 89 104;
-    --color-text-muted: #8B95A1;
-    --color-text-muted-rgb: 139 149 161;
-    --color-border-subtle: #E5E8EB;
-    --color-border-subtle-rgb: 229 232 235;
-    --color-border-strong: #D7DCE2;
-    --color-border-strong-rgb: 215 220 226;
-    --color-brand-primary: #27368A;
-    --color-brand-primary-rgb: 39 54 138;
-    --color-brand-pressed: #172357;
-    --color-brand-pressed-rgb: 23 35 87;
-    --color-brand-soft: #ECEEF9;
-    --color-brand-soft-rgb: 236 238 249;
     --public-app-bg: var(--color-app-bg);
     --public-surface: var(--color-surface);
     --public-surface-raised: var(--color-surface-raised);
     --public-border: var(--color-border-subtle);
     --public-muted: var(--color-text-muted);
     --public-trust-bg: var(--color-brand-soft);
-    --surface-glass: rgba(255,255,255,0.9);
-    color-scheme: light;
+  }
+
+  .dark .home-showroom-scope {
+    color-scheme: dark;
+  }
+
+  .dark .public-brand-logo {
+    filter: brightness(0) invert(1);
   }
 
   .public-mobile-section {

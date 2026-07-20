@@ -615,7 +615,7 @@ export function ComparisonSection({
   const p2Meta = allVehicles.find((v) => v.slug === p2Slug);
 
   return (
-    <div className="bg-white rounded-card border border-line2 shadow-soft overflow-hidden mb-4 max-w-full">
+    <div className="bg-surface rounded-card border border-line2 shadow-soft overflow-hidden mb-4 max-w-full">
       {/* 섹션 헤더 */}
       <button
         type="button"

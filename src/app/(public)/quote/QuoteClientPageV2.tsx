@@ -774,8 +774,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const stepLabel = STEPS[step - 1];
 
   return (
-    <div className="min-h-screen bg-white pb-[calc(96px+env(safe-area-inset-bottom,0px))] md:pb-0">
-      <header className="sticky top-14 z-40 border-b border-[#E5E8EB] bg-white/95 backdrop-blur-md md:hidden">
+    <div className="min-h-screen bg-app-bg pb-[calc(96px+env(safe-area-inset-bottom,0px))] md:pb-0">
+      <header className="sticky top-14 z-40 border-b border-border-subtle bg-surface/95 backdrop-blur-md md:hidden">
         <div className="flex h-14 items-center gap-3 px-5">
           <button
             type="button"
@@ -802,7 +802,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
             {step}<span className="text-text-muted">/{STEPS.length}</span>
           </span>
         </div>
-        <div className="h-[2px] bg-[#E5E8EB]">
+        <div className="h-[2px] bg-border-subtle">
           <motion.div
             className="h-full bg-brand"
             initial={false}
@@ -813,7 +813,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       </header>
 
       {/* 데스크톱 헤더 */}
-      <div className="hidden border-b border-[#E5E8EB] bg-white md:block">
+      <div className="hidden border-b border-border-subtle bg-surface md:block">
         <div className="mx-auto max-w-[680px] px-8 py-10">
           <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-[12px] font-bold text-brand">
             실시간 견적
@@ -983,13 +983,13 @@ function Step1CustomerType({
                 "flex w-full items-center gap-4 rounded-[20px] px-5 py-5 text-left transition-all duration-200 md:px-6 md:py-6",
                 selected
                   ? "bg-brand-soft ring-[1.5px] ring-brand"
-                  : "bg-[#F8FAFC] ring-[1.5px] ring-transparent hover:ring-[#E5E8EB]"
+                  : "bg-surface-soft ring-[1.5px] ring-transparent hover:ring-border-subtle"
               )}
             >
               <span
                 className={cn(
                   "flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] transition-colors",
-                  selected ? "bg-brand text-white" : "bg-white text-text-body"
+                  selected ? "bg-brand text-white" : "bg-surface text-text-body"
                 )}
               >
                 {option.icon}
@@ -1005,7 +1005,7 @@ function Step1CustomerType({
               <span
                 className={cn(
                   "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all",
-                  selected ? "bg-brand text-white" : "bg-[#E5E8EB] text-transparent"
+                  selected ? "bg-brand text-white" : "bg-border-subtle text-transparent"
                 )}
               >
                 <Check size={14} strokeWidth={2.6} />
@@ -1092,9 +1092,9 @@ function Step3ResultHeader({
       className="space-y-5"
     >
       {/* ── 1) 차량 정보 카드 (실제 데이터) ── */}
-      <div className="rounded-[24px] bg-[#F8FAFC] p-5 md:p-6">
+      <div className="rounded-[24px] bg-surface-soft p-5 md:p-6">
         <div className="flex items-center gap-4">
-          <div className="relative h-[72px] w-[108px] shrink-0 overflow-hidden rounded-[14px] bg-white">
+          <div className="relative h-[72px] w-[108px] shrink-0 overflow-hidden rounded-[14px] bg-surface">
             {selectedVehicle?.thumbnailUrl ? (
               <Image
                 src={selectedVehicle.thumbnailUrl}
@@ -1128,7 +1128,7 @@ function Step3ResultHeader({
               {selectedOptionDetails.map((o) => (
                 <span
                   key={o.id}
-                  className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-text-body ring-[1px] ring-[#E5E8EB]"
+                  className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-[12px] font-bold text-text-body ring-[1px] ring-border-subtle"
                 >
                   {o.name}
                 </span>
@@ -1155,7 +1155,7 @@ function Step3ResultHeader({
           )}
         </div>
 
-        <div className="my-4 h-[1px] bg-[#E5E8EB]" />
+        <div className="my-4 h-[1px] bg-border-subtle" />
 
         {/* 계약 조건 */}
         <div className="grid grid-cols-3 gap-2">
@@ -1173,7 +1173,7 @@ function Step3ResultHeader({
           </div>
         </div>
 
-        <div className="my-4 h-[1px] bg-[#E5E8EB]" />
+        <div className="my-4 h-[1px] bg-border-subtle" />
 
         <div className="flex items-center justify-between">
           <span className="text-[12.5px] text-text-body">
@@ -1221,7 +1221,7 @@ function Step3ResultHeader({
             )}
           </div>
 
-          <div className="rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
+          <div className="rounded-[16px] bg-surface-soft p-4 text-[12px] leading-relaxed text-text-muted">
             옵션·계약조건에 따라 캐피탈사별 금액이 크게 달라질 수 있어 상담을 통한 견적이 더 정확합니다.
           </div>
 
@@ -1326,9 +1326,10 @@ function Step3ResultHeader({
           <CostCheckpointV2 contractType="반납형" customerType={customerType} />
 
           {/* ── 11) 안내 + CTA ── */}
-          <div className="break-keep rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
-            위 견적은 실제 계약 가능한 기준이나, 최종 금액은 차량 상태·옵션·프로모션에 따라
-            달라질 수 있어요. 전문가 상담으로 확정 견적을 받아보세요.
+          <div className="break-keep rounded-[16px] bg-surface-soft p-4 text-[12px] leading-relaxed text-text-body">
+            <span className="inline-block">위 견적은 실제 계약 가능한 기준이나, 최종 금액은</span>{" "}
+            <span className="inline-block">차량 상태·옵션·프로모션에 따라 달라질 수 있어요.</span>{" "}
+            <span className="inline-block">전문가 상담으로 확정 견적을 받아보세요.</span>
           </div>
 
           <QuoteResultActions
@@ -1364,13 +1365,13 @@ function FixedCTA({
   onPrev?: () => void;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E5E8EB] bg-white/95 px-5 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border-subtle bg-surface/95 px-5 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
       <div className="mx-auto flex max-w-[680px] gap-2">
         {onPrev && (
           <button
             type="button"
             onClick={onPrev}
-            className="flex h-[52px] items-center justify-center rounded-[14px] border border-[#E5E8EB] bg-white px-5 text-[15px] font-bold text-text-body transition-colors hover:bg-[#F8FAFC]"
+            className="flex h-[52px] items-center justify-center rounded-[14px] border border-border-subtle bg-surface px-5 text-[15px] font-bold text-text-body transition-colors hover:bg-surface-soft"
           >
             이전
           </button>

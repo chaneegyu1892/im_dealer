@@ -134,7 +134,7 @@ export function InitialCostPanelV2({
                 "min-h-[78px] rounded-[16px] px-4 py-3.5 text-left transition-all duration-200",
                 isActive
                   ? "bg-brand-soft ring-[1.5px] ring-brand"
-                  : "bg-[#F8FAFC] ring-[1.5px] ring-transparent hover:ring-[#E5E8EB]"
+                  : "bg-surface-soft ring-[1.5px] ring-transparent hover:ring-border-subtle"
               )}
             >
               <span className="block text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted">
@@ -152,7 +152,7 @@ export function InitialCostPanelV2({
       {/* ② 초기비용 설정 — 비회원은 블러 + 카카오 로그인 유도 */}
       {costMode === "initial" && (
         <MemberGate locked={locked} onLogin={onMemberLogin}>
-          <div className="space-y-4 rounded-[20px] bg-[#F8FAFC] p-5">
+          <div className="space-y-4 rounded-[20px] bg-surface-soft p-5">
             {/* 헤더 + recalculate 표시 */}
             <div className="flex items-center justify-between">
               <p className="text-[12px] font-bold uppercase tracking-[0.06em] text-text-muted">초기비용 설정</p>
@@ -177,7 +177,7 @@ export function InitialCostPanelV2({
                     onClick={() => switchCostType(type)}
                     className={cn(
                       "flex-1 rounded-[12px] px-3 py-2.5 text-left transition-all duration-150",
-                      isActive ? "bg-white ring-[1.5px] ring-brand" : "bg-white/60 ring-[1.5px] ring-transparent hover:ring-[#E5E8EB]"
+                      isActive ? "bg-surface ring-[1.5px] ring-brand" : "bg-surface/60 ring-[1.5px] ring-transparent hover:ring-border-subtle"
                     )}
                   >
                     <span className={cn("block text-[13px] font-bold", isActive ? "text-brand" : "text-text-strong")}>
@@ -200,7 +200,7 @@ export function InitialCostPanelV2({
                     "rounded-full border px-3.5 py-2 text-[12px] font-bold transition-all duration-150",
                     activeRate === 0
                       ? "border-text-strong bg-text-strong text-white"
-                      : "border-[#E5E8EB] bg-white text-text-body hover:border-text-strong/40"
+                      : "border-border-subtle bg-surface text-text-body hover:border-text-strong/40"
                   )}
                 >
                   없음
@@ -214,7 +214,7 @@ export function InitialCostPanelV2({
                       "rounded-full border px-3.5 py-2 text-[12px] font-bold transition-all duration-150",
                       activeRate === r
                         ? "border-brand bg-brand text-white"
-                        : "border-[#E5E8EB] bg-white text-text-body hover:border-brand/40"
+                      : "border-border-subtle bg-surface text-text-body hover:border-brand/40"
                     )}
                   >
                     {r}%
@@ -226,12 +226,11 @@ export function InitialCostPanelV2({
             {/* 슬라이더 */}
             <div className="space-y-1.5">
               <div className="relative flex h-5 items-center">
-                <div className="absolute inset-x-0 h-[6px] overflow-hidden rounded-full bg-[#E5E8EB]">
+                <div className="absolute inset-x-0 h-[6px] overflow-hidden rounded-full bg-border-subtle">
                   <div
-                    className="h-full rounded-full transition-all duration-300"
+                    className="h-full rounded-full bg-brand transition-all duration-300"
                     style={{
                       width: `calc(${activeRate / RATE_MAX} * (100% - 20px) + 10px)`,
-                      background: "#27368A",
                     }}
                   />
                 </div>
@@ -246,12 +245,9 @@ export function InitialCostPanelV2({
                   aria-label={`${COST_TYPE_INFO[costType].label} 비율`}
                 />
                 <div
-                  className="pointer-events-none absolute h-5 w-5 -translate-x-1/2 rounded-full transition-all duration-300"
+                  className="pointer-events-none absolute h-5 w-5 -translate-x-1/2 rounded-full border-[2.5px] border-brand bg-surface shadow-card transition-all duration-300"
                   style={{
                     left: `calc(${activeRate / RATE_MAX} * (100% - 20px) + 10px)`,
-                    background: "#FFFFFF",
-                    border: "2.5px solid #27368A",
-                    boxShadow: "0 2px 6px rgba(39,54,138,0.18)",
                   }}
                 />
               </div>

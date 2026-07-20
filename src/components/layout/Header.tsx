@@ -125,7 +125,7 @@ export function Header() {
               priority
               loading="eager"
               unoptimized
-              className="block h-5 w-[98px] object-contain lg:h-7 lg:w-[137px]"
+              className="public-brand-logo block h-5 w-[98px] object-contain lg:h-7 lg:w-[137px]"
             />
           </Link>
 
