@@ -179,7 +179,7 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
             {
               key: "privacy" as const,
               label: "[필수] 개인정보 수집·이용에 동의합니다",
-              sub: "이름, 주민등록번호, 주소 등을 서류 발급 목적으로 수집합니다.",
+              sub: "이름, 생년월일, 휴대전화번호, 통신사 정보를 서류 발급 목적으로 수집합니다. 주민등록번호 뒤 7자리는 생년월일 산출에만 사용되며 서버에 전송·저장되지 않습니다.",
             },
             {
               key: "codef" as const,
