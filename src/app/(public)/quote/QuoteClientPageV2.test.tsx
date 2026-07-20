@@ -2,11 +2,17 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuoteClientPageV2 } from "./QuoteClientPageV2";
 import {
+  createUnlockedCalculatedQuoteResult,
   createFetchMock,
   vehicles,
   writeCalculatedRestore,
   writeConsultationRestore,
+  writeLockedCalculatedRestore,
 } from "./QuoteClientPageV2.test-fixtures";
+
+type MockAuthUser = {
+  readonly id: string;
+} | null;
 
 const navigationMock = vi.hoisted(() => ({
   router: {
@@ -18,7 +24,10 @@ const navigationMock = vi.hoisted(() => ({
 }));
 
 const supabaseMock = vi.hoisted(() => ({
-  getUser: vi.fn(async () => ({ data: { user: null } })),
+  getUser: vi.fn<
+    () => Promise<{ readonly data: { readonly user: MockAuthUser } }>
+  >(async () => ({ data: { user: null } })),
+  signInWithOAuth: vi.fn(async () => ({ data: { provider: "kakao", url: null }, error: null })),
   onAuthStateChange: vi.fn(() => ({
     data: { subscription: { unsubscribe: vi.fn() } },
   })),
@@ -37,6 +46,7 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: {
       getUser: supabaseMock.getUser,
+      signInWithOAuth: supabaseMock.signInWithOAuth,
       onAuthStateChange: supabaseMock.onAuthStateChange,
     },
   }),
@@ -44,6 +54,15 @@ vi.mock("@/lib/supabase/client", () => ({
 
 beforeEach(() => {
   vi.stubGlobal("scrollTo", vi.fn());
+  vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "true");
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://imdealer.example");
+  supabaseMock.getUser.mockReset();
+  supabaseMock.getUser.mockResolvedValue({ data: { user: null } });
+  supabaseMock.signInWithOAuth.mockReset();
+  supabaseMock.signInWithOAuth.mockResolvedValue({
+    data: { provider: "kakao", url: null },
+    error: null,
+  });
 });
 
 afterEach(() => {
@@ -51,6 +70,7 @@ afterEach(() => {
   window.localStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   navigationMock.searchParams = new URLSearchParams("vehicle=preparing-car&customerType=individual&restore=1");
   navigationMock.router.back.mockReset();
   navigationMock.router.push.mockReset();
@@ -211,6 +231,192 @@ describe("QuoteClientPageV2 consultation fallback", () => {
         aggressive: { monthlyPayment: 530_000 },
       },
     });
+  });
+
+  it("saves the exact quote before delivering it to Kakao", async () => {
+    writeCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+        });
+      }
+      if (url === "/api/quote/deliver") {
+        return Response.json({
+          success: true,
+          data: { deliveryId: "delivery-1" },
+        });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(await screen.findByRole("button", { name: "카카오톡으로 견적서 받기" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/deliver",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+
+    const saveIndex = fetchMock.mock.calls.findIndex(([input]) => input.toString() === "/api/quote/save");
+    const deliverIndex = fetchMock.mock.calls.findIndex(([input]) => input.toString() === "/api/quote/deliver");
+    expect(saveIndex).toBeGreaterThanOrEqual(0);
+    expect(deliverIndex).toBeGreaterThan(saveIndex);
+
+    const deliverCall = fetchMock.mock.calls[deliverIndex];
+    expect(JSON.parse(String(deliverCall?.[1]?.body))).toMatchObject({
+      savedQuoteId: "saved-quote-1",
+      sessionId: "saved-session-1",
+      vehicleName: "준비중 차량",
+      scenarioType: "conservative",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "카카오톡으로 견적서를 보냈어요"
+    );
+  });
+
+  it("refreshes a restored anonymous quote before delivering unlocked scenarios", async () => {
+    writeLockedCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url.endsWith("/quote")) {
+        return Response.json({
+          success: true,
+          data: createUnlockedCalculatedQuoteResult(),
+        });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+        });
+      }
+      if (url === "/api/quote/deliver") {
+        return Response.json({
+          success: true,
+          data: { deliveryId: "delivery-1" },
+        });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(await screen.findByRole("button", { name: "카카오톡으로 견적서 받기" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/deliver",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+
+    const quoteIndex = fetchMock.mock.calls.findIndex(
+      ([input]) => input.toString() === "/api/vehicles/preparing-car/quote"
+    );
+    const saveIndex = fetchMock.mock.calls.findIndex(
+      ([input]) => input.toString() === "/api/quote/save"
+    );
+    const deliverIndex = fetchMock.mock.calls.findIndex(
+      ([input]) => input.toString() === "/api/quote/deliver"
+    );
+    expect(quoteIndex).toBeGreaterThanOrEqual(0);
+    expect(saveIndex).toBeGreaterThan(quoteIndex);
+    expect(deliverIndex).toBeGreaterThan(saveIndex);
+
+    const deliverBody = JSON.parse(
+      String(fetchMock.mock.calls[deliverIndex]?.[1]?.body)
+    );
+    expect(deliverBody.scenarios).toMatchObject({
+      conservative: { monthlyPayment: 610_000 },
+      standard: { monthlyPayment: 700_000 },
+      aggressive: { monthlyPayment: 530_000 },
+    });
+    expect(deliverBody.scenarios.conservative.locked).not.toBe(true);
+    expect(deliverBody.scenarios.aggressive.locked).not.toBe(true);
+  });
+
+  it("requests Kakao consent directly when the stored provider token must be renewed", async () => {
+    writeCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+        });
+      }
+      if (url === "/api/quote/deliver") {
+        return Response.json(
+          {
+            error: "카카오톡 전송 권한이 만료되었습니다.",
+            code: "KAKAO_REAUTH_REQUIRED",
+          },
+          { status: 409 }
+        );
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(await screen.findByRole("button", { name: "카카오톡으로 견적서 받기" }));
+
+    await waitFor(() => expect(supabaseMock.signInWithOAuth).toHaveBeenCalledTimes(1));
+    expect(supabaseMock.signInWithOAuth).toHaveBeenCalledWith({
+      provider: "kakao",
+      options: expect.objectContaining({
+        scopes: expect.stringContaining("talk_message"),
+        queryParams: {
+          scope: expect.stringContaining("talk_message"),
+        },
+      }),
+    });
+    expect(navigationMock.router.push).not.toHaveBeenCalledWith(
+      expect.stringContaining("/login?next=")
+    );
+  });
+
+  it("hides the Kakao delivery action when the feature flag is disabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "false");
+    writeCalculatedRestore();
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    await screen.findByRole("button", { name: "견적서 받기" });
+    expect(
+      screen.queryByRole("button", { name: "카카오톡으로 견적서 받기" })
+    ).not.toBeInTheDocument();
   });
 
   it("shows an inline error and stays on the quote when persistence fails", async () => {

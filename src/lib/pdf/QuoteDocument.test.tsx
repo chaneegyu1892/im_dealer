@@ -102,4 +102,19 @@ describe("QuoteDocument scenario presentation", () => {
     expect(textElements).toContain("5. 선택 견적 (선납금)");
     expect(textElements).toContain("월 533,333원");
   });
+
+  it("omits the customer email from a public Kakao delivery image", () => {
+    const publicDeliveryData: PDFQuoteData = {
+      ...legacyData,
+      userEmail: null,
+    };
+
+    const document = QuoteDocument({ data: publicDeliveryData });
+    const textElements = collectTextElements(document);
+
+    expect(textElements.some((text) => text.startsWith("고객 이메일:"))).toBe(false);
+    expect(textElements).toContain(
+      "본 견적서는 아임딜러 시스템에 의해 자동 생성되었습니다."
+    );
+  });
 });

@@ -3,13 +3,21 @@
 // 응답 예: { channels: [ { channel_uuid, encoded_id, relation: "ADDED"|"BLOCKED"|"NONE" } ] }
 // ※ "채널 관계 확인" 권한(동의항목/스코프)이 필요하다 — 콘솔 설정 후 동작.
 
+import { z } from "zod";
+
 export type ChannelRelation = "ADDED" | "BLOCKED" | "NONE";
 
-interface KakaoChannel {
-  channel_uuid?: unknown;
-  encoded_id?: unknown;
-  relation?: unknown;
-}
+const channelResponseSchema = z.object({
+  channels: z
+    .array(
+      z.object({
+        channel_uuid: z.string().optional(),
+        encoded_id: z.string().optional(),
+        relation: z.string().optional(),
+      })
+    )
+    .optional(),
+});
 
 /**
  * 카카오 채널 목록 응답에서 특정 채널과의 관계를 뽑아낸다(순수 함수).
@@ -17,11 +25,12 @@ interface KakaoChannel {
  * 매칭 채널이 없으면(= 추가 안 함) "NONE".
  */
 export function parseChannelRelation(json: unknown, channelId: string): ChannelRelation {
-  const channels = (json as { channels?: unknown })?.channels;
-  if (!Array.isArray(channels)) return "NONE";
+  const result = channelResponseSchema.safeParse(json);
+  if (!result.success || !result.data.channels) return "NONE";
 
-  const match = (channels as KakaoChannel[]).find(
-    (c) => c?.channel_uuid === channelId || c?.encoded_id === channelId
+  const match = result.data.channels.find(
+    (channel) =>
+      channel.channel_uuid === channelId || channel.encoded_id === channelId
   );
   if (!match) return "NONE";
 
@@ -45,7 +54,8 @@ export async function getChannelRelation(
     });
     if (!res.ok) return "NONE";
     return parseChannelRelation(await res.json(), channelId);
-  } catch {
-    return "NONE";
+  } catch (error) {
+    if (error instanceof Error) return "NONE";
+    throw error;
   }
 }

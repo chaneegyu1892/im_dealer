@@ -663,15 +663,43 @@ model User {
   lastLoginAt      DateTime?
   phone            String?
   provider         String? // "kakao" 등
+  kakaoId          String?   @unique // 카카오 회원번호(앱별 고유). 싱크·메시지 발송의 키.
   kakaoNickname    String?
+  channelRelation  String? // "ADDED" | "BLOCKED" | "NONE" — 카카오톡 채널 추가 상태
+  // 카카오 리프레시 토큰. 견적서 전송 시 액세스 토큰 재발급에 사용.
+  // 평문 저장 금지 — src/lib/pii.ts 의 encryptString/decryptString 만 거칠 것.
+  kakaoRefreshToken String?
   marketingConsent Boolean   @default(false)
+  consentedAt      DateTime? // 카카오싱크 동의창을 통과한 시각(재동의 시 갱신)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @default(now()) @updatedAt
 
-  auditLogs AdminAuditLog[]
+  auditLogs       AdminAuditLog[]
+  quoteDeliveries QuoteDelivery[]
 
   @@index([role, isActive])
   @@index([email])
+  @@index([channelRelation])
+}
+
+// 견적서 카카오톡 전송 이력. 재발송·실패 추적·관리자 모니터링의 근거.
+model QuoteDelivery {
+  id            String    @id @default(cuid())
+  userId        String
+  savedQuoteId  String? // 전송 시점의 SavedQuote (없을 수도 있어 nullable)
+  vehicleName   String
+  imagePath     String // Storage 경로 (PNG)
+  channel       String    @default("memo") // "memo"(나에게 보내기) | "friendtalk"
+  status        String    @default("PENDING") // PENDING | SENT | FAILED
+  failReason    String?
+  sentAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
 
 model AdminAuditLog {

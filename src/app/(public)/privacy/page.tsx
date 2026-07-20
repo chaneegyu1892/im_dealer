@@ -70,8 +70,8 @@ export default function PrivacyPage() {
                 <tr>
                   <td className={TD}>홍보 및 마케팅</td>
                   <td className={TD}>
-                    회사 및 제휴사 서비스 관련 앱 푸시·문자·메시지 광고 발송, 이벤트 및 프로모션
-                    안내
+                    회사 및 제휴사 서비스 관련 카카오톡·문자메시지·이메일·앱 푸시 광고 발송,
+                    이벤트 및 프로모션 안내
                   </td>
                 </tr>
               </tbody>
@@ -99,23 +99,41 @@ export default function PrivacyPage() {
               </thead>
               <tbody>
                 <tr>
-                  <td className={TD}>회원 가입</td>
+                  <td className={TD}>회원 가입(카카오 로그인)</td>
                   <td className={TD}>
-                    성명, 휴대전화번호, 생년월일, 내외국인 구분, 통신사 정보, 성별, CI, DI,
-                    PIN번호, 모바일 기기 OS 정보, 디바이스 식별 정보
+                    이름, 이메일 주소, 휴대전화번호, 카카오계정 식별자, 프로필 정보(닉네임,
+                    프로필 이미지)
                   </td>
                 </tr>
                 <tr>
-                  <td className={TD}>서비스 이용</td>
+                  <td className={TD}>본인 확인(간편인증)</td>
                   <td className={TD}>
-                    이름, 주민등록번호, 통신사, 휴대전화번호, 소득 정보, 직장명, 근무 시작일,
-                    연소득, 운전자 연령, 운전면허 소지 여부, 견적 조회 결과(차량명, 엔진/트림,
-                    선납금, 이용 기간, 약정 주행거리, 월납금, 잔존가치)
+                    이름, 생년월일, 휴대전화번호, 통신사 정보, 간편인증 수단
+                  </td>
+                </tr>
+                <tr>
+                  <td className={TD}>서류 발급</td>
+                  <td className={TD}>
+                    발급 서류 원본 파일 및 문서확인번호(소득금액증명원, 근로소득 원천징수영수증,
+                    건강보험 자격득실확인서, 사업자등록증명 등) 및 해당 서류에 포함된 소득·재직·
+                    사업자 정보, 운전면허 진위확인 결과
+                  </td>
+                </tr>
+                <tr>
+                  <td className={TD}>견적 이용</td>
+                  <td className={TD}>
+                    고객명, 연락처, 견적 조회 결과(차량명, 엔진/트림, 선납금, 이용 기간, 약정
+                    주행거리, 월납금)
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+
+          <p className="mt-3 text-[13px] leading-6 text-text-muted">
+            ※ 본인 확인 과정에서 입력하신 주민등록번호 뒤 7자리는 생년월일을 산출하기 위해
+            이용자 기기 내에서만 처리되며, 회사 서버로 전송되거나 저장되지 않습니다.
+          </p>
 
           <p className="mt-4 font-medium text-text-strong">〈선택 항목〉</p>
           <div className="overflow-x-auto mt-2">
@@ -130,8 +148,8 @@ export default function PrivacyPage() {
                 <tr>
                   <td className={TD}>홍보 및 마케팅</td>
                   <td className={TD}>
-                    성명, 휴대전화번호, 생년월일, 내외국인 구분, 통신사 정보, 성별, 모바일 기기
-                    OS 정보, 디바이스 식별 정보, 서비스 이용 이력
+                    성명, 휴대전화번호, 이메일 주소, 카카오계정 식별자, 서비스 이용 이력(관심
+                    차량, 견적 조건)
                   </td>
                 </tr>
               </tbody>

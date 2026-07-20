@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { z } from "zod";
 import {
   ChevronLeft,
   BriefcaseBusiness,
@@ -14,8 +21,12 @@ import {
   ClipboardCheck,
   Download,
   AlertCircle,
+  MessageSquare,
+  CheckCircle2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { startKakaoLogin } from "@/lib/kakao/client-auth";
+import { isKakaoSyncEnabled } from "@/lib/kakao/scopes";
 import { cn } from "@/lib/utils";
 import { isSupabaseStorageUrl } from "@/lib/image-url";
 import { sortLineups } from "@/lib/lineup-sort";
@@ -37,6 +48,7 @@ import {
   deriveQuoteScenarioType,
   realignSelectedQuoteScenarios,
 } from "@/lib/quote-scenario-selection";
+import { successfulCalculatedQuoteResponseSchema } from "@/lib/quote-response-schema";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
 import {
   type LineupChoice,
@@ -63,6 +75,30 @@ import {
 
 // ─── 상수 ────────────────────────────────────────────────
 const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
+
+const apiErrorSchema = z.object({
+  error: z.string().optional(),
+  code: z.string().optional(),
+});
+
+const savedQuoteResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    id: z.string().min(1),
+    sessionId: z.string().min(1),
+    requiresConsultation: z.boolean().optional(),
+  }),
+});
+
+type QuoteImageRequest = Omit<PDFQuoteData, "userEmail">;
+
+function hasLockedQuoteScenario(quote: QuoteResponse): boolean {
+  return (
+    quote.scenarios.conservative.locked === true ||
+    quote.scenarios.standard.locked === true ||
+    quote.scenarios.aggressive.locked === true
+  );
+}
 
 const CUSTOMER_TYPE_OPTIONS: {
   type: CustomerType;
@@ -210,6 +246,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [isImageDownloading, setIsImageDownloading] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [isDelivering, setIsDelivering] = useState(false);
+  const [deliverSuccess, setDeliverSuccess] = useState(false);
+  const kakaoDeliveryEnabled = isKakaoSyncEnabled();
   const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
   const recalculateRequestId = useRef(0);
   const lastQuotedSlug = useRef<string | null>(null);
@@ -560,6 +599,19 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteResult, customRates]);
 
+  const getEffectiveSelectedOptionIds = useCallback((): string[] => {
+    const currentOptionIds = Array.from(selectedOptionIds);
+    const restored = restoreRef.current;
+    if (
+      trimsLoaded ||
+      !restored ||
+      restored.vehicleSlug !== quoteResult?.vehicleSlug
+    ) {
+      return currentOptionIds;
+    }
+    return [...restored.selectedOptionIds];
+  }, [quoteResult?.vehicleSlug, selectedOptionIds, trimsLoaded]);
+
   const saveCurrentQuote = useCallback(async () => {
     if (!quoteResult?.trimId) {
       throw new Error("상담 요청을 저장하려면 트림을 선택해 주세요.");
@@ -572,7 +624,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         sessionId: quoteSessionId,
         vehicleSlug: quoteResult.vehicleSlug,
         trimId: quoteResult.trimId,
-        selectedOptionIds: Array.from(selectedOptionIds),
+        selectedOptionIds: getEffectiveSelectedOptionIds(),
         contractMonths: quoteResult.contractMonths,
         annualMileage: quoteResult.annualMileage,
         contractType: "반납형",
@@ -586,19 +638,21 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         quoteType: draftSource,
       }),
     });
-    const json = await saveRes.json().catch(() => null);
-    if (!saveRes.ok || !json?.success) {
-      throw new Error(json?.error ?? "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    const responsePayload: unknown = await saveRes.json().catch(() => null);
+    const savedQuoteResult = savedQuoteResponseSchema.safeParse(responsePayload);
+    if (!saveRes.ok || !savedQuoteResult.success) {
+      const apiErrorResult = apiErrorSchema.safeParse(responsePayload);
+      throw new Error(
+        apiErrorResult.success && apiErrorResult.data.error
+          ? apiErrorResult.data.error
+          : "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요."
+      );
     }
-    return json.data as {
-      id: string;
-      sessionId: string;
-      requiresConsultation?: boolean;
-    };
+    return savedQuoteResult.data.data;
   }, [
     quoteResult,
     quoteSessionId,
-    selectedOptionIds,
+    getEffectiveSelectedOptionIds,
     customerType,
     contractCategory,
     customRates,
@@ -696,32 +750,35 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     isApplying, saveCurrentQuote,
   ]);
 
-  // ─── 이미지 다운로드 (v1 계약 그대로) ─────────────────────
-  async function handleImageDownload() {
-    if (!quoteResult || !selectedVehicle) return;
-    setIsImageDownloading(true);
-    setImageError(null);
+  // 견적서 페이로드 — 다운로드(/api/quote/image)와 카톡 전송(/api/quote/deliver)이 공유한다.
+  function buildQuotePayload(
+    result: QuoteResponse | null = quoteResult
+  ): QuoteImageRequest | null {
+    if (!result || !selectedVehicle) return null;
 
-    const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({ name, price }));
+    const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({
+      name,
+      price,
+    }));
     const scenarioType = deriveQuoteScenarioType(customRates);
-    const payload: Partial<PDFQuoteData> = {
+    return {
       vehicleName: selectedVehicle.name,
       vehicleBrand: selectedVehicle.brand,
-      trimName: quoteResult.trimName,
-      trimPrice: quoteResult.trimPrice,
+      trimName: result.trimName,
+      trimPrice: result.trimPrice,
       selectedOptions,
       totalVehiclePrice:
-        quoteResult.totalVehiclePrice ??
-        quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? optionsTotalPrice) + colorDelta,
+        result.totalVehiclePrice ??
+        result.trimPrice + (result.optionsTotalPrice ?? optionsTotalPrice) + colorDelta,
       productType: contractCategory,
-      contractMonths: quoteResult.contractMonths,
-      annualMileage: quoteResult.annualMileage,
+      contractMonths: result.contractMonths,
+      annualMileage: result.annualMileage,
       contractType: "반납형",
       scenarioType,
       scenarios: realignSelectedQuoteScenarios(
-        quoteResult.scenarios,
+        result.scenarios,
         scenarioType,
-        baseStandardScenario.current ?? quoteResult.scenarios.standard
+        baseStandardScenario.current ?? result.scenarios.standard
       ),
       exteriorColor: selectedExteriorColor
         ? { name: selectedExteriorColor.name, hexCode: selectedExteriorColor.hexCode, priceDelta: selectedExteriorColor.priceDelta }
@@ -730,6 +787,14 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         ? { name: selectedInteriorColor.name, hexCode: selectedInteriorColor.hexCode, priceDelta: selectedInteriorColor.priceDelta }
         : null,
     };
+  }
+
+  // ─── 이미지 다운로드 (v1 계약 그대로) ─────────────────────
+  async function handleImageDownload() {
+    const payload = buildQuotePayload();
+    if (!payload || !selectedVehicle) return;
+    setIsImageDownloading(true);
+    setImageError(null);
 
     try {
       const response = await fetch("/api/quote/image", {
@@ -762,6 +827,145 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     }
   }
 
+  // ─── 카카오톡으로 견적서 전송 ─────────────────────────────
+  async function handleQuoteDeliver() {
+    if (!kakaoDeliveryEnabled || !quoteResult) return;
+    setIsDelivering(true);
+    setImageError(null);
+    setDeliverSuccess(false);
+
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        await startKakaoConsentFlow();
+        return;
+      }
+
+      const deliveryQuote = hasLockedQuoteScenario(quoteResult)
+        ? await refreshQuoteForDelivery()
+        : quoteResult;
+      const payload = buildQuotePayload(deliveryQuote);
+      if (!payload) {
+        throw new Error("전송할 견적 정보를 확인할 수 없습니다.");
+      }
+
+      const savedQuote = await saveCurrentQuote();
+      const response = await fetch("/api/quote/deliver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          savedQuoteId: savedQuote.id,
+          sessionId: savedQuote.sessionId,
+        }),
+      });
+      const responsePayload: unknown = await response.json().catch(() => null);
+      const apiErrorResult = apiErrorSchema.safeParse(responsePayload);
+
+      if (!response.ok) {
+        if (
+          response.status === 401 ||
+          (apiErrorResult.success &&
+            apiErrorResult.data.code === "KAKAO_REAUTH_REQUIRED")
+        ) {
+          await startKakaoConsentFlow();
+          return;
+        }
+        setImageError(
+          apiErrorResult.success && apiErrorResult.data.error
+            ? apiErrorResult.data.error
+            : "카카오톡 전송에 실패했습니다."
+        );
+        return;
+      }
+
+      setDeliverSuccess(true);
+    } catch (deliverError) {
+      if (!(deliverError instanceof Error)) throw deliverError;
+      setImageError(
+        deliverError.message ||
+          "전송 중 네트워크 오류가 발생했습니다."
+      );
+    } finally {
+      setIsDelivering(false);
+    }
+  }
+
+  async function refreshQuoteForDelivery(): Promise<QuoteResponse> {
+    const baseQuote = await requestCalculatedQuoteForDelivery({
+      depositRate: 0,
+      prepayRate: 0,
+    });
+    baseStandardScenario.current = baseQuote.scenarios.standard;
+
+    const refreshedQuote =
+      customRates.depositRate > 0 || customRates.prepayRate > 0
+        ? await requestCalculatedQuoteForDelivery(customRates)
+        : baseQuote;
+
+    if (hasLockedQuoteScenario(refreshedQuote)) {
+      throw new Error(
+        "로그인 정보가 견적에 반영되지 않았습니다. 새로고침 후 다시 시도해 주세요."
+      );
+    }
+
+    recalculateRequestId.current += 1;
+    setQuoteResult(refreshedQuote);
+    return refreshedQuote;
+  }
+
+  async function requestCalculatedQuoteForDelivery(rates: {
+    readonly depositRate: number;
+    readonly prepayRate: number;
+  }): Promise<QuoteResponse> {
+    if (!selectedVehicle || !quoteResult?.trimId) {
+      throw new Error("전송할 견적 정보를 확인할 수 없습니다.");
+    }
+
+    const restored = restoreRef.current;
+    const response = await fetch(
+      `/api/vehicles/${selectedVehicle.slug}/quote`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: quoteSessionId,
+          trimId: quoteResult.trimId,
+          selectedOptionIds: getEffectiveSelectedOptionIds(),
+          contractMonths: quoteResult.contractMonths,
+          annualMileage: quoteResult.annualMileage,
+          contractType: "반납형",
+          productType: contractCategory,
+          customerType,
+          exteriorColorId: exteriorColorId ?? restored?.exteriorColorId ?? null,
+          interiorColorId: interiorColorId ?? restored?.interiorColorId ?? null,
+          ...(rates.depositRate > 0
+            ? { customDepositRate: rates.depositRate }
+            : {}),
+          ...(rates.prepayRate > 0
+            ? { customPrepayRate: rates.prepayRate }
+            : {}),
+        }),
+      }
+    );
+    const responsePayload: unknown = await response.json().catch(() => null);
+    const parsed = successfulCalculatedQuoteResponseSchema.safeParse(
+      responsePayload
+    );
+    if (!response.ok || !parsed.success) {
+      const apiErrorResult = apiErrorSchema.safeParse(responsePayload);
+      throw new Error(
+        apiErrorResult.success && apiErrorResult.data.error
+          ? apiErrorResult.data.error
+          : "로그인 후 견적을 다시 계산하지 못했습니다."
+      );
+    }
+    return parsed.data.data;
+  }
+
   // ─── 복원 저장본 생성 + 게이트 로그인 (v1 계약 그대로) ──
   const buildRestoreState = useCallback((): QuoteImageRestoreState | null => {
     if (!quoteResult || !selectedVehicle) return null;
@@ -770,7 +974,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       customerType,
       selectedLineup,
       selectedTrimName: selectedTrim?.name ?? null,
-      selectedOptionIds: Array.from(selectedOptionIds),
+      selectedOptionIds: getEffectiveSelectedOptionIds(),
       contractCategory,
       conditions: {
         contractMonths: conditions.contractMonths,
@@ -784,11 +988,24 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       baseStandard: baseStandardScenario.current,
       quoteResult,
     };
-  }, [quoteResult, selectedVehicle, customerType, selectedLineup, selectedTrim, selectedOptionIds, contractCategory, conditions, customRates, exteriorColorId, interiorColorId, costMode]);
+  }, [quoteResult, selectedVehicle, customerType, selectedLineup, selectedTrim, getEffectiveSelectedOptionIds, contractCategory, conditions, customRates, exteriorColorId, interiorColorId, costMode]);
+
+  async function startKakaoConsentFlow(): Promise<void> {
+    const state = buildRestoreState();
+    if (state) {
+      restoreRef.current = state;
+      saveQuoteImageRestore(state);
+    }
+    const next = `${window.location.pathname}${window.location.search}`;
+    await startKakaoLogin({ next });
+  }
 
   const handleGateLogin = useCallback(() => {
     const state = buildRestoreState();
-    if (state) saveQuoteImageRestore(state);
+    if (state) {
+      restoreRef.current = state;
+      saveQuoteImageRestore(state);
+    }
     const params = new URLSearchParams({
       vehicle: selectedVehicle?.slug ?? "",
       customerType,
@@ -802,7 +1019,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   useEffect(() => {
     if (step === 3 && quoteResult && selectedVehicle) {
       const state = buildRestoreState();
-      if (state) saveQuoteImageRestore(state);
+      if (state) {
+        restoreRef.current = state;
+        saveQuoteImageRestore(state);
+      }
       // restore 마커 동기화
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
@@ -985,6 +1205,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               consultationError={consultationError}
               isImageDownloading={isImageDownloading}
               imageError={imageError}
+              kakaoDeliveryEnabled={kakaoDeliveryEnabled}
+              isDelivering={isDelivering}
+              deliverSuccess={deliverSuccess}
+              onQuoteDeliver={handleQuoteDeliver}
               onCustomRatesChange={setCustomRates}
               onCostModeChange={setCostMode}
               onReset={restoreBaseStandardScenario}
@@ -1121,6 +1345,10 @@ function Step3ResultHeader({
   consultationError,
   isImageDownloading,
   imageError,
+  kakaoDeliveryEnabled,
+  isDelivering,
+  deliverSuccess,
+  onQuoteDeliver,
   onCustomRatesChange,
   onCostModeChange,
   onReset,
@@ -1151,6 +1379,10 @@ function Step3ResultHeader({
   consultationError: string | null;
   isImageDownloading: boolean;
   imageError: string | null;
+  kakaoDeliveryEnabled: boolean;
+  isDelivering: boolean;
+  deliverSuccess: boolean;
+  onQuoteDeliver: () => void;
   onCustomRatesChange: (rates: { depositRate: number; prepayRate: number }) => void;
   onCostModeChange: (mode: CostMode) => void;
   onReset: () => void;
@@ -1412,6 +1644,26 @@ function Step3ResultHeader({
             위 견적은 실제 계약 가능한 기준이나, 최종 금액은 차량 상태·옵션·프로모션에 따라
             달라질 수 있어요. 전문가 상담으로 확정 견적을 받아보세요.
           </div>
+
+          {kakaoDeliveryEnabled && (
+            <button
+              type="button"
+              onClick={onQuoteDeliver}
+              disabled={isDelivering}
+              aria-busy={isDelivering}
+              className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--color-kakao-action)] text-[15.5px] font-bold text-[var(--color-kakao-ink)] shadow-card transition-colors hover:bg-[var(--color-kakao-action-hover)] active:scale-[0.99] disabled:cursor-wait disabled:opacity-60"
+            >
+              <MessageSquare size={17} strokeWidth={2.2} />
+              {isDelivering ? "전송 중…" : "카카오톡으로 견적서 받기"}
+            </button>
+          )}
+
+          {kakaoDeliveryEnabled && deliverSuccess && (
+            <div role="status" className="flex items-start gap-2 rounded-[12px] border border-brand/20 bg-brand-soft p-3 text-[12px] text-brand">
+              <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
+              <p>카카오톡으로 견적서를 보냈어요. 나와의 채팅에서 확인해 주세요.</p>
+            </div>
+          )}
 
           {/* 메인 CTA: 심사 요청 */}
           <button

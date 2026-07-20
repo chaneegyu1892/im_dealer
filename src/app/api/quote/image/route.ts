@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
 import { strictRateLimit, checkRateLimit } from "@/lib/rate-limit";
-import { parseQuoteScenarioType } from "@/lib/quote-scenario-selection";
+import { buildQuoteImageData } from "@/lib/quote-image/from-request";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -21,34 +20,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  let body: Partial<PDFQuoteData>;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 });
   }
 
-  if (!body.vehicleName || !body.scenarios) {
+  let imageData;
+  try {
+    imageData = buildQuoteImageData(body, user.email ?? "이메일 미등록");
+  } catch {
     return NextResponse.json({ error: "필수 견적 정보가 누락되었습니다." }, { status: 400 });
   }
-
-  const imageData: PDFQuoteData = {
-    vehicleName: body.vehicleName,
-    vehicleBrand: body.vehicleBrand ?? "",
-    trimName: body.trimName ?? "",
-    trimPrice: body.trimPrice ?? 0,
-    selectedOptions: body.selectedOptions ?? [],
-    totalVehiclePrice: body.totalVehiclePrice ?? body.trimPrice ?? 0,
-    productType: body.productType ?? "장기렌트",
-    contractMonths: body.contractMonths ?? 48,
-    annualMileage: body.annualMileage ?? 20000,
-    contractType: body.contractType ?? "반납형",
-    scenarioType: parseQuoteScenarioType(body.scenarioType),
-    scenarios: body.scenarios,
-    userEmail: user.email ?? "이메일 미등록",
-    exteriorColor: body.exteriorColor ?? null,
-    interiorColor: body.interiorColor ?? null,
-  };
 
   try {
     const imageBuffer = await renderQuoteImageBuffer(imageData);

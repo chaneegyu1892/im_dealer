@@ -21,7 +21,7 @@ export interface PDFQuoteData {
   contractType: string;
   scenarioType?: QuoteScenarioType;
   scenarios: QuoteScenarioDetails;
-  userEmail: string;
+  userEmail: string | null;
   exteriorColor?: PDFQuoteColor | null;
   interiorColor?: PDFQuoteColor | null;
 }

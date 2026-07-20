@@ -511,7 +511,7 @@ export function QuoteDocument({
         {/* 푸터 */}
         <View style={s.footer}>
           <View style={s.footerL}>
-            <Text>고객 이메일: {data.userEmail}</Text>
+            {data.userEmail ? <Text>고객 이메일: {data.userEmail}</Text> : null}
             <Text>산출일: {today}  |  유효기간: {expiry} 까지</Text>
           </View>
           <View style={s.footerR}>

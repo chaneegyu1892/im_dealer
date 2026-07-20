@@ -3,15 +3,19 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, CarFront, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getSafeInternalPath } from "@/lib/auth/redirect";
+import { startKakaoLogin } from "@/lib/kakao/client-auth";
 
 export default function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params?.get("next") ?? "/";
+  const next = getSafeInternalPath(params?.get("next"));
+  const [isStartingLogin, setIsStartingLogin] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -21,27 +25,17 @@ export default function LoginContent() {
   }, [next, router]);
 
   async function handleKakaoLogin() {
-    const supabase = createClient();
-    const redirectOrigin = getAuthRedirectOrigin();
-    const redirectTo = `${redirectOrigin}/auth/callback?next=${encodeURIComponent(next)}`;
-
-    // phone_number 는 카카오 비즈니스 앱 + 전화번호 동의항목 검수 통과 후에만 요청해야 한다.
-    // 검수 전에 요청하면 로그인 자체가 깨지므로 env 플래그로 제어한다(기본 off = 기존 동작).
-    const scope =
-      process.env.NEXT_PUBLIC_KAKAO_REQUEST_PHONE === "true"
-        ? "profile_nickname profile_image phone_number"
-        : "profile_nickname profile_image";
-
-    await supabase.auth.signInWithOAuth({
-      provider: "kakao",
-      options: {
-        redirectTo,
-        scopes: scope,
-        queryParams: {
-          scope,
-        },
-      },
-    });
+    if (isStartingLogin) return;
+    setIsStartingLogin(true);
+    setLoginError(null);
+    try {
+      await startKakaoLogin({ next });
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+      setLoginError("카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsStartingLogin(false);
+    }
   }
 
   return (
@@ -89,11 +83,22 @@ export default function LoginContent() {
               <button
                 type="button"
                 onClick={handleKakaoLogin}
-                className="mt-8 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-[#FEE500] px-5 text-[16px] font-extrabold text-[#191919] shadow-card transition-all duration-state hover:brightness-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 active:scale-[0.98]"
+                disabled={isStartingLogin}
+                aria-busy={isStartingLogin}
+                className="mt-8 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-[var(--color-kakao-action)] px-5 text-[16px] font-extrabold text-[var(--color-kakao-ink)] shadow-card transition-all duration-state hover:bg-[var(--color-kakao-action-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 active:scale-[0.98] disabled:cursor-wait disabled:opacity-70"
               >
                 <KakaoIcon />
-                카카오로 시작하기
+                {isStartingLogin ? "카카오 연결 중…" : "카카오로 시작하기"}
               </button>
+
+              {loginError ? (
+                <p
+                  role="alert"
+                  className="mt-3 rounded-[14px] border border-status-danger/20 bg-status-danger-soft px-4 py-3 text-[13px] font-semibold leading-relaxed text-status-danger"
+                >
+                  {loginError}
+                </p>
+              ) : null}
 
               <p className="mt-5 break-keep text-center text-[12px] leading-relaxed text-text-muted">
                 로그인 시{" "}
@@ -120,16 +125,6 @@ export default function LoginContent() {
       </div>
     </main>
   );
-}
-
-function getAuthRedirectOrigin() {
-  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim();
-
-  if (configuredOrigin) {
-    return configuredOrigin.replace(/\/+$/, "");
-  }
-
-  return window.location.origin;
 }
 
 function KakaoIcon() {

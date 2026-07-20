@@ -63,6 +63,9 @@
     --color-status-info-soft-rgb: 238 243 255;
     --color-focus-ring: #6066EE;
     --color-focus-ring-rgb: 96 102 238;
+    --color-kakao-action: #FEE500;
+    --color-kakao-action-hover: #F7D900;
+    --color-kakao-ink: #191919;
 
     /* Public aliases kept for existing classes while customer code migrates to semantic names. */
     --public-app-bg: var(--color-app-bg);
@@ -158,6 +161,9 @@
     --color-status-info-soft-rgb: 238 243 255;
     --color-focus-ring: #A7ADFF;
     --color-focus-ring-rgb: 167 173 255;
+    --color-kakao-action: #FEE500;
+    --color-kakao-action-hover: #F7D900;
+    --color-kakao-ink: #191919;
     --shadow-card: 0 10px 24px rgba(0,0,0,0.18);
     --shadow-card-hover: 0 12px 30px rgba(0,0,0,0.28);
     --shadow-float: 0 18px 44px rgba(0,0,0,0.32);

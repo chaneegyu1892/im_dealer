@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { VehicleListItem } from "@/types/api";
+import type { QuoteResponse, VehicleListItem } from "@/types/api";
 
 export const vehicles = [{
   id: "vehicle-preparing",
@@ -41,7 +41,30 @@ function quoteScenario(monthlyPayment: number, depositAmount: number, prepayAmou
   };
 }
 
-function writeRestore(requiresConsultation: boolean): void {
+export function createUnlockedCalculatedQuoteResult(): QuoteResponse {
+  return {
+    vehicleSlug: "preparing-car",
+    trimId: "trim-preparing",
+    trimName: "프리미엄",
+    trimPrice: 40_000_000,
+    optionsTotalPrice: 0,
+    colorDelta: 0,
+    totalVehiclePrice: 40_000_000,
+    contractMonths: 60,
+    annualMileage: 20000,
+    contractType: "반납형",
+    customerType: "individual",
+    scenarios: {
+      conservative: quoteScenario(610_000, 8_000_000, 0),
+      standard: quoteScenario(700_000, 0, 0),
+      aggressive: quoteScenario(530_000, 0, 12_000_000),
+    },
+    requiresConsultation: false,
+  };
+}
+
+function writeRestore(requiresConsultation: boolean, locked = false): void {
+  const unlockedResult = createUnlockedCalculatedQuoteResult();
   window.localStorage.setItem(
     "quote_image_restore",
     JSON.stringify({
@@ -56,7 +79,10 @@ function writeRestore(requiresConsultation: boolean): void {
         annualMileage: 20000,
         contractType: "반납형",
       },
-      customRates: { depositRate: requiresConsultation ? 0 : 10, prepayRate: 0 },
+      customRates: {
+        depositRate: requiresConsultation || locked ? 0 : 10,
+        prepayRate: 0,
+      },
       costMode: requiresConsultation ? "none" : "initial",
       baseStandard: requiresConsultation ? null : quoteScenario(700_000, 0, 0),
       quoteResult: {
@@ -71,11 +97,25 @@ function writeRestore(requiresConsultation: boolean): void {
         annualMileage: 20000,
         contractType: "반납형",
         customerType: "individual",
-        scenarios: requiresConsultation ? {} : {
-          conservative: quoteScenario(610_000, 8_000_000, 0),
-          standard: quoteScenario(650_000, 4_000_000, 0),
-          aggressive: quoteScenario(530_000, 0, 12_000_000),
-        },
+        scenarios: requiresConsultation
+          ? {}
+          : locked
+            ? {
+                conservative: {
+                  ...quoteScenario(0, 0, 0),
+                  locked: true,
+                },
+                standard: unlockedResult.scenarios.standard,
+                aggressive: {
+                  ...quoteScenario(0, 0, 0),
+                  locked: true,
+                },
+              }
+            : {
+                conservative: quoteScenario(610_000, 8_000_000, 0),
+                standard: quoteScenario(650_000, 4_000_000, 0),
+                aggressive: quoteScenario(530_000, 0, 12_000_000),
+              },
         requiresConsultation,
       },
     })
@@ -88,6 +128,10 @@ export function writeConsultationRestore(): void {
 
 export function writeCalculatedRestore(): void {
   writeRestore(false);
+}
+
+export function writeLockedCalculatedRestore(): void {
+  writeRestore(false, true);
 }
 
 export function createFetchMock(saveStatus = 200) {
