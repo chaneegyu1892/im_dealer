@@ -145,7 +145,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
-    const apply = await screen.findByRole("button", { name: "이 조건으로 심사 요청하기" });
+    const apply = await screen.findByRole("button", { name: "심사 요청하기" });
     fireEvent.click(apply);
 
     await waitFor(() => {
@@ -167,50 +167,25 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     );
   });
 
-  it("realigns the custom deposit quote to the conservative image scenario", async () => {
-    // Given: the customer selected a 10% deposit and recalculation replaced standard
+  it("shows successful-result actions and opens the preparation dialog without delivery requests", async () => {
+    // Given: a calculated quote has been restored and normal render fetches are available
     writeCalculatedRestore();
-    const fetchMock = vi.fn<
-      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-    >(async (input) => {
-      const url = input.toString();
-      if (url.endsWith("/colors") || url.endsWith("/trims")) {
-        return Response.json({ success: true, data: [] });
-      }
-      if (url === "/api/quote/image") {
-        return new Response(new Blob(["png"]), { status: 200 });
-      }
-      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
-    });
+    const fetchMock = createFetchMock();
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("URL", {
-      ...URL,
-      createObjectURL: vi.fn(() => "blob:quote-image"),
-      revokeObjectURL: vi.fn(),
-    });
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
-    // When: the customer downloads the quote image
+    // When: the customer opens the send action
     render(<QuoteClientPageV2 vehicles={vehicles} />);
-    fireEvent.click(await screen.findByRole("button", { name: "견적서 받기" }));
+    expect(await screen.findByRole("button", { name: "견적서 전송하기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "견적서 전송하기" }));
 
-    // Then: semantic selection and custom/base values are carried distinctly
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/quote/image",
-        expect.objectContaining({ method: "POST" })
-      );
-    });
-    const imageCall = fetchMock.mock.calls.find(([input]) => input.toString() === "/api/quote/image");
-    const imageBody = JSON.parse(String(imageCall?.[1]?.body));
-    expect(imageBody).toMatchObject({
-      scenarioType: "conservative",
-      scenarios: {
-        conservative: { monthlyPayment: 650_000 },
-        standard: { monthlyPayment: 700_000 },
-        aggressive: { monthlyPayment: 530_000 },
-      },
-    });
+    // Then: the honest preparation dialog is accessible and no delivery/image endpoint is called
+    expect(await screen.findByRole("dialog", { name: "기능 구현 중입니다" })).toBeInTheDocument();
+    expect(screen.getByText("카카오톡 채널을 통한 견적서 전송 기능을 준비하고 있어요.")).toBeInTheDocument();
+    const requestedUrls = fetchMock.mock.calls.map(([input]) => input.toString());
+    expect(requestedUrls.some((url) => url === "/api/quote/image")).toBe(false);
+    expect(requestedUrls.some((url) => /kakao/i.test(url))).toBe(false);
   });
 
   it("shows an inline error and stays on the quote when persistence fails", async () => {
@@ -219,7 +194,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "이 조건으로 심사 요청하기" }));
+    fireEvent.click(await screen.findByRole("button", { name: "심사 요청하기" }));
 
     const message = await screen.findByText(
       "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요."
