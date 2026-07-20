@@ -40,7 +40,7 @@ export function CarCard({ vehicle }: CarCardProps) {
         href={`/cars/${vehicle.slug}`}
         className="group flex min-h-[148px] items-center overflow-hidden rounded-card border border-border-subtle bg-surface-soft p-3 transition-all duration-state hover:-translate-y-0.5 hover:border-brand/40 hover:bg-surface-raised hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 lg:min-h-[204px] lg:p-4"
       >
-        <div className="relative flex aspect-[4/3] w-[44%] min-w-[132px] max-w-[216px] shrink-0 items-center justify-center overflow-hidden rounded-card lg:w-[46%] lg:min-w-[208px] lg:max-w-[248px] xl:min-w-[220px]">
+        <div className="relative flex aspect-[4/3] w-[44%] min-w-[132px] max-w-[216px] shrink-0 items-center justify-center overflow-hidden rounded-card bg-surface lg:w-[46%] lg:min-w-[208px] lg:max-w-[248px] xl:min-w-[220px]">
           {vehicle.thumbnailUrl ? (
             <Image
               src={vehicle.thumbnailUrl}
@@ -48,7 +48,7 @@ export function CarCard({ vehicle }: CarCardProps) {
               fill
               sizes="(max-width: 767px) 44vw, (max-width: 1023px) 216px, 248px"
               unoptimized={isSupabaseStorageUrl(vehicle.thumbnailUrl)}
-              className="!relative !inset-auto !h-auto !w-full max-h-full max-w-full rounded-card object-contain"
+              className="rounded-card object-contain"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center p-2 text-center text-[11px] font-bold text-text-muted">

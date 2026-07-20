@@ -11,8 +11,8 @@ import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import { deriveHashtags } from "@/lib/vehicle-hashtags";
 import { CarsClientPage } from "./CarsClientPage";
 import {
-  publicThumbnailProjectionSelect,
-  resolvePublicThumbnailUrl,
+  publicListThumbnailProjectionSelect,
+  resolvePublicListThumbnailUrl,
 } from "@/lib/vehicle-images/public";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
@@ -39,7 +39,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       brand: true,
       category: true,
       basePrice: true,
-      ...publicThumbnailProjectionSelect,
+      ...publicListThumbnailProjectionSelect,
       isPopular: true,
       isSpotlight: true,
       description: true,
@@ -115,7 +115,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       category: v.category as VehicleListItem["category"],
       basePrice: v.basePrice,
       evSubsidyRange: subsidyRangeFromTrims(v.trims),
-      thumbnailUrl: resolvePublicThumbnailUrl(v),
+      thumbnailUrl: resolvePublicListThumbnailUrl(v),
       isPopular: v.isPopular,
       isSpotlight: v.isSpotlight,
       description: v.description,

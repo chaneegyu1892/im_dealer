@@ -80,6 +80,29 @@ export const publicThumbnailProjectionSelect = {
   ...publicThumbnailProjectionInclude,
 } as const satisfies Prisma.VehicleSelect;
 
+const publicListThumbnailImageArgs = {
+  select: {
+    ...publicThumbnailImageArgs.select,
+    listThumbnailUrl: true,
+  },
+} as const satisfies Prisma.Vehicle$thumbnailImageArgs;
+
+const publicListThumbnailPrimaryImagesArgs = {
+  where: primaryImageWhere,
+  select: {
+    ...publicThumbnailPrimaryImagesArgs.select,
+    listThumbnailUrl: true,
+  },
+} as const satisfies Prisma.Vehicle$imagesArgs;
+
+export const publicListThumbnailProjectionSelect = {
+  thumbnailUrl: true,
+  thumbnailImageId: true,
+  images: publicListThumbnailPrimaryImagesArgs,
+  thumbnailImage: publicListThumbnailImageArgs,
+  _count: publicPrimaryImageCountArgs,
+} as const satisfies Prisma.VehicleSelect;
+
 export const publicVehicleImageStateInclude = {
   images: publicVehicleImageStateArgs,
   thumbnailImage: publicThumbnailImageArgs,
@@ -102,11 +125,13 @@ export function resolvePublicThumbnailUrl(vehicle: {
     readonly isVisible: boolean;
     readonly deletedAt: Date | null;
     readonly storageUrl: string;
+    readonly listThumbnailUrl?: string | null;
   } | null;
   readonly images: readonly {
     readonly type: VehicleImageType;
     readonly sourceUrl: string | null;
     readonly storageUrl: string;
+    readonly listThumbnailUrl?: string | null;
     readonly isVisible: boolean;
     readonly deletedAt: Date | null;
   }[];
@@ -132,6 +157,25 @@ export function resolvePublicThumbnailUrl(vehicle: {
   return matchingPrimaryImages.some((image) => image.isVisible && image.deletedAt === null)
     ? thumbnailUrl
     : "";
+}
+
+export function resolvePublicListThumbnailUrl(
+  vehicle: Parameters<typeof resolvePublicThumbnailUrl>[0],
+): string {
+  const thumbnailUrl = resolvePublicThumbnailUrl(vehicle);
+  if (thumbnailUrl === "") return "";
+
+  if (vehicle.thumbnailImageId !== null) {
+    return vehicle.thumbnailImage?.listThumbnailUrl?.trim() || thumbnailUrl;
+  }
+
+  const matchingImage = vehicle.images.find((image) =>
+    (image.type === "MAIN" || image.type === "COVER")
+    && image.isVisible
+    && image.deletedAt === null
+    && (image.storageUrl.trim() === thumbnailUrl || image.sourceUrl?.trim() === thumbnailUrl)
+    && Boolean(image.listThumbnailUrl?.trim()));
+  return matchingImage?.listThumbnailUrl?.trim() || thumbnailUrl;
 }
 
 export function resolvePublicVehicleImages(images: readonly {
