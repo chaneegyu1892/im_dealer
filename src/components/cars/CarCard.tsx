@@ -48,7 +48,7 @@ export function CarCard({ vehicle }: CarCardProps) {
               fill
               sizes="(max-width: 767px) 44vw, (max-width: 1023px) 216px, 248px"
               unoptimized={isSupabaseStorageUrl(vehicle.thumbnailUrl)}
-              className="rounded-card object-contain"
+              className="rounded-card object-cover object-center"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center p-2 text-center text-[11px] font-bold text-text-muted">
