@@ -45,19 +45,28 @@ const vehicle: VehicleListItem = {
 };
 
 describe("FeaturedCarsSlider 반응형 카드", () => {
-  it("태블릿부터 2장과 확대 이미지 열을 함께 적용한다", () => {
+  it("태블릿부터 2장을 노출하면서 일반 차량과 같은 CarCard를 사용한다", () => {
     render(<FeaturedCarsSlider vehicles={[vehicle]} />);
 
-    const vehicleLink = screen.getByRole("link", { name: /테스트 세단 현대 인기/ });
-    const grid = vehicleLink.firstElementChild;
+    const vehicleLink = screen.getByRole("link", {
+      name: /현대 테스트 세단 인기 현대 테스트 세단/,
+    });
     const slide = vehicleLink.parentElement?.parentElement;
+    const track = slide?.parentElement;
 
-    expect(slide).toHaveClass("w-[calc(100%-4px)]", "md:w-[calc(50%-10px)]");
-    expect(slide).not.toHaveClass("sm:w-[calc(50%-10px)]");
-    expect(grid).toHaveClass(
-      "grid-cols-[38%_1fr]",
-      "md:grid-cols-[46%_1fr]",
-      "lg:grid-cols-[48%_1fr]",
+    expect(slide).toHaveClass(
+      "w-full",
+      "md:w-[calc(50%-6px)]",
+      "lg:w-[calc(50%-8px)]",
     );
+    expect(track).toHaveClass("gap-3", "lg:gap-4");
+    expect(slide).not.toHaveClass("sm:w-[calc(50%-6px)]");
+    expect(vehicleLink).toHaveClass("min-h-[180px]", "lg:min-h-[236px]");
+    expect(screen.getByRole("heading", { name: "테스트 세단" })).toHaveClass(
+      "text-[20px]",
+      "lg:text-[24px]",
+      "xl:text-[26px]",
+    );
+    expect(screen.queryByRole("link", { name: "견적 내기" })).not.toBeInTheDocument();
   });
 });

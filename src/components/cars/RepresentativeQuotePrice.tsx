@@ -14,6 +14,7 @@ import {
 
 type Tone = "light" | "dark" | "brand";
 type Size = "sm" | "md" | "lg" | "xl";
+type Align = "start" | "end";
 
 interface RepresentativeQuotePriceProps {
   quotes: RepresentativeQuote[] | undefined;
@@ -31,6 +32,8 @@ interface RepresentativeQuotePriceProps {
   unitClassName?: string;
   /** 견적 없을 때 문구 */
   emptyText?: string;
+  /** 가격 묶음 정렬. 공용 기본값은 기존과 같은 왼쪽 정렬. */
+  align?: Align;
   className?: string;
 }
 
@@ -91,6 +94,7 @@ export function RepresentativeQuotePrice({
   numberClassName,
   unitClassName,
   emptyText = "견적 준비 중",
+  align = "start",
   className,
 }: RepresentativeQuotePriceProps) {
   const t = TONE_CLASS[tone];
@@ -98,7 +102,7 @@ export function RepresentativeQuotePrice({
   const showLabels = list.length > 1; // 둘 다 있을 때만 productType 라벨 노출
 
   return (
-    <div className={className}>
+    <div className={cn(align === "end" && "text-right", className)}>
       {showCaption && (
         <span className={cn("mb-1 block text-[10px]", t.caption, captionClassName)}>
           {captionText}
@@ -108,9 +112,15 @@ export function RepresentativeQuotePrice({
       {list.length === 0 ? (
         <span className={cn("text-[14px]", t.empty)}>{emptyText}</span>
       ) : (
-        <div className="space-y-0.5">
+        <div className={cn("space-y-0.5", align === "end" && "flex flex-col items-end")}>
           {list.map((q) => (
-            <div key={q.productType} className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
+            <div
+              key={q.productType}
+              className={cn(
+                "flex min-w-0 items-baseline gap-1.5 whitespace-nowrap",
+                align === "end" && "justify-end",
+              )}
+            >
               {showLabels && (
                 <span className={cn("text-[11px] font-medium shrink-0", t.label)}>
                   {q.productType}

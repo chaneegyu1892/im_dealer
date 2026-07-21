@@ -2,14 +2,14 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CarCard } from "@/components/cars/CarCard";
 import { cn } from "@/lib/utils";
 import type { VehicleListItem } from "@/types/api";
-import { FeaturedCard } from "@/components/cars/FeaturedCard";
 
 /**
  * "주목할 차량" 슬라이더 — 어드민이 지정한(isSpotlight) 차량을 가로 슬라이드로 노출.
  * - 좌우 이전/다음 버튼으로 수동 이동 (자동 넘김 없음)
- * - 카드 호버 시 살짝 확대 + 강조
+ * - 일반 차량 목록과 동일한 CarCard 양식 사용
  * - 데스크톱·태블릿 2장 / 모바일 1장 노출(scroll-snap)
  */
 export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }) {
@@ -44,7 +44,12 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
     const el = scrollRef.current;
     if (!el) return;
     const first = el.firstElementChild as HTMLElement | null;
-    const step = first ? first.clientWidth + 20 : el.clientWidth * 0.8;
+    const second = first?.nextElementSibling as HTMLElement | null;
+    const step = first && second
+      ? second.offsetLeft - first.offsetLeft
+      : first
+        ? first.clientWidth
+        : el.clientWidth * 0.8;
     el.scrollBy({ left: dir * step, behavior: "smooth" });
   };
 
@@ -70,10 +75,10 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
         </button>
       )}
 
-      {/* 트랙 (가로 스크롤 + snap). py-4 로 호버 확대 시 세로 클리핑 방지 */}
+      {/* 트랙 (가로 스크롤 + snap). py-5로 카드 호버 이동 시 세로 클리핑 방지 */}
       <div
         ref={scrollRef}
-        className="-mx-2 flex snap-x snap-mandatory gap-5 overflow-x-auto px-2 py-5 scrollbar-hide"
+        className="-mx-2 flex snap-x snap-mandatory gap-3 overflow-x-auto px-2 py-5 scrollbar-hide lg:gap-4"
         style={{ scrollbarWidth: "none" }}
       >
         {vehicles.map((vehicle) => (
@@ -81,10 +86,10 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
             key={vehicle.id}
             className={cn(
               "snap-start shrink-0 transition-transform duration-300 ease-out hover:z-10",
-              "w-[calc(100%-4px)] md:w-[calc(50%-10px)]",
+              "w-full md:w-[calc(50%-6px)] lg:w-[calc(50%-8px)]",
             )}
           >
-            <FeaturedCard vehicle={vehicle} size="small" />
+            <CarCard vehicle={vehicle} />
           </div>
         ))}
       </div>
