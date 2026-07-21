@@ -81,7 +81,7 @@ export function FeaturedCarsSlider({ vehicles }: { vehicles: VehicleListItem[] }
             key={vehicle.id}
             className={cn(
               "snap-start shrink-0 transition-transform duration-300 ease-out hover:z-10",
-              "w-[calc(100%-4px)] sm:w-[calc(50%-10px)]",
+              "w-[calc(100%-4px)] md:w-[calc(50%-10px)]",
             )}
           >
             <FeaturedCard vehicle={vehicle} size="small" />
