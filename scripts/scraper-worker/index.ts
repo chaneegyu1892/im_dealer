@@ -4,6 +4,7 @@ import puppeteer, { type Browser } from "puppeteer";
 import { z } from "zod";
 
 import { decryptString } from "../../src/lib/pii";
+import { keyFingerprint } from "../../src/lib/scraper/key-fingerprint";
 import type { CatalogJobParams, CatalogProgress, CatalogTrimEntry, ScrapeJobParams, TrimScrapeResult } from "../../src/types/scraper";
 import { buildDraftFromTrimResults } from "./mapping";
 import { buildBrowserLaunchArgs } from "./browser-launch";
@@ -59,12 +60,67 @@ function requireEnv(): void {
   }
 }
 
+/**
+ * 백엔드와 실제로 통할 수 있는지 job 을 가져오기 전에 확인한다.
+ *
+ * 특히 PII_ENCRYPTION_KEY 불일치는 크래시를 내지 않고 job 을 하나 소비한 뒤에야
+ * "자격증명 복호화 실패"로 끝나기 때문에, 여기서 미리 걸러야 원인을 알 수 있다.
+ * 백엔드가 구버전이라 preflight 라우트가 없으면(404) 경고만 남기고 계속 진행한다.
+ *
+ * 통과하면 true. 실패 시 즉시 exit 하지 않고 false 를 돌려 main 이 정상 종료하게 한다
+ * (열린 fetch 핸들 위에서 process.exit 하면 Windows 에서 libuv assertion 이 뜬다).
+ */
+async function preflight(): Promise<boolean> {
+  const base = (process.env.WORKER_API_BASE ?? "").replace(/\/+$/, "");
+  try {
+    const res = await fetch(`${base}/api/worker/preflight`, {
+      headers: { authorization: `Bearer ${process.env.SCRAPER_WORKER_SECRET}` },
+    });
+
+    if (res.status === 404) {
+      console.warn("[worker] preflight 라우트 없음(구버전 백엔드) — 점검을 건너뜁니다.");
+      return true;
+    }
+    if (res.status === 401) {
+      console.error("[worker] 인증 실패: SCRAPER_WORKER_SECRET 이 백엔드 값과 다릅니다.");
+      return false;
+    }
+    if (!res.ok) {
+      console.error(`[worker] preflight 실패: HTTP ${res.status}`);
+      return false;
+    }
+
+    const { keyFingerprint: serverKey } = (await res.json()) as { keyFingerprint: string | null };
+    const localKey = keyFingerprint(process.env.PII_ENCRYPTION_KEY);
+
+    if (serverKey && localKey && serverKey !== localKey) {
+      console.error(
+        `[worker] PII_ENCRYPTION_KEY 불일치 (워커 ${localKey} ≠ 백엔드 ${serverKey}).\n` +
+          "        이대로 실행하면 job 을 받아도 자격증명 복호화에 실패합니다.\n" +
+          "        백엔드의 PII_ENCRYPTION_KEY 를 그대로 복사해 넣으세요. (`pnpm scraper:doctor` 로 재점검)"
+      );
+      return false;
+    }
+    console.log(`[worker] preflight 통과 (키 지문 ${localKey ?? "?"})`);
+    return true;
+  } catch (error) {
+    console.error(
+      `[worker] 백엔드에 연결할 수 없습니다: ${base}\n` +
+        `        ${error instanceof Error ? error.message : "알 수 없는 오류"}\n` +
+        "        WORKER_API_BASE 가 맞는지, 백엔드가 떠 있는지 확인하세요."
+    );
+    return false;
+  }
+}
+
 async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<void> {
   const log = (msg: string) => console.log(`[job ${job.id}] ${msg}`);
 
-  const username = decryptString(credential.usernameEnc);
-  const password = decryptString(credential.passwordEnc);
-  if (!username || !password) {
+  // requiresHuman 캐피탈사(키패드·SMS)는 어댑터가 자격증명을 쓰지 않고 사람에게 로그인을 넘긴다.
+  // 그런 곳은 서버가 애초에 자격증명을 저장하지 않으므로 빈 값이 정상이다.
+  const username = decryptString(credential.usernameEnc) ?? "";
+  const password = decryptString(credential.passwordEnc) ?? "";
+  if (!credential.requiresHuman && (!username || !password)) {
     await postResult(job.id, { ok: false, error: "자격증명 복호화 실패 (PII_ENCRYPTION_KEY 불일치 가능)" });
     return;
   }
@@ -262,6 +318,10 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<v
 
 async function main(): Promise<void> {
   requireEnv();
+  if (!(await preflight())) {
+    process.exitCode = 1;
+    return;
+  }
   console.log(`[worker] 시작 — API=${process.env.WORKER_API_BASE} poll=${POLL_MS}ms headful=${HEADFUL}`);
   for (;;) {
     try {

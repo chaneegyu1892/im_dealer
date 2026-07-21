@@ -19,6 +19,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "scraper:worker": "tsx scripts/scraper-worker/index.ts",
+    "scraper:doctor": "tsx scripts/scraper-worker/doctor.ts",
     "scraper:mock": "node scripts/scraper-worker/mock-site/server.mjs",
     "scraper:try": "tsx scripts/scraper-worker/try-adapter.ts",
     "postinstall": "prisma generate"
