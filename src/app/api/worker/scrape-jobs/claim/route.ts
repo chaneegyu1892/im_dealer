@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireWorker } from "@/lib/worker-auth";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
 import { buildClaimLeaseWhere } from "@/lib/scraper/job-state";
+import { markWorkerSeen } from "@/lib/scraper/worker-presence";
 
 const STALE_MS = 3 * 60 * 1000; // 하트비트 3분 초과 시 워커가 죽은 것으로 보고 재클레임
 
@@ -11,6 +12,10 @@ const STALE_MS = 3 * 60 * 1000; // 하트비트 3분 초과 시 워커가 죽은
 export async function POST(request: NextRequest) {
   const { error } = requireWorker(request);
   if (error) return error;
+
+  // 워커가 유휴 상태일 때도 이 라우트를 주기적으로 호출하므로, 여기서 생존 신호를 남긴다.
+  // 실패해도 클레임 자체를 막지 않는다(상태 표시는 부가 기능).
+  void markWorkerSeen().catch(() => undefined);
 
   try {
     const db = prisma;
@@ -45,8 +50,14 @@ export async function POST(request: NextRequest) {
       select: { name: true },
     });
     const connection = fc ? resolveCapitalConnection(fc.name) : null;
-    if (!connection || !candidate.credUsernameEnc || !candidate.credPasswordEnc) {
-      // 접속 설정이 없거나 임시 자격증명이 사라짐 → 작업 실패 처리
+    // requiresHuman 캐피탈사는 어댑터가 자격증명을 쓰지 않으므로 애초에 저장하지 않는다.
+    // 그런 곳까지 "로그인 정보 없음"으로 실패시키면 안 된다.
+    const needsCredentials = connection !== null && !connection.requiresHuman;
+    const credentialsMissing =
+      needsCredentials && (!candidate.credUsernameEnc || !candidate.credPasswordEnc);
+
+    if (!connection || credentialsMissing) {
+      // 접속 설정이 없거나, 필요한데 임시 자격증명이 사라짐 → 작업 실패 처리
       await db.scrapeJob.updateMany({
         where: { id: candidate.id, status: "running", claimedAt: now },
         data: {
@@ -70,8 +81,8 @@ export async function POST(request: NextRequest) {
       },
       credential: {
         loginUrl: connection.loginUrl,
-        usernameEnc: candidate.credUsernameEnc,
-        passwordEnc: candidate.credPasswordEnc,
+        usernameEnc: candidate.credUsernameEnc ?? "",
+        passwordEnc: candidate.credPasswordEnc ?? "",
         config: { adapter: connection.adapter },
         requiresHuman: connection.requiresHuman,
       },

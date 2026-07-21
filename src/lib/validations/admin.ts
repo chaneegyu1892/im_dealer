@@ -244,9 +244,10 @@ export const scrapeJobCreateSchema = z.object({
   lineupIds: z.array(z.string().min(1)).default([]),
   minVehiclePrice: z.number().int().positive(),
   maxVehiclePrice: z.number().int().positive(),
-  // 가져오기마다 관리자가 직접 입력하는 개인 캐피탈 로그인 (저장하지 않음)
-  username: z.string().min(1, "ID를 입력하세요"),
-  password: z.string().min(1, "비밀번호를 입력하세요"),
+  // 가져오기마다 관리자가 직접 입력하는 개인 캐피탈 로그인 (저장하지 않음).
+  // requiresHuman 캐피탈사(키패드·SMS)는 워커가 자격증명을 쓰지 못하므로 생략한다 — 라우트에서 검증.
+  username: z.string().optional(),
+  password: z.string().optional(),
 });
 
 // 카탈로그 전량 수집 작업 생성 (POST /api/admin/scrape-jobs, body.jobType === "catalog")
@@ -258,8 +259,9 @@ export const catalogJobCreateSchema = z.object({
   brands: z
     .array(z.object({ brandCd: z.string().min(1), name: z.string().min(1) }))
     .min(1, "브랜드를 1개 이상 선택하세요"),
-  username: z.string().min(1, "ID를 입력하세요"),
-  password: z.string().min(1, "비밀번호를 입력하세요"),
+  // requiresHuman 캐피탈사는 생략 가능 — 위 scrapeJobCreateSchema 주석 참고.
+  username: z.string().optional(),
+  password: z.string().optional(),
 });
 
 // 트림 매핑 upsert (POST /api/admin/capital-catalog/mappings)
