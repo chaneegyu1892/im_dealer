@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   LegacyRecommendedVehicle,
   OverlapRecommendedVehicle,
+  Step02V3RecommendedVehicle,
 } from "@/types/recommendation";
 
 const scenarioSchema = z.object({
@@ -126,6 +127,52 @@ const overlapResultSchema = z.object({
   vehicles: z.array(overlapVehicleSchema),
 }).strict();
 
+const step02V3VehicleSchema = z.object({
+  ...baseVehicleShape,
+  scoringVersion: z.literal("step02-v3"),
+  stylePreference: z.enum([
+    "family-leisure",
+    "city-compact",
+    "sedan-comfort",
+    "low-running-cost",
+    "premium-formal",
+    "auto",
+  ]),
+  styleScore: z.union([z.literal(0), z.literal(1), z.literal(3), z.literal(5)]),
+  followupBonus: z.union([z.literal(0), z.literal(3)]),
+  autoConditionScore: z.number().min(-0.04).max(22.54),
+  rankScore: z.number().min(-0.04).max(25.54),
+  tieBreak: z.object({
+    modelYear: z.number().int().min(0),
+    companyPriority: z.number().int().min(0).max(100),
+    immediateDeliveryAvailable: z.boolean(),
+    availableStockCount: z.number().int().nonnegative(),
+    profitPriority: z.number().int().min(0).max(100),
+    slug: z.string().min(1),
+  }).strict(),
+}).passthrough().superRefine((vehicle, context) => {
+  if (Math.abs(vehicle.rankScore - (vehicle.styleScore + vehicle.followupBonus + vehicle.autoConditionScore)) > 1e-9) {
+    context.addIssue({ code: "custom", path: ["rankScore"], message: "v3 합산 점수가 일치하지 않습니다." });
+  }
+  if (Math.abs(vehicle.score - vehicle.rankScore) > 1e-9) {
+    context.addIssue({ code: "custom", path: ["score"], message: "호환 점수가 rankScore와 다릅니다." });
+  }
+  if (vehicle.tieBreak.slug !== vehicle.vehicle.slug) {
+    context.addIssue({ code: "custom", path: ["tieBreak", "slug"], message: "차량 slug가 일치하지 않습니다." });
+  }
+  if (vehicle.stylePreference === "auto" && vehicle.styleScore !== 0) {
+    context.addIssue({ code: "custom", path: ["styleScore"], message: "AI 자동 추천에는 스타일 점수를 적용하지 않습니다." });
+  }
+  if (vehicle.stylePreference !== "auto" && vehicle.autoConditionScore !== 0) {
+    context.addIssue({ code: "custom", path: ["autoConditionScore"], message: "스타일 추천에는 자동 조건 점수를 적용하지 않습니다." });
+  }
+});
+
+const step02V3ResultSchema = z.object({
+  version: z.literal("step02-v3"),
+  vehicles: z.array(step02V3VehicleSchema),
+}).strict();
+
 export interface StoredResultIssue {
   readonly path: readonly PropertyKey[];
   readonly code: string;
@@ -136,6 +183,7 @@ export type StoredResultParseResult =
   | { readonly kind: "missing" }
   | { readonly kind: "legacy"; readonly vehicles: readonly LegacyRecommendedVehicle[] }
   | { readonly kind: "v2"; readonly vehicles: readonly OverlapRecommendedVehicle[] }
+  | { readonly kind: "v3"; readonly vehicles: readonly Step02V3RecommendedVehicle[] }
   | { readonly kind: "invalid"; readonly issues: readonly StoredResultIssue[] };
 
 function issues(error: z.ZodError): StoredResultIssue[] {
@@ -160,7 +208,9 @@ export function parseStoredResultState(
   }
 
   const overlap = overlapResultSchema.safeParse(value);
-  return overlap.success
-    ? { kind: "v2", vehicles: overlap.data.vehicles }
-    : { kind: "invalid", issues: issues(overlap.error) };
+  if (overlap.success) return { kind: "v2", vehicles: overlap.data.vehicles };
+  const step02V3 = step02V3ResultSchema.safeParse(value);
+  return step02V3.success
+    ? { kind: "v3", vehicles: step02V3.data.vehicles }
+    : { kind: "invalid", issues: issues(step02V3.error) };
 }

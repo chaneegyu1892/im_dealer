@@ -27,6 +27,8 @@ export interface OverlapRuntimeVehicle extends OperationalVehicleSnapshot {
   readonly imageUrls: readonly string[];
   readonly highlights: readonly string[];
   readonly popularConfigs: readonly OverlapRuntimePopularConfig[];
+  readonly availableStockCount?: number;
+  readonly immediateDeliveryAvailable?: boolean;
 }
 
 export interface OverlapCandidateSnapshot {
@@ -44,6 +46,10 @@ export async function loadOverlapCandidateSnapshot(): Promise<OverlapCandidateSn
           include: {
             lineup: { select: { name: true, isVisible: true } },
             rateSheets: { include: { financeCompany: true } },
+            inventory: {
+              where: { status: "AVAILABLE", stockCount: { gt: 0 } },
+              select: { stockCount: true, immediateDelivery: true },
+            },
           },
         },
         popularConfigs: {
@@ -73,6 +79,13 @@ export async function loadOverlapCandidateSnapshot(): Promise<OverlapCandidateSn
       thumbnailUrl: resolvePublicThumbnailUrl(vehicle),
       imageUrls: canUseLegacyImageFallback(vehicle) ? vehicle.imageUrls : [],
       highlights: vehicle.recConfigs?.highlights ?? [],
+      availableStockCount: vehicle.trims.reduce(
+        (total, trim) => total + trim.inventory.reduce((sum, row) => sum + row.stockCount, 0),
+        0
+      ),
+      immediateDeliveryAvailable: vehicle.trims.some((trim) =>
+        trim.inventory.some((row) => row.immediateDelivery && row.stockCount > 0)
+      ),
       config: vehicle.recConfigs ? {
         isActive: vehicle.recConfigs.isActive,
         profile: vehicle.recConfigs.scoreMatrix,
@@ -84,6 +97,7 @@ export async function loadOverlapCandidateSnapshot(): Promise<OverlapCandidateSn
         discountPrice: trim.discountPrice,
         isDefault: trim.isDefault,
         isVisible: trim.isVisible,
+        engineType: trim.engineType,
         lineup: trim.lineup,
         rateSheets: trim.rateSheets.map((sheet) => ({
           id: sheet.id,

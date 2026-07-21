@@ -142,8 +142,8 @@ export function RecommendFlow() {
           <StepIndustry
             value={state.industry}
             onChange={(industry) => setState((current) => ({ ...current, industry }))}
-            budgetMax={state.budgetMax}
-            onBudgetChange={(budgetMax) => setState((current) => ({ ...current, budgetMax }))}
+            budgetRange={state.budgetRange}
+            onBudgetChange={(budgetRange) => setState((current) => ({ ...current, budgetRange }))}
             onComplete={handleStepComplete}
           />
         )}

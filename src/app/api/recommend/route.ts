@@ -19,11 +19,13 @@ export async function POST(request: NextRequest) {
     const sessionId = randomUUID();
 
     // AI 추천 계산
-    const engineVersion = getRecommendEngineVersion();
+    const engineVersion = "recommendationVersion" in input
+      ? input.recommendationVersion
+      : getRecommendEngineVersion();
     const vehicles = await recommendForVersion(input, engineVersion);
-    const storedResult = engineVersion === "overlap-v2"
-      ? { version: "overlap-v2", vehicles }
-      : vehicles;
+    const storedResult = engineVersion === "legacy-v1"
+      ? vehicles
+      : { version: engineVersion, vehicles };
 
     // 추천 로그 저장 (AI 고도화용 데이터 축적)
     await prisma.recommendationLog.create({
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
         preferences: input.preferences,
         childDetail: input.childDetail,
         cargoDetail: input.cargoDetail,
-        budgetMin: 0,
+        budgetMin: "recommendationVersion" in input ? input.budgetMin : 0,
         budgetMax: input.budgetMax ?? 0,
         paymentStyle: "표준형",
         annualMileage: input.annualMileage,

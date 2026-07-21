@@ -1,5 +1,7 @@
 // AI 추천 4단계 선택지 데이터
 
+import { RECOMMEND_BUDGET_RANGE_OPTIONS } from "./recommend-budget";
+
 export const INDUSTRY_OPTIONS = [
   { value: "개인", label: "개인", desc: "직장인·프리랜서·비사업자 모두 포함", icon: "👤" },
   { value: "법인", label: "법인", desc: "법인 명의 차량 등록", icon: "🏢" },
@@ -83,12 +85,7 @@ export const PREFERENCE_DETAIL_QUESTION: Record<string, { title: string; subtitl
   화물: { title: "주로 어떤 물량을 운반하시나요?", subtitle: "적재 용량에 맞는 차종을 추천해 드려요." },
 };
 
-export const BUDGET_RANGE_OPTIONS = [
-  { label: "월 50만원 이하", desc: "부담을 가장 낮게 보고 싶어요", budgetMax: 500_000 },
-  { label: "월 100만원 이하", desc: "선택 폭과 월 부담을 함께 봐요", budgetMax: 1_000_000 },
-  { label: "월 150만원 이하", desc: "고급·대형 차량까지 살펴봐요", budgetMax: 1_500_000 },
-  { label: "예산 아직 미정", desc: "차량 조건을 먼저 비교하고 싶어요", budgetMax: 0 },
-] as const;
+export const BUDGET_RANGE_OPTIONS = RECOMMEND_BUDGET_RANGE_OPTIONS;
 
 export const PAYMENT_STYLE_OPTIONS = [
   {

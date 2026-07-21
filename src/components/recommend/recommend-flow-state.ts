@@ -1,7 +1,8 @@
 import {
-  NO_SIMPLE_PREFERENCE_VALUE,
   NO_SITUATION_PREFERENCE_VALUE,
 } from "@/constants/recommend-options";
+import { isStep02V3Style } from "@/constants/recommend-step02-v3";
+import type { RecommendBudgetRange } from "@/constants/recommend-budget";
 import type { RecommendInput } from "@/types/recommendation";
 import type { StepId } from "./StepIndicator";
 
@@ -9,7 +10,7 @@ export type ChargingEnvironment = "자택" | "직장" | "외부" | "없음" | ""
 
 export interface RecommendFlowState {
   readonly industry: string;
-  readonly budgetMax: number | null;
+  readonly budgetRange: RecommendBudgetRange | null;
   readonly simplePreference: string;
   readonly situationPreference: string;
   readonly childDetail: string;
@@ -22,7 +23,7 @@ export interface RecommendFlowState {
 
 export const INITIAL_RECOMMEND_FLOW_STATE: RecommendFlowState = {
   industry: "",
-  budgetMax: null,
+  budgetRange: null,
   simplePreference: "",
   situationPreference: "",
   childDetail: "",
@@ -39,9 +40,9 @@ export function isRecommendStepValid(
 ): boolean {
   switch (step) {
     case 1:
-      return state.industry !== "" && state.budgetMax !== null;
+      return state.industry !== "" && state.budgetRange !== null;
     case 2:
-      if (state.simplePreference === "" || state.situationPreference === "") return false;
+      if (!isStep02V3Style(state.simplePreference) || state.situationPreference === "") return false;
       if (state.situationPreference === "가족" && state.childDetail === "") return false;
       if (state.situationPreference === "화물" && state.cargoDetail === "") return false;
       return true;
@@ -53,22 +54,23 @@ export function isRecommendStepValid(
 }
 
 export function buildRecommendInput(state: RecommendFlowState): RecommendInput {
+  if (!isStep02V3Style(state.simplePreference)) {
+    throw new RangeError("STEP 02 차량 스타일이 올바르지 않습니다.");
+  }
+
   const preferences = [state.simplePreference, state.situationPreference].filter(
     (preference) => preference !== ""
-      && preference !== NO_SIMPLE_PREFERENCE_VALUE
       && preference !== NO_SITUATION_PREFERENCE_VALUE
   );
 
   return {
+    recommendationVersion: "step02-v3",
     industry: state.industry,
-    budgetMax: state.budgetMax ?? 0,
+    budgetRange: state.budgetRange ?? "auto",
     preferences,
+    stylePreference: state.simplePreference,
     annualMileage: state.annualMileage,
     returnType: "미정",
-    ...(state.simplePreference !== ""
-      && state.simplePreference !== NO_SIMPLE_PREFERENCE_VALUE
-      ? { primaryPreference: state.simplePreference }
-      : {}),
     ...(state.situationPreference !== ""
       && state.situationPreference !== NO_SITUATION_PREFERENCE_VALUE
       ? { situationPreference: state.situationPreference }

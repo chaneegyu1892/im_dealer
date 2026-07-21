@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   EXCLUDED_RECOMMENDATION_VEHICLES,
   getRecommendationExclusion,
+  getStep02V3RecommendationExclusion,
   isExcludedRecommendationTrim,
+  isExcludedStep02V3RecommendationTrim,
 } from "./excluded-vehicles";
 
 describe("recommendation commercial exclusions", () => {
@@ -45,5 +47,21 @@ describe("recommendation commercial exclusions", () => {
     ["캘리그래피 블랙 잉크", "2027년형"],
   ])("excludes special trim %s / %s", (name, lineupName) => {
     expect(isExcludedRecommendationTrim({ name, lineup: { name: lineupName } })).toBe(true);
+  });
+
+  it.each([
+    ["kg-11840", "트럭", "무쏘 Q300"],
+    ["future-tasman", "트럭", "타스만"],
+    ["ev9-gt", "SUV", "더 EV9 GT"],
+    ["ioniq-5-n", "승용", "아이오닉 5 N"],
+  ])("keeps a v3 document vehicle eligible: %s", (slug, _category, name) => {
+    expect(getStep02V3RecommendationExclusion({ slug, name })).toBeNull();
+  });
+
+  it("keeps v3 commercial and black-ink exclusions", () => {
+    expect(getStep02V3RecommendationExclusion({ slug: "kia-10047", name: "봉고 3 트럭" }))
+      .toEqual({ kind: "document_slug", documentName: "봉고 3 트럭" });
+    expect(isExcludedStep02V3RecommendationTrim({ name: "캘리그래피 블랙 잉크" })).toBe(true);
+    expect(isExcludedStep02V3RecommendationTrim({ name: "GT" })).toBe(false);
   });
 });

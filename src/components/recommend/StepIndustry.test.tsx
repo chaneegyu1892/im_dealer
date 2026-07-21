@@ -12,7 +12,7 @@ describe("StepIndustry", () => {
       <StepIndustry
         value=""
         onChange={onChange}
-        budgetMax={null}
+        budgetRange={null}
         onBudgetChange={onBudgetChange}
         onComplete={onComplete}
       />
@@ -26,7 +26,7 @@ describe("StepIndustry", () => {
       <StepIndustry
         value="개인"
         onChange={onChange}
-        budgetMax={null}
+        budgetRange={null}
         onBudgetChange={onBudgetChange}
         onComplete={onComplete}
       />
@@ -34,25 +34,28 @@ describe("StepIndustry", () => {
 
     expect(screen.getByRole("heading", { name: "월 납입금 예산은 어느 정도인가요?" })).toBeInTheDocument();
     expect(screen.getByText(/60개월 · 연 2만km · 무보증/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /월 100만원 이하/ }));
-    expect(onBudgetChange).toHaveBeenCalledWith(1_000_000);
+    fireEvent.click(screen.getByRole("button", { name: /100만원 이하/ }));
+    expect(onBudgetChange).toHaveBeenCalledWith("lte-1000k");
     expect(onComplete).toHaveBeenCalledOnce();
   });
 
-  it("50만·100만·150만원과 예산 미정 선택지를 제공한다", () => {
+  it("승인된 다섯 예산 선택지만 제공한다", () => {
     render(
       <StepIndustry
         value="법인"
         onChange={vi.fn()}
-        budgetMax={null}
+        budgetRange={null}
         onBudgetChange={vi.fn()}
         onComplete={vi.fn()}
       />
     );
 
-    expect(screen.getByRole("button", { name: /월 50만원 이하/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /월 100만원 이하/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /월 150만원 이하/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /예산 아직 미정/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /50만원 이하/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /80만원 이하/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /100만원 이하/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /100만원 이상/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /AI에게 맡길게요/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /150만원/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /예산 아직 미정/ })).not.toBeInTheDocument();
   });
 });

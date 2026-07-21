@@ -64,6 +64,25 @@ const v2Vehicle = {
   },
 };
 
+const v3Vehicle = {
+  ...legacyVehicle,
+  score: 8,
+  scoringVersion: "step02-v3",
+  stylePreference: "family-leisure",
+  styleScore: 5,
+  followupBonus: 3,
+  autoConditionScore: 0,
+  rankScore: 8,
+  tieBreak: {
+    modelYear: 2027,
+    companyPriority: 10,
+    immediateDeliveryAvailable: true,
+    availableStockCount: 4,
+    profitPriority: 5,
+    slug: "genesis-g80",
+  },
+};
+
 describe("stored recommendation result boundary", () => {
   it("returns missing only for SQL-null-like values", () => {
     expect(parseStoredResultState(null)).toEqual({ kind: "missing" });
@@ -147,6 +166,19 @@ describe("stored recommendation result boundary", () => {
       kind: "v2",
       vehicles: [],
     });
+  });
+
+  it("keeps a populated STEP 02 v3 envelope with complete evidence", () => {
+    const value = { version: "step02-v3", vehicles: [v3Vehicle] };
+    expect(parseStoredResultState(value)).toEqual({ kind: "v3", vehicles: [v3Vehicle] });
+  });
+
+  it("rejects a STEP 02 v3 envelope whose total does not match its evidence", () => {
+    const result = parseStoredResultState({
+      version: "step02-v3",
+      vehicles: [{ ...v3Vehicle, rankScore: 7 }],
+    });
+    expect(result.kind).toBe("invalid");
   });
 
   it.each([

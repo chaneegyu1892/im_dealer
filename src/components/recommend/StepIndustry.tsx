@@ -10,14 +10,15 @@ import {
   BUDGET_RANGE_OPTIONS,
   INDUSTRY_OPTIONS,
 } from "@/constants/recommend-options";
+import type { RecommendBudgetRange } from "@/constants/recommend-budget";
 import { SelectionCard } from "./SelectionCard";
 import { useRecommendAutoScroll } from "./use-recommend-auto-scroll";
 
 interface StepIndustryProps {
   readonly value: string;
   readonly onChange: (value: string) => void;
-  readonly budgetMax: number | null;
-  readonly onBudgetChange: (value: number) => void;
+  readonly budgetRange: RecommendBudgetRange | null;
+  readonly onBudgetChange: (value: RecommendBudgetRange) => void;
   readonly onComplete: () => void;
 }
 
@@ -30,7 +31,7 @@ const INDUSTRY_ICONS = {
 export function StepIndustry({
   value,
   onChange,
-  budgetMax,
+  budgetRange,
   onBudgetChange,
   onComplete,
 }: StepIndustryProps) {
@@ -42,7 +43,7 @@ export function StepIndustry({
     requestScroll(budgetRef);
   };
 
-  const handleBudgetChange = (budget: number) => {
+  const handleBudgetChange = (budget: RecommendBudgetRange) => {
     onBudgetChange(budget);
     onComplete();
   };
@@ -99,12 +100,12 @@ export function StepIndustry({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {BUDGET_RANGE_OPTIONS.map((option) => (
               <SelectionCard
-                key={option.budgetMax}
+                key={option.id}
                 label={option.label}
                 desc={option.desc}
                 icon={<CircleDollarSign size={18} aria-hidden />}
-                selected={budgetMax === option.budgetMax}
-                onClick={() => handleBudgetChange(option.budgetMax)}
+                selected={budgetRange === option.id}
+                onClick={() => handleBudgetChange(option.id)}
               />
             ))}
           </div>

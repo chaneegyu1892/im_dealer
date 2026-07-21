@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
-  NO_SIMPLE_PREFERENCE_VALUE,
   NO_SITUATION_PREFERENCE_VALUE,
 } from "@/constants/recommend-options";
 import { StepPreference } from "./StepPreference";
@@ -50,33 +49,33 @@ function sectionForHeading(name: string): HTMLElement {
 }
 
 describe("StepPreference", () => {
-  it("단순 질문과 심화 질문의 해당 없음 선택을 각각 받는다", () => {
+  it("AI 자동 추천과 추가 조건 해당 없음을 각각 받는다", () => {
     const { onSimpleChange, onSituationChange, onComplete } = renderStepPreference();
 
-    const simpleSection = sectionForHeading("먼저 가장 중요한 방향을 골라주세요");
+    const simpleSection = sectionForHeading("가장 가까운 스타일을 하나 골라주세요");
     const situationSection = sectionForHeading("아이나 짐 관련 조건이 있나요?");
 
-    fireEvent.click(within(simpleSection).getByRole("button", { name: /해당 없음/ }));
+    fireEvent.click(within(simpleSection).getByRole("button", { name: /AI에게 맡길게요/ }));
     fireEvent.click(within(situationSection).getByRole("button", { name: /해당 없음/ }));
 
-    expect(onSimpleChange).toHaveBeenCalledWith(NO_SIMPLE_PREFERENCE_VALUE);
+    expect(onSimpleChange).toHaveBeenCalledWith("auto");
     expect(onSituationChange).toHaveBeenCalledWith(NO_SITUATION_PREFERENCE_VALUE);
     expect(onComplete).toHaveBeenCalledOnce();
   });
 
-  it("각 해당 없음 선택지 왼쪽에도 아이콘을 표시한다", () => {
+  it("AI 자동 추천과 추가 조건 해당 없음에 아이콘을 표시한다", () => {
     renderStepPreference();
 
-    const simpleSection = sectionForHeading("먼저 가장 중요한 방향을 골라주세요");
+    const simpleSection = sectionForHeading("가장 가까운 스타일을 하나 골라주세요");
     const situationSection = sectionForHeading("아이나 짐 관련 조건이 있나요?");
 
-    expect(within(simpleSection).getByRole("button", { name: /해당 없음/ }).querySelector("svg")).not.toBeNull();
+    expect(within(simpleSection).getByRole("button", { name: /AI에게 맡길게요/ })).toHaveTextContent("🤖");
     expect(within(situationSection).getByRole("button", { name: /해당 없음/ }).querySelector("svg")).not.toBeNull();
   });
 
   it("심화 질문에서 해당 없음을 고르면 추가 질문을 보여주지 않는다", () => {
     renderStepPreference({
-      simpleValue: "경제성",
+      simpleValue: "low-running-cost",
       situationValue: NO_SITUATION_PREFERENCE_VALUE,
     });
 
@@ -85,7 +84,7 @@ describe("StepPreference", () => {
 
   it("가족을 고르면 가족 상세 질문을 보여준다", () => {
     const { onChildDetailChange, onComplete } = renderStepPreference({
-      simpleValue: "안정감",
+      simpleValue: "family-leisure",
       situationValue: "가족",
     });
 

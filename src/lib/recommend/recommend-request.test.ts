@@ -15,6 +15,97 @@ const valid = {
 };
 
 describe("recommend request", () => {
+  it("accepts and normalizes the STEP 02 v3 contract", () => {
+    const parsed = recommendRequestSchema.parse({
+      recommendationVersion: "step02-v3",
+      industry: "개인",
+      budgetRange: "lte-1000k",
+      preferences: ["가족", "family-leisure"],
+      stylePreference: "family-leisure",
+      situationPreference: "가족",
+      childDetail: "미취학",
+      annualMileage: 20_000,
+      fuelPreference: "하이브리드",
+      residenceRegion: "일반",
+      returnType: "미정",
+    });
+    expect(parsed.preferences).toEqual(["family-leisure", "가족"]);
+    expect("recommendationVersion" in parsed && parsed.recommendationVersion).toBe("step02-v3");
+    expect(parsed).toMatchObject({ budgetRange: "lte-1000k", budgetMin: 0, budgetMax: 1_000_000 });
+  });
+
+  it("rejects a v3 payload whose style and preferences disagree", () => {
+    expect(recommendRequestSchema.safeParse({
+      recommendationVersion: "step02-v3",
+      industry: "개인",
+      budgetRange: "auto",
+      preferences: ["city-compact"],
+      stylePreference: "family-leisure",
+      annualMileage: 20_000,
+      fuelPreference: "상관없음",
+      residenceRegion: "일반",
+      returnType: "미정",
+    }).success).toBe(false);
+  });
+
+  it("reports an unsupported recommendation version at the version field", () => {
+    const parsed = recommendRequestSchema.safeParse({
+      recommendationVersion: "step02-v4",
+      industry: "개인",
+      budgetRange: "auto",
+      preferences: ["family-leisure"],
+      stylePreference: "family-leisure",
+      annualMileage: 20_000,
+      fuelPreference: "상관없음",
+      residenceRegion: "일반",
+      returnType: "미정",
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues.map((issue) => issue.path[0])).toContain("recommendationVersion");
+    }
+  });
+
+  it.each(["budgetMin", "budgetMax"])("rejects client-supplied %s for v3", (field) => {
+    const parsed = recommendRequestSchema.safeParse({
+      recommendationVersion: "step02-v3",
+      industry: "개인",
+      budgetRange: "gte-1000k",
+      preferences: ["premium-formal"],
+      stylePreference: "premium-formal",
+      annualMileage: 20_000,
+      fuelPreference: "상관없음",
+      residenceRegion: "일반",
+      returnType: "미정",
+      [field]: field === "budgetMin" ? 1_000_000 : 0,
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues.some((issue) => issue.message.includes(field))).toBe(true);
+    }
+  });
+
+  it.each([
+    ["lte-500k", 0, 500_000],
+    ["lte-800k", 0, 800_000],
+    ["lte-1000k", 0, 1_000_000],
+    ["gte-1000k", 1_000_000, 0],
+    ["auto", 0, 0],
+  ] as const)("derives trusted bounds for %s", (budgetRange, budgetMin, budgetMax) => {
+    const parsed = recommendRequestSchema.parse({
+      recommendationVersion: "step02-v3",
+      industry: "개인",
+      budgetRange,
+      preferences: ["city-compact"],
+      stylePreference: "city-compact",
+      annualMileage: 20_000,
+      fuelPreference: "상관없음",
+      residenceRegion: "일반",
+      returnType: "미정",
+    });
+    expect(parsed).toMatchObject({ budgetRange, budgetMin, budgetMax });
+  });
+
   it("accepts the unified customer type and monthly budget payload", () => {
     const parsed = recommendRequestSchema.parse({
       ...valid,

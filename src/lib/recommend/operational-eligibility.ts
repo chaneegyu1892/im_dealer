@@ -9,7 +9,9 @@ import {
 } from "./latest-model";
 import {
   getRecommendationExclusion,
+  getStep02V3RecommendationExclusion,
   isExcludedRecommendationTrim,
+  isExcludedStep02V3RecommendationTrim,
   type RecommendationExclusion,
 } from "./excluded-vehicles";
 import {
@@ -46,6 +48,7 @@ export interface OperationalTrimSnapshot {
   readonly discountPrice: number | null;
   readonly isDefault: boolean;
   readonly isVisible: boolean;
+  readonly engineType?: string;
   readonly lineup?: { readonly name: string; readonly isVisible: boolean } | null;
   readonly rateSheets: readonly OperationalRateSheet[];
 }
@@ -88,6 +91,19 @@ export interface EligibleOperationalResult {
 }
 
 export type OperationalEligibilityResult = IneligibleResult | EligibleOperationalResult;
+
+export interface Step02V3EligibleOperationalResult {
+  readonly status: "eligible";
+  readonly profile: OverlapProfile | null;
+  readonly selectedTrim: OperationalTrimSnapshot;
+  readonly rateConfigs: readonly RateConfigData[];
+  readonly estimatedMonthly: number;
+  readonly modelYear: number;
+}
+
+export type Step02V3OperationalEligibilityResult =
+  | IneligibleResult
+  | Step02V3EligibleOperationalResult;
 
 interface ViableTrim {
   readonly trim: OperationalTrimSnapshot;
@@ -194,6 +210,53 @@ export function assessOperationalEligibility(
   return {
     status: "eligible",
     profile: parsedProfile.profile,
+    selectedTrim: selected.trim,
+    rateConfigs: selected.rateConfigs,
+    estimatedMonthly: selected.estimatedMonthly,
+    modelYear: getRecommendationModelYear({
+      brand: vehicle.brand,
+      name: vehicle.name,
+      defaultTrimName: selected.trim.name,
+      lineupName: selected.trim.lineup?.name,
+    }),
+  };
+}
+
+export function assessStep02V3OperationalEligibility(
+  vehicle: OperationalVehicleSnapshot,
+  annualMileage: SupportedRecommendationMileage
+): Step02V3OperationalEligibilityResult {
+  const exclusion = getStep02V3RecommendationExclusion(vehicle);
+  if (exclusion) return { status: "excluded_vehicle_class", exclusion };
+  if (!vehicle.isVisible) return { status: "hidden" };
+
+  const visibleTrims = vehicle.trims.filter(
+    (trim) => trim.isVisible && !isExcludedStep02V3RecommendationTrim(trim)
+  );
+  const latestTrims = filterLatestRecommendationTrims(visibleTrims);
+  if (latestTrims.length === 0) return { status: "no_visible_latest_trim" };
+
+  const withRates = latestTrims.map((trim) => ({ trim, rateConfigs: parseRateConfigs(trim) }));
+  if (withRates.every((item) => item.rateConfigs.length === 0)) {
+    return { status: "no_valid_active_rate" };
+  }
+
+  const viable: ViableTrim[] = withRates
+    .map((item) => ({
+      ...item,
+      estimatedMonthly: bestMonthly(effectiveTrimPrice(item.trim), item.rateConfigs, annualMileage),
+    }))
+    .filter((item) => item.estimatedMonthly > 0)
+    .sort(compareViableTrims);
+  if (viable.length === 0) return { status: "non_positive_quote" };
+
+  const selected = viable[0];
+  const parsedProfile = vehicle.config?.isActive
+    ? parseOverlapProfile(vehicle.config.profile)
+    : null;
+  return {
+    status: "eligible",
+    profile: parsedProfile?.kind === "valid" ? parsedProfile.profile : null,
     selectedTrim: selected.trim,
     rateConfigs: selected.rateConfigs,
     estimatedMonthly: selected.estimatedMonthly,

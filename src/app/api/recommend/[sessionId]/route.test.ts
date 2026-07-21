@@ -85,6 +85,25 @@ const frozenVehicle = {
   },
 } as const;
 
+const frozenV3Vehicle = {
+  ...frozenVehicle,
+  score: 8,
+  scoringVersion: "step02-v3",
+  stylePreference: "family-leisure",
+  styleScore: 5,
+  followupBonus: 3,
+  autoConditionScore: 0,
+  rankScore: 8,
+  tieBreak: {
+    modelYear: 2027,
+    companyPriority: 1,
+    immediateDeliveryAvailable: true,
+    availableStockCount: 2,
+    profitPriority: 1,
+    slug: "active-car",
+  },
+} as const;
+
 describe("GET /api/recommend/:sessionId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -107,6 +126,29 @@ describe("GET /api/recommend/:sessionId", () => {
     mocks.findFirst.mockResolvedValue({ ...baseLog, result: [] });
     const response = await GET(request, context);
     expect(response.status).toBe(200);
+    expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
+  });
+
+  it("replays a STEP 02 v3 result and reconstructs its style selection", async () => {
+    mocks.findFirst.mockResolvedValue({
+      ...baseLog,
+      budgetMin: 1_000_000,
+      budgetMax: 0,
+      purpose: "family-leisure, 가족",
+      preferences: ["family-leisure", "가족"],
+      result: { version: "step02-v3", vehicles: [frozenV3Vehicle] },
+    });
+    mocks.findManyVehicles.mockResolvedValue([{ id: "vehicle-active" }]);
+    const response = await GET(request, context);
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.input.stylePreference).toBe("family-leisure");
+    expect(body.input.budgetRange).toBe("gte-1000k");
+    expect(body.input).toMatchObject({ budgetMin: 1_000_000, budgetMax: 0 });
+    expect(body.vehicles[0]).toMatchObject({
+      scoringVersion: "step02-v3",
+      rankScore: 8,
+    });
     expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
   });
 

@@ -11,6 +11,8 @@ import type {
   RecommendResultResponse,
   ReturnType,
 } from "@/types/recommendation";
+import { isStep02V3Style } from "@/constants/recommend-step02-v3";
+import { getRecommendationBudgetRange } from "@/lib/recommend/recommendation-budget";
 
 const storedReasonsSchema = z.record(z.string());
 const primaryPreferences = new Set(["안정감", "주차편의", "경제성", "고급"]);
@@ -91,11 +93,13 @@ export async function GET(
 
     const preferences = log.preferences ?? [];
     const primaryPreference = preferences.find((value) => primaryPreferences.has(value));
+    const stylePreference = preferences.find(isStep02V3Style);
     const situationPreference = preferences.find((value) => situationPreferences.has(value));
     const input: RecommendResultResponse["input"] = {
       industry: log.industry,
       purpose: log.purpose,
       preferences,
+      stylePreference,
       industryDetail: log.industryDetail ?? undefined,
       primaryPreference,
       situationPreference,
@@ -118,13 +122,16 @@ export async function GET(
       log.result,
       await resultIsSqlNull(log.id, log.result)
     );
+    if (stored.kind === "v3") {
+      input.budgetRange = getRecommendationBudgetRange(log.budgetMin, log.budgetMax);
+    }
     if (stored.kind === "invalid") {
       return NextResponse.json(
         { error: "저장된 추천 결과 형식이 올바르지 않습니다." },
         { status: 500 }
       );
     }
-    if (stored.kind === "legacy" || stored.kind === "v2") {
+    if (stored.kind === "legacy" || stored.kind === "v2" || stored.kind === "v3") {
       const frozen = stored.vehicles;
       // 추천 이후 삭제/비노출된 차량만 걸러낸다 (견적 링크 깨짐 방지).
       // 가격·이유 등 나머지는 스냅샷 그대로 유지(freeze).

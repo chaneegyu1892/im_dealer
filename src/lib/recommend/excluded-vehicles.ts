@@ -26,6 +26,12 @@ const EXCLUSION_BY_SLUG = new Map(
   EXCLUDED_RECOMMENDATION_VEHICLES.map((vehicle) => [vehicle.slug, vehicle.documentName])
 );
 
+const STEP02_V3_EXCLUSION_BY_SLUG = new Map(
+  EXCLUDED_RECOMMENDATION_VEHICLES
+    .filter((vehicle) => !vehicle.documentName.startsWith("무쏘"))
+    .map((vehicle) => [vehicle.slug, vehicle.documentName])
+);
+
 export type RecommendationExclusion =
   | { readonly kind: "document_slug"; readonly documentName: string }
   | { readonly kind: "vehicle_variant"; readonly documentName: string }
@@ -59,6 +65,15 @@ export function isExcludedRecommendationTrim(trim: {
   });
 }
 
+export function isExcludedStep02V3RecommendationTrim(trim: {
+  readonly name: string;
+  readonly lineup?: { readonly name: string } | null;
+}): boolean {
+  return [trim.name, trim.lineup?.name].some(
+    (name) => typeof name === "string" && BLACK_INK_PATTERN.test(name)
+  );
+}
+
 export function getRecommendationExclusion(vehicle: {
   readonly slug: string;
   readonly category: string;
@@ -71,6 +86,18 @@ export function getRecommendationExclusion(vehicle: {
     vehicle.name
     && isExcludedRecommendationVariant({ vehicleName: vehicle.name })
   ) {
+    return { kind: "vehicle_variant", documentName: vehicle.name };
+  }
+  return null;
+}
+
+export function getStep02V3RecommendationExclusion(vehicle: {
+  readonly slug: string;
+  readonly name?: string;
+}): RecommendationExclusion | null {
+  const documentName = STEP02_V3_EXCLUSION_BY_SLUG.get(vehicle.slug);
+  if (documentName) return { kind: "document_slug", documentName };
+  if (vehicle.name && BLACK_INK_PATTERN.test(vehicle.name)) {
     return { kind: "vehicle_variant", documentName: vehicle.name };
   }
   return null;

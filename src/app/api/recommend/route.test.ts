@@ -33,6 +33,21 @@ const valid = {
   budgetMax: 1_000_000,
 };
 
+const validV3 = {
+  recommendationVersion: "step02-v3",
+  industry: "개인",
+  industryDetail: "2~3명",
+  budgetRange: "lte-1000k",
+  preferences: ["family-leisure", "가족"],
+  stylePreference: "family-leisure",
+  situationPreference: "가족",
+  childDetail: "미취학",
+  annualMileage: 20_000,
+  fuelPreference: "하이브리드",
+  residenceRegion: "일반",
+  returnType: "미정",
+};
+
 const rateMatrix = {
   "36_10000": 0.02,
   "36_20000": 0.02,
@@ -152,6 +167,47 @@ describe("POST /api/recommend", () => {
     expect(response.status).toBe(200);
     expect(mocks.recommendForVersion).toHaveBeenCalledWith(expect.any(Object), "legacy-v1");
     expect(mocks.create.mock.calls[0]?.[0].data.result).toEqual([]);
+  });
+
+  it("routes an explicit STEP 02 v3 request independently of the rollout environment", async () => {
+    mocks.version.value = "legacy-v1";
+    const response = await POST(request(validV3));
+    expect(response.status).toBe(200);
+    expect(mocks.recommendForVersion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recommendationVersion: "step02-v3",
+        budgetRange: "lte-1000k",
+        budgetMin: 0,
+        budgetMax: 1_000_000,
+        stylePreference: "family-leisure",
+        preferences: ["family-leisure", "가족"],
+      }),
+      "step02-v3"
+    );
+    expect(mocks.create.mock.calls[0]?.[0].data.result).toEqual({
+      version: "step02-v3",
+      vehicles: [],
+    });
+    expect(mocks.create.mock.calls[0]?.[0].data).toMatchObject({
+      budgetMin: 0,
+      budgetMax: 1_000_000,
+    });
+  });
+
+  it("stores the derived lower bound for the 100만원 이상 mode", async () => {
+    const response = await POST(request({ ...validV3, budgetRange: "gte-1000k" }));
+    expect(response.status).toBe(200);
+    expect(mocks.create.mock.calls[0]?.[0].data).toMatchObject({
+      budgetMin: 1_000_000,
+      budgetMax: 0,
+    });
+  });
+
+  it.each(["budgetMin", "budgetMax"])("rejects client-owned v3 %s before recommendation and storage", async (field) => {
+    const response = await POST(request({ ...validV3, [field]: 123 }));
+    expect(response.status).toBe(400);
+    expect(mocks.recommendForVersion).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it("freezes each new recommendation with the representative projected at generation time", async () => {

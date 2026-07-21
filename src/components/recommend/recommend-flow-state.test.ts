@@ -12,7 +12,7 @@ describe("recommend flow state", () => {
     expect(isRecommendStepValid(1, {
       ...INITIAL_RECOMMEND_FLOW_STATE,
       industry: "개인",
-      budgetMax: 1_000_000,
+      budgetRange: "lte-1000k",
     })).toBe(true);
   });
 
@@ -20,8 +20,8 @@ describe("recommend flow state", () => {
     const input = buildRecommendInput({
       ...INITIAL_RECOMMEND_FLOW_STATE,
       industry: "개인사업자",
-      budgetMax: 1_500_000,
-      simplePreference: "경제성",
+      budgetRange: "gte-1000k",
+      simplePreference: "low-running-cost",
       situationPreference: "__situation_none",
       annualMileage: 20_000,
       fuelPreference: "하이브리드",
@@ -29,8 +29,10 @@ describe("recommend flow state", () => {
 
     expect(input).toMatchObject({
       industry: "개인사업자",
-      budgetMax: 1_500_000,
-      preferences: ["경제성"],
+      recommendationVersion: "step02-v3",
+      budgetRange: "gte-1000k",
+      stylePreference: "low-running-cost",
+      preferences: ["low-running-cost"],
     });
     expect(input).not.toHaveProperty("budgetMin");
     expect(input).not.toHaveProperty("industryDetail");
@@ -40,13 +42,29 @@ describe("recommend flow state", () => {
     const input = buildRecommendInput({
       ...INITIAL_RECOMMEND_FLOW_STATE,
       industry: "개인",
-      budgetMax: 500_000,
-      simplePreference: "고급",
+      budgetRange: "lte-500k",
+      simplePreference: "premium-formal",
       situationPreference: "__situation_none",
       annualMileage: 20_000,
       fuelPreference: "상관없음",
     });
 
     expect(recommendRequestSchema.safeParse(input).success).toBe(true);
+  });
+
+  it("v3 클라이언트는 예산 범위 ID만 보내고 내부 상하한을 보내지 않는다", () => {
+    const input = buildRecommendInput({
+      ...INITIAL_RECOMMEND_FLOW_STATE,
+      industry: "개인",
+      budgetRange: "lte-800k",
+      simplePreference: "city-compact",
+      situationPreference: "__situation_none",
+      annualMileage: 20_000,
+      fuelPreference: "상관없음",
+    });
+
+    expect(input.budgetRange).toBe("lte-800k");
+    expect(input).not.toHaveProperty("budgetMin");
+    expect(input).not.toHaveProperty("budgetMax");
   });
 });
