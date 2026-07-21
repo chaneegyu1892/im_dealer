@@ -118,10 +118,18 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<v
 
   // requiresHuman 캐피탈사(키패드·SMS)는 어댑터가 자격증명을 쓰지 않고 사람에게 로그인을 넘긴다.
   // 그런 곳은 서버가 애초에 자격증명을 저장하지 않으므로 빈 값이 정상이다.
+  const hasCiphertext = Boolean(credential.usernameEnc && credential.passwordEnc);
   const username = decryptString(credential.usernameEnc) ?? "";
   const password = decryptString(credential.passwordEnc) ?? "";
   if (!credential.requiresHuman && (!username || !password)) {
-    await postResult(job.id, { ok: false, error: "자격증명 복호화 실패 (PII_ENCRYPTION_KEY 불일치 가능)" });
+    // 암호문 유무로 원인을 갈라 준다. 둘을 같은 메시지로 뭉뚱그리면
+    // 실제로는 워커가 옛 코드인데 키 문제로 오진하게 된다.
+    await postResult(job.id, {
+      ok: false,
+      error: hasCiphertext
+        ? "자격증명 복호화 실패 (PII_ENCRYPTION_KEY 불일치 가능)"
+        : "이 작업에 자격증명이 없습니다. 워커가 옛 버전일 수 있으니 재시작 후 다시 시도하세요.",
+    });
     return;
   }
 
