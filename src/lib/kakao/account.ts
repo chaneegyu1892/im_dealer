@@ -11,6 +11,8 @@ export interface KakaoAccount {
   /** 동의항목 "이름"으로 받은 실명. 닉네임과 별개. */
   readonly name: string | null;
   readonly email: string | null;
+  /** 프로필 닉네임. 실명(name)과 다를 수 있다(예: "바오밥오토플랜_오영택"). */
+  readonly nickname: string | null;
 }
 
 const kakaoAccountResponseSchema = z.object({
@@ -20,8 +22,11 @@ const kakaoAccountResponseSchema = z.object({
       phone_number: z.string().optional(),
       name: z.string().optional(),
       email: z.string().optional(),
+      profile: z.object({ nickname: z.string().optional() }).optional(),
     })
     .optional(),
+  // 구버전 응답 호환 — 일부 앱은 properties 에만 닉네임을 담아 준다.
+  properties: z.object({ nickname: z.string().optional() }).optional(),
 });
 
 const serviceTermsResponseSchema = z.object({
@@ -43,7 +48,7 @@ function str(value: unknown): string | null {
 export function parseKakaoAccount(json: unknown): KakaoAccount {
   const result = kakaoAccountResponseSchema.safeParse(json);
   if (!result.success) {
-    return { kakaoId: null, phone: null, name: null, email: null };
+    return { kakaoId: null, phone: null, name: null, email: null, nickname: null };
   }
   const account = result.data.kakao_account;
 
@@ -55,6 +60,7 @@ export function parseKakaoAccount(json: unknown): KakaoAccount {
     phone: str(account?.phone_number),
     name: str(account?.name),
     email: str(account?.email),
+    nickname: str(account?.profile?.nickname) ?? str(result.data.properties?.nickname),
   };
 }
 

@@ -16,7 +16,23 @@ describe("parseKakaoAccount", () => {
       phone: "+82 10-1234-5678",
       name: "홍길동",
       email: "hong@example.com",
+      nickname: null,
     });
+  });
+
+  it("프로필 닉네임을 뽑아낸다 (실명과 별개)", () => {
+    const json = {
+      id: 1,
+      kakao_account: { name: "오영택", profile: { nickname: "바오밥오토플랜_오영택" } },
+    };
+    const parsed = parseKakaoAccount(json);
+    expect(parsed.name).toBe("오영택");
+    expect(parsed.nickname).toBe("바오밥오토플랜_오영택");
+  });
+
+  it("구버전 properties.nickname 도 읽는다", () => {
+    const json = { id: 1, properties: { nickname: "옛닉네임" } };
+    expect(parseKakaoAccount(json).nickname).toBe("옛닉네임");
   });
 
   it("미동의 항목은 null 이다", () => {
@@ -38,6 +54,7 @@ describe("parseKakaoAccount", () => {
       phone: null,
       name: null,
       email: null,
+      nickname: null,
     });
   });
 
@@ -47,6 +64,7 @@ describe("parseKakaoAccount", () => {
       phone: null,
       name: null,
       email: null,
+      nickname: null,
     });
   });
 });

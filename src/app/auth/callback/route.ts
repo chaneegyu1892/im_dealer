@@ -42,8 +42,12 @@ export async function GET(request: Request) {
   const meta = metaResult.success ? metaResult.data : {};
   const appMeta = appMetaResult.success ? appMetaResult.data : {};
   const provider = typeof appMeta.provider === "string" ? appMeta.provider : null;
-  const kakaoNickname =
-    provider === "kakao" && typeof meta.nickname === "string" ? meta.nickname : null;
+  // Supabase 카카오 provider 는 user_metadata 에 nickname 키를 만들지 않는다.
+  // 닉네임은 name / preferred_username / user_name 에 담겨 온다(실측 확인).
+  const metaNickname =
+    provider === "kakao"
+      ? pickString(meta, ["preferred_username", "user_name", "name", "nickname"])
+      : null;
   // 카카오 이메일 미동의 시 빈 문자열을 반환 → unique 충돌 방지를 위해 null 로 정규화.
   const normalizedEmail = user.email && user.email.trim() ? user.email : null;
   // 카카오 전화번호: 동의 항목(전화번호) 승인 시 Supabase user.phone 또는 user_metadata 에 담긴다.
@@ -91,6 +95,8 @@ export async function GET(request: Request) {
   // 동의항목 "이름"으로 받은 실명이 있으면 닉네임 기반 표시명보다 우선한다.
   const resolvedName = account?.name ?? displayName;
   const resolvedEmail = normalizedEmail ?? account?.email ?? null;
+  // 카카오 API 의 프로필 닉네임을 우선하고, 없으면 Supabase 메타에서 받은 값을 쓴다.
+  const kakaoNickname = account?.nickname ?? metaNickname;
 
   try {
     await prisma.user.upsert({
@@ -136,6 +142,15 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.redirect(`${redirectOrigin}${next}`);
+}
+
+/** 메타데이터에서 첫 번째로 값이 있는 키를 고른다. */
+function pickString(meta: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = meta[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
 }
 
 function getRedirectOrigin(requestOrigin: string) {
