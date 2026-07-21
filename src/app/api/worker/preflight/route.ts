@@ -11,6 +11,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireWorker } from "@/lib/worker-auth";
 import { keyFingerprint } from "@/lib/scraper/key-fingerprint";
+import { WORKER_PROTOCOL_VERSION } from "@/lib/scraper/worker-version";
 
 export async function GET(request: NextRequest) {
   const { error } = requireWorker(request);
@@ -22,6 +23,8 @@ export async function GET(request: NextRequest) {
     ok: true,
     // 키 미설정이면 null — 워커가 "백엔드에 키가 없다"고 구분해 안내할 수 있다.
     keyFingerprint: fingerprint,
+    // 워커가 자기 버전과 비교해, 다르면 옛 zip 임을 알린다.
+    expectedWorkerVersion: WORKER_PROTOCOL_VERSION,
     serverTime: new Date().toISOString(),
   });
 }

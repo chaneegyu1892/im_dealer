@@ -28,17 +28,29 @@ export interface ClaimedCredential {
   requiresHuman: boolean;
 }
 
-export async function claimJob(): Promise<{ job: ClaimedJob; credential: ClaimedCredential } | null> {
+export interface ClaimResult {
+  job: ClaimedJob | null;
+  credential: ClaimedCredential | null;
+  /** 백엔드가 기대하는 워커 버전. 구버전 백엔드면 undefined. */
+  expectedWorkerVersion?: number;
+}
+
+export async function claimJob(): Promise<ClaimResult> {
   const res = await fetch(`${BASE}/api/worker/scrape-jobs/claim`, {
     method: "POST",
     headers: headers(),
   });
   if (!res.ok) throw new Error(`claim 실패: HTTP ${res.status}`);
-  const data = (await res.json()) as
-    | { job: null }
-    | { job: ClaimedJob; credential: ClaimedCredential };
-  if (!data.job) return null;
-  return data as { job: ClaimedJob; credential: ClaimedCredential };
+  const data = (await res.json()) as {
+    job: ClaimedJob | null;
+    credential?: ClaimedCredential;
+    expectedWorkerVersion?: number;
+  };
+  return {
+    job: data.job ?? null,
+    credential: data.credential ?? null,
+    expectedWorkerVersion: data.expectedWorkerVersion,
+  };
 }
 
 /** 하트비트 전송. 백엔드가 알려준 현재 status 를 반환 (cancel/resume 감지용). */

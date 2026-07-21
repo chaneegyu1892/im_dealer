@@ -6,6 +6,7 @@ import "./load-env";
 
 import { existsSync } from "node:fs";
 import { keyFingerprint } from "../../src/lib/scraper/key-fingerprint";
+import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
 
 type Result = { ok: boolean; label: string; detail: string; fix?: string };
 
@@ -89,8 +90,23 @@ async function collect(): Promise<Result[]> {
       return results;
     }
 
-    const body = (await res.json()) as { keyFingerprint: string | null };
+    const body = (await res.json()) as {
+      keyFingerprint: string | null;
+      expectedWorkerVersion?: number;
+    };
     pass("백엔드 연결", `${url} 응답 정상`);
+
+    if (body.expectedWorkerVersion === undefined) {
+      pass("프로그램 버전", `v${WORKER_PROTOCOL_VERSION} (서버가 버전을 알리지 않음)`);
+    } else if (body.expectedWorkerVersion === WORKER_PROTOCOL_VERSION) {
+      pass("프로그램 버전", `v${WORKER_PROTOCOL_VERSION} 일치`);
+    } else {
+      fail(
+        "프로그램 버전",
+        `이 프로그램 v${WORKER_PROTOCOL_VERSION} ≠ 서버 요구 v${body.expectedWorkerVersion}`,
+        "개발 담당자에게 최신 파일을 받아 다시 설치하세요. 접속 정보는 유지됩니다."
+      );
+    }
 
     if (!body.keyFingerprint) {
       fail("암호화 키 일치", "백엔드에 PII_ENCRYPTION_KEY 가 없음", "백엔드(Vercel 또는 로컬 .env)에 키를 설정하세요.");

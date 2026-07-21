@@ -4,6 +4,7 @@ import { requireWorker } from "@/lib/worker-auth";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
 import { buildClaimLeaseWhere } from "@/lib/scraper/job-state";
 import { markWorkerSeen } from "@/lib/scraper/worker-presence";
+import { WORKER_PROTOCOL_VERSION } from "@/lib/scraper/worker-version";
 
 const STALE_MS = 3 * 60 * 1000; // 하트비트 3분 초과 시 워커가 죽은 것으로 보고 재클레임
 
@@ -32,7 +33,10 @@ export async function POST(request: NextRequest) {
       },
       orderBy: { createdAt: "asc" },
     });
-    if (!candidate) return NextResponse.json({ job: null });
+    // 작업 유무와 무관하게 기대 버전을 실어, 실행 중에 백엔드가 배포돼도 워커가 알아챈다.
+    if (!candidate) {
+      return NextResponse.json({ job: null, expectedWorkerVersion: WORKER_PROTOCOL_VERSION });
+    }
 
     // 이중 클레임 방지: 후보의 현재 상태를 조건으로 건 updateMany 가 정확히 1건일 때만 성공
     const claimed = await db.scrapeJob.updateMany({
@@ -72,6 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
+      expectedWorkerVersion: WORKER_PROTOCOL_VERSION,
       job: {
         id: candidate.id,
         financeCompanyId: candidate.financeCompanyId,

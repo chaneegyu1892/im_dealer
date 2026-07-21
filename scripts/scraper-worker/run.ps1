@@ -17,6 +17,14 @@ Write-Host "===========================================" -ForegroundColor White
 Write-Host " 캐피탈사 회수율 수집" -ForegroundColor White
 Write-Host "===========================================" -ForegroundColor White
 
+# 새 버전 zip 으로 폴더를 덮어쓰면 .env 가 사라진다 — 폴더 밖 사본에서 자동 복원.
+$BackupPath = Join-Path (Join-Path $env:LOCALAPPDATA "imdealer-worker") ".env"
+if (-not (Test-Path $EnvPath) -and (Test-Path $BackupPath)) {
+    Copy-Item $BackupPath $EnvPath -Force
+    Write-Host ""
+    Write-Host " 이전 접속 정보를 복원했습니다." -ForegroundColor Green
+}
+
 if (-not (Test-Path $EnvPath)) {
     Write-Host ""
     Write-Host "  아직 설치가 되지 않았습니다." -ForegroundColor Red

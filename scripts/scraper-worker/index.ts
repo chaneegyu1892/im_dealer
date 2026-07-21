@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { decryptString } from "../../src/lib/pii";
 import { keyFingerprint } from "../../src/lib/scraper/key-fingerprint";
+import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
 import type { CatalogJobParams, CatalogProgress, CatalogTrimEntry, ScrapeJobParams, TrimScrapeResult } from "../../src/types/scraper";
 import { buildDraftFromTrimResults } from "./mapping";
 import { buildBrowserLaunchArgs } from "./browser-launch";
@@ -90,8 +91,20 @@ async function preflight(): Promise<boolean> {
       return false;
     }
 
-    const { keyFingerprint: serverKey } = (await res.json()) as { keyFingerprint: string | null };
+    const { keyFingerprint: serverKey, expectedWorkerVersion } = (await res.json()) as {
+      keyFingerprint: string | null;
+      expectedWorkerVersion?: number;
+    };
     const localKey = keyFingerprint(process.env.PII_ENCRYPTION_KEY);
+
+    if (expectedWorkerVersion !== undefined && expectedWorkerVersion !== WORKER_PROTOCOL_VERSION) {
+      console.error(
+        `[worker] 프로그램이 오래되었습니다 (이 프로그램 v${WORKER_PROTOCOL_VERSION} / 서버 요구 v${expectedWorkerVersion}).\n` +
+          "        개발 담당자에게 최신 파일을 받아 다시 설치해 주세요.\n" +
+          "        접속 정보는 유지되므로 다시 입력하지 않아도 됩니다."
+      );
+      return false;
+    }
 
     if (serverKey && localKey && serverKey !== localKey) {
       console.error(
@@ -330,11 +343,40 @@ async function main(): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  console.log(`[worker] 시작 — API=${process.env.WORKER_API_BASE} poll=${POLL_MS}ms headful=${HEADFUL}`);
+  console.log(
+    `[worker] 시작 — API=${process.env.WORKER_API_BASE} poll=${POLL_MS}ms headful=${HEADFUL} v${WORKER_PROTOCOL_VERSION}`
+  );
+  // 같은 안내를 매 폴링마다 도배하지 않도록 한 번만 출력한다.
+  let staleWarned = false;
   for (;;) {
     try {
       const claimed = await claimJob();
-      if (claimed) {
+
+      // 백엔드가 새 규약을 기대하는데 이 워커는 옛 zip 이라면, 작업을 가져가면 안 된다.
+      // 옛 코드로 처리하면 엉뚱한 이유로 실패하고 원인 추적이 어려워진다.
+      if (
+        claimed.expectedWorkerVersion !== undefined &&
+        claimed.expectedWorkerVersion !== WORKER_PROTOCOL_VERSION
+      ) {
+        if (!staleWarned) {
+          console.error(
+            "\n" +
+              "=".repeat(62) +
+              `\n 프로그램이 오래되어 수집을 시작할 수 없습니다.\n` +
+              `   (이 프로그램 v${WORKER_PROTOCOL_VERSION} / 서버 요구 v${claimed.expectedWorkerVersion})\n\n` +
+              " 개발 담당자에게 최신 파일을 받아 다시 설치해 주세요.\n" +
+              " 접속 정보는 그대로 유지되니 다시 입력하지 않아도 됩니다.\n" +
+              "=".repeat(62) +
+              "\n"
+          );
+          staleWarned = true;
+        }
+        await sleep(POLL_MS);
+        continue;
+      }
+      staleWarned = false;
+
+      if (claimed.job && claimed.credential) {
         console.log(`[worker] 작업 클레임: ${claimed.job.id} (캐피탈사 ${claimed.job.financeCompanyId})`);
         await runJob(claimed.job, claimed.credential);
         // 작업 간 쿨다운(분산) — 큐에 여러 작업이 있어도 몰아치지 않고 사람처럼 간격을 둠

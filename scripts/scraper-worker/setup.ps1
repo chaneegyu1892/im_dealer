@@ -12,6 +12,16 @@ $WorkerDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $WorkerDir)
 $EnvPath = Join-Path $WorkerDir ".env"
 
+# 담당자는 zip 으로 새 버전을 받아 폴더를 통째로 덮어쓴다. 그러면 .env 가 사라져
+# 접속 정보를 매번 다시 입력해야 하므로, 폴더 밖에 사본을 두고 자동 복원한다.
+$BackupDir = Join-Path $env:LOCALAPPDATA "imdealer-worker"
+$BackupPath = Join-Path $BackupDir ".env"
+
+if (-not (Test-Path $EnvPath) -and (Test-Path $BackupPath)) {
+    Copy-Item $BackupPath $EnvPath -Force
+    Write-Host "  이전에 저장한 접속 정보를 복원했습니다." -ForegroundColor Green
+}
+
 function Write-Step($n, $text) { Write-Host "`n[$n] $text" -ForegroundColor Cyan }
 function Write-Ok($text)   { Write-Host "  OK   $text" -ForegroundColor Green }
 function Write-Fail($text) { Write-Host "  실패 $text" -ForegroundColor Red }
@@ -120,6 +130,12 @@ if (-not $keepExisting) {
     )
     Set-Content -Path $EnvPath -Value $lines -Encoding UTF8
     Write-Ok "접속 정보를 저장했습니다."
+}
+
+# 다음에 새 버전 zip 으로 덮어써도 잃지 않도록 폴더 밖에 사본을 남긴다.
+if (Test-Path $EnvPath) {
+    New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
+    Copy-Item $EnvPath $BackupPath -Force
 }
 
 # ── 5. 점검 ────────────────────────────────────────────────
