@@ -5,6 +5,7 @@ import type { RateSheetRaw } from "@/types/admin";
 import type { ScrapeDraft } from "@/types/scraper";
 import { RATE_KEYS } from "@/lib/quote-calculator";
 import type { PerLineupResult } from "./ScrapeReviewPanel";
+import { resolveCapitalConnection } from "@/lib/scraper/connections";
 import ScraperLoginModal from "./ScraperLoginModal";
 
 /**
@@ -19,6 +20,8 @@ import ScraperLoginModal from "./ScraperLoginModal";
 interface VehicleLite { id: string; brand: string; name: string }
 interface Props {
   financeCompanyId: string;
+  /** 캐피탈사 특성(자동 로그인 가능 여부) 판정용 */
+  financeCompanyName: string;
   vehicles: VehicleLite[];
   productType: string;
   onSaved: () => void; // 저장 후 활성시트 갱신
@@ -107,7 +110,7 @@ function groupByLineup(draft: ScrapeDraft, detail: any): PerLineupResult[] {
   return out;
 }
 
-export default function BrandBatchCollector({ financeCompanyId, vehicles, productType, onSaved }: Props) {
+export default function BrandBatchCollector({ financeCompanyId, financeCompanyName, vehicles, productType, onSaved }: Props) {
   const brands = useMemo(() => Array.from(new Set(vehicles.map((v) => v.brand))).sort(), [vehicles]);
   const [brand, setBrand] = useState("");
   const [running, setRunning] = useState(false);
@@ -346,6 +349,7 @@ export default function BrandBatchCollector({ financeCompanyId, vehicles, produc
       {showLogin && (
         <ScraperLoginModal
           financeCompanyName={brand ? `${brand} · ${running ? "" : "일괄"} 수집` : "일괄 수집"}
+          requiresHuman={resolveCapitalConnection(financeCompanyName)?.requiresHuman ?? false}
           submitting={running}
           onClose={() => setShowLogin(false)}
           onSubmit={(username, password) => void runBatch(username, password)}

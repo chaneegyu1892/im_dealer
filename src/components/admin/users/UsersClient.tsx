@@ -149,6 +149,34 @@ function QuoteStatusBadge({ label }: { label: string }) {
   );
 }
 
+const CHANNEL_RELATION_LABEL: Record<string, string> = {
+  ADDED: "추가함",
+  BLOCKED: "차단함",
+  NONE: "추가 안 함",
+};
+
+/** 미수집 항목은 값 대신 회색 안내로 표시해, 빈칸과 "실제로 없음"을 구분한다. */
+function KakaoInfoRow({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string | null;
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-[11px] text-[#9BA4C0] shrink-0">{label}</span>
+      {value ? (
+        <span className="text-[12px] font-medium text-[#1A1A2E] text-right break-all">{value}</span>
+      ) : (
+        <span className="text-[11px] text-[#C0C5D8] text-right">{hint ?? "미수집"}</span>
+      )}
+    </div>
+  );
+}
+
 // ─── 사용자 상세 패널 ────────────────────────────────────
 function UserDetailPanel({
   user,
@@ -265,6 +293,39 @@ function UserDetailPanel({
               </div>
             </div>
           </div>
+
+          {/* 카카오싱크 수집 정보 */}
+          {user.source === "member" && (
+            <div className="px-5 py-4 border-b border-[#F8F9FC]">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9BA4C0] mb-3">
+                카카오싱크 수집 정보
+              </p>
+              {user.kakaoInfo?.consentedAt ? (
+                <div className="space-y-2">
+                  <KakaoInfoRow label="이름" value={user.kakaoInfo.memberName} />
+                  <KakaoInfoRow label="전화번호" value={user.kakaoInfo.memberPhone} />
+                  <KakaoInfoRow label="이메일" value={user.kakaoInfo.memberEmail} />
+                  <KakaoInfoRow label="닉네임" value={user.kakaoInfo.kakaoNickname} />
+                  <KakaoInfoRow label="카카오 회원번호" value={user.kakaoInfo.kakaoId} />
+                  <KakaoInfoRow
+                    label="채널 추가"
+                    value={CHANNEL_RELATION_LABEL[user.kakaoInfo.channelRelation ?? ""] ?? null}
+                    hint={user.kakaoInfo.channelRelation ? undefined : "채널 관계 확인 미설정"}
+                  />
+                  <KakaoInfoRow
+                    label="마케팅 수신동의"
+                    value={user.kakaoInfo.marketingConsent ? "동의" : "미동의"}
+                  />
+                  <KakaoInfoRow label="동의 일시" value={formatDate(user.kakaoInfo.consentedAt)} />
+                </div>
+              ) : (
+                <p className="text-[12px] leading-relaxed text-[#9BA4C0]">
+                  아직 수집되지 않았습니다. 카카오싱크 도입 이전에 가입한 회원은 소급 수집이
+                  불가하며, 다음 로그인 시 동의를 거쳐야 채워집니다.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* 활동 통계 */}
           <div className="px-5 py-4 border-b border-[#F8F9FC]">
@@ -458,6 +519,7 @@ export default function UsersClient({
     { label: "휴면 고객",     value: stats.dormant,      unit: "명", icon: Clock,     color: "#D97706", bg: "#FFFBEB" },
     { label: "계약 완료",     value: stats.contracts,    unit: "건", icon: CheckCircle2, color: "#0EA5E9", bg: "#E0F2FE" },
     { label: "이번 달 신규",  value: stats.newThisMonth, unit: "명", icon: Sparkles,  color: "#7C3AED", bg: "#F5F3FF" },
+    { label: "싱크 정보 수집", value: stats.kakaoSynced,  unit: "명", icon: MessageSquare, color: "#CA8A04", bg: "#FEFCE8" },
   ];
 
   const filtered = useMemo(() => {
