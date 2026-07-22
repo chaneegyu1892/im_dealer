@@ -16,7 +16,23 @@ export async function POST(request: NextRequest) {
 
   // 워커가 유휴 상태일 때도 이 라우트를 주기적으로 호출하므로, 여기서 생존 신호를 남긴다.
   // 실패해도 클레임 자체를 막지 않는다(상태 표시는 부가 기능).
-  void markWorkerSeen().catch(() => undefined);
+  await markWorkerSeen().catch(() => undefined);
+
+  const workerProtocolVersion = request.headers.get("x-worker-protocol-version");
+  if (workerProtocolVersion === null) {
+    // 기존 v2 클라이언트는 409 본문을 읽지 못하지만 성공 응답의 기대 버전은 처리한다.
+    return NextResponse.json({ job: null, expectedWorkerVersion: WORKER_PROTOCOL_VERSION });
+  }
+  if (workerProtocolVersion !== String(WORKER_PROTOCOL_VERSION)) {
+    return NextResponse.json(
+      {
+        error: "worker_protocol_version_incompatible",
+        expectedWorkerVersion: WORKER_PROTOCOL_VERSION,
+        receivedWorkerVersion: workerProtocolVersion,
+      },
+      { status: 409 }
+    );
+  }
 
   try {
     const db = prisma;

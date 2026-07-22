@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { WORKER_PROTOCOL_VERSION } from "@/lib/scraper/worker-version";
 
 const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(),
   updateMany: vi.fn(),
   financeCompanyFindUnique: vi.fn(),
+  markWorkerSeen: vi.fn(),
 }));
 
 vi.mock("@/lib/worker-auth", () => ({ requireWorker: () => ({ error: null }) }));
@@ -14,17 +16,107 @@ vi.mock("@/lib/prisma", () => ({
     financeCompany: { findUnique: mocks.financeCompanyFindUnique },
   },
 }));
+vi.mock("@/lib/scraper/worker-presence", () => ({ markWorkerSeen: mocks.markWorkerSeen }));
 
 import { POST } from "./route";
 
+function claimRequest(workerProtocolVersion: string | null = String(WORKER_PROTOCOL_VERSION)) {
+  const headers = new Headers();
+  if (workerProtocolVersion !== null) {
+    headers.set("x-worker-protocol-version", workerProtocolVersion);
+  }
+  return new NextRequest("http://localhost/api/worker/scrape-jobs/claim", {
+    method: "POST",
+    headers,
+  });
+}
+
 describe("POST /api/worker/scrape-jobs/claim", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.markWorkerSeen.mockResolvedValue(undefined);
+  });
+
+  it("guides a headerless legacy worker to upgrade without allowing a claim", async () => {
+    // Given a legacy claim request with no protocol version header
+    const request = claimRequest(null);
+
+    // When the worker requests a claim
+    const response = await POST(request);
+
+    // Then the legacy client can parse the upgrade version without touching the claim CAS
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      job: null,
+      expectedWorkerVersion: WORKER_PROTOCOL_VERSION,
+    });
+    expect(mocks.findFirst).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects an incompatible worker protocol version before querying for a claim", async () => {
+    // Given a claim request from an incompatible worker
+    const request = claimRequest(String(WORKER_PROTOCOL_VERSION - 1));
+
+    // When the worker requests a claim
+    const response = await POST(request);
+
+    // Then compatibility is explained without touching the claim CAS
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "worker_protocol_version_incompatible",
+      expectedWorkerVersion: WORKER_PROTOCOL_VERSION,
+      receivedWorkerVersion: String(WORKER_PROTOCOL_VERSION - 1),
+    });
+    expect(mocks.findFirst).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("waits for worker presence to persist before returning a claim response", async () => {
+    // Given a presence write that has not completed yet
+    let finishPresence: (() => void) | undefined;
+    mocks.markWorkerSeen.mockImplementation(
+      () => new Promise<void>((resolve) => {
+        finishPresence = resolve;
+      })
+    );
+    mocks.findFirst.mockResolvedValue(null);
+
+    // When the worker requests a claim
+    const responsePromise = POST(claimRequest());
+    const outcome = await Promise.race([
+      responsePromise.then(() => "response-returned" as const),
+      new Promise<"presence-pending">((resolve) => setImmediate(() => resolve("presence-pending"))),
+    ]);
+    finishPresence?.();
+    const response = await responsePromise;
+
+    // Then the route does not return until the presence write has settled
+    expect(outcome).toBe("presence-pending");
+    expect(response.status).toBe(200);
+  });
+
+  it("keeps claims available when worker presence persistence fails", async () => {
+    // Given a Redis presence write that rejects
+    mocks.markWorkerSeen.mockRejectedValue(new Error("Redis unavailable"));
+    mocks.findFirst.mockResolvedValue(null);
+
+    // When the worker requests a claim
+    const response = await POST(claimRequest());
+
+    // Then the optional presence failure does not fail the claim endpoint
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      job: null,
+      expectedWorkerVersion: WORKER_PROTOCOL_VERSION,
+    });
+  });
 
   it("uses the stale cutoff in the compare-and-set for a reclaimed lease", async () => {
     mocks.findFirst.mockResolvedValue({ id: "job-1", status: "running" });
     mocks.updateMany.mockResolvedValue({ count: 0 });
 
-    await POST(new NextRequest("http://localhost/api/worker/scrape-jobs/claim", { method: "POST" }));
+    await POST(claimRequest());
 
     expect(mocks.updateMany).toHaveBeenCalledWith({
       where: {
@@ -53,7 +145,7 @@ describe("POST /api/worker/scrape-jobs/claim", () => {
       .mockResolvedValueOnce({ count: 0 });
     mocks.financeCompanyFindUnique.mockResolvedValue(null);
 
-    await POST(new NextRequest("http://localhost/api/worker/scrape-jobs/claim", { method: "POST" }));
+    await POST(claimRequest());
 
     expect(mocks.updateMany).toHaveBeenLastCalledWith({
       where: {
@@ -81,9 +173,7 @@ describe("POST /api/worker/scrape-jobs/claim", () => {
     mocks.updateMany.mockResolvedValue({ count: 1 });
     mocks.financeCompanyFindUnique.mockResolvedValue({ name: "신한카드" });
 
-    const res = await POST(
-      new NextRequest("http://localhost/api/worker/scrape-jobs/claim", { method: "POST" })
-    );
+    const res = await POST(claimRequest());
     const body = await res.json();
 
     expect(body.job?.id).toBe("job-1");
@@ -104,9 +194,7 @@ describe("POST /api/worker/scrape-jobs/claim", () => {
     mocks.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 1 });
     mocks.financeCompanyFindUnique.mockResolvedValue({ name: "오릭스캐피탈" });
 
-    const res = await POST(
-      new NextRequest("http://localhost/api/worker/scrape-jobs/claim", { method: "POST" })
-    );
+    const res = await POST(claimRequest());
 
     expect((await res.json()).job).toBeNull();
     expect(mocks.updateMany).toHaveBeenLastCalledWith({

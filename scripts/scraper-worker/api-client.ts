@@ -1,4 +1,5 @@
 import type { CatalogProgress, CatalogScrapeSummary, CatalogTrimEntry, ScrapeDraft, ScrapeJobType } from "../../src/types/scraper";
+import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
 
 /** 백엔드 워커 라우트와 통신하는 얇은 fetch 래퍼 (Bearer 시크릿). */
 
@@ -9,6 +10,7 @@ function headers() {
   return {
     "content-type": "application/json",
     authorization: `Bearer ${SECRET}`,
+    "x-worker-protocol-version": String(WORKER_PROTOCOL_VERSION),
   };
 }
 
@@ -40,6 +42,22 @@ export async function claimJob(): Promise<ClaimResult> {
     method: "POST",
     headers: headers(),
   });
+  if (res.status === 409) {
+    const incompatibility = (await res.json()) as {
+      error?: string;
+      expectedWorkerVersion?: number;
+    };
+    if (
+      incompatibility.error === "worker_protocol_version_incompatible" &&
+      typeof incompatibility.expectedWorkerVersion === "number"
+    ) {
+      return {
+        job: null,
+        credential: null,
+        expectedWorkerVersion: incompatibility.expectedWorkerVersion,
+      };
+    }
+  }
   if (!res.ok) throw new Error(`claim 실패: HTTP ${res.status}`);
   const data = (await res.json()) as {
     job: ClaimedJob | null;

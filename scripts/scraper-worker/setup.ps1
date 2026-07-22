@@ -51,15 +51,16 @@ if (-not $node) {
     Start-Process "https://nodejs.org"
     Stop-WithMessage "Node.js 설치가 필요합니다."
 }
-$nodeVersion = (& node -v).TrimStart("v")
-$nodeMajor = [int]($nodeVersion.Split(".")[0])
-if ($nodeMajor -lt 20) {
-    Write-Fail "Node.js 버전이 낮습니다 (현재 $nodeVersion, 20 이상 필요)"
+$nodeVersionText = (& node -v).TrimStart("v")
+$nodeVersion = [version]$nodeVersionText
+$minimumNodeVersion = [version]"22.13.0"
+if ($nodeVersion -lt $minimumNodeVersion) {
+    Write-Fail "Node.js 버전이 낮습니다 (현재 $nodeVersionText, 22.13 이상 필요)"
     Write-Info "https://nodejs.org 에서 최신 LTS 로 다시 설치해 주세요."
     Start-Process "https://nodejs.org"
     Stop-WithMessage "Node.js 업그레이드가 필요합니다."
 }
-Write-Ok "Node.js $nodeVersion"
+Write-Ok "Node.js $nodeVersionText"
 
 # ── 2. 필요한 파일 설치 ─────────────────────────────────────
 Write-Step 2 "필요한 파일 설치 (수 분 걸릴 수 있습니다)"
@@ -114,21 +115,35 @@ if (-not $keepExisting) {
     $apiBase = Read-Host "  1) 서버 주소"
     if (-not $apiBase) { Stop-WithMessage "서버 주소를 입력해야 합니다." }
 
-    $workerSecret = Read-Host "  2) 워커 비밀키"
-    if (-not $workerSecret) { Stop-WithMessage "워커 비밀키를 입력해야 합니다." }
+    $workerSecret = Read-Host "  2) 워커 비밀키" -AsSecureString
+    if ($workerSecret.Length -eq 0) { Stop-WithMessage "워커 비밀키를 입력해야 합니다." }
 
-    $piiKey = Read-Host "  3) 암호화 키"
-    if (-not $piiKey) { Stop-WithMessage "암호화 키를 입력해야 합니다." }
+    $piiKey = Read-Host "  3) 암호화 키" -AsSecureString
+    if ($piiKey.Length -eq 0) { Stop-WithMessage "암호화 키를 입력해야 합니다." }
 
-    $lines = @(
-        "# 이 파일에는 비밀키가 들어 있습니다. 다른 사람에게 보내지 마세요.",
-        "WORKER_API_BASE=$($apiBase.Trim())",
-        "SCRAPER_WORKER_SECRET=$($workerSecret.Trim())",
-        "PII_ENCRYPTION_KEY=$($piiKey.Trim())",
-        "PUPPETEER_EXECUTABLE_PATH=$browserPath",
-        "SCRAPER_HEADFUL=true"
-    )
-    Set-Content -Path $EnvPath -Value $lines -Encoding UTF8
+    $workerSecretPointer = [IntPtr]::Zero
+    $piiKeyPointer = [IntPtr]::Zero
+    try {
+        $workerSecretPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($workerSecret)
+        $piiKeyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($piiKey)
+        $lines = @(
+            "# 이 파일에는 비밀키가 들어 있습니다. 다른 사람에게 보내지 마세요.",
+            "WORKER_API_BASE=$($apiBase.Trim())",
+            "SCRAPER_WORKER_SECRET=$([Runtime.InteropServices.Marshal]::PtrToStringBSTR($workerSecretPointer).Trim())",
+            "PII_ENCRYPTION_KEY=$([Runtime.InteropServices.Marshal]::PtrToStringBSTR($piiKeyPointer).Trim())",
+            "PUPPETEER_EXECUTABLE_PATH=$browserPath",
+            "SCRAPER_HEADFUL=true"
+        )
+        Set-Content -Path $EnvPath -Value $lines -Encoding UTF8
+    } finally {
+        $lines = $null
+        if ($workerSecretPointer -ne [IntPtr]::Zero) {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($workerSecretPointer)
+        }
+        if ($piiKeyPointer -ne [IntPtr]::Zero) {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($piiKeyPointer)
+        }
+    }
     Write-Ok "접속 정보를 저장했습니다."
 }
 

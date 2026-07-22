@@ -14,4 +14,4 @@
  * 어댑터 내부 수정처럼 규약과 무관한 변경은 올리지 않아도 된다
  * (옛 워커도 정상 동작하며, 다음 zip 배포 때 자연히 따라온다).
  */
-export const WORKER_PROTOCOL_VERSION = 2;
+export const WORKER_PROTOCOL_VERSION = 3;
