@@ -166,7 +166,7 @@ function ActiveQuoteSection({ quote }: { quote: MyPageQuote }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[13px] font-bold text-white/75">현재 진행 중인 견적</p>
-            <h2 id="active-quote-heading" className="mt-1 text-[22px] font-extrabold tracking-[-0.02em] md:text-[26px]">
+            <h2 id="active-quote-heading" className="mt-1 text-[22px] font-extrabold text-white tracking-[-0.02em] md:text-[26px]">
               {quote.vehicleBrand ? `${quote.vehicleBrand} ` : ""}{quote.vehicleName}
             </h2>
           </div>
