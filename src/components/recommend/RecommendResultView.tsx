@@ -1,16 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { RecommendResultResponse } from "@/types/recommendation";
 import { RecommendVehicleCard } from "./RecommendVehicleCard";
 import { RecommendCardSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { TrustBadgeGroup } from "@/components/ui/TrustBadge";
-import { RotateCcw, Lightbulb } from "lucide-react";
+import { CarFront, CircleDollarSign, RotateCcw, Lightbulb } from "lucide-react";
 import { AiBadge } from "@/components/ui/AiBadge";
-import { STEP02_V3_STYLE_LABELS } from "@/constants/recommend-step02-v3";
-import { RECOMMEND_BUDGET_RANGE_LABELS } from "@/constants/recommend-budget";
+import {
+  STEP02_V3_STYLE_LABELS,
+  isStep02V3Style,
+} from "@/constants/recommend-step02-v3";
+import {
+  RECOMMEND_BUDGET_RANGE_LABELS,
+  RECOMMEND_BUDGET_RANGE_OPTIONS,
+  type RecommendBudgetRange,
+} from "@/constants/recommend-budget";
+import { SelectionCard } from "./SelectionCard";
 
 const LABEL_MAP: Record<string, string> = {
   법인: "법인",
@@ -26,6 +35,46 @@ const LABEL_MAP: Record<string, string> = {
   "레저·캠핑": "레저·캠핑",
 };
 
+function buildBudgetRetryInput(
+  input: RecommendResultResponse["input"],
+  budgetRange: RecommendBudgetRange
+) {
+  if (
+    typeof input.stylePreference !== "string"
+    || !isStep02V3Style(input.stylePreference)
+  ) return null;
+
+  const situationPreference = input.situationPreference === "가족"
+    || input.situationPreference === "화물"
+    ? input.situationPreference
+    : undefined;
+
+  return {
+    recommendationVersion: "step02-v3" as const,
+    industry: input.industry,
+    budgetRange,
+    preferences: [input.stylePreference, situationPreference].filter(
+      (value): value is NonNullable<typeof value> => value !== undefined
+    ),
+    stylePreference: input.stylePreference,
+    annualMileage: input.annualMileage,
+    returnType: input.returnType,
+    fuelPreference: input.fuelPreference ?? "상관없음",
+    residenceRegion: input.residenceRegion ?? "일반",
+    ...(input.industryDetail ? { industryDetail: input.industryDetail } : {}),
+    ...(situationPreference ? { situationPreference } : {}),
+    ...(situationPreference === "가족" && input.childDetail
+      ? { childDetail: input.childDetail }
+      : {}),
+    ...(situationPreference === "화물" && input.cargoDetail
+      ? { cargoDetail: input.cargoDetail }
+      : {}),
+    ...(input.fuelPreference === "전기차" && input.chargingEnvironment
+      ? { chargingEnvironment: input.chargingEnvironment }
+      : {}),
+  };
+}
+
 export function RecommendResultView() {
   const params = useSearchParams();
   const router = useRouter();
@@ -34,6 +83,9 @@ export function RecommendResultView() {
   const [result, setResult] = useState<RecommendResultResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [retryBudgetRange, setRetryBudgetRange] = useState<RecommendBudgetRange | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionId) {
@@ -42,18 +94,63 @@ export function RecommendResultView() {
     }
 
     let cancelled = false;
-
     fetch(`/api/recommend/${sessionId}`)
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json() as Promise<RecommendResultResponse>;
       })
-      .then((data) => { if (!cancelled) setResult(data); })
+      .then((data) => {
+        if (!cancelled) {
+          setResult(data);
+          setRetryBudgetRange(data.input.budgetRange ?? null);
+          setRetryError(null);
+        }
+      })
       .catch(() => { if (!cancelled) setError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
   }, [sessionId, router]);
+
+  const handleBudgetRetry = async () => {
+    if (!result || !retryBudgetRange) return;
+
+    const retryInput = buildBudgetRetryInput(result.input, retryBudgetRange);
+    if (!retryInput) {
+      setRetryError("기존 추천 조건을 불러오지 못했습니다. 처음부터 다시 선택해 주세요.");
+      return;
+    }
+
+    setRetrying(true);
+    setRetryError(null);
+
+    try {
+      const response = await fetch("/api/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(retryInput),
+      });
+      const payload = await response.json().catch(() => ({})) as {
+        error?: string;
+        sessionId?: string;
+      };
+
+      if (!response.ok || !payload.sessionId) {
+        throw new Error(payload.error ?? "추천 요청 실패");
+      }
+
+      setLoading(true);
+      router.push(`/recommend/result?session=${payload.sessionId}`);
+    } catch (retryRequestError) {
+      setRetryError(
+        retryRequestError instanceof Error
+          ? retryRequestError.message
+          : "추천 요청 중 오류가 발생했습니다. 다시 시도해 주세요."
+      );
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   // ── 로딩 ──────────────────────────────────────────────
   if (loading) {
@@ -98,24 +195,90 @@ export function RecommendResultView() {
 
   // ── 결과 없음 ──────────────────────────────────────────
   if (result.vehicles.length === 0) {
+    const canRetryBudget = typeof result.input.stylePreference === "string"
+      && isStep02V3Style(result.input.stylePreference)
+      && result.input.budgetRange !== undefined;
+
     return (
-      <div className="mx-auto w-full max-w-[480px] px-4 py-16 text-center">
-        <div className="w-14 h-14 rounded-full bg-brand-soft flex items-center justify-center mx-auto mb-4">
+      <div className="mx-auto w-full max-w-[480px] px-4 py-10 md:max-w-[640px] md:px-6 md:py-14">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft">
           <Lightbulb size={24} className="text-brand" />
         </div>
-        <h2 className="text-[18px] font-semibold text-text-strong">추천 결과가 없어요</h2>
-        <p className="mt-2 text-[13px] text-text-muted">
-          조건을 조금 바꿔보면 더 많은 차량을 찾을 수 있어요.
-        </p>
-        <Button
-          variant="primary"
-          size="md"
-          className="mt-6 min-h-[48px] rounded-btn font-extrabold"
-          onClick={() => router.push("/recommend")}
-        >
-          <RotateCcw size={14} className="mr-2" />
-          조건 다시 설정하기
-        </Button>
+        <div className="text-center">
+          <h2 className="text-[20px] font-extrabold text-text-strong">추천 결과가 없어요</h2>
+          <p className="mt-2 break-keep text-[14px] leading-relaxed text-text-muted">
+            예산 범위를 조정하면 더 많은 차량을 찾을 수 있어요.
+          </p>
+        </div>
+
+        {canRetryBudget ? (
+          <section
+            aria-labelledby="retryBudgetTitle"
+            className="mt-6 rounded-card border border-border-subtle bg-surface p-4 shadow-card md:p-5"
+          >
+            <div className="mb-4">
+              <span className="text-[12px] font-extrabold text-brand">예산만 다시 선택</span>
+              <h3
+                id="retryBudgetTitle"
+                className="mt-1.5 text-[18px] font-extrabold leading-snug tracking-[-0.03em] text-text-strong"
+              >
+                월 납입금 예산을 바꿔볼까요?
+              </h3>
+              <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-text-muted">
+                앞에서 선택한 다른 답변은 그대로 유지됩니다.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {RECOMMEND_BUDGET_RANGE_OPTIONS.map((option) => (
+                <SelectionCard
+                  key={option.id}
+                  label={option.label}
+                  desc={option.desc}
+                  icon={<CircleDollarSign size={18} aria-hidden />}
+                  selected={retryBudgetRange === option.id}
+                  onClick={() => setRetryBudgetRange(option.id)}
+                />
+              ))}
+            </div>
+
+            {retryError && (
+              <p
+                role="alert"
+                className="mt-4 rounded-[12px] border border-status-danger/25 bg-status-danger-soft px-3.5 py-3 text-[13px] font-medium text-status-danger"
+              >
+                {retryError}
+              </p>
+            )}
+
+            <Button
+              variant="primary"
+              size="md"
+              fullWidth
+              loading={retrying}
+              disabled={
+                !retryBudgetRange
+                || retryBudgetRange === result.input.budgetRange
+              }
+              className="mt-5 min-h-[48px] rounded-btn font-extrabold"
+              onClick={handleBudgetRetry}
+            >
+              {retrying ? "새 예산으로 분석 중입니다" : "예산 바꿔 다시 추천받기"}
+            </Button>
+          </section>
+        ) : (
+          <div className="text-center">
+            <Button
+              variant="primary"
+              size="md"
+              className="mt-6 min-h-[48px] rounded-btn font-extrabold"
+              onClick={() => router.push("/recommend")}
+            >
+              <RotateCcw size={14} className="mr-2" />
+              조건 다시 설정하기
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -181,15 +344,19 @@ export function RecommendResultView() {
         ))}
       </div>
 
-      {/* 하단 재시도 */}
-      <button
-        type="button"
-        onClick={() => router.push("/recommend")}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-btn bg-surface-soft py-[14px] text-[14px] font-bold text-text-body transition-colors hover:bg-brand-soft hover:text-brand"
-      >
-        <RotateCcw size={14} />
-        조건 바꿔서 다시 추천받기
-      </button>
+      {/* 3순위 추천 뒤 차량 탐색 CTA */}
+      <section className="mt-5 rounded-card border border-border-subtle bg-surface-soft px-4 py-5 text-center">
+        <p className="text-[15px] font-extrabold text-text-strong">
+          원하시는 차량이 안나왔나요?
+        </p>
+        <Link
+          href="/cars"
+          className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-btn bg-brand px-5 text-[14px] font-extrabold text-white transition-all duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-soft active:scale-[0.98]"
+        >
+          <CarFront size={16} />
+          차량 탐색하기
+        </Link>
+      </section>
     </div>
   );
 }

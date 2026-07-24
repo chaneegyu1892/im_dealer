@@ -114,32 +114,43 @@ test("no-detail and non-EV answers scroll directly to their next action", async 
 });
 
 for (const viewport of [{ width: 375, height: 812 }, { width: 1280, height: 900 }]) {
-  test(`zero-result UI keeps the unchanged public flow at ${viewport.width}px`, async ({ page }, testInfo) => {
+  test(`zero-result UI retries with only the budget changed at ${viewport.width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
+    const postPayloads: Record<string, unknown>[] = [];
     await page.route("**/api/recommend**", async (route) => {
       if (route.request().method() === "POST") {
         const payload = route.request().postDataJSON();
-        expect(payload).toMatchObject({
-          industry: "개인",
-          budgetRange: "lte-1000k",
-          recommendationVersion: "step02-v3",
-          stylePreference: "family-leisure",
-          situationPreference: "가족",
-          childDetail: "미취학",
-          annualMileage: 20_000,
-          fuelPreference: "하이브리드",
-          residenceRegion: "일반",
-        });
+        postPayloads.push(payload);
         expect(payload).not.toHaveProperty("budgetMin");
         expect(payload).not.toHaveProperty("budgetMax");
-        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ sessionId: "e2e-zero", vehicles: [] }) });
-      } else {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
-            sessionId: "e2e-zero",
-            input: { industry: "개인", purpose: "안정감, 가족", annualMileage: 20_000, returnType: "미정" },
+            sessionId: postPayloads.length === 1 ? "e2e-zero" : "e2e-retry",
+            vehicles: [],
+          }),
+        });
+      } else {
+        const retryResult = route.request().url().includes("e2e-retry");
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            sessionId: retryResult ? "e2e-retry" : "e2e-zero",
+            input: {
+              industry: "개인",
+              purpose: "family-leisure, 가족",
+              preferences: ["family-leisure", "가족"],
+              stylePreference: "family-leisure",
+              situationPreference: "가족",
+              childDetail: "미취학",
+              annualMileage: 20_000,
+              returnType: "미정",
+              budgetRange: retryResult ? "gte-1000k" : "lte-1000k",
+              fuelPreference: "하이브리드",
+              residenceRegion: "일반",
+            },
             vehicles: [],
           }),
         });
@@ -147,7 +158,32 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1280, height: 900 
     });
     await completeHevFamilyFlow(page);
     await expect(page.getByRole("heading", { name: "추천 결과가 없어요" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "조건 다시 설정하기" })).toBeVisible();
+    await expect(page.getByText("앞에서 선택한 다른 답변은 그대로 유지됩니다.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "조건 다시 설정하기" })).toHaveCount(0);
+
+    const retryButton = page.getByRole("button", { name: "예산 바꿔 다시 추천받기" });
+    await expect(retryButton).toBeDisabled();
+    await choose(page, "100만원 이상 고급·대형 차량까지 살펴봐요");
+    await expect(retryButton).toBeEnabled();
+    await retryButton.click();
+
+    await expect(page).toHaveURL(/session=e2e-retry/);
+    expect(postPayloads).toHaveLength(2);
+    expect(postPayloads[0]).toMatchObject({
+      industry: "개인",
+      budgetRange: "lte-1000k",
+      recommendationVersion: "step02-v3",
+      stylePreference: "family-leisure",
+      situationPreference: "가족",
+      childDetail: "미취학",
+      annualMileage: 20_000,
+      fuelPreference: "하이브리드",
+      residenceRegion: "일반",
+    });
+    expect(postPayloads[1]).toMatchObject({
+      ...postPayloads[0],
+      budgetRange: "gte-1000k",
+    });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`recommend-zero-${viewport.width}.png`), fullPage: true });
   });
