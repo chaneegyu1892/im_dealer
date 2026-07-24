@@ -74,7 +74,11 @@ export type AuditAction =
   | "RULE_DELETE"
   | "NOTIFICATION_CREATE"
   | "NOTIFICATION_UPDATE"
-  | "NOTIFICATION_DELETE";
+  | "NOTIFICATION_DELETE"
+  | "SCRAPE_JOB_CREATE"
+  | "SCRAPE_JOB_CANCEL"
+  | "SCRAPE_JOB_RESUME"
+  | "SCRAPER_CRED_UPSERT";
 
 export type AuditActor = Pick<User, "id"> & { email: string | null };
 

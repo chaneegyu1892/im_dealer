@@ -103,6 +103,8 @@ model Vehicle {
   description            String?
   tags                   String[]
   detailedSpecs          Json?
+  // 캐피탈사 회수율 스크래퍼 연결: { "ORIX": { "brandCd": "CA100002", "modelName": "쏘렌토" } }
+  scraperRefs            Json?
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
   exploLogs              ExplorationLog[]
@@ -807,4 +809,42 @@ model AdminNotification {
 
   @@index([isRead])
   @@index([createdAt])
+}
+
+// 캐피탈사 스크래핑 로그인 자격증명 (AES-256-GCM 암호문 저장)
+// 평문 ID/PW 는 절대 저장하지 않는다. encryptString() 결과(JSON 직렬화된 EncryptedBlob)만 보관.
+model CapitalScraperCredential {
+  id               String   @id @default(cuid())
+  financeCompanyId String   @unique
+  loginUrl         String
+  usernameEnc      String // encryptString(평문 ID) 결과
+  passwordEnc      String // encryptString(평문 PW) 결과
+  config           Json? // 사이트별 셀렉터/매핑 설정 (선택)
+  requiresHuman    Boolean  @default(false) // 휴대폰인증/키보드보안 등 사람 개입 필요 여부
+  isActive         Boolean  @default(true) // 비활성화 = 스크래핑 킬스위치
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([financeCompanyId])
+}
+
+// 스크래핑 작업 큐 (어드민이 생성 → 로컬 워커가 폴링/클레임/완료)
+model ScrapeJob {
+  id               String    @id @default(cuid())
+  financeCompanyId String
+  status           String    @default("pending") // pending|running|needs_human|completed|failed|canceled
+  productType      String    @default("장기렌트")
+  params           Json // { trimIds, vehicleId, lineupIds, weekOf, minVehiclePrice, maxVehiclePrice }
+  draft            Json? // ScrapeDraft (워커가 채움)
+  error            String?
+  humanPrompt      String? // needs_human 일 때 운영자 안내문
+  claimedAt        DateTime?
+  heartbeatAt      DateTime? // 워커 생존 신호 (스테일 작업 회수용)
+  finishedAt       DateTime?
+  createdById      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([financeCompanyId, status])
 }

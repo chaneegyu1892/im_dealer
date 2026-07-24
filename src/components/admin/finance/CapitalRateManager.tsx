@@ -10,8 +10,13 @@ import type {
 } from "@/types/admin";
 import RateInputForm from "./RateInputForm";
 import RateHistory from "./RateHistory";
+import ScraperCredentialModal from "./ScraperCredentialModal";
+import ScrapeJobStatus from "./ScrapeJobStatus";
+import ScrapeReviewPanel, { type PerLineupResult } from "./ScrapeReviewPanel";
 import { useBrandSignals } from "@/lib/use-brand-signals";
 import { buildRateGroupMarkers } from "./rate-group-markers";
+import type { ScrapeDraft, ScrapeJobStatus as JobStatus } from "@/types/scraper";
+import type { RateSheetRaw } from "@/types/admin";
 
 interface VehicleLineup {
   id: string;
@@ -130,6 +135,16 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [isWritingSession, setIsWritingSession] = useState(false);
   const [sessionSavedTrims, setSessionSavedTrims] = useState<SessionSavedTrim[]>([]);
+
+  // ── 자동 수집(스크래핑) 상태 ──
+  const [scrapeJobId, setScrapeJobId] = useState<string | null>(null);
+  const [scrapeStatus, setScrapeStatus] = useState<JobStatus | null>(null);
+  const [scrapeError, setScrapeError] = useState<string | null>(null);
+  const [scrapeHumanPrompt, setScrapeHumanPrompt] = useState<string | null>(null);
+  const [scrapeDraft, setScrapeDraft] = useState<ScrapeDraft | null>(null);
+  const [scrapeStarting, setScrapeStarting] = useState(false);
+  const [showCredModal, setShowCredModal] = useState(false);
+  const [showFetchConfirm, setShowFetchConfirm] = useState(false);
 
   const selectedFc = localFinanceCompanies.find((f) => f.id === selectedFcId);
 
@@ -360,7 +375,72 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     [activeSheets, selectedProductType, vehicleDetail?.trims]
   );
 
+  // 수집 대상 라인업: 선택된 게 있으면 그것, 없으면 차량의 모든 라인업
+  const targetLineups = useMemo(() => {
+    if (!vehicleDetail) return [] as { id: string; name: string; trimCount: number }[];
+    const pool = selectedLineupIds.size > 0
+      ? vehicleDetail.lineups.filter((l) => selectedLineupIds.has(l.id))
+      : vehicleDetail.lineups;
+    return pool
+      .map((l) => ({ id: l.id, name: l.name, trimCount: vehicleDetail.trims.filter((t) => t.lineupId === l.id).length }))
+      .filter((l) => l.trimCount > 0);
+  }, [vehicleDetail, selectedLineupIds]);
+
+  const targetTrimIds = useMemo(() => {
+    if (!vehicleDetail) return [] as string[];
+    const set = new Set(targetLineups.map((l) => l.id));
+    return vehicleDetail.trims.filter((t) => t.lineupId && set.has(t.lineupId)).map((t) => t.id);
+  }, [vehicleDetail, targetLineups]);
+
+  // 수집 초안 → 라인업별 묶기 (각 라인업의 최저가/최고가 트림 → 라인업 자체 min/max)
+  const perLineupResults = useMemo<PerLineupResult[]>(() => {
+    if (!scrapeDraft?.trims || !vehicleDetail) return [];
+    const priceOf = new Map(vehicleDetail.trims.map((t) => [t.id, t.discountPrice ?? t.price]));
+    const lineupOf = new Map(vehicleDetail.trims.map((t) => [t.id, t.lineupId]));
+    const grouped = new Map<string, { trims: { price: number; rates: RateSheetRaw }[]; unmatched: number }>();
+    for (const tr of scrapeDraft.trims) {
+      const lid = lineupOf.get(tr.trimId);
+      if (!lid) continue;
+      const g = grouped.get(lid) ?? { trims: [], unmatched: 0 };
+      if (tr.baseRates && tr.vehiclePrice > 0) g.trims.push({ price: priceOf.get(tr.trimId) ?? tr.vehiclePrice, rates: tr.baseRates });
+      else g.unmatched += 1;
+      grouped.set(lid, g);
+    }
+    const out: PerLineupResult[] = [];
+    for (const [lineupId, g] of grouped) {
+      const name = vehicleDetail.lineups.find((l) => l.id === lineupId)?.name ?? lineupId;
+      const allTrimIds = vehicleDetail.trims.filter((t) => t.lineupId === lineupId).map((t) => t.id);
+      const sorted = [...g.trims].sort((a, b) => a.price - b.price);
+      const low = sorted[0], high = sorted[sorted.length - 1];
+      out.push({
+        lineupId, lineupName: name, trimIds: allTrimIds,
+        minVehiclePrice: low?.price ?? 0, maxVehiclePrice: high?.price ?? 0,
+        minBaseRates: low?.rates ?? ({} as RateSheetRaw), maxBaseRates: high?.rates ?? ({} as RateSheetRaw),
+        matchedCount: g.trims.length, unmatchedCount: g.unmatched,
+      });
+    }
+    return out.sort((a, b) => a.lineupName.localeCompare(b.lineupName));
+  }, [scrapeDraft, vehicleDetail]);
+
+  // 라인업별 기존 활성 시트 (라인업 내 아무 트림의 시트)
+  const existingByLineup = useMemo<Record<string, CapitalRateSheet | undefined>>(() => {
+    const map: Record<string, CapitalRateSheet | undefined> = {};
+    if (!vehicleDetail) return map;
+    for (const l of vehicleDetail.lineups) {
+      const ids = vehicleDetail.trims.filter((t) => t.lineupId === l.id).map((t) => t.id);
+      map[l.id] = activeSheets.find((s) => ids.includes(s.trimId) && s.productType === selectedProductType);
+    }
+    return map;
+  }, [vehicleDetail, activeSheets, selectedProductType]);
+
   const handleSaved = (savedTrimIds: string[] = []) => {
+    // 자동 수집 초안을 저장으로 확정했으면 초안·상태 패널 정리
+    if (scrapeDraft) {
+      setScrapeDraft(null);
+      setScrapeJobId(null);
+      setScrapeStatus(null);
+    }
+
     fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
       .then((r) => r.json())
       .then((res) => setActiveSheets(res.data ?? []));
@@ -557,6 +637,138 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       setSavingCompany(false);
     }
   };
+
+  // ── 자동 수집(스크래핑) ──
+  const getCurrentWeekOf = () => {
+    const d = new Date();
+    const day = d.getDay();
+    d.setDate(d.getDate() - day + (day === 0 ? -6 : 1)); // 해당 주 월요일
+    return d.toISOString().slice(0, 10);
+  };
+
+  const createScrapeJob = useCallback(async () => {
+    if (!selectedFcId || targetTrimIds.length === 0 || !vehicleDetail) return;
+    const prices = vehicleDetail.trims
+      .filter((t) => targetTrimIds.includes(t.id))
+      .map((t) => t.discountPrice ?? t.price);
+    const minP = prices.length ? Math.min(...prices) : 0;
+    const maxP = prices.length ? Math.max(...prices) : 0;
+    setScrapeStarting(true);
+    setScrapeError(null);
+    setScrapeDraft(null);
+    setScrapeHumanPrompt(null);
+    try {
+      const res = await fetch("/api/admin/scrape-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          financeCompanyId: selectedFcId,
+          productType: selectedProductType,
+          weekOf: getCurrentWeekOf(),
+          trimIds: targetTrimIds,
+          vehicleId: selectedVehicleId,
+          lineupIds: targetLineups.map((l) => l.id),
+          minVehiclePrice: minP,
+          maxVehiclePrice: maxP,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setScrapeStatus("failed");
+        setScrapeError(data.error ?? "수집 작업 생성에 실패했습니다.");
+        return;
+      }
+      setScrapeJobId(data.jobId);
+      setScrapeStatus(data.status ?? "pending");
+    } finally {
+      setScrapeStarting(false);
+    }
+  }, [selectedFcId, targetTrimIds, vehicleDetail, targetLineups, selectedProductType, selectedVehicleId]);
+
+  // 버튼 클릭 → 대상 라인업 확인 모달
+  const handleFetchRates = () => {
+    if (!selectedFcId || targetTrimIds.length === 0) return;
+    setShowFetchConfirm(true);
+  };
+
+  // 확인 모달의 "불러오기" → 자격증명 확인 후 작업 생성
+  const confirmFetch = async () => {
+    setShowFetchConfirm(false);
+    const res = await fetch(`/api/admin/scraper-credentials?financeCompanyId=${selectedFcId}`);
+    const data = await res.json().catch(() => ({ exists: false }));
+    if (!data.exists) {
+      setShowCredModal(true);
+      return;
+    }
+    await createScrapeJob();
+  };
+
+  const cancelScrape = async () => {
+    if (!scrapeJobId) return;
+    await fetch(`/api/admin/scrape-jobs/${scrapeJobId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "cancel" }),
+    });
+    setScrapeStatus("canceled");
+  };
+
+  const resumeScrape = async () => {
+    if (!scrapeJobId) return;
+    await fetch(`/api/admin/scrape-jobs/${scrapeJobId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "resume" }),
+    });
+    setScrapeStatus("running");
+  };
+
+  const dismissScrape = () => {
+    setScrapeJobId(null);
+    setScrapeStatus(null);
+    setScrapeError(null);
+    setScrapeHumanPrompt(null);
+    // 초안(scrapeDraft)은 유지 — 사용자가 검토·저장할 수 있도록.
+  };
+
+  // 작업 상태 폴링 (terminal 도달 시 중지)
+  useEffect(() => {
+    if (!scrapeJobId) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/admin/scrape-jobs/${scrapeJobId}`);
+        const data = await res.json();
+        if (!active) return;
+        if (data.success && data.job) {
+          const job = data.job;
+          setScrapeStatus(job.status);
+          setScrapeError(job.error ?? null);
+          setScrapeHumanPrompt(job.humanPrompt ?? null);
+          if (job.status === "completed" && job.draft) setScrapeDraft(job.draft);
+          if (["completed", "failed", "canceled"].includes(job.status)) return;
+        }
+      } catch {
+        /* 일시적 오류 무시, 다음 폴링에서 재시도 */
+      }
+      if (active) timer = setTimeout(poll, 3000);
+    };
+    poll();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [scrapeJobId]);
+
+  // 캐피탈사/차량 전환 시 수집 상태 초기화
+  useEffect(() => {
+    setScrapeJobId(null);
+    setScrapeStatus(null);
+    setScrapeError(null);
+    setScrapeHumanPrompt(null);
+    setScrapeDraft(null);
+  }, [selectedFcId, selectedVehicleId]);
 
   return (
     <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:h-full overflow-y-auto md:overflow-hidden">
@@ -875,6 +1087,15 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                   <div className="flex items-center gap-2 ml-auto">
                     <button onClick={selectAllLineups} className="text-[11px] text-[#6066EE] hover:underline font-medium">전체 선택</button>
                     <button onClick={deselectAllLineups} className="text-[11px] text-[#9BA4C0] hover:underline font-medium">선택 해제</button>
+                    <button
+                      type="button"
+                      onClick={handleFetchRates}
+                      disabled={!selectedFc || targetTrimIds.length === 0 || scrapeStarting || (!!scrapeStatus && scrapeStatus !== "completed" && scrapeStatus !== "failed" && scrapeStatus !== "canceled")}
+                      title={selectedLineupIds.size > 0 ? "선택한 라인업의 회수율을 캐피탈사에서 자동 수집합니다" : "이 차량의 모든 라인업 회수율을 자동 수집합니다"}
+                      className="ml-1 rounded-lg bg-[#6066EE] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#4F55D8] disabled:opacity-40"
+                    >
+                      {scrapeStarting ? "시작 중..." : `회수율 정보 가져오기${selectedLineupIds.size > 0 ? ` (${targetLineups.length})` : " (전체)"}`}
+                    </button>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -959,8 +1180,36 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
               </div>
             )}
 
-            {/* 입력 폼 or 이력 */}
-            {derivedTrimIds.length > 0 && selectedFc ? (
+            {/* 자동 수집 상태 (차량 단위) */}
+            {scrapeStatus && (
+              <ScrapeJobStatus
+                status={scrapeStatus}
+                error={scrapeError}
+                humanPrompt={scrapeHumanPrompt}
+                warningCount={scrapeDraft?.warnings.length ?? 0}
+                onCancel={cancelScrape}
+                onResume={resumeScrape}
+                onDismiss={dismissScrape}
+              />
+            )}
+
+            {/* 수집 결과 검토(라인업별 비교) or 수동 입력 폼/이력 */}
+            {scrapeDraft && perLineupResults.length > 0 ? (
+              <ScrapeReviewPanel
+                results={perLineupResults}
+                existingByLineup={existingByLineup}
+                financeCompanyId={selectedFcId}
+                productType={selectedProductType}
+                weekOf={scrapeDraft.weekOf}
+                onSaved={() => {
+                  fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
+                    .then((r) => r.json())
+                    .then((res) => setActiveSheets(res.data ?? []))
+                    .catch(console.error);
+                }}
+                onClose={dismissScrape}
+              />
+            ) : derivedTrimIds.length > 0 && selectedFc ? (
               <div className="flex flex-col gap-4 flex-1">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1031,6 +1280,45 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
           </div>
         )}
       </div>
+
+      {showCredModal && selectedFc && (
+        <ScraperCredentialModal
+          financeCompanyId={selectedFcId}
+          financeCompanyName={selectedFc.name}
+          onClose={() => setShowCredModal(false)}
+          onSaved={() => {
+            setShowCredModal(false);
+            void createScrapeJob();
+          }}
+        />
+      )}
+
+      {/* 수집 전 확인 다이얼로그 */}
+      {showFetchConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowFetchConfirm(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-[#1A1A2E]">회수율 정보를 불러올까요?</h3>
+            <p className="mt-1 text-sm text-[#8890AC]">
+              <span className="font-semibold text-[#3A41C8]">{selectedFc?.name}</span> · {vehicleDetail?.name} —
+              아래 {targetLineups.length}개 라인업의 회수율을 자동 수집합니다.
+              {selectedLineupIds.size === 0 && " (라인업 미선택 → 전체)"}
+            </p>
+            <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-[#E8EAF2] divide-y divide-[#F0F1FA]">
+              {targetLineups.map((l) => (
+                <div key={l.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <span className="text-[#1A1A2E]">{l.name}</span>
+                  <span className="text-xs text-[#9BA4C0]">트림 {l.trimCount}개{existingByLineup[l.id] ? " · 기존값 있음" : ""}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] text-[#B0B8D0]">로컬 워커가 실행 중이어야 하며, 2단계 인증이 있는 캐피탈사는 워커 화면에서 인증을 완료해야 합니다.</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setShowFetchConfirm(false)} className="rounded-lg border border-[#D7DBF0] px-4 py-2 text-sm font-semibold text-[#6A72A0] hover:bg-[#F8F9FC]">취소</button>
+              <button type="button" onClick={confirmFetch} className="rounded-lg bg-[#6066EE] px-5 py-2 text-sm font-bold text-white hover:bg-[#4F55D8]">불러오기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

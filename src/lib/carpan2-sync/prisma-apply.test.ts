@@ -19,7 +19,7 @@ const vehicleRow: Vehicle = {
   imageRevision: 0,
   surchargeRate: 0, isVisible: true, isPopular: false, isSpotlight: false,
   slidingDoorOverride: null, advancedSafetyOverride: null, displayOrder: 0, description: null,
-  tags: [], detailedSpecs: null, createdAt: now, updatedAt: now,
+  tags: [], detailedSpecs: null, scraperRefs: null, createdAt: now, updatedAt: now,
 };
 
 const brandRow: Brand = {

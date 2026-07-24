@@ -63,7 +63,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const vehicle = await prisma.vehicle.update({
       where: { id },
-      data: parsed.data,
+      // scraperRefs(Json) 포함 — Prisma Json 입력 타입과 호환 위해 캐스팅
+      data: parsed.data as never,
     });
 
     await logAdminAction({

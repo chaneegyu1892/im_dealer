@@ -113,7 +113,8 @@ export async function POST(request: NextRequest) {
     }
 
     const vehicle = await prisma.vehicle.create({
-      data: { ...data, slug, thumbnailUrl: "", imageUrls: [] },
+      // scraperRefs(Json) 포함 — Prisma Json 입력 타입과 호환 위해 캐스팅
+      data: { ...data, slug, thumbnailUrl: "", imageUrls: [] } as never,
     });
 
     await logAdminAction({

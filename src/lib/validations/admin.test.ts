@@ -4,6 +4,8 @@ import {
   inventoryUpdateSchema,
   aiConfigMutationSchema,
   popularConfigCreateSchema,
+  scraperCredentialUpsertSchema,
+  scraperConfigSchema,
 } from "./admin";
 import { compileOverlapCatalog } from "@/lib/recommend/overlap-catalog";
 
@@ -132,5 +134,112 @@ describe("popularConfigCreateSchema", () => {
 
   it("rejects empty name", () => {
     expect(popularConfigCreateSchema.safeParse({ name: "" }).success).toBe(false);
+  });
+});
+
+describe("scraperCredentialUpsertSchema", () => {
+  const valid = {
+    financeCompanyId: "fc1",
+    loginUrl: "https://capital.example.com/login",
+    username: "agent01",
+    password: "secret",
+  };
+
+  it("accepts a valid https payload", () => {
+    expect(scraperCredentialUpsertSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("accepts http localhost (mock site)", () => {
+    expect(
+      scraperCredentialUpsertSchema.safeParse({
+        ...valid,
+        loginUrl: "http://localhost:4599/login",
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects non-http(s) loginUrl schemes", () => {
+    for (const loginUrl of [
+      "javascript:alert(1)",
+      "file:///etc/passwd",
+      "data:text/html,<h1>x</h1>",
+    ]) {
+      expect(
+        scraperCredentialUpsertSchema.safeParse({ ...valid, loginUrl }).success
+      ).toBe(false);
+    }
+  });
+
+  it("rejects missing required fields", () => {
+    expect(scraperCredentialUpsertSchema.safeParse({}).success).toBe(false);
+    expect(
+      scraperCredentialUpsertSchema.safeParse({ ...valid, username: "" }).success
+    ).toBe(false);
+  });
+
+  it("accepts null config and a config with valid selectors", () => {
+    expect(
+      scraperCredentialUpsertSchema.safeParse({ ...valid, config: null }).success
+    ).toBe(true);
+    expect(
+      scraperCredentialUpsertSchema.safeParse({
+        ...valid,
+        config: {
+          usernameSelector: "#usrId",
+          passwordSelector: 'input[name="pw"]',
+          quoteUrlTemplate: "https://site/quote?trim={code}",
+        },
+      }).success
+    ).toBe(true);
+  });
+});
+
+describe("scraperConfigSchema", () => {
+  it("rejects selectors with disallowed characters", () => {
+    for (const usernameSelector of ["#a\nb", "#a`b", "<script>"]) {
+      expect(scraperConfigSchema.safeParse({ usernameSelector }).success).toBe(
+        false
+      );
+    }
+  });
+
+  it("rejects non-http(s) quoteUrlTemplate", () => {
+    expect(
+      scraperConfigSchema.safeParse({
+        quoteUrlTemplate: "javascript:fetch('/'+{code})",
+      }).success
+    ).toBe(false);
+  });
+
+  it("accepts quoteUrlTemplate with {code} placeholder", () => {
+    expect(
+      scraperConfigSchema.safeParse({
+        quoteUrlTemplate: "https://site/q?t={code}",
+      }).success
+    ).toBe(true);
+  });
+
+  it("bounds requestDelayMs to a sane range", () => {
+    expect(scraperConfigSchema.safeParse({ requestDelayMs: 150 }).success).toBe(
+      true
+    );
+    expect(scraperConfigSchema.safeParse({ requestDelayMs: -1 }).success).toBe(
+      false
+    );
+    expect(
+      scraperConfigSchema.safeParse({ requestDelayMs: 999999 }).success
+    ).toBe(false);
+  });
+
+  it("passes through adapter-specific keys (trimMap, productMenu)", () => {
+    const parsed = scraperConfigSchema.parse({
+      usernameSelector: "#usrId",
+      trimMap: { "trim-1": { brandCd: "B", dtMdlCd: "D", mdelCd: "M" } },
+      productMenu: "/sit/sit0001.frm",
+    });
+    expect(parsed.trimMap).toEqual({
+      "trim-1": { brandCd: "B", dtMdlCd: "D", mdelCd: "M" },
+    });
+    expect(parsed.productMenu).toBe("/sit/sit0001.frm");
   });
 });

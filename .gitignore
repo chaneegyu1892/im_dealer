@@ -31,6 +31,9 @@ yarn-error.log*
 .env
 .env*.local
 
+# 스크래퍼 워커 로컬 테스트 설정/시크릿 (커밋 금지)
+scripts/scraper-worker/try-config.json
+
 # vercel
 .vercel
 

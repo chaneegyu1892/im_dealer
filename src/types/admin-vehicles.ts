@@ -20,6 +20,8 @@ export interface AdminVehicle {
   displayOrder: number;
   tags: string[];
   description: string | null;
+  // 캐피탈사 회수율 스크래퍼 연결 (캐피탈사 코드 → { 브랜드코드, 모델명 })
+  scraperRefs?: Record<string, { brandCd: string; modelName: string }> | null;
   createdAt: string;
   updatedAt: string;
   _count?: { trims: number };

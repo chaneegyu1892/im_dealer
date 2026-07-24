@@ -18,6 +18,11 @@ const vehicleFields = {
   slidingDoorOverride: z.boolean().nullable().optional(),
   advancedSafetyOverride: z.boolean().nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(20)).max(10).optional(),
+  // 캐피탈사 회수율 스크래퍼 연결 (캐피탈사 코드 → { 브랜드코드, 모델명 })
+  scraperRefs: z
+    .record(z.string(), z.object({ brandCd: z.string(), modelName: z.string() }))
+    .nullable()
+    .optional(),
 } as const;
 
 export const vehicleCreateSchema = z.object(vehicleFields).strict();
@@ -223,6 +228,127 @@ export const aiConfigMutationSchema = z.union([
   aiConfigCreateSchema,
   aiConfigDeactivateSchema,
 ]);
+
+// ─── 캐피탈사 회수율 스크래핑 ───────────────────────────
+const rateSheetRawSchema = z.record(z.string(), z.number());
+
+// ── 스크래퍼 config 보안 검증 ──────────────────────────
+// credential.config 값은 워커(puppeteer)의 셀렉터/이동 URL/요청 지연으로 그대로 흘러간다.
+// 코드 실행 위험은 없으나(셀렉터=DOM 조회, 동적 URL=encodeURIComponent), 잘못된 값은
+// 엉뚱한 DOM 추출·비 http 스킴 이동(SSRF/`javascript:`)·rate-limit 무력화로 이어질 수 있어
+// 신뢰 경계인 등록(PUT) 시점에 검증한다. 검증은 신규 저장분에만 적용되며, 워커에는
+// safe-url.assertHttpUrl 로 별도 방어선을 둔다(과거 미검증 DB 설정 대비).
+
+// CSS 셀렉터 화이트리스트: 일반 셀렉터 문자만 허용(개행·백틱·꺾쇠 등 차단).
+const SAFE_SELECTOR_REGEX = /^[\w #.\-_:>,[\]="'()*~+^$|]+$/;
+const selectorSchema = z
+  .string()
+  .min(1)
+  .max(200)
+  .regex(SAFE_SELECTOR_REGEX, "셀렉터에 허용되지 않은 문자가 있습니다");
+
+// http/https 전용 — javascript:/file:/data: 등 비표준 스킴 차단.
+function isHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// quoteUrlTemplate 은 "{code}" 치환 전이라 그 자체로는 유효 URL 이 아닐 수 있어 치환본으로 검증.
+const quoteUrlTemplateSchema = z
+  .string()
+  .min(1)
+  .max(500)
+  .refine((t) => isHttpUrl(t.replace("{code}", "x")), "http(s) URL 템플릿만 허용됩니다");
+
+// 보안 민감 키는 검증하고, 어댑터별 고유 키(trimMap, productMenu, lsWorkKubun 등)는 통과시킨다.
+export const scraperConfigSchema = z
+  .object({
+    usernameSelector: selectorSchema.optional(),
+    passwordSelector: selectorSchema.optional(),
+    loginButtonSelector: selectorSchema.optional(),
+    extendButtonSelector: selectorSchema.optional(),
+    twoFactorSelector: selectorSchema.nullable().optional(),
+    quoteUrlTemplate: quoteUrlTemplateSchema.optional(),
+    // 음수·과대 지연 차단 (rate-limit 무력화·무한 대기 방지).
+    requestDelayMs: z.number().int().min(0).max(60000).optional(),
+  })
+  .passthrough();
+
+// 작업 생성 (POST /api/admin/scrape-jobs)
+export const scrapeJobCreateSchema = z.object({
+  financeCompanyId: z.string().min(1),
+  productType: z.string().min(1).default("장기렌트"),
+  weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "weekOf 형식은 YYYY-MM-DD"),
+  trimIds: z.array(z.string().min(1)).min(1, "트림을 1개 이상 선택하세요"),
+  vehicleId: z.string().min(1),
+  lineupIds: z.array(z.string().min(1)).default([]),
+  minVehiclePrice: z.number().int().positive(),
+  maxVehiclePrice: z.number().int().positive(),
+});
+
+// 자격증명 등록/수정 (PUT /api/admin/scraper-credentials)
+export const scraperCredentialUpsertSchema = z.object({
+  financeCompanyId: z.string().min(1),
+  loginUrl: z
+    .string()
+    .url("로그인 URL 형식이 올바르지 않습니다")
+    .refine(isHttpUrl, "로그인 URL 은 http(s) 만 허용됩니다"),
+  username: z.string().min(1, "ID를 입력하세요"),
+  password: z.string().min(1, "비밀번호를 입력하세요"),
+  requiresHuman: z.boolean().default(false),
+  config: scraperConfigSchema.nullable().optional(),
+});
+
+// 작업 상태 변경 (PATCH /api/admin/scrape-jobs/[id])
+export const scrapeJobActionSchema = z.object({
+  action: z.enum(["cancel", "resume"]),
+});
+
+// 워커 결과 보고 (POST /api/worker/scrape-jobs/[id]/result)
+export const workerJobResultSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    draft: z.object({
+      scrapedAt: z.string(),
+      productType: z.string(),
+      weekOf: z.string(),
+      trims: z.array(
+        z.object({
+          trimId: z.string(),
+          matchConfidence: z.enum(["exact", "fuzzy", "unmatched"]),
+          externalTrimLabel: z.string(),
+          vehiclePrice: z.number(),
+          // 트림별 월 지불액(원) — 라인업별 그룹핑용 (없을 수 있음)
+          baseRates: rateSheetRawSchema.optional(),
+        })
+      ),
+      minVehiclePrice: z.number(),
+      maxVehiclePrice: z.number(),
+      minBaseRates: rateSheetRawSchema,
+      minDepositRates: rateSheetRawSchema,
+      minPrepayRates: rateSheetRawSchema,
+      maxBaseRates: rateSheetRawSchema,
+      maxDepositRates: rateSheetRawSchema,
+      maxPrepayRates: rateSheetRawSchema,
+      warnings: z.array(z.string()),
+    }),
+  }),
+  z.object({
+    ok: z.literal(false),
+    error: z.string().min(1),
+    authFailed: z.boolean().optional(), // 자격증명 인증 실패 → 워커가 자격증명 비활성화 요청(잠금 방지)
+  }),
+]);
+
+// 워커 하트비트 (POST /api/worker/scrape-jobs/[id]/heartbeat)
+export const workerHeartbeatSchema = z.object({
+  status: z.enum(["running", "needs_human"]).optional(),
+  humanPrompt: z.string().optional(),
+});
 
 // ─── Slug 생성 유틸 ─────────────────────────────────────
 export function generateSlug(brand: string, name: string): string {

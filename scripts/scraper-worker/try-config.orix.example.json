@@ -1,0 +1,17 @@
+{
+  "_설명": "오릭스 어댑터(API 방식) 단독 검증용. try-config.json 으로 복사 후 trimMap 채우고 `SCRAPER_TRY_AUTO=1 pnpm scraper:try`. 자격증명은 .env 의 SCRAPER_TEST_USER/PASS. (ORIX-NOTES.md 참고)",
+  "loginUrl": "https://nf.orix.co.kr/com/login.frm",
+  "config": {
+    "adapter": "ORIX",
+    "productMenu": "/sit/sit0001.frm",
+    "lsWorkKubun": "CF100006",
+    "trimMap": {
+      "예시-쏘렌토-디젤-노블레스": { "brandCd": "CA100002", "dtMdlCd": "CA772305", "mdelCd": "000023891" }
+    }
+  },
+  "trimIds": ["예시-쏘렌토-디젤-노블레스"],
+  "weekOf": "2026-06-08",
+  "minVehiclePrice": 38000000,
+  "maxVehiclePrice": 50000000,
+  "productType": "장기렌트"
+}
