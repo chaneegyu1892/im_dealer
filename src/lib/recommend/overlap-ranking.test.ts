@@ -40,8 +40,8 @@ function candidate(overrides: Partial<RankableOverlapCandidate> = {}): RankableO
     compatibility: "compatible",
     popularity: {
       period: "2026-05",
-      rank: null,
-      registrationCount: null,
+      rank: 1,
+      registrationCount: 8_762,
     },
     modelKey: "brand:model-a",
     modelYear: 2026,
@@ -82,6 +82,14 @@ describe("rankOverlapCandidates", () => {
         "상관없음"
       )
     ).toHaveLength(2);
+  });
+
+  it("excludes every candidate outside the approved popularity top 30", () => {
+    expect(rankOverlapCandidates([
+      candidate({
+        popularity: { period: "2026-05", rank: null, registrationCount: null },
+      }),
+    ], "상관없음")).toEqual([]);
   });
 
   it("deduplicates a model by latest year before score", () => {

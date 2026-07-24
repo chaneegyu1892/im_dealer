@@ -105,8 +105,8 @@ const baseInput: RecommendInput = {
 describe("recommendStep02V3FromSnapshot", () => {
   it("allows a 3+3 fit vehicle to outrank a 5-point best vehicle", () => {
     const result = recommendStep02V3FromSnapshot(baseInput, snapshot([
-      vehicle("palisade", "디 올 뉴 팰리세이드", "가솔린"),
-      vehicle("tucson", "더 뉴 투싼", "가솔린"),
+      vehicle("kia-11573", "디 올 뉴 팰리세이드", "가솔린"),
+      vehicle("hyundai-11609", "더 뉴 투싼", "가솔린"),
     ]));
     expect(result.vehicles.map((item) => [item.vehicle.name, item.rankScore])).toEqual([
       ["더 뉴 투싼", 6],
@@ -120,8 +120,8 @@ describe("recommendStep02V3FromSnapshot", () => {
       fuelPreference: "전기차",
       chargingEnvironment: "외부",
     }, snapshot([
-      vehicle("ev9-gt", "더 EV9 GT", "EV"),
-      vehicle("palisade", "디 올 뉴 팰리세이드", "가솔린"),
+      vehicle("kia-11681", "더 EV9 GT", "EV"),
+      vehicle("kia-11573", "디 올 뉴 팰리세이드", "가솔린"),
     ]));
     expect(result.vehicles).toHaveLength(1);
     expect(result.vehicles[0]?.vehicle.name).toBe("더 EV9 GT");
@@ -137,13 +137,13 @@ describe("recommendStep02V3FromSnapshot", () => {
       preferences: ["low-running-cost"],
       fuelPreference: "가솔린/디젤",
     }, snapshot([
-      vehicle("avante-ice", "더 뉴 아반떼", "가솔린"),
-      vehicle("avante-hev", "더 뉴 아반떼 HEV", "하이브리드"),
+      vehicle("hyundai-11414", "더 뉴 아반떼", "가솔린"),
+      vehicle("hyundai-11576", "더 뉴 아반떼 HEV", "하이브리드"),
     ]));
 
     expect(result.vehicles.map((item) => [item.vehicle.name, item.styleScore]))
       .toEqual([["더 뉴 아반떼", 5]]);
-    expect(result.diagnostics.find((item) => item.slug === "avante-hev")?.status)
+    expect(result.diagnostics.find((item) => item.slug === "hyundai-11576")?.status)
       .toBe("fuel_mismatch");
   });
 
@@ -154,13 +154,13 @@ describe("recommendStep02V3FromSnapshot", () => {
       childDetail: undefined,
       preferences: ["family-leisure"],
     }, snapshot([
-      vehicle("tasman", "타스만", "디젤", { category: "트럭" }),
-      vehicle("musso", "무쏘 Q300", "디젤", { category: "트럭" }),
+      vehicle("kia-11818", "타스만", "디젤", { category: "트럭" }),
+      vehicle("kia-11844", "무쏘 Q300", "디젤", { category: "트럭" }),
     ]));
-    expect(result.vehicles.map((item) => item.vehicle.name)).toEqual(["무쏘 Q300", "타스만"]);
+    expect(result.vehicles.map((item) => item.vehicle.name)).toEqual(["타스만", "무쏘 Q300"]);
   });
 
-  it("applies inventory only after score, model year, and company priority", () => {
+  it("applies popularity before inventory among otherwise tied candidates", () => {
     const result = recommendStep02V3FromSnapshot({
       ...baseInput,
       situationPreference: undefined,
@@ -168,10 +168,10 @@ describe("recommendStep02V3FromSnapshot", () => {
       preferences: ["city-compact"],
       stylePreference: "city-compact",
     }, snapshot([
-      vehicle("morning", "더 뉴 모닝", "가솔린", { availableStockCount: 1 }),
-      vehicle("venue", "베뉴", "가솔린", { availableStockCount: 5, immediateDeliveryAvailable: true }),
+      vehicle("kia-11562", "더 뉴 모닝", "가솔린", { availableStockCount: 1 }),
+      vehicle("hyundai-11396", "베뉴", "가솔린", { availableStockCount: 5, immediateDeliveryAvailable: true }),
     ]));
-    expect(result.vehicles.map((item) => item.vehicle.name)).toEqual(["베뉴", "더 뉴 모닝"]);
+    expect(result.vehicles.map((item) => item.vehicle.name)).toEqual(["더 뉴 모닝", "베뉴"]);
   });
 
   it.each([
@@ -186,14 +186,14 @@ describe("recommendStep02V3FromSnapshot", () => {
       childDetail: undefined,
       preferences: ["family-leisure"],
     }, budgetSnapshot([
-      pricedVehicle("monthly-500", "더 뉴 카니발", 25_000_000),
-      pricedVehicle("monthly-800", "디 올 뉴 팰리세이드", 40_000_000),
-      pricedVehicle("monthly-1000", "디 올 뉴 싼타페", 50_000_000),
-      pricedVehicle("monthly-1100", "더 뉴 쏘렌토", 55_000_000),
+      pricedVehicle("kia-11606", "더 뉴 카니발", 25_000_000),
+      pricedVehicle("kia-11573", "디 올 뉴 팰리세이드", 40_000_000),
+      pricedVehicle("hyundai-11576", "디 올 뉴 싼타페", 50_000_000),
+      pricedVehicle("hyundai-11609", "더 뉴 쏘렌토", 55_000_000),
     ]));
 
     expect(result.vehicles.map((item) => item.scenarios.standard.monthlyPayment)).toEqual(expected);
-    expect(result.diagnostics.find((item) => item.slug === "monthly-1100")?.status)
+    expect(result.diagnostics.find((item) => item.slug === "hyundai-11609")?.status)
       .toBe("outside_budget_range");
   });
 
@@ -205,14 +205,14 @@ describe("recommendStep02V3FromSnapshot", () => {
       childDetail: undefined,
       preferences: ["family-leisure"],
     }, budgetSnapshot([
-      pricedVehicle("monthly-900", "더 뉴 카니발", 45_000_000),
-      pricedVehicle("monthly-1000", "디 올 뉴 팰리세이드", 50_000_000),
-      pricedVehicle("monthly-1100", "디 올 뉴 싼타페", 55_000_000),
+      pricedVehicle("kia-11606", "더 뉴 카니발", 45_000_000),
+      pricedVehicle("kia-11573", "디 올 뉴 팰리세이드", 50_000_000),
+      pricedVehicle("hyundai-11576", "디 올 뉴 싼타페", 55_000_000),
     ]));
 
     expect(result.vehicles.map((item) => item.scenarios.standard.monthlyPayment))
       .toEqual([1_000_000, 1_100_000]);
-    expect(result.diagnostics.find((item) => item.slug === "monthly-900")?.status)
+    expect(result.diagnostics.find((item) => item.slug === "kia-11606")?.status)
       .toBe("outside_budget_range");
   });
 
@@ -225,13 +225,24 @@ describe("recommendStep02V3FromSnapshot", () => {
       childDetail: undefined,
       preferences: ["auto"],
     }, budgetSnapshot([
-      pricedVehicle("cheap-low-stock", "더 뉴 카니발", 25_000_000, { availableStockCount: 1 }),
-      pricedVehicle("expensive-high-stock", "디 올 뉴 팰리세이드", 55_000_000, { availableStockCount: 9 }),
+      pricedVehicle("kia-11606", "더 뉴 카니발", 25_000_000, { availableStockCount: 1 }),
+      pricedVehicle("kia-11573", "디 올 뉴 팰리세이드", 55_000_000, { availableStockCount: 9 }),
     ]));
 
     expect(result.vehicles.map((item) => item.vehicle.slug)).toEqual([
-      "expensive-high-stock",
-      "cheap-low-stock",
+      "kia-11573",
+      "kia-11606",
+    ]);
+  });
+
+  it("excludes document-matched vehicles that are outside the approved top 30", () => {
+    const result = recommendStep02V3FromSnapshot(baseInput, snapshot([
+      vehicle("not-ranked", "더 뉴 카니발", "가솔린"),
+    ]));
+
+    expect(result.vehicles).toEqual([]);
+    expect(result.diagnostics).toEqual([
+      { slug: "not-ranked", status: "not_in_popularity_top_30" },
     ]);
   });
 });

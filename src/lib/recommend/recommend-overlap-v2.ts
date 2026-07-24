@@ -23,6 +23,7 @@ import {
 } from "./recommend-scenarios";
 import { isWithinRecommendationBudget } from "./recommendation-budget";
 import { getPopularityEvidence } from "./popularity-snapshot";
+import type { RecommendationSelectionOptions } from "./popularity-selector";
 import { getOverlapRecommendationCompatibility } from "./recommend-compatibility";
 import {
   DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
@@ -149,7 +150,8 @@ function toRecommendedVehicle(
 
 export function recommendOverlapV2FromSnapshot(
   rawInput: unknown,
-  snapshot: OverlapCandidateSnapshot
+  snapshot: OverlapCandidateSnapshot,
+  selectionOptions: RecommendationSelectionOptions = {}
 ): OverlapRecommendationRun {
   const input = parseOverlapRuntimeInput(rawInput);
   const scored = scoreEligibleVehicles(input, snapshot);
@@ -159,7 +161,11 @@ export function recommendOverlapV2FromSnapshot(
       input.budgetMax
     )
   );
-  const ranked = rankOverlapCandidates(withinBudget, input.fuelPreference);
+  const ranked = rankOverlapCandidates(
+    withinBudget,
+    input.fuelPreference,
+    selectionOptions
+  );
   return {
     vehicles: ranked.map((candidate, index) =>
       toRecommendedVehicle(candidate, snapshot.rankSurchargeRates, index + 1)
@@ -168,7 +174,10 @@ export function recommendOverlapV2FromSnapshot(
   };
 }
 
-export async function recommendOverlapV2(input: RecommendInput): Promise<OverlapRecommendedVehicle[]> {
+export async function recommendOverlapV2(
+  input: RecommendInput,
+  selectionOptions: RecommendationSelectionOptions = {}
+): Promise<OverlapRecommendedVehicle[]> {
   const snapshot = await loadOverlapCandidateSnapshot();
-  return [...recommendOverlapV2FromSnapshot(input, snapshot).vehicles];
+  return [...recommendOverlapV2FromSnapshot(input, snapshot, selectionOptions).vehicles];
 }

@@ -87,7 +87,7 @@ function projectionSnapshot(thumbnailUrl: string): OverlapCandidateSnapshot {
     rankSurchargeRates: [1, 1.5, 2, 2.5],
     vehicles: [{
       vehicleId: "vehicle-1",
-      slug: "kia-carnival-hev",
+      slug: "kia-11606",
       brand: "기아",
       name: "더 뉴 카니발 HEV",
       category: "RV",
@@ -165,7 +165,11 @@ describe("POST /api/recommend", () => {
     mocks.version.value = "legacy-v1";
     const response = await POST(request(valid));
     expect(response.status).toBe(200);
-    expect(mocks.recommendForVersion).toHaveBeenCalledWith(expect.any(Object), "legacy-v1");
+    expect(mocks.recommendForVersion).toHaveBeenCalledWith(
+      expect.any(Object),
+      "legacy-v1",
+      { variationSeed: expect.any(String) }
+    );
     expect(mocks.create.mock.calls[0]?.[0].data.result).toEqual([]);
   });
 
@@ -182,7 +186,8 @@ describe("POST /api/recommend", () => {
         stylePreference: "family-leisure",
         preferences: ["family-leisure", "가족"],
       }),
-      "step02-v3"
+      "step02-v3",
+      { variationSeed: expect.any(String) }
     );
     expect(mocks.create.mock.calls[0]?.[0].data.result).toEqual({
       version: "step02-v3",
@@ -231,8 +236,8 @@ describe("POST /api/recommend", () => {
         contributions: expect.any(Array),
         popularity: {
           period: "2026-05",
-          rank: null,
-          registrationCount: null,
+          rank: 4,
+          registrationCount: 4_024,
         },
         reason: expect.any(String),
         scenarios: {

@@ -44,7 +44,7 @@ function rawVehicle(thumbnailState: "active" | "legacy" | "hidden" | "managed" |
       : [];
   return {
     id: "vehicle-1",
-    slug: "test-car",
+    slug: "kia-11573",
     brand: "테스트",
     name: "테스트 차량",
     category: "SUV",

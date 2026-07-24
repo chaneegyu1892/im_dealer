@@ -44,8 +44,12 @@ import {
 import { getPopularityEvidence } from "./popularity-snapshot";
 import { getLegacyRecommendationCompatibility } from "./recommend-compatibility";
 import { selectLegacyRecommendationCandidates } from "./recommend-legacy-selection";
+import type { RecommendationSelectionOptions } from "./popularity-selector";
 
-export async function recommendLegacyV1(input: RecommendInput): Promise<RecommendedVehicle[]> {
+export async function recommendLegacyV1(
+  input: RecommendInput,
+  selectionOptions: RecommendationSelectionOptions = {}
+): Promise<RecommendedVehicle[]> {
   // 1) 노출 가능 차량 + 추천설정 조회
   const vehicles = await prisma.vehicle.findMany({
     where: { isVisible: true },
@@ -271,7 +275,7 @@ export async function recommendLegacyV1(input: RecommendInput): Promise<Recommen
     });
   }
 
-  const top = selectLegacyRecommendationCandidates(scored);
+  const top = selectLegacyRecommendationCandidates(scored, selectionOptions);
 
   return finalizeLegacyRecommendations(top, input, preferenceLabel);
 }

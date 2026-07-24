@@ -21,16 +21,18 @@ function candidate(
 }
 
 function select(
-  candidates: readonly RecommendationSelectionCandidate[]
+  candidates: readonly RecommendationSelectionCandidate[],
+  variationSeed?: string
 ): readonly RecommendationSelectionCandidate[] {
   return selectRecommendationCandidates({
     candidates,
     compareDeterministic: (left, right) => left.slug.localeCompare(right.slug),
+    variationSeed,
   });
 }
 
 describe("popularity-tier recommendation selector", () => {
-  it("tiers compatible ranked candidates ahead of better-fit unranked candidates", () => {
+  it("excludes compatible unranked candidates even when their fit score is higher", () => {
     const ranked = candidate({
       slug: "ranked",
       fitScore: 1,
@@ -44,7 +46,6 @@ describe("popularity-tier recommendation selector", () => {
 
     expect(select([unranked, ranked]).map((item) => item.slug)).toEqual([
       "ranked",
-      "unranked",
     ]);
   });
 
@@ -98,7 +99,7 @@ describe("popularity-tier recommendation selector", () => {
     ]);
   });
 
-  it("fills one or two ranked candidates only with compatible unranked candidates", () => {
+  it("does not fill a short ranked list with compatible unranked candidates", () => {
     const rank2 = candidate({
       slug: "rank-2",
       popularity: {
@@ -120,11 +121,10 @@ describe("popularity-tier recommendation selector", () => {
     expect(select([fallback, rank20, rank2]).map((item) => item.slug)).toEqual([
       "rank-2",
       "rank-20",
-      "fallback",
     ]);
   });
 
-  it("never fills from a conflicting candidate, including rank one", () => {
+  it("never fills from a conflicting candidate or an unranked fallback", () => {
     const conflict = candidate({
       slug: "rank-one-conflict",
       compatibility: "conflict",
@@ -137,7 +137,28 @@ describe("popularity-tier recommendation selector", () => {
     const compatible = candidate({ slug: "compatible" });
 
     expect(select([conflict, compatible]).map((item) => item.slug)).toEqual([
-      "compatible",
+    ]);
+  });
+
+  it("rotates only vehicles from the same nearby popularity band per request", () => {
+    const ranks = [1, 2, 3].map((rank) => candidate({
+      slug: `rank-${rank}`,
+      popularity: {
+        period: "2026-05",
+        rank,
+        registrationCount: 100,
+      },
+    }));
+
+    expect(select(ranks).map((item) => item.slug)).toEqual([
+      "rank-1",
+      "rank-2",
+      "rank-3",
+    ]);
+    expect(select(ranks, "a").map((item) => item.slug)).toEqual([
+      "rank-3",
+      "rank-1",
+      "rank-2",
     ]);
   });
 
@@ -150,7 +171,14 @@ describe("popularity-tier recommendation selector", () => {
 
   it("is deterministic across shuffled input", () => {
     const candidates = Array.from({ length: 8 }, (_, index) =>
-      candidate({ slug: `vehicle-${index}` })
+      candidate({
+        slug: `vehicle-${index}`,
+        popularity: {
+          period: "2026-05",
+          rank: index + 1,
+          registrationCount: 100,
+        },
+      })
     );
     const expected = select(candidates).map((item) => item.slug);
 

@@ -3,6 +3,7 @@ import type { OverlapScoreResult } from "./overlap-scoring";
 import {
   selectRecommendationCandidates,
   type RecommendationSelectionCandidate,
+  type RecommendationSelectionOptions,
 } from "./popularity-selector";
 
 export type FuelPreference = "상관없음" | "가솔린/디젤" | "하이브리드" | "전기차";
@@ -59,7 +60,8 @@ function deduplicateLatestModel<T extends RankableOverlapCandidate>(
 
 export function rankOverlapCandidates<T extends RankableOverlapCandidate>(
   candidates: readonly T[],
-  fuelPreference: FuelPreference
+  fuelPreference: FuelPreference,
+  options: RecommendationSelectionOptions = {}
 ): T[] {
   const requiredFuel = requiredFuelGroup(fuelPreference);
   const matchingFuel = requiredFuel
@@ -68,5 +70,6 @@ export function rankOverlapCandidates<T extends RankableOverlapCandidate>(
   return selectRecommendationCandidates({
     candidates: deduplicateLatestModel(matchingFuel),
     compareDeterministic: compareOverlapCandidates,
+    ...options,
   });
 }

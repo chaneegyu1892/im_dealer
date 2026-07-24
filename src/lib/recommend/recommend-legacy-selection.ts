@@ -1,9 +1,13 @@
 import { latestByRecommendationModel } from "./latest-model";
 import type { LegacyScoredVehicle } from "./recommend-legacy-results";
-import { selectRecommendationCandidates } from "./popularity-selector";
+import {
+  selectRecommendationCandidates,
+  type RecommendationSelectionOptions,
+} from "./popularity-selector";
 
 export function selectLegacyRecommendationCandidates(
-  candidates: readonly LegacyScoredVehicle[]
+  candidates: readonly LegacyScoredVehicle[],
+  options: RecommendationSelectionOptions = {}
 ): LegacyScoredVehicle[] {
   const latestCandidates = latestByRecommendationModel(candidates);
   return selectRecommendationCandidates({
@@ -15,5 +19,6 @@ export function selectLegacyRecommendationCandidates(
     compareDeterministic: (left, right) =>
       right.modelYear - left.modelYear
       || left.slug.localeCompare(right.slug),
+    ...options,
   });
 }

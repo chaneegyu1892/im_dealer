@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
     const engineVersion = "recommendationVersion" in input
       ? input.recommendationVersion
       : getRecommendEngineVersion();
-    const vehicles = await recommendForVersion(input, engineVersion);
+    const vehicles = await recommendForVersion(input, engineVersion, {
+      variationSeed: sessionId,
+    });
     const storedResult = engineVersion === "legacy-v1"
       ? vehicles
       : { version: engineVersion, vehicles };

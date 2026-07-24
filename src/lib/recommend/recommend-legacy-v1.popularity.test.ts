@@ -107,7 +107,7 @@ describe("recommendLegacyV1 popularity policy", () => {
     mocks.generateReason.mockResolvedValue("동일 추천 이유");
   });
 
-  it("tiers top-30 candidates first and freezes ranked and fallback evidence", async () => {
+  it("returns only top-30 candidates and freezes their popularity evidence", async () => {
     const slugs = ["fallback", "kia-11760", "kia-11573"];
     mocks.findManyVehicles.mockResolvedValue(slugs.map((slug) => vehicle({ slug })));
     mocks.findManyRateSheets.mockResolvedValue(slugs.map(rateSheet));
@@ -117,16 +117,14 @@ describe("recommendLegacyV1 popularity policy", () => {
     expect(result.map((item) => item.vehicle.slug)).toEqual([
       "kia-11573",
       "kia-11760",
-      "fallback",
     ]);
     expect(result.map((item) => item.popularity)).toEqual([
       { period: "2026-05", rank: 2, registrationCount: 7_086 },
       { period: "2026-05", rank: 30, registrationCount: 1_265 },
-      { period: "2026-05", rank: null, registrationCount: null },
     ]);
   });
 
-  it("does not use homepage isPopular to order equal unranked candidates", async () => {
+  it("returns no result when every otherwise eligible vehicle is outside the top 30", async () => {
     mocks.findManyVehicles.mockResolvedValue([
       vehicle({ slug: "b", isPopular: true }),
       vehicle({ slug: "a" }),
@@ -138,6 +136,6 @@ describe("recommendLegacyV1 popularity policy", () => {
 
     const result = await recommendLegacyV1(INPUT);
 
-    expect(result.map((item) => item.vehicle.slug)).toEqual(["a", "b"]);
+    expect(result).toEqual([]);
   });
 });

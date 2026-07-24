@@ -95,7 +95,7 @@ const BASE_INPUT = {
 };
 
 describe("recommendOverlapV2FromSnapshot popularity policy", () => {
-  it("tiers mapped rows first and freezes ranked and fallback evidence", () => {
+  it("returns mapped top-30 rows only and freezes their evidence", () => {
     const sharedProfile = profile("더 뉴 카니발 HEV");
     const result = recommendOverlapV2FromSnapshot(
       { ...BASE_INPUT, fuelPreference: "하이브리드" },
@@ -109,12 +109,10 @@ describe("recommendOverlapV2FromSnapshot popularity policy", () => {
     expect(result.vehicles.map((item) => item.vehicle.slug)).toEqual([
       "kia-11573",
       "hyundai-11576",
-      "fallback",
     ]);
     expect(result.vehicles.map((item) => item.popularity)).toEqual([
       { period: "2026-05", rank: 2, registrationCount: 7_086 },
       { period: "2026-05", rank: 12, registrationCount: 2_296 },
-      { period: "2026-05", rank: null, registrationCount: null },
     ]);
   });
 
@@ -147,15 +145,15 @@ describe("recommendOverlapV2FromSnapshot popularity policy", () => {
       primaryPreference: "안정감",
     }, snapshot([
       vehicle("tesla-11738", conflictProfile),
-      vehicle("compatible", compatibleProfile),
+      vehicle("tesla-11670", compatibleProfile),
     ]));
 
     expect(result.vehicles.map((item) => item.vehicle.slug)).toEqual([
-      "compatible",
+      "tesla-11670",
     ]);
   });
 
-  it("does not use homepage isPopular to order equal unranked candidates", () => {
+  it("returns no result for otherwise compatible unranked candidates", () => {
     const sharedProfile = profile("더 뉴 쏘렌토");
     const result = recommendOverlapV2FromSnapshot(
       { ...BASE_INPUT, fuelPreference: "가솔린/디젤" },
@@ -165,6 +163,6 @@ describe("recommendOverlapV2FromSnapshot popularity policy", () => {
       ])
     );
 
-    expect(result.vehicles.map((item) => item.vehicle.slug)).toEqual(["a", "b"]);
+    expect(result.vehicles).toEqual([]);
   });
 });

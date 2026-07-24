@@ -30,6 +30,10 @@ import {
 } from "./recommendation-budget";
 import { getPopularityEvidence } from "./popularity-snapshot";
 import {
+  mixNearbyPopularityCandidates,
+  type RecommendationSelectionOptions,
+} from "./popularity-selector";
+import {
   STEP02_V3_CATALOG_NAMES,
   STEP02_V3_POINTS,
   getStep02V3FollowupBonus,
@@ -59,7 +63,7 @@ interface Step02V3RuntimeCandidate {
 
 export interface Step02V3EligibilityDiagnostic {
   readonly slug: string;
-  readonly status: OperationalEligibilityStatus | "not_in_document" | "style_mismatch" | "fuel_mismatch" | "outside_budget_range";
+  readonly status: OperationalEligibilityStatus | "not_in_document" | "not_in_popularity_top_30" | "style_mismatch" | "fuel_mismatch" | "outside_budget_range";
 }
 
 export interface Step02V3RecommendationRun {
@@ -127,14 +131,10 @@ export function compareStep02V3Candidates(
   right: Step02V3RuntimeCandidate
 ): number {
   if (left.rankScore !== right.rankScore) return right.rankScore - left.rankScore;
-  if (left.stylePreference === "auto") {
-    const leftRank = left.popularity.rank;
-    const rightRank = right.popularity.rank;
-    if (leftRank === null && rightRank !== null) return 1;
-    if (leftRank !== null && rightRank === null) return -1;
-    if (leftRank !== null && rightRank !== null && leftRank !== rightRank) {
-      return leftRank - rightRank;
-    }
+  const leftRank = left.popularity.rank;
+  const rightRank = right.popularity.rank;
+  if (leftRank !== null && rightRank !== null && leftRank !== rightRank) {
+    return leftRank - rightRank;
   }
   return compareTieBreak(left, right);
 }
@@ -235,7 +235,8 @@ function deduplicateModels(
 
 export function recommendStep02V3FromSnapshot(
   input: RecommendInput,
-  snapshot: OverlapCandidateSnapshot
+  snapshot: OverlapCandidateSnapshot,
+  selectionOptions: RecommendationSelectionOptions = {}
 ): Step02V3RecommendationRun {
   if (
     input.recommendationVersion !== "step02-v3"
@@ -251,6 +252,11 @@ export function recommendStep02V3FromSnapshot(
   for (const vehicle of snapshot.vehicles) {
     if (!STEP02_V3_CATALOG_NAMES.has(vehicle.name)) {
       diagnostics.push({ slug: vehicle.slug, status: "not_in_document" });
+      continue;
+    }
+    const popularity = getPopularityEvidence(vehicle.slug);
+    if (popularity.rank === null) {
+      diagnostics.push({ slug: vehicle.slug, status: "not_in_popularity_top_30" });
       continue;
     }
     const styleLevel = getStep02V3StyleLevel(input.stylePreference, vehicle.name);
@@ -312,7 +318,7 @@ export function recommendStep02V3FromSnapshot(
       followupBonus,
       autoConditionScore: conditionScore,
       rankScore: styleScore + followupBonus + conditionScore,
-      popularity: getPopularityEvidence(vehicle.slug),
+      popularity,
       companyPriority: eligibility.profile?.companyPriority ?? 0,
       profitPriority: eligibility.profile?.profitPriority ?? 0,
       immediateDeliveryAvailable: vehicle.immediateDeliveryAvailable ?? false,
@@ -322,7 +328,10 @@ export function recommendStep02V3FromSnapshot(
     diagnostics.push({ slug: vehicle.slug, status: "eligible" });
   }
 
-  const ranked = deduplicateModels(candidates, input.budgetRange).slice(0, 3);
+  const ranked = mixNearbyPopularityCandidates(
+    deduplicateModels(candidates, input.budgetRange).slice(0, 3),
+    selectionOptions.variationSeed
+  );
   return {
     vehicles: ranked.map((candidate, index) =>
       toRecommendedVehicle(candidate, snapshot.rankSurchargeRates, index + 1)
@@ -332,8 +341,9 @@ export function recommendStep02V3FromSnapshot(
 }
 
 export async function recommendStep02V3(
-  input: RecommendInput
+  input: RecommendInput,
+  selectionOptions: RecommendationSelectionOptions = {}
 ): Promise<Step02V3RecommendedVehicle[]> {
   const snapshot = await loadOverlapCandidateSnapshot();
-  return [...recommendStep02V3FromSnapshot(input, snapshot).vehicles];
+  return [...recommendStep02V3FromSnapshot(input, snapshot, selectionOptions).vehicles];
 }
