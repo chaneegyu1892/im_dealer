@@ -20,6 +20,24 @@ export interface AdminUserContractItem {
   lifecycleLabel: string;
 }
 
+/**
+ * 카카오싱크 간편가입으로 수집한 회원 정보(prisma.User).
+ * 싱크 도입 이전 가입자는 재로그인 전까지 값이 비어 있다(소급 수집 불가).
+ */
+export interface AdminUserKakaoInfo {
+  /** User.name — 동의항목 "이름"이 있으면 실명, 없으면 닉네임·이메일 기반 표시명 */
+  memberName: string | null;
+  memberPhone: string | null;
+  memberEmail: string | null;
+  kakaoId: string | null;
+  kakaoNickname: string | null;
+  /** "ADDED" | "BLOCKED" | "NONE" — plusfriends 스코프 미설정 시 항상 null */
+  channelRelation: string | null;
+  marketingConsent: boolean;
+  /** 싱크 동의창을 통과한 시각. null 이면 싱크 이전 가입자 */
+  consentedAt: string | null;
+}
+
 export interface AdminUserRecord {
   id: string;
   authUserId?: string | null;
@@ -41,6 +59,8 @@ export interface AdminUserRecord {
   activeItems: AdminUserActiveItem[];
   contractItems: AdminUserContractItem[];
   internalMemo: string | null;
+  /** 회원(prisma.User) 행이 없는 비회원 리드는 null */
+  kakaoInfo: AdminUserKakaoInfo | null;
 }
 
 export interface AdminUsersStats {
@@ -50,6 +70,8 @@ export interface AdminUsersStats {
   newThisMonth: number;
   contracts: number;
   expiringSoon: number;
+  /** 카카오싱크 동의 정보를 수집한 회원 수 */
+  kakaoSynced: number;
 }
 
 function mapQuoteStatusLabel(status: string): string {
@@ -194,7 +216,7 @@ export async function getAdminUsers(): Promise<{
   stats: AdminUsersStats;
   authError?: string;
 }> {
-  const [quotes, authResult, dbAdmins] = await Promise.all([
+  const [quotes, authResult, dbMembers] = await Promise.all([
     prisma.savedQuote.findMany({
       orderBy: { createdAt: "desc" },
       select: {
@@ -214,9 +236,20 @@ export async function getAdminUsers(): Promise<{
       },
     }),
     getSupabaseAuthUsers(),
+    // 역할 배지 + 카카오싱크 수집 정보. 싱크 데이터가 prisma.User 에만 있어 전체 회원을 가져온다.
     prisma.user.findMany({
-      where: { role: { not: "member" } },
-      select: { supabaseId: true, email: true, role: true }
+      select: {
+        supabaseId: true,
+        email: true,
+        role: true,
+        name: true,
+        phone: true,
+        kakaoId: true,
+        kakaoNickname: true,
+        channelRelation: true,
+        marketingConsent: true,
+        consentedAt: true,
+      },
     }),
   ]);
 
@@ -225,9 +258,24 @@ export async function getAdminUsers(): Promise<{
 
   const adminMap = new Map<string, string>(); // supabaseId -> role
   const emailMap = new Map<string, string>(); // email -> role
-  dbAdmins.forEach((a) => {
-    if (a.supabaseId) adminMap.set(a.supabaseId, a.role);
-    if (a.email) emailMap.set(a.email, a.role);
+  const kakaoInfoMap = new Map<string, AdminUserKakaoInfo>(); // supabaseId -> 싱크 정보
+  dbMembers.forEach((m) => {
+    if (m.role !== "member") {
+      if (m.supabaseId) adminMap.set(m.supabaseId, m.role);
+      if (m.email) emailMap.set(m.email, m.role);
+    }
+    if (m.supabaseId) {
+      kakaoInfoMap.set(m.supabaseId, {
+        memberName: m.name || null,
+        memberPhone: m.phone,
+        memberEmail: m.email,
+        kakaoId: m.kakaoId,
+        kakaoNickname: m.kakaoNickname,
+        channelRelation: m.channelRelation,
+        marketingConsent: m.marketingConsent,
+        consentedAt: m.consentedAt?.toISOString() ?? null,
+      });
+    }
   });
 
   const vehicleIds = [...new Set(quotes.map((q) => q.vehicleId))];
@@ -244,7 +292,9 @@ export async function getAdminUsers(): Promise<{
   for (const authUser of authUsers) {
     const contactDate = authUser.lastSignInAt ?? authUser.createdAt;
     const authKey = `auth:${authUser.id}`;
-    const authPhone = getUsablePhone(authUser.phone);
+    const kakaoInfo = kakaoInfoMap.get(authUser.id) ?? null;
+    // Supabase 메타에 전화번호가 없어도 카카오싱크로 받은 값이 있으면 그걸 쓴다.
+    const authPhone = getUsablePhone(authUser.phone) ?? getUsablePhone(kakaoInfo?.memberPhone);
 
     userMap.set(authKey, {
       id: authUser.id,
@@ -267,6 +317,7 @@ export async function getAdminUsers(): Promise<{
       activeItems: [],
       contractItems: [],
       internalMemo: null,
+      kakaoInfo,
     });
 
     if (authPhone) {
@@ -318,6 +369,7 @@ export async function getAdminUsers(): Promise<{
         activeItems: [],
         contractItems: [],
         internalMemo: q.internalMemo ?? null,
+        kakaoInfo: q.userId ? kakaoInfoMap.get(q.userId) ?? null : null,
       });
     }
 
@@ -330,6 +382,10 @@ export async function getAdminUsers(): Promise<{
     }
     if (q.userId) {
       user.authUserId = q.userId;
+      user.kakaoInfo ??= kakaoInfoMap.get(q.userId) ?? null;
+      if (user.phone === UNKNOWN_PHONE) {
+        user.phone = getUsablePhone(user.kakaoInfo?.memberPhone) ?? user.phone;
+      }
     }
     if (q.userId || authKeyFromPhone) {
       user.source = "member";
@@ -403,6 +459,7 @@ export async function getAdminUsers(): Promise<{
     newThisMonth: users.filter(
       (u) => new Date(u.firstContactAt) >= thisMonthStart
     ).length,
+    kakaoSynced: users.filter((u) => u.kakaoInfo?.consentedAt).length,
     contracts: users.reduce((sum, u) => sum + u.contractCount, 0),
     expiringSoon: users.reduce((sum, u) => sum + u.expiringSoonCount, 0),
   };

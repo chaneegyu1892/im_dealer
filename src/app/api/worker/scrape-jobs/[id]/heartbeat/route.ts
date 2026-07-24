@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireWorker } from "@/lib/worker-auth";
 import { workerHeartbeatSchema } from "@/lib/validations/admin";
 import { isTerminalScrapeJobStatus } from "@/lib/scraper/job-state";
+import { markWorkerSeen } from "@/lib/scraper/worker-presence";
 
 const ACTIVE_STATUSES = ["running", "needs_human"];
 
@@ -16,6 +17,9 @@ export async function POST(
 ) {
   const { error } = requireWorker(request);
   if (error) return error;
+
+  // 작업 실행 중에는 claim 을 호출하지 않으므로 여기서도 생존 신호를 남긴다.
+  void markWorkerSeen().catch(() => undefined);
 
   try {
     const { id } = await params;

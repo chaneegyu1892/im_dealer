@@ -10,6 +10,7 @@ import type {
 } from "@/types/admin";
 import RateInputForm from "./RateInputForm";
 import RateHistory from "./RateHistory";
+import { resolveCapitalConnection } from "@/lib/scraper/connections";
 import ScraperLoginModal from "./ScraperLoginModal";
 import ScrapeJobStatus from "./ScrapeJobStatus";
 import ScrapeReviewPanel, { type PerLineupResult } from "./ScrapeReviewPanel";
@@ -816,6 +817,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     <div className="flex flex-col gap-4 md:h-full md:overflow-hidden">
       <BrandBatchCollector
         financeCompanyId={selectedFcId}
+        financeCompanyName={selectedFc?.name ?? ""}
         vehicles={vehicles}
         productType={selectedProductType}
         onSaved={() => {
@@ -1340,6 +1342,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       {showLoginModal && selectedFc && (
         <ScraperLoginModal
           financeCompanyName={selectedFc.name}
+          requiresHuman={resolveCapitalConnection(selectedFc.name)?.requiresHuman ?? false}
           submitting={scrapeStarting}
           onClose={() => setShowLoginModal(false)}
           onSubmit={(username, password) => void createScrapeJob(username, password)}

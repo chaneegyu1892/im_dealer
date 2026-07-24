@@ -53,6 +53,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 자격증명은 어댑터가 실제로 쓰는 캐피탈사(ORIX 등)에만 필요하다.
+    // 키패드·SMS 를 쓰는 곳(requiresHuman)은 워커가 사람에게 로그인을 넘기므로
+    // 받아봐야 쓰이지 않고 폐기된다 — 아예 받지 않고 저장도 하지 않는다.
+    const username = catalogInput?.username ?? input?.username;
+    const password = catalogInput?.password ?? input?.password;
+    if (!connection.requiresHuman && (!username?.trim() || !password?.trim())) {
+      return NextResponse.json(
+        { error: "이 캐피탈사는 로그인 ID·비밀번호가 필요합니다." },
+        { status: 400 }
+      );
+    }
+    const credUsernameEnc = connection.requiresHuman ? null : encryptString(username ?? "");
+    const credPasswordEnc = connection.requiresHuman ? null : encryptString(password ?? "");
+
     // 동일 캐피탈사에 진행 중인 작업이 있으면 중복 세션 방지
     const inFlight = await db.scrapeJob.findFirst({
       where: { financeCompanyId, status: { in: IN_FLIGHT } },
@@ -72,8 +86,8 @@ export async function POST(request: NextRequest) {
           jobType: "catalog",
           status: "pending",
           productType: catalogInput.productType,
-          credUsernameEnc: encryptString(catalogInput.username),
-          credPasswordEnc: encryptString(catalogInput.password),
+          credUsernameEnc,
+          credPasswordEnc,
           params: {
             mode: "catalog",
             brands: catalogInput.brands,
@@ -127,8 +141,8 @@ export async function POST(request: NextRequest) {
         status: "pending",
         productType: input.productType,
         // 입력한 개인 로그인 — 암호화해 이 작업에만 임시 저장, 종료 시 폐기
-        credUsernameEnc: encryptString(input.username),
-        credPasswordEnc: encryptString(input.password),
+        credUsernameEnc,
+        credPasswordEnc,
         params: {
           trimIds: input.trimIds,
           vehicleId: input.vehicleId,

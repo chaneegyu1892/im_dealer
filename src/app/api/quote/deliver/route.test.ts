@@ -214,6 +214,16 @@ describe("POST /api/quote/deliver", () => {
     expect(mocks.remove).toHaveBeenCalledWith("deliveries/img.png");
   });
 
+  it("업로드 후 이력 생성이 실패하면 공개 이미지를 삭제한다", async () => {
+    mocks.createDelivery.mockRejectedValue(new Error("database unavailable"));
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(500);
+    expect(mocks.remove).toHaveBeenCalledWith("deliveries/img.png");
+    expect(mocks.sendMemo).not.toHaveBeenCalled();
+  });
+
   it("업로드 실패는 500 이고 이력을 만들지 않는다", async () => {
     mocks.upload.mockRejectedValue(new Error("bucket not found"));
 

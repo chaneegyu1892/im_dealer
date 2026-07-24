@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireWorker } from "@/lib/worker-auth";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
 import { buildClaimLeaseWhere } from "@/lib/scraper/job-state";
+import { markWorkerSeen } from "@/lib/scraper/worker-presence";
+import { WORKER_PROTOCOL_VERSION } from "@/lib/scraper/worker-version";
 
 const STALE_MS = 3 * 60 * 1000; // 하트비트 3분 초과 시 워커가 죽은 것으로 보고 재클레임
 
@@ -11,6 +13,26 @@ const STALE_MS = 3 * 60 * 1000; // 하트비트 3분 초과 시 워커가 죽은
 export async function POST(request: NextRequest) {
   const { error } = requireWorker(request);
   if (error) return error;
+
+  // 워커가 유휴 상태일 때도 이 라우트를 주기적으로 호출하므로, 여기서 생존 신호를 남긴다.
+  // 실패해도 클레임 자체를 막지 않는다(상태 표시는 부가 기능).
+  await markWorkerSeen().catch(() => undefined);
+
+  const workerProtocolVersion = request.headers.get("x-worker-protocol-version");
+  if (workerProtocolVersion === null) {
+    // 기존 v2 클라이언트는 409 본문을 읽지 못하지만 성공 응답의 기대 버전은 처리한다.
+    return NextResponse.json({ job: null, expectedWorkerVersion: WORKER_PROTOCOL_VERSION });
+  }
+  if (workerProtocolVersion !== String(WORKER_PROTOCOL_VERSION)) {
+    return NextResponse.json(
+      {
+        error: "worker_protocol_version_incompatible",
+        expectedWorkerVersion: WORKER_PROTOCOL_VERSION,
+        receivedWorkerVersion: workerProtocolVersion,
+      },
+      { status: 409 }
+    );
+  }
 
   try {
     const db = prisma;
@@ -27,7 +49,10 @@ export async function POST(request: NextRequest) {
       },
       orderBy: { createdAt: "asc" },
     });
-    if (!candidate) return NextResponse.json({ job: null });
+    // 작업 유무와 무관하게 기대 버전을 실어, 실행 중에 백엔드가 배포돼도 워커가 알아챈다.
+    if (!candidate) {
+      return NextResponse.json({ job: null, expectedWorkerVersion: WORKER_PROTOCOL_VERSION });
+    }
 
     // 이중 클레임 방지: 후보의 현재 상태를 조건으로 건 updateMany 가 정확히 1건일 때만 성공
     const claimed = await db.scrapeJob.updateMany({
@@ -45,8 +70,14 @@ export async function POST(request: NextRequest) {
       select: { name: true },
     });
     const connection = fc ? resolveCapitalConnection(fc.name) : null;
-    if (!connection || !candidate.credUsernameEnc || !candidate.credPasswordEnc) {
-      // 접속 설정이 없거나 임시 자격증명이 사라짐 → 작업 실패 처리
+    // requiresHuman 캐피탈사는 어댑터가 자격증명을 쓰지 않으므로 애초에 저장하지 않는다.
+    // 그런 곳까지 "로그인 정보 없음"으로 실패시키면 안 된다.
+    const needsCredentials = connection !== null && !connection.requiresHuman;
+    const credentialsMissing =
+      needsCredentials && (!candidate.credUsernameEnc || !candidate.credPasswordEnc);
+
+    if (!connection || credentialsMissing) {
+      // 접속 설정이 없거나, 필요한데 임시 자격증명이 사라짐 → 작업 실패 처리
       await db.scrapeJob.updateMany({
         where: { id: candidate.id, status: "running", claimedAt: now },
         data: {
@@ -61,6 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
+      expectedWorkerVersion: WORKER_PROTOCOL_VERSION,
       job: {
         id: candidate.id,
         financeCompanyId: candidate.financeCompanyId,
@@ -70,8 +102,8 @@ export async function POST(request: NextRequest) {
       },
       credential: {
         loginUrl: connection.loginUrl,
-        usernameEnc: candidate.credUsernameEnc,
-        passwordEnc: candidate.credPasswordEnc,
+        usernameEnc: candidate.credUsernameEnc ?? "",
+        passwordEnc: candidate.credPasswordEnc ?? "",
         config: { adapter: connection.adapter },
         requiresHuman: connection.requiresHuman,
       },

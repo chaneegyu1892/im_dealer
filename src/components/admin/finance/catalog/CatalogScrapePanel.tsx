@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
 import { brandsForAdapter } from "@/lib/scraper/capital-brands";
 import ScraperLoginModal from "../ScraperLoginModal";
+import WorkerStatusBadge from "../WorkerStatusBadge";
 import type { CatalogJobState } from "./CapitalCatalogManager";
 
 interface Props {
@@ -99,12 +100,15 @@ export default function CatalogScrapePanel({ financeCompanyId, financeCompanyNam
     <div className="flex flex-col gap-4">
       {/* 브랜드 선택 */}
       <div className="bg-white rounded-2xl border border-[#E8EAF0] shadow-sm p-4">
-        <p className="text-sm font-bold text-[#1A1A2E]">
-          브랜드 전량 수집
-          <span className="ml-2 font-normal text-xs text-[#9BA4C0]">
-            선택한 브랜드의 {financeCompanyName} 등록 전 모델·전 트림을 원본 그대로 수집합니다
-          </span>
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-bold text-[#1A1A2E]">
+            브랜드 전량 수집
+            <span className="ml-2 font-normal text-xs text-[#9BA4C0]">
+              선택한 브랜드의 {financeCompanyName} 등록 전 모델·전 트림을 원본 그대로 수집합니다
+            </span>
+          </p>
+          <WorkerStatusBadge />
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {brandOptions.map((b) => (
             <label
@@ -208,6 +212,7 @@ export default function CatalogScrapePanel({ financeCompanyId, financeCompanyNam
       {showLogin && (
         <ScraperLoginModal
           financeCompanyName={financeCompanyName}
+          requiresHuman={resolveCapitalConnection(financeCompanyName)?.requiresHuman ?? false}
           submitting={starting}
           onClose={() => setShowLogin(false)}
           onSubmit={(u, pw) => void start(u, pw)}
