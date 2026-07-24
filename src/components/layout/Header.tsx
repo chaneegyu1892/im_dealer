@@ -174,6 +174,7 @@ export function Header() {
                   className="flex min-h-11 items-center gap-1.5 rounded-pill border border-transparent px-2 py-1 text-text-strong transition-colors hover:border-border-subtle hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface md:gap-2 md:px-3"
                   aria-expanded={dropdownOpen}
                   aria-haspopup="menu"
+                  aria-label={`${displayName} 계정 메뉴`}
                 >
                   {avatarUrl ? (
                     <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full md:h-7 md:w-7">
@@ -201,9 +202,18 @@ export function Header() {
                     className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-card border border-border-subtle bg-surface-raised py-1 shadow-mobile-float"
                     role="menu"
                   >
+                    <Link
+                      href="/mypage"
+                      onClick={() => setDropdownOpen(false)}
+                      className="block min-h-11 w-full px-4 py-3 text-left text-[13px] font-bold text-text-strong transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
+                      role="menuitem"
+                    >
+                      마이페이지
+                    </Link>
                     {isAdminUser && (
                       <Link
                         href="/admin"
+                        onClick={() => setDropdownOpen(false)}
                         className="block min-h-11 w-full px-4 py-3 text-left text-[13px] font-bold text-brand transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
                         role="menuitem"
                       >

@@ -1,0 +1,257 @@
+import { type Prisma, type QuoteStatus } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+
+export type MyPageStatusTone = "neutral" | "info" | "warning" | "positive" | "danger";
+
+export interface MyPageQuoteStatus {
+  label: string;
+  description: string;
+  tone: MyPageStatusTone;
+  progressIndex: number;
+}
+
+export interface MyPageQuoteDelivery {
+  status: "PENDING" | "SENT" | "FAILED";
+  createdAt: Date;
+  sentAt: Date | null;
+}
+
+export interface MyPageQuote {
+  id: string;
+  sessionId: string;
+  vehicleSlug: string | null;
+  vehicleName: string;
+  vehicleBrand: string | null;
+  thumbnailUrl: string | null;
+  trimId: string;
+  trimName: string;
+  selectedOptionIds: string[];
+  productType: "장기렌트" | "리스";
+  contractType: string;
+  customerType: string;
+  contractMonths: number;
+  annualMileage: number;
+  depositRate: number;
+  prepayRate: number;
+  monthlyPayment: number;
+  pricingStatus: "CALCULATED" | "CONSULTATION_REQUIRED";
+  status: QuoteStatus;
+  statusInfo: MyPageQuoteStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  expiresAt: Date;
+  delivery: MyPageQuoteDelivery | null;
+}
+
+export interface MyPageProfile {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  provider: string | null;
+  channelRelation: string | null;
+  marketingConsent: boolean;
+  consentedAt: Date | null;
+}
+
+export interface MyPageData {
+  profile: MyPageProfile;
+  quotes: MyPageQuote[];
+  activeQuote: MyPageQuote | null;
+}
+
+const STATUS_INFO: Record<QuoteStatus, MyPageQuoteStatus> = {
+  NEW: {
+    label: "견적 접수",
+    description: "선택한 조건을 확인하고 상담을 이어갈 수 있어요.",
+    tone: "info",
+    progressIndex: 0,
+  },
+  CONTACTED: {
+    label: "상담 진행",
+    description: "담당자와 조건을 조율하고 있어요.",
+    tone: "warning",
+    progressIndex: 1,
+  },
+  IN_PROGRESS: {
+    label: "심사·계약 진행",
+    description: "안내받은 절차를 이어서 진행해 주세요.",
+    tone: "warning",
+    progressIndex: 2,
+  },
+  CONVERTED: {
+    label: "계약 완료",
+    description: "계약이 완료된 견적이에요.",
+    tone: "positive",
+    progressIndex: 3,
+  },
+  LOST: {
+    label: "진행 종료",
+    description: "필요할 때 같은 조건으로 새 견적을 받아보세요.",
+    tone: "neutral",
+    progressIndex: -1,
+  },
+};
+
+type JsonRecord = Record<string, Prisma.JsonValue>;
+
+function isJsonRecord(value: Prisma.JsonValue): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readString(value: Prisma.JsonValue, key: string): string | null {
+  if (!isJsonRecord(value)) return null;
+  const candidate = value[key];
+  return typeof candidate === "string" && candidate.trim() ? candidate.trim() : null;
+}
+
+function readSelectedOptionIds(value: Prisma.JsonValue): string[] {
+  if (!isJsonRecord(value)) return [];
+  const selectedOptions = value.selectedOptions;
+  if (!Array.isArray(selectedOptions)) return [];
+
+  return selectedOptions.flatMap((option) => {
+    if (!isJsonRecord(option)) return [];
+    const id = option.id;
+    return typeof id === "string" && id ? [id] : [];
+  });
+}
+
+function readProductType(value: Prisma.JsonValue): "장기렌트" | "리스" {
+  return readString(value, "productType") === "리스" ? "리스" : "장기렌트";
+}
+
+function toDeliveryStatus(status: string): MyPageQuoteDelivery["status"] {
+  if (status === "SENT" || status === "FAILED") return status;
+  return "PENDING";
+}
+
+function chooseActiveQuote(quotes: MyPageQuote[]): MyPageQuote | null {
+  return quotes.find((quote) => quote.status !== "CONVERTED" && quote.status !== "LOST") ?? null;
+}
+
+export async function getMyPageData(supabaseId: string): Promise<MyPageData> {
+  const [member, savedQuotes] = await Promise.all([
+    prisma.user.findUnique({
+      where: { supabaseId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        provider: true,
+        channelRelation: true,
+        marketingConsent: true,
+        consentedAt: true,
+      },
+    }),
+    prisma.savedQuote.findMany({
+      where: { userId: supabaseId, deletedAt: null },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      take: 20,
+      select: {
+        id: true,
+        sessionId: true,
+        vehicleId: true,
+        trimId: true,
+        contractMonths: true,
+        annualMileage: true,
+        depositRate: true,
+        prepayRate: true,
+        contractType: true,
+        customerType: true,
+        monthlyPayment: true,
+        pricingStatus: true,
+        breakdown: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        expiresAt: true,
+      },
+    }),
+  ]);
+
+  const vehicleIds = [...new Set(savedQuotes.map((quote) => quote.vehicleId))];
+  const trimIds = [...new Set(savedQuotes.map((quote) => quote.trimId))];
+  const quoteIds = savedQuotes.map((quote) => quote.id);
+
+  const [vehicles, trims, deliveries] = await Promise.all([
+    vehicleIds.length > 0
+      ? prisma.vehicle.findMany({
+          where: { id: { in: vehicleIds } },
+          select: { id: true, slug: true, name: true, brand: true, thumbnailUrl: true },
+        })
+      : [],
+    trimIds.length > 0
+      ? prisma.trim.findMany({
+          where: { id: { in: trimIds } },
+          select: { id: true, name: true },
+        })
+      : [],
+    member && quoteIds.length > 0
+      ? prisma.quoteDelivery.findMany({
+          where: { userId: member.id, savedQuoteId: { in: quoteIds } },
+          orderBy: { createdAt: "desc" },
+          select: { savedQuoteId: true, status: true, createdAt: true, sentAt: true },
+        })
+      : [],
+  ]);
+
+  const vehicleMap = new Map(vehicles.map((vehicle) => [vehicle.id, vehicle]));
+  const trimMap = new Map(trims.map((trim) => [trim.id, trim]));
+  const latestDeliveryByQuoteId = new Map<string, MyPageQuoteDelivery>();
+  for (const delivery of deliveries) {
+    if (!delivery.savedQuoteId || latestDeliveryByQuoteId.has(delivery.savedQuoteId)) continue;
+    latestDeliveryByQuoteId.set(delivery.savedQuoteId, {
+      status: toDeliveryStatus(delivery.status),
+      createdAt: delivery.createdAt,
+      sentAt: delivery.sentAt,
+    });
+  }
+
+  const quotes: MyPageQuote[] = savedQuotes.map((quote) => {
+    const vehicle = vehicleMap.get(quote.vehicleId);
+    const trim = trimMap.get(quote.trimId);
+    const vehicleName = vehicle?.name ?? readString(quote.breakdown, "vehicleName") ?? "선택한 차량";
+
+    return {
+      id: quote.id,
+      sessionId: quote.sessionId,
+      vehicleSlug: vehicle?.slug ?? null,
+      vehicleName,
+      vehicleBrand: vehicle?.brand ?? readString(quote.breakdown, "vehicleBrand"),
+      thumbnailUrl: vehicle?.thumbnailUrl ?? null,
+      trimId: quote.trimId,
+      trimName: trim?.name ?? readString(quote.breakdown, "trimName") ?? "선택한 트림",
+      selectedOptionIds: readSelectedOptionIds(quote.breakdown),
+      productType: readProductType(quote.breakdown),
+      contractType: quote.contractType,
+      customerType: quote.customerType,
+      contractMonths: quote.contractMonths,
+      annualMileage: quote.annualMileage,
+      depositRate: quote.depositRate,
+      prepayRate: quote.prepayRate,
+      monthlyPayment: quote.monthlyPayment,
+      pricingStatus: quote.pricingStatus,
+      status: quote.status,
+      statusInfo: STATUS_INFO[quote.status],
+      createdAt: quote.createdAt,
+      updatedAt: quote.updatedAt,
+      expiresAt: quote.expiresAt,
+      delivery: latestDeliveryByQuoteId.get(quote.id) ?? null,
+    };
+  });
+
+  return {
+    profile: {
+      name: member?.name || "고객",
+      email: member?.email ?? null,
+      phone: member?.phone ?? null,
+      provider: member?.provider ?? null,
+      channelRelation: member?.channelRelation ?? null,
+      marketingConsent: member?.marketingConsent ?? false,
+      consentedAt: member?.consentedAt ?? null,
+    },
+    quotes,
+    activeQuote: chooseActiveQuote(quotes),
+  };
+}
