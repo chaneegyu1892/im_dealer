@@ -13,7 +13,8 @@ import { claimJob, heartbeat, postResult, type ClaimedJob, type ClaimedCredentia
 const POLL_MS = Number(process.env.SCRAPER_POLL_MS ?? 5000);
 const HEADFUL = process.env.SCRAPER_HEADFUL === "true";
 const KEEPALIVE_MS = Number(process.env.SCRAPER_KEEPALIVE_MS ?? 120000); // 2분
-const HEARTBEAT_MS = 30000;
+// 하트비트 겸 취소 감지 주기. 짧을수록 [취소] 후 브라우저를 더 빨리 닫고 다음 작업을 잡는다.
+const HEARTBEAT_MS = Number(process.env.SCRAPER_HEARTBEAT_MS ?? 10000);
 const REQUEST_DELAY_MS = Number(process.env.SCRAPER_REQUEST_DELAY_MS ?? 2000); // 트림 간 지연(기본 2s)
 const JOB_COOLDOWN_MS = Number(process.env.SCRAPER_JOB_COOLDOWN_MS ?? 30000); // 작업 간 쿨다운(기본 30s) — 볼륨 집중/버스트 완화
 // 사람 속도 모사 + 탐지 footprint 완화용 랜덤 지터: base ~ base*1.6
@@ -45,20 +46,22 @@ function requireEnv(): void {
   }
 }
 
-async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<void> {
+type JobOutcome = "completed" | "canceled" | "failed";
+
+async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<JobOutcome> {
   const log = (msg: string) => console.log(`[job ${job.id}] ${msg}`);
 
   const username = decryptString(credential.usernameEnc);
   const password = decryptString(credential.passwordEnc);
   if (!username || !password) {
     await postResult(job.id, { ok: false, error: "자격증명 복호화 실패 (PII_ENCRYPTION_KEY 불일치 가능)" });
-    return;
+    return "failed";
   }
 
   const adapter = resolveAdapter(credential.config, credential.loginUrl);
   if (!adapter) {
     await postResult(job.id, { ok: false, error: "해당 캐피탈사에 맞는 어댑터가 없습니다." });
-    return;
+    return "failed";
   }
 
   let canceled = false;
@@ -160,19 +163,21 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<v
     );
     await postResult(job.id, { ok: true, draft });
     log(`완료 — 트림 ${results.length}건, 경고 ${draft.warnings.length}건`);
+    return "completed";
   } catch (e) {
     if (e instanceof CanceledError) {
       log("취소됨");
-    } else {
-      const msg = (e as Error).message ?? String(e);
-      const authFailed = e instanceof AuthError; // 자격증명 오류 → 차단기 작동(재시도 금지·자격증명 비활성화)
-      log(authFailed ? `[차단기] 인증 실패 — 자격증명 비활성화 요청: ${msg}` : `실패: ${msg}`);
-      try {
-        await postResult(job.id, { ok: false, error: msg.slice(0, 500), ...(authFailed ? { authFailed: true } : {}) });
-      } catch {
-        /* 보고 실패는 무시 */
-      }
+      return "canceled";
     }
+    const msg = (e as Error).message ?? String(e);
+    const authFailed = e instanceof AuthError; // 자격증명 오류 → 차단기 작동(재시도 금지·자격증명 비활성화)
+    log(authFailed ? `[차단기] 인증 실패 — 자격증명 비활성화 요청: ${msg}` : `실패: ${msg}`);
+    try {
+      await postResult(job.id, { ok: false, error: msg.slice(0, 500), ...(authFailed ? { authFailed: true } : {}) });
+    } catch {
+      /* 보고 실패는 무시 */
+    }
+    return "failed";
   } finally {
     clearInterval(heartbeatTimer);
     if (keepAliveTimer) clearInterval(keepAliveTimer);
@@ -188,9 +193,12 @@ async function main(): Promise<void> {
       const claimed = await claimJob();
       if (claimed) {
         console.log(`[worker] 작업 클레임: ${claimed.job.id} (캐피탈사 ${claimed.job.financeCompanyId})`);
-        await runJob(claimed.job, claimed.credential);
-        // 작업 간 쿨다운(분산) — 큐에 여러 작업이 있어도 몰아치지 않고 사람처럼 간격을 둠
-        await sleep(jitter(JOB_COOLDOWN_MS));
+        const outcome = await runJob(claimed.job, claimed.credential);
+        // 정상 완료 후에만 버스트 완화 쿨다운(분산) — 사람처럼 간격을 둠.
+        // 취소/실패는 실제 수집이 없었으므로 쿨다운을 건너뛰고 즉시 다음 작업(예: 재시작한 수집)을 잡는다.
+        if (outcome === "completed") {
+          await sleep(jitter(JOB_COOLDOWN_MS));
+        }
       }
     } catch (e) {
       console.error(`[worker] 루프 오류: ${(e as Error).message}`);
