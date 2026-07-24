@@ -1,6 +1,11 @@
 import type { Page } from "@playwright/test";
 import { z } from "zod";
-import { expect, readRecommendationBytes, test } from "./fixtures/admin-vehicle-images";
+import {
+  createCurrentRecommendationSnapshot,
+  expect,
+  readRecommendationBytes,
+  test,
+} from "./fixtures/admin-vehicle-images";
 import { attachVehicleImageObservers, readVehicleImageStorageState } from "./fixtures/vehicle-image-observers";
 
 const RecommendationResponseSchema = z.object({
@@ -81,18 +86,17 @@ test("admin image lifecycle projects the current representative without mutating
     expect(await quote.text()).toContain(vehicleImages.mainUrl);
 
     expect(await readRecommendationBytes(vehicleImages.frozenSessionId)).toBe(vehicleImages.frozenBytes);
-    const recommendation = await page.request.post("/api/recommend", { data: {
-      industry: "개인", industryDetail: "2~3명", preferences: ["안정감"], primaryPreference: "안정감",
-      annualMileage: 20_000, fuelPreference: "가솔린/디젤", residenceRegion: "일반", returnType: "미정",
-    } });
+    const currentSnapshot = await createCurrentRecommendationSnapshot(vehicleImages);
+    const recommendation = await page.request.get(`/api/recommend/${currentSnapshot.sessionId}`);
     expect(recommendation.ok()).toBe(true);
     const current = RecommendationResponseSchema.parse(await recommendation.json());
     expect(current.vehicles).toContainEqual(expect.objectContaining({
       vehicleId: vehicleImages.vehicleId,
       vehicle: expect.objectContaining({ thumbnailUrl: vehicleImages.mainUrl }),
     }));
-    const currentBytes = await readRecommendationBytes(current.sessionId);
+    const currentBytes = await readRecommendationBytes(currentSnapshot.sessionId);
     expect(currentBytes).toContain(vehicleImages.mainUrl);
+    expect(currentBytes).toBe(currentSnapshot.bytes);
     expect(currentBytes).not.toBe(vehicleImages.frozenBytes);
     expect(await readRecommendationBytes(vehicleImages.frozenSessionId)).toBe(vehicleImages.frozenBytes);
     expect(observers.rscRequestCount()).toBe(0);
