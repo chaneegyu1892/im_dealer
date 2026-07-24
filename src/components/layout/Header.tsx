@@ -106,7 +106,8 @@ export function Header() {
 
   return (
     <header className={cn(
-      "sticky top-0 z-50 border-b border-border-subtle bg-surface-glass backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150",
+      "sticky top-0 border-b border-border-subtle bg-surface-glass backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150",
+      dropdownOpen ? "z-[70]" : "z-50",
       isHome && "home-showroom-scope"
     )}>
       <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-5 lg:px-8">

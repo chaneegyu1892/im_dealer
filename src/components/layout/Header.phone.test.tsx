@@ -69,8 +69,12 @@ describe("Header 대표전화", () => {
     render(<Header />);
 
     const profileButton = await screen.findByRole("button", { name: "테스트 고객 계정 메뉴" });
+    const header = screen.getByRole("banner");
+
+    expect(header).toHaveClass("z-50");
     fireEvent.click(profileButton);
 
+    expect(header).toHaveClass("z-[70]");
     expect(screen.getByRole("menuitem", { name: "마이페이지" })).toHaveAttribute(
       "href",
       "/mypage"
