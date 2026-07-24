@@ -876,6 +876,9 @@ function QuotationsContent() {
                     {[
                       ["모델명", drawerQuote.vehicleName],
                       ["트림", drawerQuote.trimName],
+                      ["트림 할인가", (drawerQuote.discountPrice ?? drawerQuote.trimPrice) != null
+                        ? `${(drawerQuote.discountPrice ?? drawerQuote.trimPrice)!.toLocaleString()}원`
+                        : "-"],
                       ["상품 유형", drawerQuote.productType],
                       ["계약 조건", `${drawerQuote.contractMonths}개월 · 연 ${drawerQuote.annualMileage.toLocaleString()}km · ${drawerQuote.contractType}`],
                       ["외장 색상", drawerQuote.exteriorColorName ?? "미선택"],
