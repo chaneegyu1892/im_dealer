@@ -35,7 +35,8 @@ export interface RecommendResult {
 }
 
 export interface RecommendationPopularityEvidence {
-  readonly period: "2026-05";
+  // NICE 모델별 등록 순위의 기준 월(YYYY-MM). 매월 갱신된다.
+  readonly period: string;
   readonly rank: number | null;
   readonly registrationCount: number | null;
 }

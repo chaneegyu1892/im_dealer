@@ -28,7 +28,11 @@ import {
   compareRecommendationBudgetProximity,
   isWithinRecommendationBudgetRange,
 } from "./recommendation-budget";
-import { getPopularityEvidence } from "./popularity-snapshot";
+import {
+  getPopularityEvidence,
+  type PopularityEvidenceLookup,
+} from "./popularity-snapshot";
+import { loadCurrentPopularityEvidenceLookup } from "./popularity-runtime";
 import {
   mixNearbyPopularityCandidates,
   type RecommendationSelectionOptions,
@@ -237,7 +241,8 @@ function deduplicateModels(
 export function recommendStep02V3FromSnapshot(
   input: RecommendInput,
   snapshot: OverlapCandidateSnapshot,
-  selectionOptions: RecommendationSelectionOptions = {}
+  selectionOptions: RecommendationSelectionOptions = {},
+  popularityLookup: PopularityEvidenceLookup = getPopularityEvidence
 ): Step02V3RecommendationRun {
   if (
     input.recommendationVersion !== "step02-v3"
@@ -255,7 +260,7 @@ export function recommendStep02V3FromSnapshot(
       diagnostics.push({ slug: vehicle.slug, status: "not_in_document" });
       continue;
     }
-    const popularity = getPopularityEvidence(vehicle.slug);
+    const popularity = popularityLookup(vehicle.slug);
     if (popularity.rank === null) {
       diagnostics.push({ slug: vehicle.slug, status: "not_in_popularity_top_30" });
       continue;
@@ -370,7 +375,15 @@ export async function recommendStep02V3(
   input: RecommendInput,
   selectionOptions: RecommendationSelectionOptions = {}
 ): Promise<Step02V3RecommendedVehicle[]> {
-  const snapshot = await loadOverlapCandidateSnapshot();
-  const vehicles = recommendStep02V3FromSnapshot(input, snapshot, selectionOptions).vehicles;
+  const [snapshot, popularityLookup] = await Promise.all([
+    loadOverlapCandidateSnapshot(),
+    loadCurrentPopularityEvidenceLookup(),
+  ]);
+  const vehicles = recommendStep02V3FromSnapshot(
+    input,
+    snapshot,
+    selectionOptions,
+    popularityLookup
+  ).vehicles;
   return finalizeStep02V3Reasons(vehicles, input);
 }

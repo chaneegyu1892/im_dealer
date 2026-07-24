@@ -939,3 +939,18 @@ model CapitalTrimMapping {
   @@unique([financeCompanyId, trimId, productType])
   @@index([catalogTrimId])
 }
+
+// NICE D&R 공개 모델별 등록 순위 월간 스냅샷.
+// entries에는 공개 원문(브랜드·모델·등록대수)과 내부 차량 slug 매핑 결과를 함께 보관한다.
+// 외부 모델이 아직 우리 카탈로그에 없으면 slug는 null로 남겨 다음 수집 때 다시 매핑한다.
+model RecommendationPopularitySnapshot {
+  id        String   @id @default(cuid())
+  period    String   @unique // YYYY-MM
+  sourceUrl String
+  fetchedAt DateTime
+  entries   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fetchedAt])
+}

@@ -100,11 +100,11 @@ describe("stored recommendation result boundary", () => {
     expect(result).toEqual({ kind: "legacy", vehicles: value });
   });
 
-  it("keeps new legacy popularity evidence unchanged", () => {
+  it("keeps a monthly popularity evidence snapshot unchanged", () => {
     const withPopularity = {
       ...legacyVehicle,
       popularity: {
-        period: "2026-05",
+        period: "2026-06",
         rank: 19,
         registrationCount: 1_722,
       },
@@ -139,7 +139,7 @@ describe("stored recommendation result boundary", () => {
 
   it.each([
     {
-      period: "2026-04",
+      period: "2026-4",
       rank: 1,
       registrationCount: 100,
     },

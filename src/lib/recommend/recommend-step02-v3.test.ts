@@ -114,6 +114,26 @@ describe("recommendStep02V3FromSnapshot", () => {
     ]);
   });
 
+  it("uses the injected latest popularity snapshot as the top-30 boundary", () => {
+    const result = recommendStep02V3FromSnapshot(baseInput, snapshot([
+      vehicle("kia-11573", "디 올 뉴 팰리세이드", "가솔린"),
+      vehicle("kia-11606", "더 뉴 카니발", "가솔린"),
+    ]), {}, (slug) => ({
+      period: "2026-06",
+      rank: slug === "kia-11606" ? 3 : null,
+      registrationCount: slug === "kia-11606" ? 5_522 : null,
+    }));
+
+    expect(result.vehicles.map((item) => item.vehicle.slug)).toEqual(["kia-11606"]);
+    expect(result.vehicles[0]?.popularity).toEqual({
+      period: "2026-06",
+      rank: 3,
+      registrationCount: 5_522,
+    });
+    expect(result.diagnostics.find((item) => item.slug === "kia-11573")?.status)
+      .toBe("not_in_popularity_top_30");
+  });
+
   it("uses fuel as a hard filter and keeps GT/N document vehicles eligible", () => {
     const result = recommendStep02V3FromSnapshot({
       ...baseInput,

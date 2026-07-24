@@ -43,7 +43,7 @@ const vehicleDetailSchema = z.object({
 }).passthrough();
 
 const popularitySchema = z.object({
-  period: z.literal("2026-05"),
+  period: z.string().regex(/^\d{4}-(?:0[1-9]|1[0-2])$/, "인기순위 기준월 형식이 올바르지 않습니다."),
   rank: z.number().int().min(1).max(30).nullable(),
   registrationCount: z.number().int().positive().nullable(),
 }).strict().superRefine((popularity, context) => {

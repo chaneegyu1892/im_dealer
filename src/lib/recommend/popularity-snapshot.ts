@@ -111,9 +111,13 @@ export interface PopularitySnapshotEntry {
 }
 
 export interface PopularitySnapshot {
-  readonly period: typeof POPULARITY_PERIOD;
+  readonly period: string;
   readonly entries: readonly PopularitySnapshotEntry[];
 }
+
+export type PopularityEvidenceLookup = (
+  slug: string
+) => RecommendationPopularityEvidence;
 
 export function parsePopularitySnapshot(
   value: unknown,
@@ -146,17 +150,31 @@ export const MAY_2026_POPULARITY = parsePopularitySnapshot(
   POPULARITY_SLUG_MAPPING
 );
 
-const popularityBySlug = new Map(
-  MAY_2026_POPULARITY.entries.map((entry) => [entry.slug, entry])
+export function createPopularityEvidenceLookup(
+  snapshot: PopularitySnapshot
+): PopularityEvidenceLookup {
+  const popularityBySlug = new Map(
+    snapshot.entries.map((entry) => [entry.slug, entry])
+  );
+
+  return (slug) => {
+    const entry = popularityBySlug.get(slug);
+    return {
+      period: snapshot.period,
+      rank: entry?.rank ?? null,
+      registrationCount: entry?.registrationCount ?? null,
+    };
+  };
+}
+
+const getStaticPopularityEvidence = createPopularityEvidenceLookup(
+  MAY_2026_POPULARITY
 );
 
-export function getPopularityEvidence(
-  slug: string
-): RecommendationPopularityEvidence {
-  const entry = popularityBySlug.get(slug);
-  return {
-    period: POPULARITY_PERIOD,
-    rank: entry?.rank ?? null,
-    registrationCount: entry?.registrationCount ?? null,
-  };
+/**
+ * DB에 아직 월간 수집 스냅샷이 없거나 레거시 엔진이 사용하는 기본값이다.
+ * 실제 step02-v3 추천은 popularity-runtime의 최신 저장 스냅샷을 주입한다.
+ */
+export function getPopularityEvidence(slug: string): RecommendationPopularityEvidence {
+  return getStaticPopularityEvidence(slug);
 }
