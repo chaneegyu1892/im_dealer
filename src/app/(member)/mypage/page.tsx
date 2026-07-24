@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import {
   ArrowRight,
   CarFront,
-  ChevronRight,
   Clock3,
   Send,
   ShieldCheck,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MyPageConsultationButton } from "@/components/mypage/MyPageConsultationButton";
+import { QuoteConditionDialog } from "@/components/mypage/QuoteConditionDialog";
 import { isSupabaseStorageUrl } from "@/lib/image-url";
 import { getMyPageData, type MyPageQuote, type MyPageStatusTone } from "@/lib/member-queries/mypage";
 import { requireMember } from "@/lib/require-access";
@@ -200,23 +200,12 @@ function ActiveQuoteSection({ quote }: { quote: MyPageQuote }) {
             마지막 업데이트 {dateFormatter.format(quote.updatedAt)}
           </p>
           <div className="mt-4 grid gap-2">
-            {quoteHref ? (
-              <Link
-                href={quoteHref}
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-btn bg-brand px-4 text-[13px] font-extrabold text-white transition-colors hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-              >
-                조건 다시 보기
-                <ChevronRight size={16} strokeWidth={2.4} />
-              </Link>
-            ) : (
-              <Link
-                href="/cars"
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-btn bg-brand px-4 text-[13px] font-extrabold text-white transition-colors hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-              >
-                새 견적 받기
-                <ChevronRight size={16} strokeWidth={2.4} />
-              </Link>
-            )}
+            <QuoteConditionDialog
+              quote={quote}
+              quoteHref={quoteHref}
+              label="견적 조건 보기"
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-btn bg-brand px-4 text-[13px] font-extrabold text-white transition-colors hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            />
             <MyPageConsultationButton
               quoteId={quote.id}
               sessionId={quote.sessionId}
@@ -278,23 +267,12 @@ function QuoteCard({ quote }: { quote: MyPageQuote }) {
         <span className="border-l border-border-subtle px-4 py-3 text-right">{getExpiryLabel(quote.expiresAt)}</span>
       </div>
       <div className="flex items-center gap-2 border-t border-border-subtle p-3">
-        {quoteHref ? (
-          <Link
-            href={quoteHref}
-            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-btn border border-border-strong bg-surface px-3 text-[12px] font-extrabold text-text-strong transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-          >
-            조건 보기
-            <ChevronRight size={14} strokeWidth={2.4} />
-          </Link>
-        ) : (
-          <Link
-            href="/cars"
-            className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-btn border border-border-strong bg-surface px-3 text-[12px] font-extrabold text-text-strong transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-          >
-            새 견적
-            <ChevronRight size={14} strokeWidth={2.4} />
-          </Link>
-        )}
+        <QuoteConditionDialog
+          quote={quote}
+          quoteHref={quoteHref}
+          className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-btn border border-border-strong bg-surface px-3 text-[12px] font-extrabold text-text-strong transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          iconSize={14}
+        />
         <MyPageConsultationButton
           quoteId={quote.id}
           sessionId={quote.sessionId}

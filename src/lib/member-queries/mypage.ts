@@ -16,6 +16,17 @@ export interface MyPageQuoteDelivery {
   sentAt: Date | null;
 }
 
+export interface MyPageQuoteOption {
+  id: string | null;
+  name: string;
+  price: number;
+}
+
+export interface MyPageQuoteColor {
+  name: string;
+  priceDelta: number;
+}
+
 export interface MyPageQuote {
   id: string;
   sessionId: string;
@@ -26,6 +37,10 @@ export interface MyPageQuote {
   trimId: string;
   trimName: string;
   selectedOptionIds: string[];
+  selectedOptions: MyPageQuoteOption[];
+  exteriorColor: MyPageQuoteColor | null;
+  interiorColor: MyPageQuoteColor | null;
+  totalVehiclePrice: number | null;
   productType: "장기렌트" | "리스";
   contractType: string;
   customerType: string;
@@ -104,6 +119,12 @@ function readString(value: Prisma.JsonValue, key: string): string | null {
   return typeof candidate === "string" && candidate.trim() ? candidate.trim() : null;
 }
 
+function readNumber(value: Prisma.JsonValue, key: string): number | null {
+  if (!isJsonRecord(value)) return null;
+  const candidate = value[key];
+  return typeof candidate === "number" && Number.isFinite(candidate) ? candidate : null;
+}
+
 function readSelectedOptionIds(value: Prisma.JsonValue): string[] {
   if (!isJsonRecord(value)) return [];
   const selectedOptions = value.selectedOptions;
@@ -114,6 +135,40 @@ function readSelectedOptionIds(value: Prisma.JsonValue): string[] {
     const id = option.id;
     return typeof id === "string" && id ? [id] : [];
   });
+}
+
+function readSelectedOptions(value: Prisma.JsonValue): MyPageQuoteOption[] {
+  if (!isJsonRecord(value)) return [];
+  const selectedOptions = value.selectedOptions;
+  if (!Array.isArray(selectedOptions)) return [];
+
+  return selectedOptions.flatMap((option) => {
+    if (!isJsonRecord(option)) return [];
+    const name = typeof option.name === "string" && option.name.trim() ? option.name.trim() : null;
+    if (!name) return [];
+
+    return [{
+      id: typeof option.id === "string" && option.id ? option.id : null,
+      name,
+      price: typeof option.price === "number" && Number.isFinite(option.price) ? option.price : 0,
+    }];
+  });
+}
+
+function readColor(value: Prisma.JsonValue, key: "exteriorColor" | "interiorColor"): MyPageQuoteColor | null {
+  if (!isJsonRecord(value)) return null;
+  const color = value[key];
+  if (!isJsonRecord(color)) return null;
+
+  const name = typeof color.name === "string" && color.name.trim() ? color.name.trim() : null;
+  if (!name) return null;
+
+  return {
+    name,
+    priceDelta: typeof color.priceDelta === "number" && Number.isFinite(color.priceDelta)
+      ? color.priceDelta
+      : 0,
+  };
 }
 
 function readProductType(value: Prisma.JsonValue): "장기렌트" | "리스" {
@@ -211,18 +266,22 @@ export async function getMyPageData(supabaseId: string): Promise<MyPageData> {
   const quotes: MyPageQuote[] = savedQuotes.map((quote) => {
     const vehicle = vehicleMap.get(quote.vehicleId);
     const trim = trimMap.get(quote.trimId);
-    const vehicleName = vehicle?.name ?? readString(quote.breakdown, "vehicleName") ?? "선택한 차량";
+    const vehicleName = readString(quote.breakdown, "vehicleName") ?? vehicle?.name ?? "선택한 차량";
 
     return {
       id: quote.id,
       sessionId: quote.sessionId,
       vehicleSlug: vehicle?.slug ?? null,
       vehicleName,
-      vehicleBrand: vehicle?.brand ?? readString(quote.breakdown, "vehicleBrand"),
+      vehicleBrand: readString(quote.breakdown, "vehicleBrand") ?? vehicle?.brand ?? null,
       thumbnailUrl: vehicle?.thumbnailUrl ?? null,
       trimId: quote.trimId,
-      trimName: trim?.name ?? readString(quote.breakdown, "trimName") ?? "선택한 트림",
+      trimName: readString(quote.breakdown, "trimName") ?? trim?.name ?? "선택한 트림",
       selectedOptionIds: readSelectedOptionIds(quote.breakdown),
+      selectedOptions: readSelectedOptions(quote.breakdown),
+      exteriorColor: readColor(quote.breakdown, "exteriorColor"),
+      interiorColor: readColor(quote.breakdown, "interiorColor"),
+      totalVehiclePrice: readNumber(quote.breakdown, "totalVehiclePrice"),
       productType: readProductType(quote.breakdown),
       contractType: quote.contractType,
       customerType: quote.customerType,

@@ -53,7 +53,13 @@ describe("getMyPageData", () => {
         pricingStatus: "CALCULATED",
         breakdown: {
           productType: "리스",
-          selectedOptions: [{ id: "option-1", name: "드라이브 와이즈" }],
+          vehicleName: "쏘렌토 견적 당시 모델",
+          vehicleBrand: "기아",
+          trimName: "시그니처 견적 당시 트림",
+          selectedOptions: [{ id: "option-1", name: "드라이브 와이즈", price: 1_290_000 }],
+          exteriorColor: { name: "스노우 화이트 펄", priceDelta: 80_000 },
+          interiorColor: { name: "블랙", priceDelta: 0 },
+          totalVehiclePrice: 46_720_000,
         },
         status: "CONTACTED",
         createdAt: now,
@@ -81,11 +87,11 @@ describe("getMyPageData", () => {
       },
     ]);
     mocks.findVehicles.mockResolvedValue([
-      { id: "vehicle-1", slug: "sorento", name: "쏘렌토", brand: "기아", thumbnailUrl: "/sorento.png" },
+      { id: "vehicle-1", slug: "sorento", name: "쏘렌토 현재 모델", brand: "기아", thumbnailUrl: "/sorento.png" },
       { id: "vehicle-2", slug: "ev6", name: "EV6", brand: "기아", thumbnailUrl: "/ev6.png" },
     ]);
     mocks.findTrims.mockResolvedValue([
-      { id: "trim-1", name: "시그니처" },
+      { id: "trim-1", name: "시그니처 현재 트림" },
       { id: "trim-2", name: "에어" },
     ]);
     mocks.findDeliveries.mockResolvedValue([
@@ -107,10 +113,14 @@ describe("getMyPageData", () => {
     expect(result.activeQuote).toMatchObject({
       id: "quote-active",
       sessionId: "session-active",
-      vehicleName: "쏘렌토",
-      trimName: "시그니처",
+      vehicleName: "쏘렌토 견적 당시 모델",
+      trimName: "시그니처 견적 당시 트림",
       productType: "리스",
       selectedOptionIds: ["option-1"],
+      selectedOptions: [{ id: "option-1", name: "드라이브 와이즈", price: 1_290_000 }],
+      exteriorColor: { name: "스노우 화이트 펄", priceDelta: 80_000 },
+      interiorColor: { name: "블랙", priceDelta: 0 },
+      totalVehiclePrice: 46_720_000,
       statusInfo: { label: "상담 진행" },
       delivery: { status: "SENT" },
     });
