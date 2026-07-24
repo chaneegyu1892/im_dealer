@@ -40,6 +40,7 @@ import {
   getStep02V3StyleLevel,
 } from "./step02-v3-data";
 import { getRecommendFuelGroup, type RecommendFuelGroup } from "./vehicle-attributes";
+import { generateStep02V3Reason } from "@/lib/llm-reason";
 
 interface Step02V3RuntimeCandidate {
   readonly vehicleId: string;
@@ -340,10 +341,36 @@ export function recommendStep02V3FromSnapshot(
   };
 }
 
+export async function finalizeStep02V3Reasons(
+  vehicles: readonly Step02V3RecommendedVehicle[],
+  input: RecommendInput
+): Promise<Step02V3RecommendedVehicle[]> {
+  const reasons = await Promise.all(vehicles.map((vehicle) => generateStep02V3Reason({
+    industry: input.industry,
+    industryDetail: input.industryDetail,
+    preferences: input.preferences,
+    stylePreference: vehicle.stylePreference,
+    budgetRange: input.budgetRange ?? "auto",
+    annualMileage: input.annualMileage,
+    fuelPreference: input.fuelPreference,
+    vehicleName: vehicle.vehicle.name,
+    brand: vehicle.vehicle.brand,
+    category: vehicle.vehicle.category,
+    estimatedMonthly: vehicle.estimatedMonthly,
+    fallback: vehicle.reason,
+  })));
+
+  return vehicles.map((vehicle, index) => ({
+    ...vehicle,
+    reason: reasons[index],
+  }));
+}
+
 export async function recommendStep02V3(
   input: RecommendInput,
   selectionOptions: RecommendationSelectionOptions = {}
 ): Promise<Step02V3RecommendedVehicle[]> {
   const snapshot = await loadOverlapCandidateSnapshot();
-  return [...recommendStep02V3FromSnapshot(input, snapshot, selectionOptions).vehicles];
+  const vehicles = recommendStep02V3FromSnapshot(input, snapshot, selectionOptions).vehicles;
+  return finalizeStep02V3Reasons(vehicles, input);
 }
