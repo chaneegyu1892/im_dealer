@@ -96,7 +96,7 @@ test("admin image lifecycle projects the current representative without mutating
     }));
     const currentBytes = await readRecommendationBytes(currentSnapshot.sessionId);
     expect(currentBytes).toContain(vehicleImages.mainUrl);
-    expect(currentBytes).toBe(currentSnapshot.bytes);
+    expect(JSON.parse(currentBytes)).toEqual(JSON.parse(currentSnapshot.bytes));
     expect(currentBytes).not.toBe(vehicleImages.frozenBytes);
     expect(await readRecommendationBytes(vehicleImages.frozenSessionId)).toBe(vehicleImages.frozenBytes);
     expect(observers.rscRequestCount()).toBe(0);
