@@ -82,7 +82,7 @@ export function CarDetailHero({
               </span>
               <span className="text-white/30">·</span>
               <span className="text-[12px] font-semibold text-white/65">{vehicle.category}</span>
-              <span className="rounded-pill bg-white/14 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+              <span className="rounded-pill bg-white/15 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
                 {ENGINE_LABEL[engineType]}
               </span>
               {vehicle.isPopular && (
@@ -96,7 +96,7 @@ export function CarDetailHero({
               {vehicle.name}
             </h1>
             {vehicle.description && (
-              <p className="max-w-xl text-[15px] leading-relaxed text-white/72 md:text-[16px]">
+              <p className="max-w-xl text-[15px] leading-relaxed text-white/75 md:text-[16px]">
                 {vehicle.description}
               </p>
             )}
@@ -114,7 +114,7 @@ export function CarDetailHero({
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.12 }}
-            className="hidden rounded-[24px] border border-white/18 bg-white/12 p-6 shadow-[0_18px_44px_rgb(0_0_0/0.18)] backdrop-blur-md lg:block"
+            className="hidden rounded-[24px] border border-white/20 bg-white/15 p-6 shadow-[0_18px_44px_rgb(0_0_0/0.18)] backdrop-blur-md lg:block"
           >
             <RepresentativeQuotePrice
               quotes={representativeQuotes}
@@ -137,8 +137,8 @@ export function CarDetailHero({
 
 function HeroSpec({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill border border-white/18 bg-white/12 px-3.5 py-2 backdrop-blur-sm">
-      <span className="text-[11px] text-white/58">{label}</span>
+    <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill border border-white/20 bg-white/15 px-3.5 py-2 backdrop-blur-sm">
+      <span className="text-[11px] text-white/60">{label}</span>
       <span className="text-[13px] font-extrabold text-white">{value}</span>
     </div>
   );
