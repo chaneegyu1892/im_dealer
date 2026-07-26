@@ -98,7 +98,7 @@ describe("BottomNav scroll collapse", () => {
     expect(screen.getByLabelText("홈")).toBeInTheDocument();
     expect(screen.getByLabelText("차량 탐색")).toBeInTheDocument();
     expect(document.documentElement.style.getPropertyValue("--bottom-nav-stack-offset")).toBe(
-      "80px",
+      "88px",
     );
   });
 
@@ -117,7 +117,7 @@ describe("BottomNav scroll collapse", () => {
     expect(screen.getByRole("button", { name: "메뉴 열기" })).toBeInTheDocument();
     expect(screen.queryByLabelText("홈")).not.toBeInTheDocument();
     expect(document.documentElement.style.getPropertyValue("--bottom-nav-stack-offset")).toBe(
-      "10px",
+      "16px",
     );
   });
 
@@ -183,7 +183,7 @@ describe("BottomNav scroll collapse", () => {
     );
     expect(screen.getByLabelText("홈")).toBeInTheDocument();
     expect(document.documentElement.style.getPropertyValue("--bottom-nav-stack-offset")).toBe(
-      "80px",
+      "88px",
     );
   });
 
