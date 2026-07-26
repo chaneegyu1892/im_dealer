@@ -152,7 +152,7 @@ export function CarsFilterPanel({
   };
 
   return (
-    <div className="rounded-[28px] bg-surface p-4 shadow-float ring-1 ring-border-subtle/80 sm:p-5 lg:p-6">
+    <div className="rounded-[28px] bg-surface p-4 shadow-float ring-1 ring-border-subtle/80 max-[340px]:rounded-[24px] max-[340px]:p-3 sm:p-5 lg:p-6">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[14px] font-extrabold text-text-strong">빠른 탐색</p>
@@ -207,7 +207,7 @@ export function CarsFilterPanel({
 
           {brandOpen && (
             <div
-              className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 overflow-hidden rounded-[20px] border border-border-subtle bg-surface shadow-float"
+              className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 overflow-hidden rounded-[20px] border border-border-subtle bg-surface shadow-float max-[430px]:bottom-[calc(100%+8px)] max-[430px]:top-auto"
               role="listbox"
             >
               <div className="max-h-[286px] overflow-y-auto p-2">
@@ -265,9 +265,9 @@ export function CarsFilterPanel({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_minmax(320px,0.72fr)] lg:items-center">
+      <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-[1fr_minmax(320px,0.72fr)] lg:items-center">
         <div className="hidden lg:block" />
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2 max-[340px]:flex-col max-[340px]:items-stretch">
           <CarsSearchControl searchQuery={searchQuery} onSearchChange={onSearchChange} />
           <SortMenu
             currentSortLabel={currentSortLabel}
@@ -275,6 +275,7 @@ export function CarsFilterPanel({
             sortOpen={sortOpen}
             onToggle={onSortToggle}
             onChange={onSortChange}
+            fullWidthOnNarrow
           />
         </div>
       </div>

@@ -1,6 +1,7 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import localFont from "next/font/local";
 import type { ReactNode } from "react";
+import { PUBLIC_VIEWPORT, ROOT_TOUCH_ACTION } from "@/lib/public-viewport";
 import "./globals.css";
 
 const pretendard = localFont({
@@ -11,13 +12,8 @@ const pretendard = localFont({
   display: "swap",
 });
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 5,
-  userScalable: true,
-  themeColor: "#F5F6FA",
-};
+export const viewport = PUBLIC_VIEWPORT;
+const rootHtmlStyle = { touchAction: ROOT_TOUCH_ACTION } as const;
 
 // 절대 URL 생성용 베이스. 개별 페이지의 OG 이미지·canonical 등이 이 값을 기준으로 절대화된다.
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -50,7 +46,7 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="ko" className={pretendard.variable}>
+    <html lang="ko" className={pretendard.variable} style={rootHtmlStyle}>
       <body>{children}</body>
     </html>
   );
