@@ -101,7 +101,7 @@ export function CarsSearchControl({
         value={searchQuery}
         onChange={(event) => onSearchChange(event.target.value)}
         placeholder={compact ? "검색" : "차량, 브랜드, 용도 검색"}
-        className="min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-text-strong outline-none placeholder:text-text-muted placeholder:font-semibold"
+        className="min-w-0 flex-1 bg-transparent text-[16px] font-semibold text-text-strong outline-none placeholder:text-text-muted placeholder:font-semibold"
       />
       {searchQuery && (
         <button

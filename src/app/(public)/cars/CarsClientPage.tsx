@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   CarsFilterPanel,
   type CategoryFilter,
@@ -87,6 +87,7 @@ export function CarsClientPage({
   const filteredVehicles = useMemo(() => {
     const featuredIds = new Set(featured.map((vehicle) => vehicle.id));
     const query = searchQuery.trim().toLowerCase();
+    const hasSelectedFilters = categoryFilter !== "전체" || brandFilter !== "전체";
     const monthlyFrom = (vehicle: VehicleListItem) =>
       quoteCache[vehicle.id]?.monthlyFrom ?? vehicle.monthlyFrom ?? 0;
     const matchesQuery = (vehicle: VehicleListItem) =>
@@ -96,7 +97,9 @@ export function CarsClientPage({
 
     let result = query
       ? vehicles.filter(matchesQuery)
-      : vehicles.filter((vehicle) => !featuredIds.has(vehicle.id));
+      : hasSelectedFilters
+        ? vehicles
+        : vehicles.filter((vehicle) => !featuredIds.has(vehicle.id));
 
     if (!query && categoryFilter !== "전체") {
       result = result.filter((vehicle) => vehicle.category === categoryFilter);
@@ -245,7 +248,20 @@ export function CarsClientPage({
       </div>
 
       <div className="page-container py-7 md:py-10">
-        <FeaturedVehiclesSection vehicles={featured} />
+        <AnimatePresence initial={false}>
+          {!isBrowsing && (
+            <motion.div
+              key="featured-vehicles"
+              initial={{ height: 0, opacity: 0, y: -12 }}
+              animate={{ height: "auto", opacity: 1, y: 0 }}
+              exit={{ height: 0, opacity: 0, y: -12 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <FeaturedVehiclesSection vehicles={featured} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <CarsResultsSection
           isBrowsing={isBrowsing}
