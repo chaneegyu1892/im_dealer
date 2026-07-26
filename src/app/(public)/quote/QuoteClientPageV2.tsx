@@ -1316,8 +1316,8 @@ function Step3ResultHeader({
   customerType: CustomerType;
   contractCategory: "장기렌트" | "리스";
   selectedOptionDetails: { id: string; name: string; price: number }[];
-  selectedExteriorColor: { name: string; priceDelta: number } | null;
-  selectedInteriorColor: { name: string; priceDelta: number } | null;
+  selectedExteriorColor: { name: string; hexCode: string; priceDelta: number } | null;
+  selectedInteriorColor: { name: string; hexCode: string; priceDelta: number } | null;
   selectedTrim: { id: string; name: string; price: number; discountPrice: number | null; evSubsidy: number | null } | null;
   trims: { id: string; name: string; price: number; discountPrice: number | null }[];
   vehicles: VehicleListItem[];
@@ -1356,97 +1356,132 @@ function Step3ResultHeader({
       transition={{ duration: 0.22 }}
       className="space-y-5"
     >
-      {/* ── 1) 차량 정보 카드 (실제 데이터) ── */}
-      <div className="rounded-[24px] bg-surface-soft p-5 md:p-6">
-        <div className="flex items-center gap-4">
-          <div className="relative h-[72px] w-[108px] shrink-0 overflow-hidden rounded-[14px] bg-surface">
+      {/* ── 1) 차량 정보 카드 ── */}
+      <div className="overflow-hidden rounded-[24px] border border-border-subtle bg-surface shadow-soft">
+        {/* 상단: 이미지(가로 절반) + 차량명 */}
+        <div className="flex items-stretch gap-3 p-4 md:gap-4 md:p-5">
+          <div className="relative aspect-[4/3] w-1/2 shrink-0 overflow-hidden rounded-[16px] bg-surface-soft">
             {selectedVehicle?.thumbnailUrl ? (
               <Image
                 src={selectedVehicle.thumbnailUrl}
                 alt={selectedVehicle.name ?? "차량"}
                 fill
-                sizes="120px"
+                sizes="(max-width: 768px) 50vw, 280px"
                 unoptimized={isSupabaseStorageUrl(selectedVehicle.thumbnailUrl)}
                 className="object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-[11px] text-text-muted">
+              <div className="flex h-full w-full items-center justify-center text-[12px] text-text-muted">
                 이미지 없음
               </div>
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-text-muted">{selectedVehicle?.brand}</p>
-            <p className="truncate text-[18px] font-extrabold leading-tight text-text-strong">{selectedVehicle?.name}</p>
+          <div className="flex min-w-0 w-1/2 flex-col justify-center py-0.5">
+            <p className="text-[12.5px] font-bold uppercase tracking-[0.08em] text-text-muted">
+              {selectedVehicle?.brand}
+            </p>
+            <p className="mt-1 text-[19px] font-extrabold leading-snug text-text-strong sm:text-[21px]">
+              {selectedVehicle?.name}
+            </p>
             {quoteResult.trimName && (
-              <p className="mt-0.5 truncate text-[13.5px] text-text-body">{quoteResult.trimName}</p>
+              <p className="mt-1.5 text-[14px] font-medium leading-snug text-text-body">
+                {quoteResult.trimName}
+              </p>
             )}
           </div>
         </div>
 
-        {/* 선택한 구성 */}
-        <div className="mt-5 space-y-3">
-          <p className="text-[12px] font-bold uppercase tracking-[0.06em] text-text-muted">선택한 구성</p>
+        <div className="space-y-3 px-4 pb-4 md:px-5 md:pb-5">
+          {/* 선택한 구성 — 별도 패널로 시각 구분 */}
+          <div className="rounded-[16px] bg-surface-soft p-3.5 md:p-4">
+            <p className="text-[12.5px] font-extrabold uppercase tracking-[0.07em] text-text-muted">
+              선택한 구성
+            </p>
+            {selectedOptionDetails.length > 0 || selectedExteriorColor || selectedInteriorColor ? (
+              <div className="mt-2.5 space-y-2.5">
+                {selectedOptionDetails.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedOptionDetails.map((o) => (
+                      <span
+                        key={o.id}
+                        className="inline-flex items-center rounded-full bg-surface px-2.5 py-1 text-[13px] font-bold text-text-body ring-1 ring-border-subtle"
+                      >
+                        {o.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {(selectedExteriorColor || selectedInteriorColor) && (
+                  <div className="flex flex-col gap-2 text-[14px] sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2">
+                    {selectedExteriorColor && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-text-muted">외장</span>
+                        <span
+                          aria-hidden
+                          className="h-4 w-4 shrink-0 rounded-full ring-1 ring-black/10"
+                          style={{ backgroundColor: selectedExteriorColor.hexCode }}
+                          title={selectedExteriorColor.hexCode}
+                        />
+                        <span className="font-bold text-text-strong">{selectedExteriorColor.name}</span>
+                      </span>
+                    )}
+                    {selectedInteriorColor && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-text-muted">내장</span>
+                        <span
+                          aria-hidden
+                          className="h-4 w-4 shrink-0 rounded-full ring-1 ring-black/10"
+                          style={{ backgroundColor: selectedInteriorColor.hexCode }}
+                          title={selectedInteriorColor.hexCode}
+                        />
+                        <span className="font-bold text-text-strong">{selectedInteriorColor.name}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 text-[14px] font-medium text-text-body">기본 사양</p>
+            )}
+          </div>
 
-          {selectedOptionDetails.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {selectedOptionDetails.map((o) => (
-                <span
-                  key={o.id}
-                  className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-[12px] font-bold text-text-body ring-[1px] ring-border-subtle"
-                >
-                  {o.name}
-                </span>
-              ))}
+          {/* 상품 / 계약기간 / 약정거리 — 카드형 3분할 */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-[14px] bg-surface-soft px-2.5 py-3 text-center">
+              <p className="text-[12px] font-bold text-text-muted">상품</p>
+              <p className="mt-1 text-[14.5px] font-extrabold leading-tight text-text-strong sm:text-[15px]">
+                {contractCategory}
+              </p>
             </div>
-          )}
-
-          {(selectedExteriorColor || selectedInteriorColor) && (
-            <div className="flex items-center gap-2 text-[13px] text-text-body">
-              {selectedExteriorColor && (
-                <>
-                  <span className="text-text-muted">외장</span>
-                  <span className="font-bold text-text-strong">{selectedExteriorColor.name}</span>
-                </>
-              )}
-              {selectedExteriorColor && selectedInteriorColor && <span className="text-text-muted">·</span>}
-              {selectedInteriorColor && (
-                <>
-                  <span className="text-text-muted">내장</span>
-                  <span className="font-bold text-text-strong">{selectedInteriorColor.name}</span>
-                </>
-              )}
+            <div className="rounded-[14px] bg-surface-soft px-2.5 py-3 text-center">
+              <p className="text-[12px] font-bold text-text-muted">계약기간</p>
+              <p className="num mt-1 text-[14.5px] font-extrabold leading-tight tabular-nums text-text-strong sm:text-[15px]">
+                {quoteResult.contractMonths}개월
+              </p>
             </div>
-          )}
-        </div>
-
-        <div className="my-4 h-[1px] bg-border-subtle" />
-
-        {/* 계약 조건 */}
-        <div className="grid grid-cols-3 gap-2">
-          <div>
-            <p className="text-[11px] text-text-muted">상품</p>
-            <p className="mt-0.5 text-[13.5px] font-bold text-text-strong">{contractCategory}</p>
+            <div className="rounded-[14px] bg-surface-soft px-2.5 py-3 text-center">
+              <p className="text-[12px] font-bold text-text-muted">약정거리</p>
+              <p className="num mt-1 text-[14.5px] font-extrabold leading-tight tabular-nums text-text-strong sm:text-[15px]">
+                연 {(quoteResult.annualMileage / 10000).toFixed(0)}만km
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] text-text-muted">계약기간</p>
-            <p className="mt-0.5 num text-[13.5px] font-bold text-text-strong tabular-nums">{quoteResult.contractMonths}개월</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-text-muted">약정거리</p>
-            <p className="mt-0.5 num text-[13.5px] font-bold text-text-strong tabular-nums">연 {(quoteResult.annualMileage / 10000).toFixed(0)}만km</p>
-          </div>
-        </div>
 
-        <div className="my-4 h-[1px] bg-border-subtle" />
-
-        <div className="flex items-center justify-between">
-          <span className="text-[12.5px] text-text-body">
-            {quoteResult.trimName ? "차량가 (트림 + 옵션)" : "차량가격"}
-          </span>
-          <span className="num text-[14px] font-extrabold text-text-strong tabular-nums">
-            {Math.round(totalVehiclePrice / 10_000).toLocaleString()}만원
-          </span>
+          {/* 총 차량가 — 강조 블록 */}
+          <div className="flex items-center justify-between gap-3 rounded-[16px] bg-brand-soft/70 px-4 py-3.5 ring-1 ring-brand/15">
+            <div className="min-w-0">
+              <p className="text-[12.5px] font-extrabold uppercase tracking-[0.06em] text-brand">
+                총 차량가
+              </p>
+              <p className="mt-0.5 text-[12.5px] font-medium text-text-muted">
+                {quoteResult.trimName ? "트림 + 옵션 포함" : "기준 차량가격"}
+              </p>
+            </div>
+            <p className="num shrink-0 text-[26px] font-extrabold tabular-nums leading-none text-brand sm:text-[28px]">
+              {Math.round(totalVehiclePrice / 10_000).toLocaleString()}
+              <span className="ml-0.5 text-[15px] font-bold">만원</span>
+            </p>
+          </div>
         </div>
       </div>
 
