@@ -28,14 +28,31 @@ const NAV_ITEMS: NavItem[] = [
  * - 펼침: 전체 메뉴바 위
  * - 축소: 중앙 FAB과 같은 바닥선(나란히)
  */
-const STACK_OFFSET_EXPANDED = "104px";
+/** 메뉴바(64) + 하단 패딩(10) + 여유(6) — 버튼과 메뉴 사이 간격 최소화 */
+const STACK_OFFSET_EXPANDED = "80px";
 const STACK_OFFSET_COLLAPSED = "10px";
 const CSS_VAR_STACK_OFFSET = "--bottom-nav-stack-offset";
 const CSS_VAR_NAV_COLLAPSED = "--bottom-nav-collapsed";
 
-/** 누적 스크롤이 이 값을 넘으면 접기/펼치기 */
-const SCROLL_ACCUM_THRESHOLD_PX = 24;
-const SCROLL_TOP_ALWAYS_EXPAND = 48;
+/** 스크롤 다운 누적이 이 값을 넘으면 접기 (중간 스크롤 업으로는 펼치지 않음) */
+const SCROLL_DOWN_COLLAPSE_THRESHOLD_PX = 20;
+/**
+ * 문서 최상단 근처에서만 자동 펼침.
+ * 중간에서 올리는 동작으로는 절대 펼치지 않는다.
+ */
+const SCROLL_TOP_ALWAYS_EXPAND = 12;
+/** 축소 FAB 지름 — sticky CTA 중앙 스페이서와 맞춤 */
+const FAB_SIZE_CLASS = "h-16 w-16";
+
+function getScrollY() {
+  if (typeof window === "undefined") return 0;
+  return (
+    window.scrollY ||
+    document.documentElement.scrollTop ||
+    document.body.scrollTop ||
+    0
+  );
+}
 
 function setStackOffset(collapsed: boolean) {
   if (typeof document === "undefined") return;
@@ -59,10 +76,9 @@ export function BottomNav() {
   const isHome = pathname === "/";
   const prefersReducedMotion = useReducedMotion();
   const [collapsed, setCollapsed] = useState(false);
+  const collapsedRef = useRef(false);
   const lastScrollY = useRef(0);
-  const accumDy = useRef(0);
-  const scrollRafPending = useRef(false);
-  const scrollRafId = useRef<number | null>(null);
+  const downAccum = useRef(0);
 
   const tapAnimation = prefersReducedMotion ? undefined : { scale: 0.96 };
   const springTransition: Transition | undefined = prefersReducedMotion
@@ -92,10 +108,15 @@ export function BottomNav() {
     pathname.startsWith("/reviews/write");
 
   const expand = useCallback(() => {
-    accumDy.current = 0;
-    lastScrollY.current = typeof window !== "undefined" ? window.scrollY : 0;
+    downAccum.current = 0;
+    lastScrollY.current = getScrollY();
+    collapsedRef.current = false;
     setCollapsed(false);
   }, []);
+
+  useEffect(() => {
+    collapsedRef.current = collapsed;
+  }, [collapsed]);
 
   useEffect(() => {
     if (hidden) {
@@ -108,55 +129,43 @@ export function BottomNav() {
   useEffect(() => {
     if (hidden) return;
 
-    lastScrollY.current = window.scrollY;
-    accumDy.current = 0;
-    setStackOffset(false);
+    lastScrollY.current = getScrollY();
+    downAccum.current = 0;
 
     const onScroll = () => {
-      // boolean 가드: 동기 rAF mock에서도 콜백 후 id 재할당으로 잠기지 않음
-      if (scrollRafPending.current) return;
-      scrollRafPending.current = true;
-      scrollRafId.current = window.requestAnimationFrame(() => {
-        scrollRafPending.current = false;
-        scrollRafId.current = null;
+      const y = getScrollY();
+      const dy = y - lastScrollY.current;
+      // 이벤트마다 lastY 갱신 — rAF 스로틀로 방향을 놓치지 않도록 동기 처리
+      lastScrollY.current = y;
 
-        const y = window.scrollY;
-        const dy = y - lastScrollY.current;
-        lastScrollY.current = y;
-
-        if (y <= SCROLL_TOP_ALWAYS_EXPAND) {
-          accumDy.current = 0;
-          setCollapsed(false);
-          return;
-        }
-
-        // 노이즈 무시
-        if (Math.abs(dy) < 1) return;
-
-        // 방향이 바뀌면 누적 리셋
-        if ((accumDy.current > 0 && dy < 0) || (accumDy.current < 0 && dy > 0)) {
-          accumDy.current = 0;
-        }
-        accumDy.current += dy;
-
-        if (accumDy.current >= SCROLL_ACCUM_THRESHOLD_PX) {
-          accumDy.current = 0;
-          setCollapsed(true);
-        } else if (accumDy.current <= -SCROLL_ACCUM_THRESHOLD_PX) {
-          accumDy.current = 0;
+      // 1) 문서 최상단 근처: 자동 펼침
+      if (y <= SCROLL_TOP_ALWAYS_EXPAND) {
+        downAccum.current = 0;
+        if (collapsedRef.current) {
+          collapsedRef.current = false;
           setCollapsed(false);
         }
-      });
+        return;
+      }
+
+      // 2) 스크롤 업(중간): 절대 펼치지 않음
+      if (dy <= 0) {
+        downAccum.current = 0;
+        return;
+      }
+
+      // 3) 스크롤 다운만 접기
+      downAccum.current += dy;
+      if (downAccum.current >= SCROLL_DOWN_COLLAPSE_THRESHOLD_PX && !collapsedRef.current) {
+        downAccum.current = 0;
+        collapsedRef.current = true;
+        setCollapsed(true);
+      }
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
-      if (scrollRafId.current !== null) {
-        window.cancelAnimationFrame(scrollRafId.current);
-        scrollRafId.current = null;
-      }
-      scrollRafPending.current = false;
       clearStackOffset();
     };
   }, [hidden]);
@@ -299,19 +308,20 @@ export function BottomNav() {
                 onClick={expand}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.92 }}
                 className={cn(
-                  "relative flex h-12 w-12 items-center justify-center rounded-full",
+                  "relative flex items-center justify-center rounded-full",
+                  FAB_SIZE_CLASS,
                   "border border-border-subtle bg-surface-glass text-text-strong shadow-mobile-float",
                   "backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150",
                   "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
                 )}
               >
-                <span className="absolute inset-0 rounded-full bg-brand-soft/40" aria-hidden />
-                <ActiveIcon size={18} strokeWidth={2.2} className="relative z-10 text-brand" />
+                <span className="absolute inset-0 rounded-full bg-brand-soft/45" aria-hidden />
+                <ActiveIcon size={24} strokeWidth={2.2} className="relative z-10 text-brand" />
                 <span
-                  className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-white shadow-sm"
+                  className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white shadow-sm"
                   aria-hidden
                 >
-                  <Menu size={10} strokeWidth={2.6} />
+                  <Menu size={12} strokeWidth={2.6} />
                 </span>
               </motion.button>
             </motion.div>

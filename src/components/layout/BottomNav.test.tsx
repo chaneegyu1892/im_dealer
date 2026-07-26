@@ -98,7 +98,7 @@ describe("BottomNav scroll collapse", () => {
     expect(screen.getByLabelText("홈")).toBeInTheDocument();
     expect(screen.getByLabelText("차량 탐색")).toBeInTheDocument();
     expect(document.documentElement.style.getPropertyValue("--bottom-nav-stack-offset")).toBe(
-      "104px",
+      "80px",
     );
   });
 
@@ -121,7 +121,7 @@ describe("BottomNav scroll collapse", () => {
     );
   });
 
-  it("축소 후 스크롤을 올리면 메뉴가 다시 펼쳐진다", () => {
+  it("중간에서 스크롤을 올려도 메뉴는 접힌 채 유지된다", () => {
     render(<BottomNav />);
 
     act(() => {
@@ -137,11 +137,53 @@ describe("BottomNav scroll collapse", () => {
 
     expect(screen.getByRole("navigation", { name: "하단 메뉴" })).toHaveAttribute(
       "data-collapsed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "메뉴 열기" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("홈")).not.toBeInTheDocument();
+  });
+
+  it("중간에서 조금 올려도 펼쳐지지 않고, 최상단(≤12px)에서만 펼쳐진다", () => {
+    render(<BottomNav />);
+
+    act(() => {
+      setScrollY(300);
+      fireEvent.scroll(window);
+    });
+    expect(screen.getByRole("button", { name: "메뉴 열기" })).toBeInTheDocument();
+
+    // 중간 구간으로 올림 → 여전히 접힘
+    act(() => {
+      setScrollY(120);
+      fireEvent.scroll(window);
+    });
+    expect(screen.getByRole("navigation", { name: "하단 메뉴" })).toHaveAttribute(
+      "data-collapsed",
+      "true",
+    );
+
+    act(() => {
+      setScrollY(40);
+      fireEvent.scroll(window);
+    });
+    expect(screen.getByRole("navigation", { name: "하단 메뉴" })).toHaveAttribute(
+      "data-collapsed",
+      "true",
+    );
+
+    // 거의 끝(최상단)까지 올림 → 펼침
+    act(() => {
+      setScrollY(8);
+      fireEvent.scroll(window);
+    });
+
+    expect(screen.getByRole("navigation", { name: "하단 메뉴" })).toHaveAttribute(
+      "data-collapsed",
       "false",
     );
     expect(screen.getByLabelText("홈")).toBeInTheDocument();
     expect(document.documentElement.style.getPropertyValue("--bottom-nav-stack-offset")).toBe(
-      "104px",
+      "80px",
     );
   });
 

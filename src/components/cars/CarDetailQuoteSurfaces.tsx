@@ -57,6 +57,12 @@ export function MobileQuoteSummary({
   );
 }
 
+const consultBtnClass =
+  "h-14 max-w-full shrink-0 gap-1.5 rounded-full border border-line bg-surface/95 px-5 text-[15px] font-extrabold text-ink shadow-[0_2px_12px_rgb(var(--color-text-strong-rgb)/0.08)] backdrop-blur-md hover:bg-surface-muted hover:opacity-100";
+
+const quoteBtnClass =
+  "inline-flex h-14 max-w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-brand px-5 text-[15px] font-extrabold text-white shadow-[0_2px_12px_rgb(var(--color-text-strong-rgb)/0.12)] transition-colors duration-150 hover:bg-brand-pressed";
+
 function MobileStickyQuoteBar({
   vehicleName,
   vehicleSlug,
@@ -69,6 +75,8 @@ function MobileStickyQuoteBar({
   const hasQuote = hasRepresentativeQuote(quotes);
   const prefersReducedMotion = useReducedMotion();
   const [hasScrolledPastSummary, setHasScrolledPastSummary] = useState(false);
+  /** BottomNav 축소 여부 — 펼침일 때 CTA를 우측 정렬 */
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const showStickyDock = hasScrolledPastSummary;
 
   useEffect(() => {
@@ -97,6 +105,34 @@ function MobileStickyQuoteBar({
     };
   }, []);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    const syncNavCollapsed = () => {
+      // dataset 없으면 펼침(기본 메뉴바)으로 본다
+      setNavCollapsed(root.dataset.bottomNavCollapsed === "true");
+    };
+    syncNavCollapsed();
+    const observer = new MutationObserver(syncNavCollapsed);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-bottom-nav-collapsed"] });
+    return () => observer.disconnect();
+  }, []);
+
+  const quoteLink = (
+    <Link href={`/quote?vehicle=${vehicleSlug}`} className={quoteBtnClass}>
+      <Calculator size={17} strokeWidth={2.3} />
+      견적 내기
+    </Link>
+  );
+
+  const consultButton = hasQuote ? (
+    <ChannelTalkButton
+      vehicleName={vehicleName}
+      label="상담"
+      size="sm"
+      className={consultBtnClass}
+    />
+  ) : null;
+
   return (
     <AnimatePresence initial={false}>
       {showStickyDock && (
@@ -104,48 +140,29 @@ function MobileStickyQuoteBar({
           key="mobile-sticky-quote-dock"
           className="mobile-sticky-quote-dock fixed left-0 right-0 z-40 px-3 lg:hidden"
           style={{
-            // 축소: FAB과 같은 바닥선(나란히) / 펼침: 메뉴바 위로 부드럽게 상승
+            // 축소: 중앙 FAB과 같은 바닥선 / 펼침: 메뉴바 위로 상승
             bottom:
-              "calc(var(--bottom-nav-stack-offset, 104px) + env(safe-area-inset-bottom, 0px))",
+              "calc(var(--bottom-nav-stack-offset, 80px) + env(safe-area-inset-bottom, 0px))",
           }}
           initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={prefersReducedMotion ? { opacity: 0, y: 0 } : { opacity: 0, y: 8 }}
           transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
         >
-          {/*
-            메뉴 FAB(중앙 48px) 오른쪽 옆까지 채움.
-            폭 = 화면 절반 − FAB 반쪽(24) − 간격(8) − 우측 패딩 보정 ≈ calc(50% - 2.75rem)
-          */}
-          <div className="flex justify-end">
-            <div className="flex w-[calc(50%-2.75rem)] min-w-[160px] items-center gap-1.5 rounded-[12px] border border-line bg-surface/95 p-1.5 shadow-[0_-2px_16px_rgb(var(--color-text-strong-rgb)/0.1)] backdrop-blur-md">
-              {hasQuote ? (
-                <>
-                  <ChannelTalkButton
-                    vehicleName={vehicleName}
-                    label="상담"
-                    size="sm"
-                    className="h-10 min-w-0 flex-1 gap-1 rounded-[10px] border border-line bg-surface px-2 text-[12px] font-extrabold text-ink hover:bg-surface-muted hover:opacity-100"
-                  />
-                  <Link
-                    href={`/quote?vehicle=${vehicleSlug}`}
-                    className="inline-flex h-10 min-w-0 flex-[1.2] items-center justify-center gap-1 rounded-[10px] bg-brand px-2 text-[12px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
-                  >
-                    <Calculator size={13} strokeWidth={2.3} />
-                    견적 내기
-                  </Link>
-                </>
-              ) : (
-                <Link
-                  href={`/quote?vehicle=${vehicleSlug}`}
-                  className="inline-flex h-10 w-full items-center justify-center gap-1 rounded-[10px] bg-brand px-2 text-[12px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
-                >
-                  <Calculator size={13} strokeWidth={2.3} />
-                  견적 내기
-                </Link>
-              )}
+          {navCollapsed ? (
+            /* 축소: 점 기준 왼쪽 상담 · 오른쪽 견적 */
+            <div className="mx-auto grid max-w-[480px] grid-cols-[1fr_4rem_1fr] items-center gap-2">
+              <div className="flex min-w-0 justify-end">{consultButton}</div>
+              <div className="h-16 w-16 shrink-0" aria-hidden />
+              <div className="flex min-w-0 justify-start">{quoteLink}</div>
             </div>
-          </div>
+          ) : (
+            /* 펼침: 상담 + 견적 모두 우측 정렬, 메뉴바와 가깝게 */
+            <div className="mx-auto flex max-w-[480px] items-center justify-end gap-2.5">
+              {consultButton}
+              {quoteLink}
+            </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

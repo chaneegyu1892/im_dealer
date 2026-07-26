@@ -117,7 +117,7 @@
     --scrollbar-thumb-hover: rgba(0,0,0,0.15);
     --mobile-fixed-action-height: 88px;
     /* BottomNav 펼침 높이(safe-area 제외). 축소 시 JS가 10px(FAB 나란히)로 갱신 */
-    --bottom-nav-stack-offset: 104px;
+    --bottom-nav-stack-offset: 80px;
     --bottom-nav-collapsed: 0;
   }
 
