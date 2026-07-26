@@ -27,8 +27,6 @@ export function CustomerReviewsSection({
   forceBestBadge = false,
 }: CustomerReviewsSectionProps) {
   const items = reviews.slice(0, 10);
-  const setWidth = items.length * STEP;
-
   const trackRef = useRef<HTMLDivElement>(null);
   const positionRef = useRef(0);
   const [openReview, setOpenReview] = useState<PublicReview | null>(null);
@@ -37,12 +35,30 @@ export function CustomerReviewsSection({
     const el = trackRef.current;
     if (!el || items.length === 0) return;
     el.style.transition = "transform 260ms cubic-bezier(0.16, 1, 0.3, 1)";
+
+    const resetPosition = () => {
+      positionRef.current = 0;
+      el.style.transform = "translate3d(0, 0, 0)";
+    };
+
+    window.addEventListener("resize", resetPosition);
+    return () => window.removeEventListener("resize", resetPosition);
   }, [items.length]);
 
   if (items.length === 0) return null;
 
   const nudge = (delta: number) => {
-    let next = positionRef.current + delta;
+    const track = trackRef.current;
+    const firstCard = track?.children[0] as HTMLElement | undefined;
+    const secondCard = track?.children[1] as HTMLElement | undefined;
+    const measuredStep =
+      firstCard && secondCard ? secondCard.offsetLeft - firstCard.offsetLeft : 0;
+    const fallbackStep = (firstCard?.offsetWidth || CARD_WIDTH) + CARD_GAP;
+    const renderedStep = measuredStep > 0 ? measuredStep : fallbackStep;
+    const direction = Math.sign(delta) || 1;
+    const step = renderedStep * direction;
+    const setWidth = items.length * renderedStep;
+    let next = positionRef.current + step;
     while (next <= -setWidth) next += setWidth;
     while (next > 0) next -= setWidth;
     positionRef.current = next;
@@ -53,13 +69,13 @@ export function CustomerReviewsSection({
 
   return (
     <section className="mx-auto w-full max-w-[1120px] px-4 py-14 sm:px-5">
-      <div className="mb-7 flex items-end justify-between gap-4">
+      <div className="mb-7 flex items-end justify-between gap-4 max-[340px]:flex-col max-[340px]:items-start max-[340px]:gap-2">
         <div>
           <div className="mb-2 inline-flex items-center gap-1.5 text-[12.5px] font-extrabold uppercase tracking-[0.08em] text-brand">
             <Star size={13} className="fill-status-warning text-status-warning" />
             {sectionLabel}
           </div>
-          <h2 className="text-[27px] font-extrabold leading-[1.25] text-text-strong md:text-[32px]">{title}</h2>
+          <h2 className="break-keep text-[27px] font-extrabold leading-[1.25] text-text-strong max-[340px]:text-[25px] md:text-[32px]">{title}</h2>
         </div>
         <Link
           href="/reviews"
@@ -70,7 +86,7 @@ export function CustomerReviewsSection({
         </Link>
       </div>
 
-      <div className="group/reviews relative -mx-4 overflow-hidden px-4 py-4 sm:-mx-5 sm:px-5">
+      <div className="group/reviews relative -mx-4 overflow-hidden px-4 py-4 max-[340px]:pb-[72px] sm:-mx-5 sm:px-5">
         <div
           ref={trackRef}
           className="flex w-max will-change-transform"
@@ -91,7 +107,7 @@ export function CustomerReviewsSection({
           type="button"
           aria-label="이전 후기"
           onClick={() => nudge(STEP)}
-          className="absolute left-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-surface/80 text-text-strong opacity-100 shadow-card backdrop-blur-sm transition-all duration-state hover:scale-105 hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 sm:opacity-0 sm:group-hover/reviews:opacity-100"
+          className="absolute left-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-surface/80 text-text-strong opacity-100 shadow-card backdrop-blur-sm transition-all duration-state hover:scale-105 hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 max-[340px]:bottom-3 max-[340px]:top-auto max-[340px]:translate-y-0 sm:opacity-0 sm:group-hover/reviews:opacity-100"
         >
           <ChevronLeft size={18} />
         </button>
@@ -99,7 +115,7 @@ export function CustomerReviewsSection({
           type="button"
           aria-label="다음 후기"
           onClick={() => nudge(-STEP)}
-          className="absolute right-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-surface/80 text-text-strong opacity-100 shadow-card backdrop-blur-sm transition-all duration-state hover:scale-105 hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 sm:opacity-0 sm:group-hover/reviews:opacity-100"
+          className="absolute right-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-surface/80 text-text-strong opacity-100 shadow-card backdrop-blur-sm transition-all duration-state hover:scale-105 hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 max-[340px]:bottom-3 max-[340px]:top-auto max-[340px]:translate-y-0 sm:opacity-0 sm:group-hover/reviews:opacity-100"
         >
           <ChevronRight size={18} />
         </button>

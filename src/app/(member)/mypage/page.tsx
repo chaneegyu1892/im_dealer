@@ -21,8 +21,9 @@ import { requireMember } from "@/lib/require-access";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "마이페이지 | 아임딜러",
+  title: "마이페이지",
   description: "저장한 견적과 상담 진행 상황을 확인하세요.",
+  robots: { index: false, follow: false, nocache: true },
 };
 
 const moneyFormatter = new Intl.NumberFormat("ko-KR");

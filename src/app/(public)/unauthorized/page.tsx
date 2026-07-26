@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Home, LogIn, ShieldAlert } from "lucide-react";
 
 export const metadata = {
-  title: "접근 권한 없음 | 아임딜러",
+  title: "접근 권한 없음",
+  robots: { index: false, follow: false, nocache: true },
 };
 
 export default function UnauthorizedPage() {

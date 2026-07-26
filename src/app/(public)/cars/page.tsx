@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import type { VehicleListItem } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
@@ -15,6 +16,14 @@ import {
   resolvePublicListThumbnailUrl,
 } from "@/lib/vehicle-images/public";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
+import { createPageMetadata } from "@/lib/site-config";
+
+export const metadata: Metadata = createPageMetadata({
+  title: "장기렌트·리스 차량 견적 비교",
+  description:
+    "현대·기아·제네시스 등 장기렌트·리스 차량의 월 납입금과 초기 비용을 차종별로 비교해 보세요.",
+  path: "/cars",
+});
 
 type CarsPageProps = {
   readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;

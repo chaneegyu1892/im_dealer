@@ -92,11 +92,11 @@ export function CarDetailHero({
               )}
             </div>
 
-            <h1 className="mb-3 max-w-3xl break-keep text-[34px] font-extrabold leading-[1.08] text-white drop-shadow-md md:text-[56px]">
+            <h1 className="mb-3 max-w-3xl break-keep text-[34px] font-extrabold leading-[1.08] text-white drop-shadow-md max-[340px]:text-[30px] md:text-[56px]">
               {vehicle.name}
             </h1>
             {vehicle.description && (
-              <p className="max-w-xl text-[15px] leading-relaxed text-white/75 md:text-[16px]">
+              <p className="max-w-xl text-[15px] leading-relaxed text-white/75 max-[340px]:text-[14px] md:text-[16px]">
                 {vehicle.description}
               </p>
             )}

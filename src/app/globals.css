@@ -116,6 +116,20 @@
     --scrollbar-thumb: rgba(0,0,0,0.08);
     --scrollbar-thumb-hover: rgba(0,0,0,0.15);
     --mobile-fixed-action-height: 88px;
+    /* BottomNav 펼침 높이(safe-area 제외). 축소 시 JS가 10px(FAB 나란히)로 갱신 */
+    --bottom-nav-stack-offset: 104px;
+    --bottom-nav-collapsed: 0;
+  }
+
+  /* 메뉴 접힘/펼침에 맞춰 sticky CTA bottom 을 부드럽게 이동 */
+  .mobile-sticky-quote-dock {
+    transition: bottom 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-sticky-quote-dock {
+      transition: none;
+    }
   }
 
   body {
@@ -488,5 +502,26 @@
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
+
+/* 폴드 커버처럼 340px 이하인 화면은 본문 가독성을 유지하고 가로 여백만 압축한다. */
+@media (max-width: 340px) {
+  .page-container,
+  .t-shell,
+  .t-shell-wide {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .t-h1 {
+    font-size: 25px;
+    line-height: 1.28;
+  }
+
+  .dock,
+  .public-fixed-action {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 }

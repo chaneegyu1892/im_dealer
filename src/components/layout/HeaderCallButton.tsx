@@ -37,7 +37,7 @@ export function HeaderCallButton() {
       {open && (
         <div
           id="header-call-panel"
-          className="absolute right-0 top-full z-50 mt-2 w-60 rounded-card border border-border-subtle bg-surface-raised p-4 shadow-mobile-float"
+          className="absolute right-0 top-full z-50 mt-2 w-60 rounded-card border border-border-subtle bg-surface-raised p-4 shadow-mobile-float max-[340px]:-right-12"
         >
           <p className="text-[12px] font-bold text-text-muted">대표전화</p>
           <p className="mt-1 text-[22px] font-extrabold tracking-[-0.02em] text-text-strong">

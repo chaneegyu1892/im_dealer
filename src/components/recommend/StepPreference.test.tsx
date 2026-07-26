@@ -73,6 +73,14 @@ describe("StepPreference", () => {
     expect(within(situationSection).getByRole("button", { name: /해당 없음/ }).querySelector("svg")).not.toBeNull();
   });
 
+  it("좁은 화면에서도 선택 개수 배지를 한 줄로 유지한다", () => {
+    renderStepPreference();
+
+    for (const badge of screen.getAllByText("1개 선택")) {
+      expect(badge).toHaveClass("shrink-0", "whitespace-nowrap");
+    }
+  });
+
   it("심화 질문에서 해당 없음을 고르면 추가 질문을 보여주지 않는다", () => {
     renderStepPreference({
       simpleValue: "low-running-cost",

@@ -24,9 +24,9 @@ export function CarCard({ vehicle }: CarCardProps) {
     >
       <Link
         href={`/cars/${vehicle.slug}`}
-        className="group flex min-h-[180px] items-stretch overflow-hidden rounded-card border border-border-subtle bg-surface-soft p-3 transition-all duration-state hover:-translate-y-0.5 hover:border-brand/40 hover:bg-surface-raised hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 lg:min-h-[236px] lg:p-4"
+        className="group flex min-h-[180px] items-stretch overflow-hidden rounded-card border border-border-subtle bg-surface-soft p-3 transition-all duration-state hover:-translate-y-0.5 hover:border-brand/40 hover:bg-surface-raised hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 max-[340px]:min-h-[164px] max-[340px]:p-2.5 lg:min-h-[236px] lg:p-4"
       >
-        <div className="flex w-[44%] min-w-[132px] max-w-[216px] shrink-0 flex-col lg:w-[46%] lg:min-w-[208px] lg:max-w-[248px] xl:min-w-[220px]">
+        <div className="flex w-[44%] min-w-[132px] max-w-[216px] shrink-0 flex-col max-[340px]:w-[42%] max-[340px]:min-w-[100px] max-[340px]:max-w-[112px] lg:w-[46%] lg:min-w-[208px] lg:max-w-[248px] xl:min-w-[220px]">
           <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-card bg-surface">
             {vehicle.thumbnailUrl ? (
               <Image
@@ -61,7 +61,7 @@ export function CarCard({ vehicle }: CarCardProps) {
               {points.map((point) => (
                 <span
                   key={point}
-                  className="max-w-full truncate rounded-pill bg-brand-soft px-2 py-1 text-[10.5px] font-extrabold leading-none text-brand lg:px-2.5 lg:py-1.5 lg:text-[12px]"
+                  className="max-w-full truncate rounded-pill bg-brand-soft px-2 py-1 text-[10.5px] font-extrabold leading-none text-brand max-[340px]:px-1.5 max-[340px]:text-[10px] lg:px-2.5 lg:py-1.5 lg:text-[12px]"
                 >
                   {point}
                 </span>
@@ -70,9 +70,9 @@ export function CarCard({ vehicle }: CarCardProps) {
           )}
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col py-0.5 pl-4 xl:pl-5">
-          <p className="truncate text-[12px] font-bold text-text-muted lg:text-[14px]">{vehicle.brand}</p>
-          <h3 className="mt-0.5 line-clamp-2 text-[20px] font-extrabold leading-tight text-text-strong transition-colors group-hover:text-brand lg:text-[24px] xl:text-[26px]">
+        <div className="flex min-w-0 flex-1 flex-col py-0.5 pl-4 max-[340px]:pl-2.5 xl:pl-5">
+          <p className="truncate text-[12px] font-bold text-text-muted max-[340px]:text-[11px] lg:text-[14px]">{vehicle.brand}</p>
+          <h3 className="mt-0.5 line-clamp-2 text-[20px] font-extrabold leading-tight text-text-strong transition-colors group-hover:text-brand max-[340px]:text-[17px] lg:text-[24px] xl:text-[26px]">
             {vehicle.name}
           </h3>
 
@@ -84,8 +84,8 @@ export function CarCard({ vehicle }: CarCardProps) {
               showCaption={false}
               align="end"
               className="w-full"
-              numberClassName="text-[30px] lg:text-[36px] xl:text-[38px]"
-              unitClassName="text-[14px] font-bold lg:text-[15px]"
+              numberClassName="text-[30px] max-[340px]:text-[25px] lg:text-[36px] xl:text-[38px]"
+              unitClassName="text-[14px] font-bold max-[340px]:text-[12px] lg:text-[15px]"
             />
             <p className="mt-1 break-keep text-right text-[10.5px] font-medium leading-tight text-text-muted lg:text-[12px]">
               60개월 · 연 2만km · 무보증

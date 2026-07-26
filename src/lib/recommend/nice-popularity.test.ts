@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  NICE_POPULARITY_FUEL_TYPES,
+  getNiceModelRankingUrl,
   parseNiceModelRankingHtml,
   resolveNiceModelRankingEntries,
+  type NicePopularityFuelType,
   type NiceModelRankingEntry,
 } from "./nice-popularity";
 
@@ -31,6 +34,15 @@ function rankingHtml(rows: readonly string[]): string {
 }
 
 describe("NICE 공개 모델 순위 파서", () => {
+  it.each(NICE_POPULARITY_FUEL_TYPES)("%s 신차 연료 순위 URL을 만든다", (fuelType) => {
+    const url = new URL(getNiceModelRankingUrl(fuelType as NicePopularityFuelType));
+
+    expect(url.origin + url.pathname).toBe("https://www.nicebluemark.co.kr/stat/model");
+    expect(url.searchParams.get("filterKind")).toBe("fuelType");
+    expect(url.searchParams.get("filterValue")).toBe(fuelType);
+    expect(url.searchParams.get("regGb")).toBe("new");
+  });
+
   it("30개 연속 순위와 공개 수치를 안전하게 읽는다", () => {
     const html = rankingHtml(Array.from({ length: 30 }, (_, index) => rankingRow(index + 1, {
       ...(index === 0 ? { brand: "테슬라", model: "모델 Y", registrationCount: 9_188, sharePct: 0.058, momPct: -0.049 } : {}),
@@ -70,6 +82,32 @@ describe("NICE 공개 모델 순위 파서", () => {
       "tesla-11738",
       "kia-11573",
       null,
+    ]);
+  });
+
+  it("연료별 순위에서 확인된 한글·영문 세대 표기를 명시적 alias로 연결한다", () => {
+    const entries: NiceModelRankingEntry[] = [
+      { rank: 1, brand: "기아", model: "더 뉴K8 하이브리드", registrationCount: 1_000, sharePct: 0.1, momPct: 0 },
+      { rank: 2, brand: "BMW", model: "X3(4세대)", registrationCount: 900, sharePct: 0.09, momPct: 0 },
+      { rank: 3, brand: "벤츠", model: "GLC클래스(2세대)", registrationCount: 800, sharePct: 0.08, momPct: 0 },
+      { rank: 4, brand: "기아", model: "EV4", registrationCount: 700, sharePct: 0.07, momPct: 0 },
+      { rank: 5, brand: "현대", model: "더 뉴스타리아 일렉트릭", registrationCount: 600, sharePct: 0.06, momPct: 0 },
+    ];
+
+    const resolved = resolveNiceModelRankingEntries(entries, [
+      { slug: "kia-k8-hev", brand: "기아", name: "The New K8 HEV" },
+      { slug: "bmw-x3", brand: "BMW", name: "New X3" },
+      { slug: "benz-glc", brand: "벤츠", name: "The New GLC-Class" },
+      { slug: "kia-ev4", brand: "기아", name: "더 EV4" },
+      { slug: "hyundai-staria-ev", brand: "현대", name: "더 뉴 스타리아 EV" },
+    ]);
+
+    expect(resolved.map((entry) => entry.vehicleSlug)).toEqual([
+      "kia-k8-hev",
+      "bmw-x3",
+      "benz-glc",
+      "kia-ev4",
+      "hyundai-staria-ev",
     ]);
   });
 });

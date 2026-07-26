@@ -46,6 +46,7 @@ describe("Header 대표전화", () => {
     fireEvent.click(trigger);
 
     expect(screen.getByText("대표전화")).toBeInTheDocument();
+    expect(screen.getByText("대표전화").parentElement).toHaveClass("max-[340px]:-right-12");
     expect(screen.getByText("1688-8479")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "1688-8479 전화 걸기" })).toHaveAttribute(
       "href",

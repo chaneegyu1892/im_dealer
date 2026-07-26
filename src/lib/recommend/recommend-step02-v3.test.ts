@@ -114,7 +114,7 @@ describe("recommendStep02V3FromSnapshot", () => {
     ]);
   });
 
-  it("uses the injected latest popularity snapshot as the top-30 boundary", () => {
+  it("uses the injected latest popularity snapshot as the popularity pool boundary", () => {
     const result = recommendStep02V3FromSnapshot(baseInput, snapshot([
       vehicle("kia-11573", "디 올 뉴 팰리세이드", "가솔린"),
       vehicle("kia-11606", "더 뉴 카니발", "가솔린"),
@@ -131,7 +131,7 @@ describe("recommendStep02V3FromSnapshot", () => {
       registrationCount: 5_522,
     });
     expect(result.diagnostics.find((item) => item.slug === "kia-11573")?.status)
-      .toBe("not_in_popularity_top_30");
+      .toBe("not_in_popularity_pool");
   });
 
   it("uses fuel as a hard filter and keeps GT/N document vehicles eligible", () => {
@@ -255,14 +255,14 @@ describe("recommendStep02V3FromSnapshot", () => {
     ]);
   });
 
-  it("excludes document-matched vehicles that are outside the approved top 30", () => {
+  it("excludes document-matched vehicles that are outside the approved popularity pool", () => {
     const result = recommendStep02V3FromSnapshot(baseInput, snapshot([
       vehicle("not-ranked", "더 뉴 카니발", "가솔린"),
     ]));
 
     expect(result.vehicles).toEqual([]);
     expect(result.diagnostics).toEqual([
-      { slug: "not-ranked", status: "not_in_popularity_top_30" },
+      { slug: "not-ranked", status: "not_in_popularity_pool" },
     ]);
   });
 });

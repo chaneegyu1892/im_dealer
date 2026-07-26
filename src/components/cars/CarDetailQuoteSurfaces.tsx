@@ -70,7 +70,6 @@ function MobileStickyQuoteBar({
   const prefersReducedMotion = useReducedMotion();
   const [hasScrolledPastSummary, setHasScrolledPastSummary] = useState(false);
   const showStickyDock = hasScrolledPastSummary;
-  const showDockSummary = hasQuote;
 
   useEffect(() => {
     let animationFrameId: number | null = null;
@@ -103,56 +102,49 @@ function MobileStickyQuoteBar({
       {showStickyDock && (
         <motion.div
           key="mobile-sticky-quote-dock"
-          className="fixed left-0 right-0 z-40 px-3 lg:hidden"
-          style={{ bottom: "calc(104px + env(safe-area-inset-bottom, 0px))" }}
-          initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
+          className="mobile-sticky-quote-dock fixed left-0 right-0 z-40 px-3 lg:hidden"
+          style={{
+            // 축소: FAB과 같은 바닥선(나란히) / 펼침: 메뉴바 위로 부드럽게 상승
+            bottom:
+              "calc(var(--bottom-nav-stack-offset, 104px) + env(safe-area-inset-bottom, 0px))",
+          }}
+          initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={prefersReducedMotion ? { opacity: 0, y: 0 } : { opacity: 0, y: 12 }}
-          transition={{ duration: prefersReducedMotion ? 0 : 0.2, ease: "easeOut" }}
+          exit={prefersReducedMotion ? { opacity: 0, y: 0 } : { opacity: 0, y: 8 }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
         >
-          <div className="rounded-[18px] border border-line bg-surface/95 p-3 shadow-[0_-2px_24px_rgb(var(--color-text-strong-rgb)/0.12)] backdrop-blur-md">
-            {showDockSummary && (
-              <div className="mb-3 min-w-0 px-1">
-                <RepresentativeQuotePrice
-                  quotes={quotes}
-                  tone="brand"
-                  size="sm"
-                  captionText="60개월 · 연 2만km · 무보증"
-                  captionClassName="text-[10.5px]"
-                  className="min-w-0"
-                />
-              </div>
-            )}
-            {hasQuote ? (
-              <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.25fr)] gap-2">
-                <ChannelTalkButton
-                  vehicleName={vehicleName}
-                  label="상담"
-                  size="sm"
-                  className="min-h-[48px] w-full rounded-btn border border-line bg-surface px-3 py-2 text-[14px] font-extrabold text-ink hover:bg-surface-muted hover:opacity-100"
-                />
+          {/*
+            메뉴 FAB(중앙 48px) 오른쪽 옆까지 채움.
+            폭 = 화면 절반 − FAB 반쪽(24) − 간격(8) − 우측 패딩 보정 ≈ calc(50% - 2.75rem)
+          */}
+          <div className="flex justify-end">
+            <div className="flex w-[calc(50%-2.75rem)] min-w-[160px] items-center gap-1.5 rounded-[12px] border border-line bg-surface/95 p-1.5 shadow-[0_-2px_16px_rgb(var(--color-text-strong-rgb)/0.1)] backdrop-blur-md">
+              {hasQuote ? (
+                <>
+                  <ChannelTalkButton
+                    vehicleName={vehicleName}
+                    label="상담"
+                    size="sm"
+                    className="h-10 min-w-0 flex-1 gap-1 rounded-[10px] border border-line bg-surface px-2 text-[12px] font-extrabold text-ink hover:bg-surface-muted hover:opacity-100"
+                  />
+                  <Link
+                    href={`/quote?vehicle=${vehicleSlug}`}
+                    className="inline-flex h-10 min-w-0 flex-[1.2] items-center justify-center gap-1 rounded-[10px] bg-brand px-2 text-[12px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
+                  >
+                    <Calculator size={13} strokeWidth={2.3} />
+                    견적 내기
+                  </Link>
+                </>
+              ) : (
                 <Link
                   href={`/quote?vehicle=${vehicleSlug}`}
-                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-btn bg-brand px-3 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
+                  className="inline-flex h-10 w-full items-center justify-center gap-1 rounded-[10px] bg-brand px-2 text-[12px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
                 >
-                  <Calculator size={16} strokeWidth={2.3} />
+                  <Calculator size={13} strokeWidth={2.3} />
                   견적 내기
                 </Link>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="px-1 text-[12px] font-medium leading-relaxed text-ink-label">
-                  조건을 선택하면 상담 필요 여부를 바로 확인할 수 있어요.
-                </p>
-                <Link
-                  href={`/quote?vehicle=${vehicleSlug}`}
-                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-btn bg-brand px-3 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
-                >
-                  <Calculator size={16} strokeWidth={2.3} />
-                  견적 내기
-                </Link>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </motion.div>
       )}

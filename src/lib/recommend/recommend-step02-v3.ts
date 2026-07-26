@@ -68,7 +68,7 @@ interface Step02V3RuntimeCandidate {
 
 export interface Step02V3EligibilityDiagnostic {
   readonly slug: string;
-  readonly status: OperationalEligibilityStatus | "not_in_document" | "not_in_popularity_top_30" | "style_mismatch" | "fuel_mismatch" | "outside_budget_range";
+  readonly status: OperationalEligibilityStatus | "not_in_document" | "not_in_popularity_pool" | "style_mismatch" | "fuel_mismatch" | "outside_budget_range";
 }
 
 export interface Step02V3RecommendationRun {
@@ -262,7 +262,7 @@ export function recommendStep02V3FromSnapshot(
     }
     const popularity = popularityLookup(vehicle.slug);
     if (popularity.rank === null) {
-      diagnostics.push({ slug: vehicle.slug, status: "not_in_popularity_top_30" });
+      diagnostics.push({ slug: vehicle.slug, status: "not_in_popularity_pool" });
       continue;
     }
     const styleLevel = getStep02V3StyleLevel(input.stylePreference, vehicle.name);
@@ -377,7 +377,7 @@ export async function recommendStep02V3(
 ): Promise<Step02V3RecommendedVehicle[]> {
   const [snapshot, popularityLookup] = await Promise.all([
     loadOverlapCandidateSnapshot(),
-    loadCurrentPopularityEvidenceLookup(),
+    loadCurrentPopularityEvidenceLookup(input.fuelPreference),
   ]);
   const vehicles = recommendStep02V3FromSnapshot(
     input,

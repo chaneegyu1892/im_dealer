@@ -24,14 +24,14 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
 
   return (
     <section className="bg-white">
-      <div className="mx-auto w-full max-w-[1120px] px-5 pb-10 pt-10 md:px-8 md:pb-16 md:pt-20">
+      <div className="mx-auto w-full max-w-[1120px] px-5 pb-10 pt-10 max-[340px]:px-4 max-[340px]:pt-8 md:px-8 md:pb-16 md:pt-20">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.9fr)] lg:items-center lg:gap-16">
           {/* 좌측: 카피 + CTA + 검색 */}
           <div className="min-w-0">
             <p className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-[12.5px] font-bold text-brand">
               장기렌트 · 리스 견적 플랫폼
             </p>
-            <h1 className="max-w-[560px] break-keep text-[34px] font-extrabold leading-[1.15] tracking-[-0.04em] text-text-strong md:text-[52px] md:leading-[1.1]">
+            <h1 className="max-w-[560px] break-keep text-[34px] font-extrabold leading-[1.15] tracking-[-0.04em] text-text-strong max-[340px]:text-[30px] md:text-[52px] md:leading-[1.1]">
               차를 고르기 전에
               <br />
               조건부터 분명하게
@@ -45,14 +45,14 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
             <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
               <Link
                 href="/recommend"
-                className="flex h-[56px] w-[180px] items-center justify-center gap-2 rounded-[14px] bg-brand px-3 text-[16px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99] md:text-[17px]"
+                className="flex h-[56px] w-[180px] items-center justify-center gap-2 rounded-[14px] bg-brand px-3 text-[16px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99] max-[340px]:w-full md:text-[17px]"
               >
                 AI 추천 받기
                 <ArrowRight size={17} strokeWidth={2.4} />
               </Link>
               <Link
                 href="/cars"
-                className="flex h-[56px] w-[180px] items-center justify-center gap-2 rounded-[14px] bg-[#F8FAFC] px-3 text-[16px] font-bold text-text-strong ring-[1.5px] ring-transparent transition-all hover:ring-[#E5E8EB] active:scale-[0.99] md:text-[17px]"
+                className="flex h-[56px] w-[180px] items-center justify-center gap-2 rounded-[14px] bg-[#F8FAFC] px-3 text-[16px] font-bold text-text-strong ring-[1.5px] ring-transparent transition-all hover:ring-[#E5E8EB] active:scale-[0.99] max-[340px]:w-full md:text-[17px]"
               >
                 차량 둘러보기
               </Link>
@@ -62,10 +62,10 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
             <form
               action="/cars"
               method="get"
-              className="mt-10 max-w-[520px]"
+              className="mt-10 max-w-[520px] max-[340px]:mt-8"
               aria-label="차량 검색"
             >
-              <div className="flex h-[54px] items-center gap-2.5 rounded-[14px] bg-[#F8FAFC] px-4 ring-[1.5px] ring-transparent transition-all focus-within:bg-white focus-within:ring-brand">
+              <div className="flex h-[54px] items-center gap-2.5 rounded-[14px] bg-[#F8FAFC] px-4 ring-[1.5px] ring-transparent transition-all focus-within:bg-white focus-within:ring-brand max-[340px]:gap-2 max-[340px]:px-3">
                 <Search size={18} className="shrink-0 text-text-muted" />
                 <input
                   name="query"
@@ -74,12 +74,12 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
                   enterKeyHint="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="차량명, 브랜드, 용도로 검색"
-                  className="min-w-0 flex-1 bg-transparent text-[15px] font-medium text-text-strong outline-none placeholder:text-text-muted"
+                  placeholder="차량·브랜드·용도"
+                  className="min-w-0 flex-1 bg-transparent text-[16px] font-medium text-text-strong outline-none placeholder:text-text-muted"
                 />
                 <button
                   type="submit"
-                  className="shrink-0 rounded-[10px] bg-brand px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-brand-pressed"
+                  className="min-h-11 shrink-0 rounded-[10px] bg-brand px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-pressed max-[340px]:px-3"
                   aria-label="검색"
                 >
                   검색

@@ -1,6 +1,7 @@
 // ISR: 10분마다 정적 재생성. 차량/요율표/후기 변경 시 revalidatePath('/', 'page') 로 즉시 무효화.
 export const revalidate = 600;
 
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getHomeTopLikedReviews } from "@/lib/admin-queries";
 import { HeroSectionV2 } from "@/components/home/HeroSectionV2";
@@ -18,6 +19,76 @@ import {
   resolvePublicThumbnailUrl,
 } from "@/lib/vehicle-images/public";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
+import {
+  HOME_TITLE,
+  SITE_ALTERNATE_NAME,
+  SITE_DESCRIPTION,
+  SITE_LEGAL_NAME,
+  SITE_NAME,
+  SITE_URL,
+  absoluteSiteUrl,
+  createPageMetadata,
+} from "@/lib/site-config";
+
+export const metadata: Metadata = createPageMetadata({
+  title: HOME_TITLE,
+  description: SITE_DESCRIPTION,
+  path: "/",
+  absoluteTitle: true,
+  imageAlt: "아임딜러 장기렌트·리스 견적 비교 서비스",
+});
+
+const homeStructuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": absoluteSiteUrl("/#organization"),
+      name: SITE_NAME,
+      alternateName: SITE_ALTERNATE_NAME,
+      legalName: SITE_LEGAL_NAME,
+      url: SITE_URL,
+      description: SITE_DESCRIPTION,
+      logo: {
+        "@type": "ImageObject",
+        url: absoluteSiteUrl("/icon-512.png"),
+        width: 512,
+        height: 512,
+      },
+      email: "contact@metakium.co.kr",
+      address: {
+        "@type": "PostalAddress",
+        addressCountry: "KR",
+        addressRegion: "서울특별시",
+        addressLocality: "금천구",
+        streetAddress: "디지털로 178 퍼블릭가산 B동 1322호",
+      },
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "customer service",
+        email: "contact@metakium.co.kr",
+        availableLanguage: "Korean",
+      },
+    },
+    {
+      "@type": "WebSite",
+      "@id": absoluteSiteUrl("/#website"),
+      url: SITE_URL,
+      name: SITE_NAME,
+      alternateName: SITE_ALTERNATE_NAME,
+      description: SITE_DESCRIPTION,
+      inLanguage: "ko-KR",
+      publisher: {
+        "@id": absoluteSiteUrl("/#organization"),
+      },
+    },
+  ],
+};
+
+const homeStructuredDataJson = JSON.stringify(homeStructuredData).replace(
+  /</g,
+  "\\u003c",
+);
 
 const DEV_REVIEW_CONTENTS = [
   "처음에는 월 납입금 차이를 잘 몰랐는데, 조건별로 비교하니까 상담 전에 기준을 잡기 쉬웠어요.",
@@ -163,21 +234,27 @@ export default async function HomePage() {
   const homeReviews = buildHomeReviews(reviews, popularVehicles);
 
   return (
-    <div className="bg-white text-text-body">
-      <HeroSectionV2 featuredVehicle={popularVehicles[0]} />
-      {popularVehicles.length > 0 && (
-        <PopularCarsSectionV2 vehicles={popularVehicles} />
-      )}
-      {homeReviews.length > 0 && (
-        <CustomerReviewsSection
-          reviews={homeReviews}
-          sectionLabel="BEST 리뷰"
-          title="가장 많은 공감을 받은 후기"
-          showImages
-          forceBestBadge
-        />
-      )}
-      <ServiceIntroSection />
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: homeStructuredDataJson }}
+      />
+      <div className="bg-white text-text-body">
+        <HeroSectionV2 featuredVehicle={popularVehicles[0]} />
+        {popularVehicles.length > 0 && (
+          <PopularCarsSectionV2 vehicles={popularVehicles} />
+        )}
+        {homeReviews.length > 0 && (
+          <CustomerReviewsSection
+            reviews={homeReviews}
+            sectionLabel="BEST 리뷰"
+            title="가장 많은 공감을 받은 후기"
+            showImages
+            forceBestBadge
+          />
+        )}
+        <ServiceIntroSection />
+      </div>
+    </>
   );
 }

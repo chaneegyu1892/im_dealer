@@ -130,7 +130,7 @@ export function StepPreference({
               가장 가까운 스타일을 하나 골라주세요
             </h3>
           </div>
-          <span className="rounded-pill bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand">
+          <span className="shrink-0 whitespace-nowrap rounded-pill bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand">
             1개 선택
           </span>
         </div>
@@ -151,7 +151,7 @@ export function StepPreference({
               아이나 짐 관련 조건이 있나요?
             </h3>
           </div>
-          <span className="rounded-pill bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand">
+          <span className="shrink-0 whitespace-nowrap rounded-pill bg-brand-soft px-2 py-0.5 text-[11px] font-bold text-brand">
             1개 선택
           </span>
         </div>

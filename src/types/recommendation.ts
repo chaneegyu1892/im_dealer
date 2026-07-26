@@ -35,7 +35,7 @@ export interface RecommendResult {
 }
 
 export interface RecommendationPopularityEvidence {
-  // NICE 모델별 등록 순위의 기준 월(YYYY-MM). 매월 갱신된다.
+  // NICE 연료별 모델 등록 순위를 선택 답변에 맞춰 합친 기준 월(YYYY-MM).
   readonly period: string;
   readonly rank: number | null;
   readonly registrationCount: number | null;

@@ -96,10 +96,16 @@ describe("CarCard", () => {
     const price = screen.getByText("65");
     expect(screen.getByRole("heading", { name: "더 뉴 그랜저 HEV" })).toHaveClass(
       "text-[20px]",
+      "max-[340px]:text-[17px]",
       "lg:text-[24px]",
       "xl:text-[26px]",
     );
-    expect(price).toHaveClass("text-[30px]", "lg:text-[36px]", "xl:text-[38px]");
+    expect(price).toHaveClass(
+      "text-[30px]",
+      "max-[340px]:text-[25px]",
+      "lg:text-[36px]",
+      "xl:text-[38px]",
+    );
     expect(price.parentElement).toHaveClass("justify-end");
     expect(screen.getByText("60개월 · 연 2만km · 무보증")).toHaveClass("text-right");
     expect(screen.queryByText(/월 납입금/)).not.toBeInTheDocument();

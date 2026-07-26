@@ -26,7 +26,7 @@ export async function generateMetadata({
   const delivery = await findQuoteDelivery(id);
   if (!delivery || delivery.status === "FAILED") {
     return {
-      title: "견적서 | 아임딜러",
+      title: "견적서",
       robots: noIndexRobots,
     };
   }

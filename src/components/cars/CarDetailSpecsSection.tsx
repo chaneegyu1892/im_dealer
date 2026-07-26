@@ -85,7 +85,7 @@ function SpecCard({
       disabled={!clickable}
       onClick={() => clickable && onSelect({ key: specKey, label, value })}
       className={cn(
-        "min-h-[86px] rounded-[16px] border p-3.5 text-left transition-all duration-150",
+        "min-h-[86px] rounded-[16px] border p-3.5 text-left transition-all duration-150 max-[340px]:p-3",
         highlight
           ? "border-brand bg-brand-soft"
           : "border-line bg-surface-muted",
@@ -98,7 +98,7 @@ function SpecCard({
         <span className="text-[11px] font-bold text-ink-label">{label}</span>
         {clickable && <Info size={12} className="shrink-0 text-ink-caption" />}
       </span>
-      <span className={cn("block text-[15px] font-extrabold", highlight ? "text-brand" : "text-ink")}>
+      <span className={cn("block break-words text-[15px] font-extrabold [overflow-wrap:anywhere] max-[340px]:text-[14px]", highlight ? "text-brand" : "text-ink")}>
         {value}
       </span>
     </button>

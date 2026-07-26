@@ -11,7 +11,8 @@ function unauthorized() {
 }
 
 /**
- * NICE D&R 공개 모델별 등록 순위 1~30위를 매월 서비스 DB에 저장한다.
+ * NICE D&R 공개 모델별 휘발유·경유·하이브리드·전기 순위 1~30위를
+ * 하나의 월간 배치로 서비스 DB에 저장한다.
  *
  * Vercel Cron은 CRON_SECRET을 Authorization Bearer로 전달한다. 수집·파싱·매핑 중
  * 하나라도 검증에 실패하면 기존의 마지막 정상 스냅샷을 건드리지 않는다.
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
     console.info("[cron/refresh-popularity] NICE 모델 순위 갱신 완료", {
       period: result.period,
       mappedEntries: result.mappedEntries,
+      mappedEntriesByFuel: result.mappedEntriesByFuel,
       unmatchedEntries: result.unmatchedEntries.length,
     });
     return NextResponse.json({ success: true, ...result });

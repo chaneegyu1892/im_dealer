@@ -1026,7 +1026,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   return (
     <div className="min-h-screen bg-app-bg pb-[calc(96px+env(safe-area-inset-bottom,0px))] md:pb-0">
       <header className="sticky top-14 z-40 border-b border-border-subtle bg-surface/95 backdrop-blur-md md:hidden">
-        <div className="flex h-14 items-center gap-3 px-5">
+        <div className="flex h-14 items-center gap-3 px-5 max-[340px]:px-3">
           <button
             type="button"
             onClick={() => {
@@ -1041,7 +1041,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               }
             }}
             aria-label="뒤로"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-text-strong transition-colors hover:bg-surface-soft"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-text-strong transition-colors hover:bg-surface-soft"
           >
             <ChevronLeft size={20} />
           </button>
@@ -1078,7 +1078,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       </div>
 
       {/* 본문 */}
-      <main className="mx-auto max-w-[680px] px-5 py-8 md:px-8 md:py-10">
+      <main className="mx-auto max-w-[680px] px-5 py-8 max-[340px]:px-4 md:px-8 md:py-10">
         <AnimatePresence mode="wait">
           {step === 1 && (
             <Step1CustomerType
@@ -1235,7 +1235,7 @@ function Step1CustomerType({
               type="button"
               onClick={() => onSelect(option.type)}
               className={cn(
-                "flex w-full items-center gap-4 rounded-[20px] px-5 py-5 text-left transition-all duration-200 md:px-6 md:py-6",
+                "flex w-full items-center gap-4 rounded-[20px] px-5 py-5 text-left transition-all duration-200 max-[340px]:gap-3 max-[340px]:px-4 md:px-6 md:py-6",
                 selected
                   ? "bg-brand-soft ring-[1.5px] ring-brand"
                   : "bg-surface-soft ring-[1.5px] ring-transparent hover:ring-border-subtle"

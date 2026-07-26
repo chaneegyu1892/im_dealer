@@ -19,6 +19,8 @@ const envSchema = z.object({
 
   // App
   NEXT_PUBLIC_APP_URL: z.string().url(),
+  // 네이버 서치어드바이저 소유확인 meta 태그의 content 값
+  NAVER_SITE_VERIFICATION: z.string().min(1).optional(),
 
   // IP 해싱
   IP_HASH_SALT: z.string().min(16, "IP_HASH_SALT 은 16자 이상이어야 합니다."),

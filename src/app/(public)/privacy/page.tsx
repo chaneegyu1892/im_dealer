@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-config";
 
-export const metadata: Metadata = {
-  title: "개인정보처리방침 | 아임딜러",
+export const metadata: Metadata = createPageMetadata({
+  title: "개인정보처리방침",
   description: "(주)모빌페이브 아임딜러(IM DEALER) 개인정보처리방침",
-};
+  path: "/privacy",
+});
 
 const TABLE = "w-full min-w-[640px] border-collapse text-xs sm:text-sm";
 const TH =

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ChevronRight, ClipboardList, Info, ShieldAlert } from "lucide-react";
+import { createPageMetadata } from "@/lib/site-config";
 import {
   FINANCE_PRODUCTS,
   type FinanceProduct,
@@ -7,11 +8,12 @@ import {
 } from "./finance-products";
 import { LegalText } from "./LegalText";
 
-export const metadata: Metadata = {
-  title: "서비스 법적 고지 및 금융상품 안내 | 아임딜러",
+export const metadata: Metadata = createPageMetadata({
+  title: "금융상품 안내 및 법적 고지",
   description:
     "(주)모빌페이브 아임딜러(IM DEALER) 서비스 법적 고지 및 제휴 금융사별 상품 안내",
-};
+  path: "/finance-terms",
+});
 
 const TABLE = "w-full min-w-[640px] border-collapse text-xs sm:text-sm";
 const TH =

@@ -2,6 +2,25 @@ import { z } from "zod";
 
 export const NICE_MODEL_RANKING_URL = "https://www.nicebluemark.co.kr/stat/model";
 export const NICE_POPULARITY_COUNT = 30;
+export const NICE_POPULARITY_FUEL_TYPES = [
+  "gasoline",
+  "diesel",
+  "hybrid",
+  "electric",
+] as const;
+
+export type NicePopularityFuelType = typeof NICE_POPULARITY_FUEL_TYPES[number];
+
+export const NICE_POPULARITY_TOTAL_COUNT =
+  NICE_POPULARITY_COUNT * NICE_POPULARITY_FUEL_TYPES.length;
+
+export function getNiceModelRankingUrl(fuelType: NicePopularityFuelType): string {
+  const url = new URL(NICE_MODEL_RANKING_URL);
+  url.searchParams.set("filterKind", "fuelType");
+  url.searchParams.set("filterValue", fuelType);
+  url.searchParams.set("regGb", "new");
+  return url.toString();
+}
 
 const niceModelRankingEntrySchema = z.object({
   rank: z.number().int().min(1).max(NICE_POPULARITY_COUNT),
@@ -144,14 +163,33 @@ export function normalizeNiceModelName(value: string): string {
 
 const MODEL_NAME_ALIASES: Readonly<Record<string, string>> = {
   "테슬라|모델y": "newmodely",
+  "테슬라|모델3": "newmodel3",
   "기아|ev3": "더ev3",
+  "기아|ev4": "더ev4",
   "기아|ev5": "더ev5",
+  "기아|ev9": "더ev9",
   "기아|더뉴기아레이": "더뉴레이pe",
+  "기아|더기아레이ev": "더레이ev",
+  "기아|더뉴k8": "newk8",
+  "기아|더뉴k8hev": "newk8hev",
   "제네시스|뉴g80": "디올뉴g80fl",
+  "르노코리아|그랑콜레오스hev": "그랑콜레오스etech",
+  "bmw|3시리즈": "3seriesfl",
   "bmw|5시리즈": "new5series",
+  "bmw|7시리즈": "new7series",
+  "bmw|x1": "newx1",
+  "bmw|x3": "newx3",
+  "bmw|x5": "newx5",
+  "bmw|x6": "newx6",
+  "bmw|x7": "newx7",
   "벤츠|e클래스": "neweclass",
+  "벤츠|glc클래스": "newglcclass",
+  "벤츠|gle클래스": "newgleclass",
+  "벤츠|gls클래스": "newglsclass",
+  "벤츠|s클래스": "newsclass",
   "제네시스|뉴gv80": "gv80fl",
   "기아|더뉴니로": "더뉴니로hev",
+  "현대|더뉴스타리아일렉트릭": "더뉴스타리아ev",
 };
 
 function modelKey(brand: string, model: string): string {

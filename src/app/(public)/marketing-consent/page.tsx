@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-config";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: "마케팅 정보 수신 동의",
   description: "(주)모빌페이브 아임딜러(IM DEALER) 마케팅 정보 수신 동의 안내",
-};
+  path: "/marketing-consent",
+});
 
 const TABLE = "w-full min-w-[640px] border-collapse text-xs sm:text-sm";
 const TH =

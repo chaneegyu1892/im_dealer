@@ -3,8 +3,9 @@ import { Suspense } from "react";
 import { VerifyClient } from "./VerifyClient";
 
 export const metadata: Metadata = {
-  title: "서류 간편 확인 | 아임딜러",
+  title: "서류 간편 확인",
   description: "공공기관 서류를 비대면으로 간편하게 확인하세요.",
+  robots: { index: false, follow: false, nocache: true },
 };
 
 function VerifyLoadingSkeleton() {

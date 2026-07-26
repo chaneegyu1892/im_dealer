@@ -9,12 +9,14 @@ import {
 import { ReviewsGalleryClient } from "./ReviewsGalleryClient";
 import { makeBrandComparator } from "@/lib/brand-sort";
 import { getBrandSignals } from "@/lib/brand-signals";
+import { createPageMetadata } from "@/lib/site-config";
 
-export const metadata: Metadata = {
-  title: "고객 후기 | 아임딜러",
+export const metadata: Metadata = createPageMetadata({
+  title: "장기렌트·리스 고객 후기",
   description:
     "아임딜러를 통해 장기렌트·리스를 이용한 실제 고객들의 후기를 확인해 보세요.",
-};
+  path: "/reviews",
+});
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +41,7 @@ export default async function ReviewsPage() {
             <p className="mb-3 inline-flex rounded-pill bg-brand-soft px-3 py-1.5 text-[12px] font-extrabold text-brand">
               고객 후기
             </p>
-            <h1 className="break-keep text-[32px] font-extrabold leading-[1.14] tracking-[-0.04em] text-text-strong md:text-[46px]">
+            <h1 className="break-keep text-[32px] font-extrabold leading-[1.14] tracking-[-0.04em] text-text-strong max-[340px]:text-[29px] md:text-[46px]">
               실제로 비교하고
               <br />
               선택한 이야기

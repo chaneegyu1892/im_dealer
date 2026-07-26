@@ -42,7 +42,7 @@ export default function LoginContent() {
     <main className="home-showroom-scope min-h-screen bg-app-bg px-4 py-8 pb-[calc(112px+env(safe-area-inset-bottom,0px))] md:py-14 md:pb-16">
       <div className="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[440px] flex-col justify-center">
         <section className="overflow-hidden rounded-[28px] border border-border-subtle bg-surface shadow-card">
-          <div className="relative px-5 pb-6 pt-7 sm:px-6">
+          <div className="relative px-5 pb-6 pt-7 max-[340px]:px-4 sm:px-6">
             <div className="relative">
               <Link
                 href="/"
@@ -65,7 +65,7 @@ export default function LoginContent() {
                 <p className="mb-3 inline-flex rounded-pill bg-brand-soft px-3 py-1.5 text-[12px] font-extrabold text-brand">
                   견적 저장
                 </p>
-                <h1 className="break-keep text-[30px] font-extrabold leading-[1.16] tracking-[-0.04em] text-text-strong sm:text-[34px]">
+                <h1 className="break-keep text-[30px] font-extrabold leading-[1.16] tracking-[-0.04em] text-text-strong max-[340px]:text-[27px] sm:text-[34px]">
                   로그인하고
                   <br />
                   비교한 조건을 이어서 보세요
