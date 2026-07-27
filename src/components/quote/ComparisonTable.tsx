@@ -166,16 +166,33 @@ function DesktopTable({ columns, totalCosts }: RowProps) {
 
   return (
     <div className="grid grid-cols-[minmax(130px,max-content)_1fr_1fr] divide-x divide-border-subtle">
-      {/* Header */}
-      <div className="bg-sec" />
-      {columns.map((col, i) => (
-        <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-surface")}>
-          <p className="text-[11px] font-bold text-brand uppercase tracking-wider mb-1">{col.label}</p>
-          <p className="text-[12px] text-ink-caption">{col.brand}</p>
-          <p className="text-[15px] font-medium text-ink leading-snug">{col.vehicleName}</p>
-          <p className="text-[12px] text-ink-label mt-0.5">{col.trimName}</p>
-        </div>
-      ))}
+        {/* Header */}
+        <div className="bg-sec" />
+        {columns.map((col, i) => (
+          <div
+            key={i}
+            className={cn(
+              "relative p-4 border-t-[3px]",
+              col.isPrimary
+                ? "bg-brand-soft border-t-brand"
+                : "bg-accent-purple-soft border-t-accent-purple"
+            )}
+          >
+            <p
+              className={cn(
+                "inline-flex items-center rounded-pill px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider mb-1.5",
+                col.isPrimary
+                  ? "bg-brand text-[var(--color-brand-ink)]"
+                  : "bg-accent-purple text-[var(--color-brand-ink)]"
+              )}
+            >
+              {col.label}
+            </p>
+            <p className="text-[12px] text-ink-caption">{col.brand}</p>
+            <p className="text-[15px] font-medium text-ink leading-snug">{col.vehicleName}</p>
+            <p className="text-[12px] text-ink-label mt-0.5">{col.trimName}</p>
+          </div>
+        ))}
 
       {/* 구성: 라인업 / 기본 차량가 / 옵션 / 색상 — 같은 기준의 비교인지 드러내는 정보 */}
       {hasConfig && (
@@ -299,10 +316,27 @@ function MobileStack({ columns, totalCosts }: RowProps) {
   return (
     <div className="divide-y divide-border-subtle">
       {columns.map((col, i) => (
-        <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-surface")}>
+        <div
+          key={i}
+          className={cn(
+            "relative p-4 border-t-[3px]",
+            col.isPrimary
+              ? "bg-brand-soft border-t-brand"
+              : "bg-accent-purple-soft border-t-accent-purple"
+          )}
+        >
           <div className="flex items-start gap-2 mb-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-bold text-brand uppercase tracking-wider mb-0.5">{col.label}</p>
+              <p
+                className={cn(
+                  "inline-flex items-center rounded-pill px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider mb-1.5",
+                  col.isPrimary
+                    ? "bg-brand text-[var(--color-brand-ink)]"
+                    : "bg-accent-purple text-[var(--color-brand-ink)]"
+                )}
+              >
+                {col.label}
+              </p>
               <p className="text-[11px] text-ink-caption">{col.brand}</p>
               <p className="text-[15px] font-medium text-ink leading-snug truncate">{col.vehicleName}</p>
               <p className="text-[12px] text-ink-label mt-0.5 truncate">{col.trimName}</p>
