@@ -191,7 +191,10 @@ export function BottomNav() {
 
   return (
     <nav
-      className={cn("fixed bottom-0 left-0 right-0 z-50 px-3 lg:hidden", isHome && "home-showroom-scope")}
+      className={cn(
+        "pointer-events-none fixed bottom-0 left-0 right-0 z-50 px-3 lg:hidden",
+        isHome && "home-showroom-scope",
+      )}
       aria-label="하단 메뉴"
       data-collapsed={collapsed ? "true" : "false"}
     >
@@ -200,7 +203,7 @@ export function BottomNav() {
           {!collapsed ? (
             <motion.div
               key="bottom-nav-expanded"
-              className="relative mx-auto grid h-[64px] max-w-[480px] grid-cols-4 overflow-hidden rounded-card-lg border border-border-subtle bg-surface-glass px-1 shadow-mobile-float backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150"
+              className="pointer-events-auto relative mx-auto grid h-[64px] max-w-[480px] grid-cols-4 overflow-hidden rounded-card-lg border border-border-subtle bg-surface-glass px-1 shadow-mobile-float backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150"
               initial={
                 prefersReducedMotion
                   ? { opacity: 1 }
@@ -292,7 +295,7 @@ export function BottomNav() {
           ) : (
             <motion.div
               key="bottom-nav-fab"
-              className="flex justify-center"
+              className="pointer-events-none flex justify-center"
               initial={
                 prefersReducedMotion
                   ? { opacity: 1 }
@@ -315,6 +318,7 @@ export function BottomNav() {
                 className={cn(
                   "relative flex items-center justify-center rounded-full",
                   FAB_SIZE_CLASS,
+                  "pointer-events-auto",
                   "border border-border-subtle bg-surface-glass text-text-strong shadow-mobile-float",
                   "backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150",
                   "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",

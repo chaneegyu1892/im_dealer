@@ -66,13 +66,11 @@ const quoteBtnClass =
 function MobileStickyQuoteBar({
   vehicleName,
   vehicleSlug,
-  quotes,
 }: {
   vehicleName: string;
   vehicleSlug: string;
   quotes: RepresentativeQuote[];
 }) {
-  const hasQuote = hasRepresentativeQuote(quotes);
   const prefersReducedMotion = useReducedMotion();
   const [hasScrolledPastSummary, setHasScrolledPastSummary] = useState(false);
   /** BottomNav 축소 여부 — 펼침일 때 CTA를 우측 정렬 */
@@ -82,19 +80,26 @@ function MobileStickyQuoteBar({
   useEffect(() => {
     let animationFrameId: number | null = null;
 
-    const updateScrollState = () => {
-      if (animationFrameId !== null) return;
+    const readScrollY = () =>
+      window.scrollY ||
+      document.documentElement.scrollTop ||
+      document.body.scrollTop ||
+      0;
 
-      animationFrameId = window.requestAnimationFrame(() => {
-        animationFrameId = null;
-        const nextHasScrolledPastSummary = window.scrollY >= MOBILE_STICKY_SUMMARY_SCROLL_Y;
-        setHasScrolledPastSummary((current) =>
-          current === nextHasScrolledPastSummary ? current : nextHasScrolledPastSummary
-        );
-      });
+    const applyScrollState = () => {
+      animationFrameId = null;
+      const nextHasScrolledPastSummary = readScrollY() >= MOBILE_STICKY_SUMMARY_SCROLL_Y;
+      setHasScrolledPastSummary((current) =>
+        current === nextHasScrolledPastSummary ? current : nextHasScrolledPastSummary
+      );
     };
 
-    updateScrollState();
+    const updateScrollState = () => {
+      if (animationFrameId !== null) return;
+      animationFrameId = window.requestAnimationFrame(applyScrollState);
+    };
+
+    applyScrollState();
     window.addEventListener("scroll", updateScrollState, { passive: true });
 
     return () => {
@@ -124,21 +129,21 @@ function MobileStickyQuoteBar({
     </Link>
   );
 
-  const consultButton = hasQuote ? (
+  const consultButton = (
     <ChannelTalkButton
       vehicleName={vehicleName}
       label="상담"
       size="sm"
       className={consultBtnClass}
     />
-  ) : null;
+  );
 
   return (
     <AnimatePresence initial={false}>
       {showStickyDock && (
         <motion.div
           key="mobile-sticky-quote-dock"
-          className="mobile-sticky-quote-dock fixed left-0 right-0 z-40 px-3 lg:hidden"
+          className="mobile-sticky-quote-dock pointer-events-none fixed left-0 right-0 z-[60] px-3 lg:hidden"
           style={{
             // 축소: 중앙 FAB과 같은 바닥선 / 펼침: 메뉴바 위로 상승
             bottom:
@@ -152,13 +157,13 @@ function MobileStickyQuoteBar({
           {navCollapsed ? (
             /* 축소: 점 기준 왼쪽 상담 · 오른쪽 견적 */
             <div className="mx-auto grid max-w-[480px] grid-cols-[1fr_4rem_1fr] items-center gap-2">
-              <div className="flex min-w-0 justify-end">{consultButton}</div>
-              <div className="h-16 w-16 shrink-0" aria-hidden />
-              <div className="flex min-w-0 justify-start">{quoteLink}</div>
+              <div className="pointer-events-auto flex min-w-0 justify-end">{consultButton}</div>
+              <div className="pointer-events-none h-16 w-16 shrink-0" aria-hidden />
+              <div className="pointer-events-auto flex min-w-0 justify-start">{quoteLink}</div>
             </div>
           ) : (
             /* 펼침: 상담 + 견적 모두 우측 정렬, 메뉴바와 가깝게 */
-            <div className="mx-auto flex max-w-[480px] items-center justify-end gap-2.5">
+            <div className="pointer-events-auto mx-auto flex max-w-[480px] items-center justify-end gap-2.5">
               {consultButton}
               {quoteLink}
             </div>

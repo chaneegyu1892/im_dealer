@@ -204,6 +204,21 @@ describe("BottomNav scroll collapse", () => {
     expect(screen.getByLabelText("차량 탐색")).toBeInTheDocument();
   });
 
+
+  it("축소 상태에서는 네비 바깥 영역 클릭을 가로채지 않는다", () => {
+    render(<BottomNav />);
+
+    act(() => {
+      setScrollY(220);
+      fireEvent.scroll(window);
+    });
+
+    const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
+    const fab = screen.getByRole("button", { name: "메뉴 열기" });
+    expect(nav.className).toContain("pointer-events-none");
+    expect(fab.className).toContain("pointer-events-auto");
+  });
+
   it("견적 경로에서는 렌더하지 않는다", () => {
     mocks.pathname = "/quote?vehicle=test";
     const { container } = render(<BottomNav />);
