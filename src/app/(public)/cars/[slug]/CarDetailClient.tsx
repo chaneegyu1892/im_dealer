@@ -93,7 +93,7 @@ export function CarDetailClient({ vehicle }: { vehicle: VehicleDetail }) {
         representativeQuotes={representativeQuotes}
       />
 
-      <div className="page-container -mt-10 pb-5 pt-2 md:-mt-12 md:pb-10 md:pt-4">
+      <div className="page-container pb-5 pt-6 md:pb-10 md:pt-8">
         <MobileQuoteSummary
           vehicleName={vehicle.name}
           vehicleSlug={vehicle.slug}
