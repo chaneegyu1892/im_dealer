@@ -165,7 +165,8 @@ function DesktopTable({ columns, totalCosts }: RowProps) {
   const hasConfig = columns.some((c) => c.config);
 
   return (
-    <div className="grid grid-cols-[minmax(130px,max-content)_1fr_1fr] divide-x divide-border-subtle">
+    <div className="grid grid-cols-[minmax(130px,max-content)_1fr_1fr] [&>*:nth-child(3n)]:border-l-[2px] [&>*:nth-child(3n)]:border-border-strong [&>*:nth-child(3n)]:pl-6">
+        {/* 비교 컬럼(3n 번째 자식)에 두꺼운 좌측 구분선 + 넉넉한 여백으로 두 차량을 분리 */}
         {/* Header */}
         <div className="bg-sec" />
         {columns.map((col, i) => (
@@ -314,12 +315,12 @@ function MobileStack({ columns, totalCosts }: RowProps) {
   const baseTotal = totalCosts[0];
 
   return (
-    <div className="divide-y divide-border-subtle">
+    <div className="space-y-3">
       {columns.map((col, i) => (
         <div
           key={i}
           className={cn(
-            "relative p-4 border-t-[3px]",
+            "relative p-4 border-t-[3px] border border-line2 rounded-card overflow-hidden shadow-soft",
             col.isPrimary
               ? "bg-brand-soft border-t-brand"
               : "bg-accent-purple-soft border-t-accent-purple"
