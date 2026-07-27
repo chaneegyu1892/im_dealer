@@ -19,7 +19,8 @@ describe("CarsFilterControls 좁은 모바일", () => {
     );
 
     expect(screen.getByPlaceholderText("검색").parentElement).toHaveClass(
-      "max-[430px]:h-11",
+      "h-11",
+      "min-h-11",
       "max-[430px]:min-w-0",
     );
     expect(screen.getByRole("button", { name: /인기순/ })).toHaveClass(

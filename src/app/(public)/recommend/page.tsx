@@ -11,7 +11,7 @@ export const metadata: Metadata = createPageMetadata({
 
 export default function RecommendPage() {
   return (
-    <div className="min-h-screen bg-white pb-[calc(112px+env(safe-area-inset-bottom,0px))] md:pb-12">
+    <div className="min-h-screen bg-white pb-[calc(160px+env(safe-area-inset-bottom,0px))] md:pb-12">
       <section className="border-b border-[#E5E8EB] bg-white">
         <div className="mx-auto w-full max-w-[680px] px-5 py-8 max-[340px]:px-4 md:max-w-[1040px] md:px-8 md:py-12">
           <div>

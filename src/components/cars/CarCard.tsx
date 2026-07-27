@@ -87,7 +87,7 @@ export function CarCard({ vehicle }: CarCardProps) {
               numberClassName="text-[30px] max-[340px]:text-[25px] lg:text-[36px] xl:text-[38px]"
               unitClassName="text-[14px] font-bold max-[340px]:text-[12px] lg:text-[15px]"
             />
-            <p className="mt-1 break-keep text-right text-[10.5px] font-medium leading-tight text-text-muted lg:text-[12px]">
+            <p className="mt-1 break-keep text-right text-[11px] font-medium leading-tight text-text-muted lg:text-[12px]">
               60개월 · 연 2만km · 무보증
             </p>
           </div>

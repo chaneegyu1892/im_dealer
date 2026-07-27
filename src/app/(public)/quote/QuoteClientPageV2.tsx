@@ -1024,7 +1024,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const stepLabel = STEPS[step - 1];
 
   return (
-    <div className="min-h-screen bg-app-bg pb-[calc(96px+env(safe-area-inset-bottom,0px))] md:pb-0">
+    <div className="min-h-screen bg-app-bg pb-[calc(148px+env(safe-area-inset-bottom,0px))] md:pb-0">
       <header className="sticky top-14 z-40 border-b border-border-subtle bg-surface/95 backdrop-blur-md md:hidden">
         <div className="flex h-14 items-center gap-3 px-5 max-[340px]:px-3">
           <button

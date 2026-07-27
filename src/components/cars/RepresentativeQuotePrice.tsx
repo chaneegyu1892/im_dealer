@@ -104,7 +104,7 @@ export function RepresentativeQuotePrice({
   return (
     <div className={cn(align === "end" && "text-right", className)}>
       {showCaption && (
-        <span className={cn("mb-1 block text-[10px]", t.caption, captionClassName)}>
+        <span className={cn("mb-1 block text-[11px] leading-snug", t.caption, captionClassName)}>
           {captionText}
         </span>
       )}

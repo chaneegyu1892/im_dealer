@@ -65,7 +65,7 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
               className="mt-10 max-w-[520px] max-[340px]:mt-8"
               aria-label="차량 검색"
             >
-              <div className="flex h-[54px] items-center gap-2.5 rounded-[14px] bg-[#F8FAFC] px-4 ring-[1.5px] ring-transparent transition-all focus-within:bg-white focus-within:ring-brand max-[340px]:gap-2 max-[340px]:px-3">
+              <div className="flex min-h-[54px] items-center gap-2.5 rounded-[14px] bg-[#F8FAFC] px-4 ring-[1.5px] ring-transparent transition-all focus-within:bg-white focus-within:ring-brand max-[340px]:gap-2 max-[340px]:px-3">
                 <Search size={18} className="shrink-0 text-text-muted" />
                 <input
                   name="query"
@@ -75,7 +75,7 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="차량·브랜드·용도"
-                  className="min-w-0 flex-1 bg-transparent text-[16px] font-medium text-text-strong outline-none placeholder:text-text-muted"
+                  className="min-h-11 min-w-0 flex-1 self-stretch bg-transparent text-[16px] font-medium text-text-strong outline-none placeholder:text-text-muted"
                 />
                 <button
                   type="submit"
@@ -92,7 +92,7 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
                   <Link
                     key={chip.query}
                     href={`/cars?query=${encodeURIComponent(chip.query)}`}
-                    className="inline-flex h-8 items-center rounded-full bg-white px-3 text-[12.5px] font-bold text-text-body ring-[1px] ring-[#E5E8EB] transition-all hover:ring-brand hover:text-brand active:scale-[0.98]"
+                    className="inline-flex min-h-11 items-center rounded-full bg-white px-3.5 py-2 text-[13px] font-bold text-text-body ring-[1px] ring-[#E5E8EB] transition-all hover:ring-brand hover:text-brand active:scale-[0.98]"
                   >
                     {chip.label}
                   </Link>

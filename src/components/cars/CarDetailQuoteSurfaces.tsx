@@ -41,7 +41,7 @@ export function MobileQuoteSummary({
             vehicleName={vehicleName}
             label="상담"
             size="sm"
-            className="shrink-0 rounded-pill border border-line bg-surface px-3.5 py-2 text-[12.5px] font-bold text-ink hover:bg-surface-muted hover:opacity-100"
+            className="min-h-11 shrink-0 rounded-pill border border-line bg-surface px-4 py-2.5 text-[13px] font-bold text-ink hover:bg-surface-muted hover:opacity-100"
           />
         </div>
         <Link

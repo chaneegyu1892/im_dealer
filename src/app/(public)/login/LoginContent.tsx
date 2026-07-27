@@ -102,11 +102,17 @@ export default function LoginContent() {
 
               <p className="mt-5 break-keep text-center text-[12px] leading-relaxed text-text-muted">
                 로그인 시{" "}
-                <Link href="/terms" className="font-bold text-text-body underline-offset-4 hover:underline">
+                <Link
+                  href="/terms"
+                  className="inline-flex min-h-11 items-center px-1 font-bold text-text-body underline-offset-4 hover:underline"
+                >
                   이용약관
                 </Link>{" "}
                 및{" "}
-                <Link href="/privacy" className="font-bold text-text-body underline-offset-4 hover:underline">
+                <Link
+                  href="/privacy"
+                  className="inline-flex min-h-11 items-center px-1 font-bold text-text-body underline-offset-4 hover:underline"
+                >
                   개인정보처리방침
                 </Link>
                 에 동의한 것으로 간주됩니다.

@@ -115,9 +115,9 @@ export function CarsSearchControl({
   return (
     <div
       className={cn(
-        "flex flex-1 items-center gap-2 rounded-pill bg-surface-soft transition-colors focus-within:bg-surface focus-within:ring-4 focus-within:ring-focus-ring/20",
+        "flex min-h-11 flex-1 items-center gap-2 rounded-pill bg-surface-soft transition-colors focus-within:bg-surface focus-within:ring-4 focus-within:ring-focus-ring/20",
         compact
-          ? "h-10 min-w-[180px] px-3 max-[430px]:h-11 max-[430px]:min-w-0"
+          ? "h-11 min-w-[180px] px-3 max-[430px]:min-w-0"
           : "h-12 min-w-[180px] px-4 max-[430px]:min-w-0 max-[340px]:w-full max-[340px]:flex-none",
       )}
     >
@@ -129,14 +129,14 @@ export function CarsSearchControl({
         value={searchQuery}
         onChange={(event) => onSearchChange(event.target.value)}
         placeholder={compact ? "검색" : "차량·브랜드·용도"}
-        className="min-w-0 flex-1 bg-transparent text-[16px] font-semibold text-text-strong outline-none placeholder:text-text-muted placeholder:font-semibold"
+        className="min-h-11 min-w-0 flex-1 self-stretch bg-transparent text-[16px] font-semibold text-text-strong outline-none placeholder:text-text-muted placeholder:font-semibold"
       />
       {searchQuery && (
         <button
           type="button"
           onClick={() => onSearchChange("")}
           aria-label="검색어 지우기"
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-text-muted transition-colors hover:bg-brand-soft hover:text-brand"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-text-muted transition-colors hover:bg-brand-soft hover:text-brand"
         >
           <X size={13} />
         </button>

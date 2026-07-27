@@ -107,7 +107,7 @@ export function RecommendFlow() {
   return (
     <div
       ref={flowRef}
-      className="t-shell scroll-mt-[72px] pt-3 pb-[120px] md:scroll-mt-[88px] md:pb-10"
+      className="t-shell scroll-mt-[72px] pt-3 pb-[calc(168px+env(safe-area-inset-bottom,0px))] md:scroll-mt-[88px] md:pb-10"
     >
       {/* 앱바: 뒤로가기 + 단계명 + n/N */}
       <div className="t-appbar justify-between">
