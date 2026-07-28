@@ -5,18 +5,25 @@ import Image from "next/image";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import type {
   AdminFinanceCompany,
-  AdminVehicle,
+  AdminVehicleLite,
   CapitalRateSheet,
 } from "@/types/admin";
 import RateInputForm from "./RateInputForm";
 import RateHistory from "./RateHistory";
-import ScraperCredentialModal from "./ScraperCredentialModal";
+import { resolveCapitalConnection } from "@/lib/scraper/connections";
+import ScraperLoginModal from "./ScraperLoginModal";
 import ScrapeJobStatus from "./ScrapeJobStatus";
 import ScrapeReviewPanel, { type PerLineupResult } from "./ScrapeReviewPanel";
+import BrandBatchCollector from "./BrandBatchCollector";
 import { useBrandSignals } from "@/lib/use-brand-signals";
 import { buildRateGroupMarkers } from "./rate-group-markers";
 import type { ScrapeDraft, ScrapeJobStatus as JobStatus } from "@/types/scraper";
 import type { RateSheetRaw } from "@/types/admin";
+import { RATE_KEYS } from "@/lib/quote-calculator";
+
+function emptyRates(): RateSheetRaw {
+  return Object.fromEntries(RATE_KEYS.map((key) => [key, 0])) as RateSheetRaw;
+}
 
 interface VehicleLineup {
   id: string;
@@ -73,7 +80,7 @@ interface SessionSavedTrim {
 
 interface Props {
   financeCompanies: AdminFinanceCompany[];
-  vehicles: AdminVehicle[];
+  vehicles: AdminVehicleLite[];
 }
 
 interface FinanceCompanyFormState {
@@ -106,7 +113,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const { comparator: brandComparator } = useBrandSignals();
 
   const vehiclesByBrand = useMemo(() => {
-    const map = new Map<string, AdminVehicle[]>();
+    const map = new Map<string, AdminVehicleLite[]>();
     for (const v of vehicles) {
       const list = map.get(v.brand) ?? [];
       list.push(v);
@@ -143,7 +150,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const [scrapeHumanPrompt, setScrapeHumanPrompt] = useState<string | null>(null);
   const [scrapeDraft, setScrapeDraft] = useState<ScrapeDraft | null>(null);
   const [scrapeStarting, setScrapeStarting] = useState(false);
-  const [showCredModal, setShowCredModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [showFetchConfirm, setShowFetchConfirm] = useState(false);
 
   const selectedFc = localFinanceCompanies.find((f) => f.id === selectedFcId);
@@ -397,25 +404,45 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     if (!scrapeDraft?.trims || !vehicleDetail) return [];
     const priceOf = new Map(vehicleDetail.trims.map((t) => [t.id, t.discountPrice ?? t.price]));
     const lineupOf = new Map(vehicleDetail.trims.map((t) => [t.id, t.lineupId]));
-    const grouped = new Map<string, { trims: { price: number; rates: RateSheetRaw }[]; unmatched: number }>();
+    const grouped = new Map<string, {
+      trims: {
+        price: number;
+        rates: RateSheetRaw;
+        depositRates: RateSheetRaw;
+        prepayRates: RateSheetRaw;
+        trimId: string;
+      }[];
+      unmatched: number;
+    }>();
     for (const tr of scrapeDraft.trims) {
       const lid = lineupOf.get(tr.trimId);
       if (!lid) continue;
       const g = grouped.get(lid) ?? { trims: [], unmatched: 0 };
-      if (tr.baseRates && tr.vehiclePrice > 0) g.trims.push({ price: priceOf.get(tr.trimId) ?? tr.vehiclePrice, rates: tr.baseRates });
+      if (tr.baseRates && tr.vehiclePrice > 0) {
+        g.trims.push({
+          price: priceOf.get(tr.trimId) ?? tr.vehiclePrice,
+          rates: tr.baseRates,
+          depositRates: tr.depositRates ?? emptyRates(),
+          prepayRates: tr.prepayRates ?? emptyRates(),
+          trimId: tr.trimId,
+        });
+      }
       else g.unmatched += 1;
       grouped.set(lid, g);
     }
     const out: PerLineupResult[] = [];
     for (const [lineupId, g] of grouped) {
       const name = vehicleDetail.lineups.find((l) => l.id === lineupId)?.name ?? lineupId;
-      const allTrimIds = vehicleDetail.trims.filter((t) => t.lineupId === lineupId).map((t) => t.id);
       const sorted = [...g.trims].sort((a, b) => a.price - b.price);
       const low = sorted[0], high = sorted[sorted.length - 1];
       out.push({
-        lineupId, lineupName: name, trimIds: allTrimIds,
+        lineupId, lineupName: name, trimIds: g.trims.map((x) => x.trimId), // 매칭된 트림만(미매칭엔 값 차용 안 함)
         minVehiclePrice: low?.price ?? 0, maxVehiclePrice: high?.price ?? 0,
         minBaseRates: low?.rates ?? ({} as RateSheetRaw), maxBaseRates: high?.rates ?? ({} as RateSheetRaw),
+        minDepositRates: low?.depositRates ?? emptyRates(),
+        minPrepayRates: low?.prepayRates ?? emptyRates(),
+        maxDepositRates: high?.depositRates ?? emptyRates(),
+        maxPrepayRates: high?.prepayRates ?? emptyRates(),
         matchedCount: g.trims.length, unmatchedCount: g.unmatched,
       });
     }
@@ -432,6 +459,25 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     }
     return map;
   }, [vehicleDetail, activeSheets, selectedProductType]);
+
+  // 되돌리기용: 트림 → 현재 활성 시트 id (저장/비우기 전 상태 — 패널이 최초 변경 시점에 스냅샷)
+  const prevActiveByTrim = useMemo<Record<string, string>>(() => {
+    const m: Record<string, string> = {};
+    for (const s of activeSheets) if (s.productType === selectedProductType && s.isActive !== false) m[s.trimId] = s.id;
+    return m;
+  }, [activeSheets, selectedProductType]);
+
+  // ORIX 미보유(미매칭) 트림 중 현재 활성 시트가 있는 것 → 「전체 저장」 시 비활성화(데이터 없음) 대상
+  const clearTargets = useMemo<{ trimId: string; sheetId: string }[]>(() => {
+    if (!scrapeDraft?.trims) return [];
+    const out: { trimId: string; sheetId: string }[] = [];
+    for (const tr of scrapeDraft.trims) {
+      if (tr.baseRates && tr.vehiclePrice > 0) continue; // 매칭됨 → 비우기 제외
+      const sheet = activeSheets.find((s) => s.trimId === tr.trimId && s.productType === selectedProductType && s.isActive !== false);
+      if (sheet) out.push({ trimId: tr.trimId, sheetId: sheet.id });
+    }
+    return out;
+  }, [scrapeDraft, activeSheets, selectedProductType]);
 
   const handleSaved = (savedTrimIds: string[] = []) => {
     // 자동 수집 초안을 저장으로 확정했으면 초안·상태 패널 정리
@@ -646,7 +692,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     return d.toISOString().slice(0, 10);
   };
 
-  const createScrapeJob = useCallback(async () => {
+  const createScrapeJob = useCallback(async (username: string, password: string) => {
     if (!selectedFcId || targetTrimIds.length === 0 || !vehicleDetail) return;
     const prices = vehicleDetail.trims
       .filter((t) => targetTrimIds.includes(t.id))
@@ -670,6 +716,8 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
           lineupIds: targetLineups.map((l) => l.id),
           minVehiclePrice: minP,
           maxVehiclePrice: maxP,
+          username,
+          password,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -678,6 +726,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
         setScrapeError(data.error ?? "수집 작업 생성에 실패했습니다.");
         return;
       }
+      setShowLoginModal(false);
       setScrapeJobId(data.jobId);
       setScrapeStatus(data.status ?? "pending");
     } finally {
@@ -691,16 +740,10 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     setShowFetchConfirm(true);
   };
 
-  // 확인 모달의 "불러오기" → 자격증명 확인 후 작업 생성
-  const confirmFetch = async () => {
+  // 확인 모달의 "불러오기" → 개인 로그인 입력 모달
+  const confirmFetch = () => {
     setShowFetchConfirm(false);
-    const res = await fetch(`/api/admin/scraper-credentials?financeCompanyId=${selectedFcId}`);
-    const data = await res.json().catch(() => ({ exists: false }));
-    if (!data.exists) {
-      setShowCredModal(true);
-      return;
-    }
-    await createScrapeJob();
+    setShowLoginModal(true);
   };
 
   const cancelScrape = async () => {
@@ -771,7 +814,20 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   }, [selectedFcId, selectedVehicleId]);
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:h-full overflow-y-auto md:overflow-hidden">
+    <div className="flex flex-col gap-4 md:h-full md:overflow-hidden">
+      <BrandBatchCollector
+        financeCompanyId={selectedFcId}
+        financeCompanyName={selectedFc?.name ?? ""}
+        vehicles={vehicles}
+        productType={selectedProductType}
+        onSaved={() => {
+          fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
+            .then((r) => r.json())
+            .then((res) => setActiveSheets(res.data ?? []))
+            .catch(console.error);
+        }}
+      />
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
       {/* ── 좌측: 캐피탈사 + 차량 선택 ── */}
       <div className="w-full md:w-72 md:flex-shrink-0 flex flex-col gap-4 md:overflow-y-auto">
         {/* 캐피탈사 선택 및 관리 */}
@@ -1193,11 +1249,13 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
               />
             )}
 
-            {/* 수집 결과 검토(라인업별 비교) or 수동 입력 폼/이력 */}
+            {/* 수집 결과 검토(라인업별 비교) or 수동 입력 폼 */}
             {scrapeDraft && perLineupResults.length > 0 ? (
               <ScrapeReviewPanel
                 results={perLineupResults}
                 existingByLineup={existingByLineup}
+                clearTargets={clearTargets}
+                prevActiveByTrim={prevActiveByTrim}
                 financeCompanyId={selectedFcId}
                 productType={selectedProductType}
                 weekOf={scrapeDraft.weekOf}
@@ -1281,15 +1339,13 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
         )}
       </div>
 
-      {showCredModal && selectedFc && (
-        <ScraperCredentialModal
-          financeCompanyId={selectedFcId}
+      {showLoginModal && selectedFc && (
+        <ScraperLoginModal
           financeCompanyName={selectedFc.name}
-          onClose={() => setShowCredModal(false)}
-          onSaved={() => {
-            setShowCredModal(false);
-            void createScrapeJob();
-          }}
+          requiresHuman={resolveCapitalConnection(selectedFc.name)?.requiresHuman ?? false}
+          submitting={scrapeStarting}
+          onClose={() => setShowLoginModal(false)}
+          onSubmit={(username, password) => void createScrapeJob(username, password)}
         />
       )}
 
@@ -1319,6 +1375,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

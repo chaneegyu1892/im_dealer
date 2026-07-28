@@ -15,16 +15,18 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const job = await (prisma as any).scrapeJob.findUnique({
+    const job = await prisma.scrapeJob.findUnique({
       where: { id },
       select: {
         id: true,
         financeCompanyId: true,
+        jobType: true,
         status: true,
         productType: true,
         error: true,
         humanPrompt: true,
         draft: true,
+        progress: true,
         heartbeatAt: true,
         finishedAt: true,
         createdAt: true,
@@ -49,7 +51,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const { action } = scrapeJobActionSchema.parse(await request.json());
-    const db = prisma as any;
+    const db = prisma;
 
     const job = await db.scrapeJob.findUnique({ where: { id } });
     if (!job) return NextResponse.json({ error: "없는 작업" }, { status: 404 });
@@ -58,19 +60,26 @@ export async function PATCH(
       if (!["pending", "running", "needs_human"].includes(job.status)) {
         return NextResponse.json({ error: "취소할 수 없는 상태입니다." }, { status: 409 });
       }
-      await db.scrapeJob.update({
-        where: { id },
-        data: { status: "canceled", finishedAt: new Date() },
+      const canceled = await db.scrapeJob.updateMany({
+        where: { id, status: { in: ["pending", "running", "needs_human"] } },
+        // 취소 — 임시 로그인 정보 폐기
+        data: { status: "canceled", finishedAt: new Date(), credUsernameEnc: null, credPasswordEnc: null },
       });
+      if (canceled.count !== 1) {
+        return NextResponse.json({ error: "작업 상태가 변경되었습니다." }, { status: 409 });
+      }
     } else {
       // resume: 사람 인증 완료 → 워커가 이어가도록 running 으로 전환
       if (job.status !== "needs_human") {
         return NextResponse.json({ error: "재개할 수 없는 상태입니다." }, { status: 409 });
       }
-      await db.scrapeJob.update({
-        where: { id },
+      const resumed = await db.scrapeJob.updateMany({
+        where: { id, status: "needs_human" },
         data: { status: "running", humanPrompt: null, heartbeatAt: new Date() },
       });
+      if (resumed.count !== 1) {
+        return NextResponse.json({ error: "작업 상태가 변경되었습니다." }, { status: 409 });
+      }
     }
 
     await logAdminAction({

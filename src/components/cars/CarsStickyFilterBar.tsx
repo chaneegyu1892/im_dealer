@@ -44,14 +44,14 @@ export function CarsStickyFilterBar({
             type="button"
             onClick={onScrollToFilters}
             className={cn(
-              "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-pill border px-3.5 text-[12px] font-extrabold transition-all",
+              "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-pill border px-3.5 text-[12px] font-extrabold transition-all max-[430px]:h-11 max-[340px]:w-11 max-[340px]:justify-center max-[340px]:px-0",
               activeFilterCount > 0
                 ? "border-brand bg-brand text-white"
                 : "border-transparent bg-surface-soft text-text-strong hover:bg-brand-soft hover:text-brand",
             )}
           >
             <SlidersHorizontal size={13} />
-            필터
+            <span className="max-[340px]:sr-only">필터</span>
             {activeFilterCount > 0 && (
               <span className="grid h-4 min-w-4 place-items-center rounded-full bg-white/18 px-1 text-[10px] text-white">
                 {activeFilterCount}
@@ -62,7 +62,7 @@ export function CarsStickyFilterBar({
             <button
               type="button"
               onClick={() => onBrandChange("전체")}
-              className="inline-flex h-10 shrink-0 items-center gap-1 rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand"
+              className="inline-flex h-10 shrink-0 items-center gap-1 rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand max-[430px]:hidden"
             >
               {brandFilter}
               <X size={11} />
@@ -72,7 +72,7 @@ export function CarsStickyFilterBar({
             <button
               type="button"
               onClick={() => onCategoryChange("전체")}
-              className="inline-flex h-10 shrink-0 items-center gap-1 rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand"
+              className="inline-flex h-10 shrink-0 items-center gap-1 rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand max-[430px]:hidden"
             >
               {categoryFilter}
               <X size={11} />
@@ -85,6 +85,7 @@ export function CarsStickyFilterBar({
             sortOpen={sortOpen}
             onToggle={onSortToggle}
             onChange={onSortChange}
+            compact
           />
         </div>
       </div>

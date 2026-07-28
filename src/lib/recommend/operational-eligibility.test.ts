@@ -152,6 +152,53 @@ describe("assessOperationalEligibility", () => {
     if (result.status === "eligible") expect(result.selectedTrim.id).toBe("trim-a");
   });
 
+  it("filters GT, N, and black-ink trims before choosing the default trim", () => {
+    const original = snapshot();
+    const base = original.trims[0];
+    const value: OperationalVehicleSnapshot = {
+      ...original,
+      trims: [
+        { ...base, id: "trim-gt", name: "GT-Line", isDefault: true },
+        { ...base, id: "trim-normal", name: "프레스티지", isDefault: false },
+      ],
+    };
+
+    const result = assessOperationalEligibility(value, 20_000);
+
+    expect(result.status).toBe("eligible");
+    if (result.status === "eligible") {
+      expect(result.selectedTrim.id).toBe("trim-normal");
+    }
+  });
+
+  it("estimates the representative monthly payment using the 60-month rate", () => {
+    const original = snapshot();
+    const sixtyMonthMatrix = {
+      ...matrix(0.01),
+      "60_10000": 0.03,
+      "60_20000": 0.03,
+      "60_30000": 0.03,
+    };
+    const value: OperationalVehicleSnapshot = {
+      ...original,
+      trims: [{
+        ...original.trims[0],
+        rateSheets: [{
+          ...rateSheet(0.01),
+          minRateMatrix: sixtyMonthMatrix,
+          maxRateMatrix: sixtyMonthMatrix,
+        }],
+      }],
+    };
+
+    const result = assessOperationalEligibility(value, 20_000);
+
+    expect(result.status).toBe("eligible");
+    if (result.status === "eligible") {
+      expect(result.estimatedMonthly).toBe(1_200_000);
+    }
+  });
+
   it("rejects lease-only sheets from the public rental recommendation contract", () => {
     const original = snapshot();
     const value: OperationalVehicleSnapshot = {

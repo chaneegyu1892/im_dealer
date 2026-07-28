@@ -1,0 +1,309 @@
+{
+  "source": "NICE블루마크 통계센터 (https://www.nicebluemark.co.kr/stat/statisticsCenter)",
+  "basis": "2026년 05월 기준, 국토교통부 자동차 신규등록(신차) 기반, 전체(개인+법인)",
+  "note": "차종 분류는 NICE D&R 정의 기준(국토교통부 차체형상명). popularity_score는 1위 등록량(모델 Y, 8,762대)을 100점으로 정규화한 값.",
+  "generated_for": "아임딜러 AI 추천 로직 인기 가중치용",
+  "count": 30,
+  "vehicles": [
+    {
+      "rank": 1,
+      "cartype": "SUV",
+      "brand": "테슬라",
+      "model": "모델 Y",
+      "registration_count": 8762,
+      "share_pct": 0.073,
+      "mom_pct": -0.131,
+      "popularity_score": 100
+    },
+    {
+      "rank": 2,
+      "cartype": "SUV",
+      "brand": "기아",
+      "model": "더 뉴쏘렌토 하이브리드(MQ4)",
+      "registration_count": 7086,
+      "share_pct": 0.059,
+      "mom_pct": -0.349,
+      "popularity_score": 80.9
+    },
+    {
+      "rank": 3,
+      "cartype": "세단",
+      "brand": "현대",
+      "model": "쏘나타 디 엣지",
+      "registration_count": 4110,
+      "share_pct": 0.034,
+      "mom_pct": -0.138,
+      "popularity_score": 46.9
+    },
+    {
+      "rank": 4,
+      "cartype": "미니밴",
+      "brand": "기아",
+      "model": "더 뉴카니발 하이브리드(KA4)",
+      "registration_count": 4024,
+      "share_pct": 0.034,
+      "mom_pct": -0.058,
+      "popularity_score": 45.9
+    },
+    {
+      "rank": 5,
+      "cartype": "세단",
+      "brand": "현대",
+      "model": "더 뉴아반떼(CN7)",
+      "registration_count": 3852,
+      "share_pct": 0.032,
+      "mom_pct": -0.129,
+      "popularity_score": 44
+    },
+    {
+      "rank": 6,
+      "cartype": "트럭",
+      "brand": "현대",
+      "model": "포터II",
+      "registration_count": 3310,
+      "share_pct": 0.028,
+      "mom_pct": -0.234,
+      "popularity_score": 37.8
+    },
+    {
+      "rank": 7,
+      "cartype": "SUV",
+      "brand": "기아",
+      "model": "더 뉴스포티지",
+      "registration_count": 3190,
+      "share_pct": 0.027,
+      "mom_pct": -0.217,
+      "popularity_score": 36.4
+    },
+    {
+      "rank": 8,
+      "cartype": "미니밴",
+      "brand": "기아",
+      "model": "더 뉴기아 레이",
+      "registration_count": 2608,
+      "share_pct": 0.022,
+      "mom_pct": -0.241,
+      "popularity_score": 29.8
+    },
+    {
+      "rank": 9,
+      "cartype": "SUV",
+      "brand": "기아",
+      "model": "EV3",
+      "registration_count": 2441,
+      "share_pct": 0.02,
+      "mom_pct": -0.437,
+      "popularity_score": 27.9
+    },
+    {
+      "rank": 10,
+      "cartype": "해치백",
+      "brand": "기아",
+      "model": "더 뉴모닝(JA)",
+      "registration_count": 2408,
+      "share_pct": 0.02,
+      "mom_pct": -0.242,
+      "popularity_score": 27.5
+    },
+    {
+      "rank": 11,
+      "cartype": "SUV",
+      "brand": "기아",
+      "model": "EV5",
+      "registration_count": 2302,
+      "share_pct": 0.019,
+      "mom_pct": -0.356,
+      "popularity_score": 26.3
+    },
+    {
+      "rank": 12,
+      "cartype": "SUV",
+      "brand": "현대",
+      "model": "디 올뉴싼타페 하이브리드",
+      "registration_count": 2296,
+      "share_pct": 0.019,
+      "mom_pct": -0.174,
+      "popularity_score": 26.2
+    },
+    {
+      "rank": 13,
+      "cartype": "SUV",
+      "brand": "현대",
+      "model": "더 뉴아이오닉 5",
+      "registration_count": 2295,
+      "share_pct": 0.019,
+      "mom_pct": 0.403,
+      "popularity_score": 26.2
+    },
+    {
+      "rank": 14,
+      "cartype": "세단",
+      "brand": "현대",
+      "model": "디 올뉴그랜저 하이브리드",
+      "registration_count": 2200,
+      "share_pct": 0.018,
+      "mom_pct": -0.464,
+      "popularity_score": 25.1
+    },
+    {
+      "rank": 15,
+      "cartype": "미니밴",
+      "brand": "기아",
+      "model": "PV5",
+      "registration_count": 2099,
+      "share_pct": 0.018,
+      "mom_pct": -0.146,
+      "popularity_score": 24
+    },
+    {
+      "rank": 16,
+      "cartype": "세단",
+      "brand": "BMW",
+      "model": "5시리즈(8세대)",
+      "registration_count": 2060,
+      "share_pct": 0.017,
+      "mom_pct": 0.092,
+      "popularity_score": 23.5
+    },
+    {
+      "rank": 17,
+      "cartype": "트럭",
+      "brand": "기아",
+      "model": "더 뉴봉고Ⅲ화물",
+      "registration_count": 2043,
+      "share_pct": 0.017,
+      "mom_pct": -0.32,
+      "popularity_score": 23.3
+    },
+    {
+      "rank": 18,
+      "cartype": "SUV",
+      "brand": "기아",
+      "model": "디 올뉴셀토스",
+      "registration_count": 2018,
+      "share_pct": 0.017,
+      "mom_pct": -0.197,
+      "popularity_score": 23
+    },
+    {
+      "rank": 19,
+      "cartype": "세단",
+      "brand": "제네시스",
+      "model": "뉴 G80",
+      "registration_count": 1722,
+      "share_pct": 0.014,
+      "mom_pct": -0.394,
+      "popularity_score": 19.7
+    },
+    {
+      "rank": 20,
+      "cartype": "세단",
+      "brand": "기아",
+      "model": "더 뉴K5(DL3)",
+      "registration_count": 1700,
+      "share_pct": 0.014,
+      "mom_pct": -0.192,
+      "popularity_score": 19.4
+    },
+    {
+      "rank": 21,
+      "cartype": "세단",
+      "brand": "현대",
+      "model": "디 올뉴그랜저",
+      "registration_count": 1687,
+      "share_pct": 0.014,
+      "mom_pct": -0.398,
+      "popularity_score": 19.3
+    },
+    {
+      "rank": 22,
+      "cartype": "SUV",
+      "brand": "현대",
+      "model": "디 올뉴코나",
+      "registration_count": 1527,
+      "share_pct": 0.013,
+      "mom_pct": -0.174,
+      "popularity_score": 17.4
+    },
+    {
+      "rank": 23,
+      "cartype": "SUV",
+      "brand": "제네시스",
+      "model": "신형 GV70",
+      "registration_count": 1425,
+      "share_pct": 0.012,
+      "mom_pct": -0.318,
+      "popularity_score": 16.3
+    },
+    {
+      "rank": 24,
+      "cartype": "SUV",
+      "brand": "르노코리아",
+      "model": "필랑트",
+      "registration_count": 1393,
+      "share_pct": 0.012,
+      "mom_pct": -0.545,
+      "popularity_score": 15.9
+    },
+    {
+      "rank": 25,
+      "cartype": "SUV",
+      "brand": "현대",
+      "model": "더 뉴투싼",
+      "registration_count": 1380,
+      "share_pct": 0.012,
+      "mom_pct": -0.331,
+      "popularity_score": 15.7
+    },
+    {
+      "rank": 26,
+      "cartype": "SUV",
+      "brand": "현대",
+      "model": "아이오닉 9",
+      "registration_count": 1331,
+      "share_pct": 0.011,
+      "mom_pct": 0.079,
+      "popularity_score": 15.2
+    },
+    {
+      "rank": 27,
+      "cartype": "세단",
+      "brand": "테슬라",
+      "model": "모델 3",
+      "registration_count": 1301,
+      "share_pct": 0.011,
+      "mom_pct": -0.499,
+      "popularity_score": 14.8
+    },
+    {
+      "rank": 28,
+      "cartype": "세단",
+      "brand": "벤츠",
+      "model": "E클래스(6세대)",
+      "registration_count": 1285,
+      "share_pct": 0.011,
+      "mom_pct": -0.242,
+      "popularity_score": 14.7
+    },
+    {
+      "rank": 29,
+      "cartype": "SUV",
+      "brand": "제네시스",
+      "model": "뉴 GV80",
+      "registration_count": 1282,
+      "share_pct": 0.011,
+      "mom_pct": -0.376,
+      "popularity_score": 14.6
+    },
+    {
+      "rank": 30,
+      "cartype": "세단",
+      "brand": "기아",
+      "model": "EV4",
+      "registration_count": 1265,
+      "share_pct": 0.011,
+      "mom_pct": -0.117,
+      "popularity_score": 14.4
+    }
+  ]
+}

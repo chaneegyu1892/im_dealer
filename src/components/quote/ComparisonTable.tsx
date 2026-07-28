@@ -131,7 +131,7 @@ export function ComparisonTable({ primary, comparison }: ComparisonTableProps) {
   );
 
   return (
-    <div className="bg-white rounded-card border border-line2 shadow-soft overflow-hidden">
+    <div className="bg-surface rounded-card border border-line2 shadow-soft overflow-hidden">
       <div className="hidden md:block">
         <DesktopTable columns={columns} totalCosts={totalCosts} />
       </div>
@@ -165,17 +165,35 @@ function DesktopTable({ columns, totalCosts }: RowProps) {
   const hasConfig = columns.some((c) => c.config);
 
   return (
-    <div className="grid grid-cols-[minmax(130px,max-content)_1fr_1fr] divide-x divide-border-subtle">
-      {/* Header */}
-      <div className="bg-sec" />
-      {columns.map((col, i) => (
-        <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-white")}>
-          <p className="text-[11px] font-bold text-brand uppercase tracking-wider mb-1">{col.label}</p>
-          <p className="text-[12px] text-ink-caption">{col.brand}</p>
-          <p className="text-[15px] font-medium text-ink leading-snug">{col.vehicleName}</p>
-          <p className="text-[12px] text-ink-label mt-0.5">{col.trimName}</p>
-        </div>
-      ))}
+    <div className="grid grid-cols-[minmax(130px,max-content)_1fr_1fr] [&>*:nth-child(3n)]:border-l-[2px] [&>*:nth-child(3n)]:border-border-strong [&>*:nth-child(3n)]:pl-6">
+        {/* 비교 컬럼(3n 번째 자식)에 두꺼운 좌측 구분선 + 넉넉한 여백으로 두 차량을 분리 */}
+        {/* Header */}
+        <div className="bg-sec" />
+        {columns.map((col, i) => (
+          <div
+            key={i}
+            className={cn(
+              "relative p-4 border-t-[3px]",
+              col.isPrimary
+                ? "bg-brand-soft border-t-brand"
+                : "bg-accent-purple-soft border-t-accent-purple"
+            )}
+          >
+            <p
+              className={cn(
+                "inline-flex items-center rounded-pill px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider mb-1.5",
+                col.isPrimary
+                  ? "bg-brand text-[var(--color-brand-ink)]"
+                  : "bg-accent-purple text-[var(--color-brand-ink)]"
+              )}
+            >
+              {col.label}
+            </p>
+            <p className="text-[12px] text-ink-caption">{col.brand}</p>
+            <p className="text-[15px] font-medium text-ink leading-snug">{col.vehicleName}</p>
+            <p className="text-[12px] text-ink-label mt-0.5">{col.trimName}</p>
+          </div>
+        ))}
 
       {/* 구성: 라인업 / 기본 차량가 / 옵션 / 색상 — 같은 기준의 비교인지 드러내는 정보 */}
       {hasConfig && (
@@ -297,12 +315,29 @@ function MobileStack({ columns, totalCosts }: RowProps) {
   const baseTotal = totalCosts[0];
 
   return (
-    <div className="divide-y divide-border-subtle">
+    <div className="space-y-3">
       {columns.map((col, i) => (
-        <div key={i} className={cn("p-4", col.isPrimary ? "bg-brand-soft" : "bg-white")}>
+        <div
+          key={i}
+          className={cn(
+            "relative p-4 border-t-[3px] border border-line2 rounded-card overflow-hidden shadow-soft",
+            col.isPrimary
+              ? "bg-brand-soft border-t-brand"
+              : "bg-accent-purple-soft border-t-accent-purple"
+          )}
+        >
           <div className="flex items-start gap-2 mb-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-bold text-brand uppercase tracking-wider mb-0.5">{col.label}</p>
+              <p
+                className={cn(
+                  "inline-flex items-center rounded-pill px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider mb-1.5",
+                  col.isPrimary
+                    ? "bg-brand text-[var(--color-brand-ink)]"
+                    : "bg-accent-purple text-[var(--color-brand-ink)]"
+                )}
+              >
+                {col.label}
+              </p>
               <p className="text-[11px] text-ink-caption">{col.brand}</p>
               <p className="text-[15px] font-medium text-ink leading-snug truncate">{col.vehicleName}</p>
               <p className="text-[12px] text-ink-label mt-0.5 truncate">{col.trimName}</p>
@@ -338,7 +373,7 @@ function MobileStack({ columns, totalCosts }: RowProps) {
           )}
 
           {/* 월 납입금 */}
-          <div className="bg-white rounded-[10px] border border-line2 p-3 mb-2">
+          <div className="bg-surface rounded-[10px] border border-line2 p-3 mb-2">
             <div className="flex items-center justify-between flex-wrap gap-1">
               <p className="text-[12px] text-ink-label">월 납입금</p>
               <div className="flex items-center flex-wrap gap-1">

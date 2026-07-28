@@ -105,11 +105,6 @@ export const INDUSTRY_RULES: Record<string, ScoreRule[]> = {
   ],
   개인: [
     {
-      match: (a) => a.isPopular,
-      pts: 10,
-      reason: "많은 분들이 선택한 검증된 차량이에요",
-    },
-    {
       match: (a) => a.fuel === "EV",
       pts: 12,
       reason: "유지비가 내연기관 대비 크게 절감돼요",

@@ -124,7 +124,7 @@ function VehiclePickerModal({
 
       {/* 모달 본체 */}
       <motion.div
-        className="relative bg-white w-full md:max-w-[600px] rounded-t-[20px] md:rounded-[16px] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
+        className="relative bg-surface w-full md:max-w-[600px] rounded-t-[20px] md:rounded-[16px] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
         initial={{ y: 60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }}
@@ -155,7 +155,7 @@ function VehiclePickerModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="차량 이름으로 검색..."
-              className="w-full pl-9 pr-4 py-2.5 text-[13px] bg-sec border border-line2 rounded-[10px] outline-none focus:border-brand focus:bg-white transition-colors"
+              className="w-full pl-9 pr-4 py-2.5 text-[13px] bg-sec border border-line2 rounded-[10px] outline-none focus:border-brand focus:bg-surface transition-colors"
             />
           </div>
         </div>
@@ -206,7 +206,7 @@ function VehiclePickerModal({
                       {isSelected && (
                         <div className="absolute inset-0 bg-brand/10 flex items-center justify-center">
                           <div className="w-7 h-7 bg-brand rounded-full flex items-center justify-center shadow">
-                            <Check size={14} strokeWidth={3} className="text-white" />
+                            <Check size={14} strokeWidth={3} className="text-[var(--color-brand-ink)]" />
                           </div>
                         </div>
                       )}

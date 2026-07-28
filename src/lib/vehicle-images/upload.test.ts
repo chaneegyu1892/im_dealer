@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   reservationDeleteMany: vi.fn(),
   reservationFindUnique: vi.fn(),
   uploadObject: vi.fn(),
+  renderThumbnail: vi.fn(),
   withLocked: vi.fn(),
   vehicleFind: vi.fn(),
   imageFind: vi.fn(),
@@ -35,6 +36,11 @@ vi.mock("@/lib/supabase/storage", () => ({
   uploadVehicleImageObject: mocks.uploadObject,
 }));
 vi.mock("./transaction", () => ({ withLockedVehicleImages: mocks.withLocked }));
+vi.mock("./list-thumbnail", () => ({
+  VEHICLE_LIST_THUMBNAIL_CONTENT_TYPE: "image/webp",
+  renderVehicleListThumbnail: mocks.renderThumbnail,
+  vehicleListThumbnailPath: (path: string) => `list-thumbnails/v1/${path.replace(/\.[^.]+$/, ".webp")}`,
+}));
 
 import { uploadVehicleImage } from "./upload";
 import { VehicleImageStorageError } from "@/lib/supabase/storage";
@@ -50,6 +56,8 @@ const created = {
   sourceUrl: null,
   sourceKey: "admin:path",
   adminStoragePath: "admin/vehicle-1/image.webp",
+  listThumbnailUrl: "https://storage/list-thumbnail.webp",
+  listThumbnailStoragePath: "list-thumbnails/v1/admin/vehicle-1/image.webp",
   displayOrder: 0,
   isVisible: true,
   deletedAt: null,
@@ -59,8 +67,12 @@ const created = {
 };
 
 function input() {
+  const file = new File(["image"], "image.webp", { type: "image/webp" });
+  Object.defineProperty(file, "arrayBuffer", {
+    value: async () => Uint8Array.from([1, 2, 3]).buffer,
+  });
   return {
-    file: new File(["image"], "image.webp", { type: "image/webp" }),
+    file,
     title: "커버",
     type: "COVER" as const,
     isVisible: true,
@@ -78,7 +90,11 @@ describe("vehicle image upload reservation protocol", () => {
     mocks.reservationUpdateMany.mockResolvedValue({ count: 1 });
     mocks.reservationDeleteMany.mockResolvedValue({ count: 1 });
     mocks.reservationFindUnique.mockResolvedValue({ status: "READY", reservationToken: null });
-    mocks.uploadObject.mockResolvedValue(created.storageUrl);
+    mocks.renderThumbnail.mockResolvedValue(Uint8Array.from([4, 5, 6]));
+    mocks.uploadObject.mockImplementation(async ({ contentType }: { contentType: string }) =>
+      contentType === "image/webp" && mocks.uploadObject.mock.calls.length === 2
+        ? created.listThumbnailUrl
+        : created.storageUrl);
     mocks.vehicleFind.mockResolvedValue({
       id: "vehicle-1",
       thumbnailImageId: null,
@@ -111,7 +127,14 @@ describe("vehicle image upload reservation protocol", () => {
       status: "RESERVED",
       reservationToken: expect.any(String),
     }) });
-    expect(mocks.imageCreate).toHaveBeenCalledWith({ data: expect.objectContaining({ origin: "ADMIN", adminStoragePath: expect.stringMatching(/^admin\/vehicle-1\//) }) });
+    expect(mocks.reservationCreate).toHaveBeenCalledTimes(2);
+    expect(mocks.uploadObject).toHaveBeenCalledTimes(2);
+    expect(mocks.imageCreate).toHaveBeenCalledWith({ data: expect.objectContaining({
+      origin: "ADMIN",
+      adminStoragePath: expect.stringMatching(/^admin\/vehicle-1\//),
+      listThumbnailUrl: created.listThumbnailUrl,
+      listThumbnailStoragePath: expect.stringMatching(/^list-thumbnails\/v1\/admin\/vehicle-1\//),
+    }) });
     expect(mocks.txReservationDelete).toHaveBeenCalledWith({ where: expect.objectContaining({ status: "RESERVED", reservationToken: expect.any(String) }) });
     expect(mocks.vehicleUpdate).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: "vehicle-1" },
@@ -137,7 +160,12 @@ describe("vehicle image upload reservation protocol", () => {
   it("keeps an ambiguous upload failure as a durable READY rollback", async () => {
     mocks.uploadObject.mockRejectedValue(new VehicleImageStorageError("upload", "network lost", true));
     await expect(uploadVehicleImage("vehicle-1", input())).rejects.toThrow("network lost");
-    expect(mocks.reservationDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.reservationDeleteMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        status: "RESERVED",
+        storagePath: expect.stringMatching(/^list-thumbnails\/v1\//),
+      }),
+    });
     expect(mocks.reservationUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: "READY" }),
     }));
@@ -158,7 +186,7 @@ describe("vehicle image upload reservation protocol", () => {
     await expect(uploadVehicleImage("vehicle-1", input())).rejects.toMatchObject({
       code: "RESERVATION_CONFLICT",
     });
-    expect(mocks.reservationFindUnique).toHaveBeenCalledOnce();
+    expect(mocks.reservationFindUnique).toHaveBeenCalledTimes(2);
   });
 
   it("extends the RESERVED deadline while storage upload is active", async () => {

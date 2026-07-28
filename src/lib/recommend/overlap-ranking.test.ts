@@ -36,9 +36,15 @@ function candidate(overrides: Partial<RankableOverlapCandidate> = {}): RankableO
   return {
     vehicleId: "vehicle-a",
     slug: "vehicle-a",
+    fitScore: 10,
+    compatibility: "compatible",
+    popularity: {
+      period: "2026-05",
+      rank: 1,
+      registrationCount: 8_762,
+    },
     modelKey: "brand:model-a",
     modelYear: 2026,
-    isPopular: false,
     profile: profile("ICE"),
     score: {
       documentScore: 10,
@@ -78,6 +84,14 @@ describe("rankOverlapCandidates", () => {
     ).toHaveLength(2);
   });
 
+  it("excludes every candidate outside the approved popularity top 30", () => {
+    expect(rankOverlapCandidates([
+      candidate({
+        popularity: { period: "2026-05", rank: null, registrationCount: null },
+      }),
+    ], "상관없음")).toEqual([]);
+  });
+
   it("deduplicates a model by latest year before score", () => {
     const oldHigh = candidate({ slug: "old", vehicleId: "old", modelYear: 2025 });
     const newLow = candidate({
@@ -100,7 +114,7 @@ describe("rankOverlapCandidates", () => {
         modelKey: "e",
         profile: profile("ICE", 0, 1),
       }),
-      candidate({ vehicleId: "d", slug: "d", modelKey: "d", isPopular: true }),
+      candidate({ vehicleId: "d", slug: "d", modelKey: "d" }),
       candidate({
         vehicleId: "c",
         slug: "c",
@@ -112,6 +126,7 @@ describe("rankOverlapCandidates", () => {
         vehicleId: "a",
         slug: "a",
         modelKey: "a",
+        fitScore: 11,
         score: { ...candidate().score, documentScore: 11, rankScore: 11 },
       }),
     ];
@@ -123,7 +138,7 @@ describe("rankOverlapCandidates", () => {
     expect(
       rankOverlapCandidates(values.filter((item) => item.slug !== "a" && item.slug !== "b"), "상관없음")
         .map((item) => item.slug)
-    ).toEqual(["c", "d", "e"]);
+    ).toEqual(["c", "e", "d"]);
   });
 
   it("is stable across shuffled input", () => {

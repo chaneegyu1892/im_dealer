@@ -78,7 +78,9 @@ export type AuditAction =
   | "SCRAPE_JOB_CREATE"
   | "SCRAPE_JOB_CANCEL"
   | "SCRAPE_JOB_RESUME"
-  | "SCRAPER_CRED_UPSERT";
+  | "CATALOG_MAPPING_UPSERT"
+  | "CATALOG_MAPPING_DELETE"
+  | "RATE_SHEET_APPLY_CATALOG";
 
 export type AuditActor = Pick<User, "id"> & { email: string | null };
 

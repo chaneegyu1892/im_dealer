@@ -72,9 +72,9 @@ const baseInput = {
 
 describe("recommendOverlapV2FromSnapshot", () => {
   const mixed = snapshot([
-    vehicle("hev", "더 뉴 카니발 HEV", profile("더 뉴 카니발 HEV")),
-    vehicle("ev", "더 EV3", profile("더 EV3")),
-    vehicle("ice", "더 뉴 쏘렌토", profile("더 뉴 쏘렌토")),
+    vehicle("kia-11606", "더 뉴 카니발 HEV", profile("더 뉴 카니발 HEV")),
+    vehicle("kia-11681", "더 EV3", profile("더 EV3")),
+    vehicle("kia-11573", "더 뉴 쏘렌토", profile("더 뉴 쏘렌토")),
   ]);
 
   it.each([
@@ -102,13 +102,36 @@ describe("recommendOverlapV2FromSnapshot", () => {
   });
 
   it("keeps scenario formulas and frozen scoring evidence together", () => {
+    const baseProfile = profile("더 뉴 카니발 HEV");
+    const compatibleProfile: OverlapProfile = {
+      ...baseProfile,
+      scores: {
+        ...baseProfile.scores,
+        primaryPreference: {
+          ...baseProfile.scores.primaryPreference,
+          안정감: "fit",
+        },
+        additionalCondition: {
+          ...baseProfile.scores.additionalCondition,
+          family: {
+            ...baseProfile.scores.additionalCondition.family,
+            details: {
+              ...baseProfile.scores.additionalCondition.family.details,
+              영유아: "fit",
+            },
+          },
+        },
+      },
+    };
     const result = recommendOverlapV2FromSnapshot({
       ...baseInput,
       fuelPreference: "하이브리드",
       primaryPreference: "안정감",
       situationPreference: "가족",
       childDetail: "영유아",
-    }, mixed);
+    }, snapshot([
+      vehicle("kia-11606", "더 뉴 카니발 HEV", compatibleProfile),
+    ]));
     const first = result.vehicles[0];
     expect(first?.score).toBe(first?.rankScore);
     expect(first?.documentScore).toBeGreaterThanOrEqual(0);
@@ -124,9 +147,14 @@ describe("recommendOverlapV2FromSnapshot", () => {
       prepayAmount: 0,
     });
     expect(first?.vehicle).toMatchObject({
-      recommendedTrimId: "trim-hev",
+      recommendedTrimId: "trim-kia-11606",
       effectiveTrimPrice: 40_000_000,
       productType: "장기렌트",
+    });
+    expect(first?.popularity).toEqual({
+      period: "2026-05",
+      rank: 4,
+      registrationCount: 4_024,
     });
   });
 
@@ -142,4 +170,19 @@ describe("recommendOverlapV2FromSnapshot", () => {
     expect(external?.documentScore).toBe(none?.documentScore);
     expect(external?.chargingAdjustment).not.toBe(none?.chargingAdjustment);
   });
+
+  it("filters recommendations above the selected no-deposit monthly budget", () => {
+    const withoutBudget = recommendOverlapV2FromSnapshot(
+      { ...baseInput, fuelPreference: "하이브리드" },
+      mixed
+    );
+    expect(withoutBudget.vehicles[0]?.scenarios.standard.monthlyPayment).toBeGreaterThan(500_000);
+
+    const withinBudget = recommendOverlapV2FromSnapshot(
+      { ...baseInput, fuelPreference: "하이브리드", budgetMax: 500_000 },
+      mixed
+    );
+    expect(withinBudget.vehicles).toEqual([]);
+  });
+
 });

@@ -6,6 +6,7 @@ import { createInterface } from "node:readline";
 import puppeteer, { type Browser } from "puppeteer";
 import { resolveAdapter } from "./adapters/registry";
 import { buildDraftFromTrimResults } from "./mapping";
+import { buildBrowserLaunchArgs } from "./browser-launch";
 import type { AdapterContext } from "./adapters/types";
 import type { ScrapeJobParams, TrimScrapeResult } from "../../src/types/scraper";
 
@@ -76,7 +77,13 @@ async function main(): Promise<void> {
   const browser: Browser = await puppeteer.launch({
     headless: AUTO,
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--start-maximized"],
+    args: [
+      ...buildBrowserLaunchArgs({
+        nodeEnv: process.env.NODE_ENV,
+        disableSandbox: process.env.SCRAPER_DISABLE_SANDBOX === "true",
+      }),
+      "--start-maximized",
+    ],
     defaultViewport: null,
   });
   const page = await browser.newPage();

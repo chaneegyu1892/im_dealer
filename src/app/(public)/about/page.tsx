@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, CarFront, ClipboardCheck, MessageCircle, ShieldCheck } from "lucide-react";
+import { createPageMetadata } from "@/lib/site-config";
 
 const PROBLEMS = [
   "상담 신청 후에야 견적이 열리는 구조",
@@ -39,25 +40,23 @@ const STATS = [
   ["2,140", "실제 계약 후기"],
 ] as const;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: "아임딜러 소개",
-  description: "허위견적 없는 AI 기반 장기렌트·리스 견적 서비스. 고객이 먼저 탐색하고 이해하는 견적 경험입니다.",
-  openGraph: {
-    title: "아임딜러 소개",
-    description: "허위견적 없는 AI 기반 장기렌트·리스 견적 서비스.",
-  },
-};
+  description:
+    "아임딜러는 장기렌트·리스 월 납입금과 초기 비용을 상담 전에 비교하고 이해할 수 있도록 돕는 견적 서비스입니다.",
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (
     <div className="home-showroom-scope bg-app-bg pb-[calc(112px+env(safe-area-inset-bottom,0px))] text-text-body lg:pb-0">
       <section className="bg-surface">
-        <div className="mx-auto grid w-full max-w-[1120px] gap-8 px-5 py-12 sm:px-6 md:grid-cols-[1fr_0.85fr] md:items-center md:py-16 lg:px-8">
+        <div className="mx-auto grid w-full max-w-[1120px] gap-8 px-5 py-12 max-[340px]:px-4 max-[340px]:py-10 sm:px-6 md:grid-cols-[1fr_0.85fr] md:items-center md:py-16 lg:px-8">
           <div>
             <p className="mb-4 inline-flex rounded-pill border border-border-subtle bg-surface-soft px-3 py-1.5 text-[12px] font-extrabold text-text-body">
               ABOUT IMDEALER
             </p>
-            <h1 className="break-keep text-[34px] font-extrabold leading-[1.08] tracking-[-0.035em] text-text-strong md:text-[52px]">
+            <h1 className="break-keep text-[34px] font-extrabold leading-[1.08] tracking-[-0.035em] text-text-strong max-[340px]:text-[30px] md:text-[52px]">
               견적을 받기 전에
               <br />
               조건부터 보이게.
@@ -65,7 +64,7 @@ export default function AboutPage() {
             <p className="mt-5 max-w-[560px] break-keep text-[15px] font-medium leading-[1.75] text-text-body md:text-[17px]">
               아임딜러는 장기렌트·리스 견적을 상담 뒤에 숨기지 않습니다. 고객이 먼저 차량을 탐색하고 월 납입 구조를 이해한 뒤 결정할 수 있도록 만듭니다.
             </p>
-            <div className="mt-8 grid grid-cols-2 gap-2.5 sm:flex">
+            <div className="mt-8 grid grid-cols-2 gap-2.5 max-[340px]:grid-cols-1 sm:flex">
               <Link
                 href="/cars"
                 className="inline-flex min-h-[50px] items-center justify-center rounded-pill bg-text-strong px-4 text-[13px] font-extrabold text-surface transition-colors duration-state hover:bg-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"

@@ -1,137 +1,59 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StepIndicator, STEPS, type StepId } from "./StepIndicator";
 import { StepIndustry } from "./StepIndustry";
 import { StepPreference } from "./StepPreference";
-import { StepMileage } from "./StepMileage";
-import { StepFuelPreference } from "./StepFuelPreference";
-import { StepRegion } from "./StepRegion";
+import { StepUsage } from "./StepUsage";
 import { ChevronLeft } from "lucide-react";
 import {
-  CHARGING_OPTIONS,
-  NO_SIMPLE_PREFERENCE_VALUE,
-  NO_SITUATION_PREFERENCE_VALUE,
-} from "@/constants/recommend-options";
-import { SelectionCard } from "./SelectionCard";
-import type { RecommendInput } from "@/types/recommendation";
+  INITIAL_RECOMMEND_FLOW_STATE,
+  buildRecommendInput,
+  isRecommendStepValid,
+} from "./recommend-flow-state";
+import {
+  getRecommendScrollBehavior,
+  useRecommendAutoScroll,
+} from "./use-recommend-auto-scroll";
 
 const TOTAL_STEPS = 3;
-
-type ChargingEnv = "자택" | "직장" | "외부" | "없음" | "";
-
-interface FlowState {
-  industry: string;
-  industryDetail: string;
-  simplePreference: string;
-  situationPreference: string;
-  childDetail: string;
-  cargoDetail: string;
-  annualMileage: number;
-  fuelPreference: string;
-  chargingEnvironment: ChargingEnv;
-  residenceRegion: "일반" | "강원·산간" | "제주";
-}
-
-const INITIAL_STATE: FlowState = {
-  industry: "",
-  industryDetail: "",
-  simplePreference: "",
-  situationPreference: "",
-  childDetail: "",
-  cargoDetail: "",
-  annualMileage: 0,
-  fuelPreference: "",
-  chargingEnvironment: "",
-  residenceRegion: "일반",
-};
-
-function isStepValid(step: StepId, state: FlowState): boolean {
-  switch (step) {
-    case 1:
-      return state.industry !== "" && state.industryDetail !== "";
-    case 2:
-      if (state.simplePreference === "") return false;
-      if (state.situationPreference === "") return false;
-      if (state.situationPreference === "가족" && state.childDetail === "") return false;
-      if (state.situationPreference === "화물" && state.cargoDetail === "") return false;
-      return true;
-    case 3:
-      return (
-        state.annualMileage !== 0 &&
-        state.fuelPreference !== "" &&
-        (state.fuelPreference !== "전기차" || state.chargingEnvironment !== "")
-      );
-  }
-}
 
 export function RecommendFlow() {
   const router = useRouter();
   const flowRef = useRef<HTMLDivElement>(null);
+  const actionRef = useRef<HTMLButtonElement>(null);
+  const requestScroll = useRecommendAutoScroll();
   const [step, setStep] = useState<StepId>(1);
-  const [state, setState] = useState<FlowState>(INITIAL_STATE);
+  const [state, setState] = useState(INITIAL_RECOMMEND_FLOW_STATE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canProceed = isStepValid(step, state);
+  const canProceed = isRecommendStepValid(step, state);
 
   useEffect(() => {
+    const behavior = getRecommendScrollBehavior();
+
     if (step === 1) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior });
       return;
     }
 
-    flowRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    flowRef.current?.scrollIntoView({ block: "start", behavior });
   }, [step]);
-
-  const realPreferences = [
-    state.simplePreference,
-    state.situationPreference,
-  ].filter(
-    (preference) =>
-      preference !== "" &&
-      preference !== NO_SIMPLE_PREFERENCE_VALUE &&
-      preference !== NO_SITUATION_PREFERENCE_VALUE
-  );
 
   const handleNext = async () => {
     if (!canProceed) return;
 
     if (step < TOTAL_STEPS) {
-      setStep((s) => (s + 1) as StepId);
+      setStep(step === 1 ? 2 : 3);
       return;
     }
 
     setLoading(true);
     setError(null);
     try {
-      const input: RecommendInput = {
-        industry: state.industry,
-        preferences: realPreferences,
-        annualMileage: state.annualMileage,
-        returnType: "미정",
-        industryDetail: state.industryDetail,
-        ...(state.simplePreference !== "" &&
-        state.simplePreference !== NO_SIMPLE_PREFERENCE_VALUE
-          ? { primaryPreference: state.simplePreference }
-          : {}),
-        ...(state.situationPreference !== "" &&
-        state.situationPreference !== NO_SITUATION_PREFERENCE_VALUE
-          ? { situationPreference: state.situationPreference }
-          : {}),
-        ...(state.situationPreference === "가족" && state.childDetail !== ""
-          ? { childDetail: state.childDetail }
-          : {}),
-        ...(state.situationPreference === "화물" && state.cargoDetail !== ""
-          ? { cargoDetail: state.cargoDetail }
-          : {}),
-        fuelPreference: state.fuelPreference,
-        ...(state.fuelPreference === "전기차" && state.chargingEnvironment !== ""
-          ? { chargingEnvironment: state.chargingEnvironment }
-          : {}),
-        residenceRegion: state.residenceRegion,
-      };
+      const input = buildRecommendInput(state);
 
       const res = await fetch("/api/recommend", {
         method: "POST",
@@ -157,7 +79,7 @@ export function RecommendFlow() {
   };
 
   const handleBack = () => {
-    if (step > 1) setStep((s) => (s - 1) as StepId);
+    if (step > 1) setStep(step === 3 ? 2 : 1);
   };
 
   const handleSimplePreferenceChange = (value: string) => {
@@ -176,13 +98,8 @@ export function RecommendFlow() {
     }));
   };
 
-  const handleFuelChange = (v: string) => {
-    setState((s) => ({
-      ...s,
-      fuelPreference: v,
-      // 전기차에서 다른 연료로 바꾸면 충전 환경 초기화
-      chargingEnvironment: v === "전기차" ? s.chargingEnvironment : "",
-    }));
+  const handleStepComplete = () => {
+    requestScroll(actionRef, "nearest");
   };
 
   const stepLabel = (STEPS.find((s) => s.id === step) ?? STEPS[0]).label;
@@ -190,7 +107,7 @@ export function RecommendFlow() {
   return (
     <div
       ref={flowRef}
-      className="t-shell scroll-mt-[72px] pt-3 pb-[120px] md:scroll-mt-[88px] md:pb-10"
+      className="t-shell scroll-mt-[72px] pt-3 pb-[calc(168px+env(safe-area-inset-bottom,0px))] md:scroll-mt-[88px] md:pb-10"
     >
       {/* 앱바: 뒤로가기 + 단계명 + n/N */}
       <div className="t-appbar justify-between">
@@ -224,13 +141,10 @@ export function RecommendFlow() {
         {step === 1 && (
           <StepIndustry
             value={state.industry}
-            onChange={(v) =>
-              setState((s) => ({ ...s, industry: v, industryDetail: "" }))
-            }
-            detail={state.industryDetail}
-            onDetailChange={(v) =>
-              setState((s) => ({ ...s, industryDetail: v }))
-            }
+            onChange={(industry) => setState((current) => ({ ...current, industry }))}
+            budgetRange={state.budgetRange}
+            onBudgetChange={(budgetRange) => setState((current) => ({ ...current, budgetRange }))}
+            onComplete={handleStepComplete}
           />
         )}
         {step === 2 && (
@@ -247,57 +161,15 @@ export function RecommendFlow() {
             onCargoDetailChange={(v) =>
               setState((s) => ({ ...s, cargoDetail: v }))
             }
+            onComplete={handleStepComplete}
           />
         )}
         {step === 3 && (
-          <div className="space-y-8">
-            <StepMileage
-              value={state.annualMileage}
-              onChange={(v) =>
-                setState((s) => ({ ...s, annualMileage: v }))
-              }
-            />
-            <div className="border-t border-border-subtle pt-7">
-              <StepFuelPreference
-                value={state.fuelPreference}
-                onChange={handleFuelChange}
-              />
-              {state.fuelPreference === "전기차" && (
-                <div className="mt-5 rounded-[16px] border border-brand/15 bg-brand-soft p-4 transition-all duration-200">
-                  <h3 className="text-[15px] font-extrabold text-text-strong">
-                    충전 환경이 있나요?
-                  </h3>
-                  <p className="mt-1 text-[12.5px] leading-relaxed text-text-muted">
-                    집·회사·아파트 등 일상 충전이 가능한지에 따라 추천이
-                    달라져요.
-                  </p>
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4">
-                    {CHARGING_OPTIONS.map((opt) => (
-                      <SelectionCard
-                        key={opt.value}
-                        selected={state.chargingEnvironment === opt.value}
-                        onClick={() =>
-                          setState((s) => ({
-                            ...s,
-                            chargingEnvironment: opt.value as ChargingEnv,
-                          }))
-                        }
-                        icon={opt.icon}
-                        label={opt.label}
-                        desc={opt.desc}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="border-t border-border-subtle pt-7">
-              <StepRegion
-                value={state.residenceRegion}
-                onChange={(v) => setState((s) => ({ ...s, residenceRegion: v }))}
-              />
-            </div>
-          </div>
+          <StepUsage
+            value={state}
+            onChange={(patch) => setState((current) => ({ ...current, ...patch }))}
+            onComplete={handleStepComplete}
+          />
         )}
       </div>
 
@@ -321,6 +193,7 @@ export function RecommendFlow() {
               </button>
             )}
             <button
+              ref={actionRef}
               type="button"
               disabled={!canProceed || loading}
               onClick={handleNext}

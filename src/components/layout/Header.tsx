@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { ADMIN_ROLES, type AdminRole } from "@/lib/admin-roles";
+import { HeaderCallButton } from "@/components/layout/HeaderCallButton";
 
 const NAV_LINKS = [
   { href: "/", label: "홈", icon: Home, exact: true },
@@ -80,14 +81,6 @@ export function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 견적 플로우는 전용 미니 헤더(STEP/진행바)를 모바일에서 쓰므로,
-  // 사이트 헤더와 겹쳐 단계 표시가 가려지는 문제를 막기 위해 모바일에서만 숨긴다.
-  // 데스크톱은 견적 미니 헤더가 md:hidden 이라 사이트 헤더를 그대로 노출해 로그인·네비 유지.
-  // 모든 Hook 뒤에 위치시켜 rules-of-hooks 위반을 피한다.
-  if (pathname.startsWith("/quote")) {
-    return <div className="h-0 md:hidden" aria-hidden />;
-  }
-
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -113,7 +106,8 @@ export function Header() {
 
   return (
     <header className={cn(
-      "sticky top-0 z-50 border-b border-border-subtle bg-surface-glass backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150",
+      "sticky top-0 border-b border-border-subtle bg-surface-glass backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150",
+      dropdownOpen ? "z-[70]" : "z-50",
       isHome && "home-showroom-scope"
     )}>
       <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-5 lg:px-8">
@@ -132,7 +126,7 @@ export function Header() {
               priority
               loading="eager"
               unoptimized
-              className="block h-5 w-[98px] object-contain lg:h-7 lg:w-[137px]"
+              className="public-brand-logo block h-5 w-[98px] object-contain lg:h-7 lg:w-[137px]"
             />
           </Link>
 
@@ -171,15 +165,17 @@ export function Header() {
           </nav>
 
           {/* 우측: 로그인 상태 */}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            <HeaderCallButton />
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"
-                  onClick={() => setDropdownOpen((v) => !v)}
+                  onClick={() => setDropdownOpen((open) => !open)}
                   className="flex min-h-11 items-center gap-1.5 rounded-pill border border-transparent px-2 py-1 text-text-strong transition-colors hover:border-border-subtle hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface md:gap-2 md:px-3"
                   aria-expanded={dropdownOpen}
                   aria-haspopup="menu"
+                  aria-label={`${displayName} 계정 메뉴`}
                 >
                   {avatarUrl ? (
                     <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full md:h-7 md:w-7">
@@ -207,9 +203,18 @@ export function Header() {
                     className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-card border border-border-subtle bg-surface-raised py-1 shadow-mobile-float"
                     role="menu"
                   >
+                    <Link
+                      href="/mypage"
+                      onClick={() => setDropdownOpen(false)}
+                      className="block min-h-11 w-full px-4 py-3 text-left text-[13px] font-bold text-text-strong transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
+                      role="menuitem"
+                    >
+                      마이페이지
+                    </Link>
                     {isAdminUser && (
                       <Link
                         href="/admin"
+                        onClick={() => setDropdownOpen(false)}
                         className="block min-h-11 w-full px-4 py-3 text-left text-[13px] font-bold text-brand transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
                         role="menuitem"
                       >

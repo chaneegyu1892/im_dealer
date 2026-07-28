@@ -1,14 +1,19 @@
 // .env 를 다른 import 보다 먼저 로드 (ESM 호이스팅 — load-env 가 항상 첫 import 여야 함)
 import "./load-env";
 import puppeteer, { type Browser } from "puppeteer";
+import { z } from "zod";
 
 import { decryptString } from "../../src/lib/pii";
-import type { ScrapeJobParams, TrimScrapeResult } from "../../src/types/scraper";
+import { keyFingerprint } from "../../src/lib/scraper/key-fingerprint";
+import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
+import type { CatalogJobParams, CatalogProgress, CatalogTrimEntry, ScrapeJobParams, TrimScrapeResult } from "../../src/types/scraper";
 import { buildDraftFromTrimResults } from "./mapping";
+import { buildBrowserLaunchArgs } from "./browser-launch";
+import { createCatalogResultBuffer } from "./catalog-buffer";
 import { resolveAdapter } from "./adapters/registry";
 import { AuthError } from "./adapters/types";
 import type { AdapterContext } from "./adapters/types";
-import { claimJob, heartbeat, postResult, type ClaimedJob, type ClaimedCredential } from "./api-client";
+import { claimJob, getCollectedMdelCds, heartbeat, postCatalogResults, postResult, type ClaimedJob, type ClaimedCredential } from "./api-client";
 
 const POLL_MS = Number(process.env.SCRAPER_POLL_MS ?? 5000);
 const HEADFUL = process.env.SCRAPER_HEADFUL === "true";
@@ -20,12 +25,23 @@ const JOB_COOLDOWN_MS = Number(process.env.SCRAPER_JOB_COOLDOWN_MS ?? 30000); //
 // 사람 속도 모사 + 탐지 footprint 완화용 랜덤 지터: base ~ base*1.6
 const jitter = (base: number) => base + Math.floor(Math.random() * base * 0.6);
 
-const LAUNCH_ARGS = [
-  "--no-sandbox",
-  "--disable-setuid-sandbox",
-  "--disable-gpu",
-  "--disable-dev-shm-usage",
-];
+const scrapeJobParamsSchema = z.object({
+  trimIds: z.array(z.string().min(1)),
+  vehicleId: z.string().min(1),
+  lineupIds: z.array(z.string().min(1)),
+  weekOf: z.string().min(1),
+  minVehiclePrice: z.number().nonnegative(),
+  maxVehiclePrice: z.number().nonnegative(),
+  scraperRef: z.object({ brandCd: z.string(), modelName: z.string() }).optional(),
+  trims: z.array(z.object({ trimId: z.string(), name: z.string() })).optional(),
+});
+
+const catalogJobParamsSchema = z.object({
+  mode: z.literal("catalog"),
+  brands: z.array(z.object({ brandCd: z.string().min(1), name: z.string().min(1) })),
+  weekOf: z.string().min(1),
+  productType: z.string().min(1),
+});
 
 class CanceledError extends Error {
   constructor() {
@@ -46,15 +62,90 @@ function requireEnv(): void {
   }
 }
 
+/**
+ * 백엔드와 실제로 통할 수 있는지 job 을 가져오기 전에 확인한다.
+ *
+ * 특히 PII_ENCRYPTION_KEY 불일치는 크래시를 내지 않고 job 을 하나 소비한 뒤에야
+ * "자격증명 복호화 실패"로 끝나기 때문에, 여기서 미리 걸러야 원인을 알 수 있다.
+ * 백엔드가 구버전이라 preflight 라우트가 없으면(404) 경고만 남기고 계속 진행한다.
+ *
+ * 통과하면 true. 실패 시 즉시 exit 하지 않고 false 를 돌려 main 이 정상 종료하게 한다
+ * (열린 fetch 핸들 위에서 process.exit 하면 Windows 에서 libuv assertion 이 뜬다).
+ */
+async function preflight(): Promise<boolean> {
+  const base = (process.env.WORKER_API_BASE ?? "").replace(/\/+$/, "");
+  try {
+    const res = await fetch(`${base}/api/worker/preflight`, {
+      headers: { authorization: `Bearer ${process.env.SCRAPER_WORKER_SECRET}` },
+    });
+
+    if (res.status === 404) {
+      console.warn("[worker] preflight 라우트 없음(구버전 백엔드) — 점검을 건너뜁니다.");
+      return true;
+    }
+    if (res.status === 401) {
+      console.error("[worker] 인증 실패: SCRAPER_WORKER_SECRET 이 백엔드 값과 다릅니다.");
+      return false;
+    }
+    if (!res.ok) {
+      console.error(`[worker] preflight 실패: HTTP ${res.status}`);
+      return false;
+    }
+
+    const { keyFingerprint: serverKey, expectedWorkerVersion } = (await res.json()) as {
+      keyFingerprint: string | null;
+      expectedWorkerVersion?: number;
+    };
+    const localKey = keyFingerprint(process.env.PII_ENCRYPTION_KEY);
+
+    if (expectedWorkerVersion !== undefined && expectedWorkerVersion !== WORKER_PROTOCOL_VERSION) {
+      console.error(
+        `[worker] 프로그램이 오래되었습니다 (이 프로그램 v${WORKER_PROTOCOL_VERSION} / 서버 요구 v${expectedWorkerVersion}).\n` +
+          "        개발 담당자에게 최신 파일을 받아 다시 설치해 주세요.\n" +
+          "        접속 정보는 유지되므로 다시 입력하지 않아도 됩니다."
+      );
+      return false;
+    }
+
+    if (serverKey && localKey && serverKey !== localKey) {
+      console.error(
+        `[worker] PII_ENCRYPTION_KEY 불일치 (워커 ${localKey} ≠ 백엔드 ${serverKey}).\n` +
+          "        이대로 실행하면 job 을 받아도 자격증명 복호화에 실패합니다.\n" +
+          "        백엔드의 PII_ENCRYPTION_KEY 를 그대로 복사해 넣으세요. (`pnpm scraper:doctor` 로 재점검)"
+      );
+      return false;
+    }
+    console.log(`[worker] preflight 통과 (키 지문 ${localKey ?? "?"})`);
+    return true;
+  } catch (error) {
+    console.error(
+      `[worker] 백엔드에 연결할 수 없습니다: ${base}\n` +
+        `        ${error instanceof Error ? error.message : "알 수 없는 오류"}\n` +
+        "        WORKER_API_BASE 가 맞는지, 백엔드가 떠 있는지 확인하세요."
+    );
+    return false;
+  }
+}
+
 type JobOutcome = "completed" | "canceled" | "failed";
 
 async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<JobOutcome> {
   const log = (msg: string) => console.log(`[job ${job.id}] ${msg}`);
 
-  const username = decryptString(credential.usernameEnc);
-  const password = decryptString(credential.passwordEnc);
-  if (!username || !password) {
-    await postResult(job.id, { ok: false, error: "자격증명 복호화 실패 (PII_ENCRYPTION_KEY 불일치 가능)" });
+  // requiresHuman 캐피탈사(키패드·SMS)는 어댑터가 자격증명을 쓰지 않고 사람에게 로그인을 넘긴다.
+  // 그런 곳은 서버가 애초에 자격증명을 저장하지 않으므로 빈 값이 정상이다.
+  const hasCiphertext = Boolean(credential.usernameEnc && credential.passwordEnc);
+  const username = decryptString(credential.usernameEnc) ?? "";
+  const password = decryptString(credential.passwordEnc) ?? "";
+  if (!credential.requiresHuman && (!username || !password)) {
+    // 암호문 유무로 원인을 갈라 준다. 둘을 같은 메시지로 뭉뚱그리면
+    // 실제로는 워커가 옛 코드인데 키 문제로 오진하게 된다.
+    await postResult(job.id, {
+      ok: false,
+      error: hasCiphertext
+        ? "자격증명 복호화 실패 (PII_ENCRYPTION_KEY 불일치 가능)"
+        : "이 작업에 자격증명이 없습니다. 워커가 옛 버전일 수 있으니 재시작 후 다시 시도하세요.",
+    });
     return "failed";
   }
 
@@ -66,19 +157,30 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
 
   let canceled = false;
   let pageBusy = false;
-  const params = job.params as ScrapeJobParams;
+  let currentProgress: CatalogProgress | null = null; // catalog 잡 진행률 (하트비트에 동봉)
+  const paramsResult = job.jobType === "catalog"
+    ? catalogJobParamsSchema.safeParse(job.params)
+    : scrapeJobParamsSchema.safeParse(job.params);
+  if (!paramsResult.success) {
+    await postResult(job.id, { ok: false, error: "작업 파라미터가 올바르지 않습니다." });
+    return "failed";
+  }
+  const params: CatalogJobParams | ScrapeJobParams = paramsResult.data;
 
   const headless = !(credential.requiresHuman || HEADFUL);
   log(`브라우저 실행 (headless=${headless})`);
   const browser: Browser = await puppeteer.launch({
     headless,
-    args: LAUNCH_ARGS,
+    args: buildBrowserLaunchArgs({
+      nodeEnv: process.env.NODE_ENV,
+      disableSandbox: process.env.SCRAPER_DISABLE_SANDBOX === "true",
+    }),
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   });
 
   const heartbeatTimer = setInterval(async () => {
     try {
-      const status = await heartbeat(job.id);
+      const status = await heartbeat(job.id, currentProgress ? { progress: currentProgress } : undefined);
       if (status === "canceled") canceled = true;
     } catch (e) {
       log(`하트비트 오류: ${(e as Error).message}`);
@@ -140,29 +242,84 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
     pageBusy = false;
     if (canceled) throw new CanceledError();
 
-    // 트림별 수집
-    const results: TrimScrapeResult[] = [];
-    for (const trimId of params.trimIds) {
-      if (canceled) throw new CanceledError();
-      pageBusy = true;
+    if (job.jobType === "catalog") {
+      // ── 카탈로그 전량 수집: 어댑터가 순회, 워커가 버퍼링/증분 flush ──
+      if (!adapter.scrapeCatalog) {
+        await postResult(job.id, { ok: false, error: "이 캐피탈사 어댑터는 카탈로그 수집을 지원하지 않습니다." });
+        return "failed";
+      }
+      if (!("mode" in params)) {
+        throw new Error("카탈로그 작업 파라미터 종류가 일치하지 않습니다.");
+      }
+      const cParams = params;
+      // 재개 지원: 이번주 이미 수집된 외부 트림코드는 스킵
+      const collected = new Set(await getCollectedMdelCds(job.financeCompanyId, cParams.productType, cParams.weekOf));
+      if (collected.size > 0) log(`이번주 기수집 ${collected.size}건 — 스킵하고 이어서 수집`);
+
+      const resultBuffer = createCatalogResultBuffer<CatalogTrimEntry>(async (entries) => {
+          await postCatalogResults({
+            jobId: job.id, financeCompanyId: job.financeCompanyId,
+            productType: cParams.productType, weekOf: cParams.weekOf, entries,
+          });
+      });
+      const flush = async (required: boolean): Promise<void> => {
+        const count = resultBuffer.size();
+        const saved = await resultBuffer.flush({ required });
+        if (saved && count > 0) log(`증분 저장 ${count}건`);
+        if (!saved) log(`증분 저장 실패(${resultBuffer.size()}건 보류) — 다음 flush에서 재시도`);
+      };
+
+      pageBusy = true; // 어댑터가 세션을 계속 사용 — keepAlive 불필요(API 호출 자체가 세션 활동)
+      let summary;
       try {
-        const r = await adapter.scrapeTrim(ctx, trimId);
-        results.push(r);
-        log(`트림 수집: ${trimId} (${r.matchConfidence})`);
+        summary = await adapter.scrapeCatalog(ctx, {
+          brands: cParams.brands,
+          isCollected: (mdelCd) => collected.has(mdelCd),
+          onTrimResult: async (entry) => {
+            resultBuffer.add(entry);
+            if (resultBuffer.size() >= 20) await flush(false);
+          },
+          onModelDone: async () => flush(false),
+          onProgress: (p) => { currentProgress = p; },
+        });
       } finally {
         pageBusy = false;
+        await flush(true);
       }
-      await sleep(jitter(REQUEST_DELAY_MS)); // 트림 간 지연 + 랜덤 지터 (사람 속도 모사)
-    }
+      if (canceled) throw new CanceledError();
+      await postResult(job.id, {
+        ok: true,
+        catalogSummary: { mode: "catalog", ...summary, finishedAt: new Date().toISOString() },
+      });
+      log(`카탈로그 완료 — 수집 ${summary.total}건, 스킵 ${summary.skipped}건, 실패 ${summary.failed}건`);
+    } else {
+      // ── 기존 trim_rates: 지정 트림 수집 → 라인업 min/max 초안 ──
+      if ("mode" in params) {
+        throw new Error("트림 수집 작업 파라미터 종류가 일치하지 않습니다.");
+      }
+      const results: TrimScrapeResult[] = [];
+      for (const trimId of params.trimIds) {
+        if (canceled) throw new CanceledError();
+        pageBusy = true;
+        try {
+          const r = await adapter.scrapeTrim(ctx, trimId);
+          results.push(r);
+          log(`트림 수집: ${trimId} (${r.matchConfidence})`);
+        } finally {
+          pageBusy = false;
+        }
+        await sleep(jitter(REQUEST_DELAY_MS)); // 트림 간 지연 + 랜덤 지터 (사람 속도 모사)
+      }
 
-    const draft = buildDraftFromTrimResults(
-      results,
-      params,
-      job.productType,
-      new Date().toISOString()
-    );
-    await postResult(job.id, { ok: true, draft });
-    log(`완료 — 트림 ${results.length}건, 경고 ${draft.warnings.length}건`);
+      const draft = buildDraftFromTrimResults(
+        results,
+        params,
+        job.productType,
+        new Date().toISOString()
+      );
+      await postResult(job.id, { ok: true, draft });
+      log(`완료 — 트림 ${results.length}건, 경고 ${draft.warnings.length}건`);
+    }
     return "completed";
   } catch (e) {
     if (e instanceof CanceledError) {
@@ -187,11 +344,44 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
 
 async function main(): Promise<void> {
   requireEnv();
-  console.log(`[worker] 시작 — API=${process.env.WORKER_API_BASE} poll=${POLL_MS}ms headful=${HEADFUL}`);
+  if (!(await preflight())) {
+    process.exitCode = 1;
+    return;
+  }
+  console.log(
+    `[worker] 시작 — API=${process.env.WORKER_API_BASE} poll=${POLL_MS}ms headful=${HEADFUL} v${WORKER_PROTOCOL_VERSION}`
+  );
+  // 같은 안내를 매 폴링마다 도배하지 않도록 한 번만 출력한다.
+  let staleWarned = false;
   for (;;) {
     try {
       const claimed = await claimJob();
-      if (claimed) {
+
+      // 백엔드가 새 규약을 기대하는데 이 워커는 옛 zip 이라면, 작업을 가져가면 안 된다.
+      // 옛 코드로 처리하면 엉뚱한 이유로 실패하고 원인 추적이 어려워진다.
+      if (
+        claimed.expectedWorkerVersion !== undefined &&
+        claimed.expectedWorkerVersion !== WORKER_PROTOCOL_VERSION
+      ) {
+        if (!staleWarned) {
+          console.error(
+            "\n" +
+              "=".repeat(62) +
+              `\n 프로그램이 오래되어 수집을 시작할 수 없습니다.\n` +
+              `   (이 프로그램 v${WORKER_PROTOCOL_VERSION} / 서버 요구 v${claimed.expectedWorkerVersion})\n\n` +
+              " 개발 담당자에게 최신 파일을 받아 다시 설치해 주세요.\n" +
+              " 접속 정보는 그대로 유지되니 다시 입력하지 않아도 됩니다.\n" +
+              "=".repeat(62) +
+              "\n"
+          );
+          staleWarned = true;
+        }
+        await sleep(POLL_MS);
+        continue;
+      }
+      staleWarned = false;
+
+      if (claimed.job && claimed.credential) {
         console.log(`[worker] 작업 클레임: ${claimed.job.id} (캐피탈사 ${claimed.job.financeCompanyId})`);
         const outcome = await runJob(claimed.job, claimed.credential);
         // 정상 완료 후에만 버스트 완화 쿨다운(분산) — 사람처럼 간격을 둠.

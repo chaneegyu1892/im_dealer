@@ -28,4 +28,17 @@ describe("recommend engine selector", () => {
     expect(legacy).toHaveBeenCalledOnce();
     expect(overlap).not.toHaveBeenCalled();
   });
+
+  it("calls only step02-v3 for an explicitly versioned new request", async () => {
+    const legacy = vi.fn(async () => []);
+    const overlap = vi.fn(async () => []);
+    const step02 = vi.fn(async () => []);
+    await recommendWithEngines(
+      { ...input, recommendationVersion: "step02-v3", stylePreference: "auto" },
+      { version: () => "step02-v3", legacy, overlap, step02 }
+    );
+    expect(step02).toHaveBeenCalledOnce();
+    expect(legacy).not.toHaveBeenCalled();
+    expect(overlap).not.toHaveBeenCalled();
+  });
 });

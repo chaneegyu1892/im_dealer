@@ -1,5 +1,9 @@
 # 카카오 회원 전화번호 수집 — 설정 가이드 (팀원용)
 
+> 🔄 **이 문서의 플래그는 더 이상 사용되지 않습니다.** 전화번호는 카카오싱크 스코프에 포함되어
+> `NEXT_PUBLIC_KAKAO_REQUEST_PHONE` → `NEXT_PUBLIC_KAKAO_SYNC` 로 통합되었습니다.
+> 콘솔 동의항목 심사 절차(아래 내용)는 그대로 유효합니다. 설정은 [kakao-sync-setup.md](kakao-sync-setup.md) 참고.
+
 **목적:** 카카오 로그인 회원의 **전화번호**를 수집해 관리자 **사용자 관리** 화면에 표시한다.
 현재는 카카오 로그인 시 전화번호를 요청하지 않아 대부분의 회원이 "연락처 없음"으로 표시된다.
 
@@ -8,9 +12,10 @@
 
 ---
 
-## 1. 현재 상태 / 원인
+## 1. 현재 상태
 
-- 로그인 시 요청 scope가 `profile_nickname profile_image`뿐 → 카카오가 전화번호를 주지 않음 → 저장·표시할 값이 없음.
+- `NEXT_PUBLIC_KAKAO_SYNC=true`일 때 로그인 scope에 `phone_number`를 포함한다.
+- 플래그가 꺼져 있거나 카카오 콘솔 심사가 끝나지 않았으면 전화번호를 요청하지 않는다.
 - 견적/본인인증을 거친 회원만 `SavedQuote.phone`으로 번호가 잡혀 일부만 보임.
 
 ## 2. 이미 되어 있는 것 (코드)
@@ -19,7 +24,7 @@
 
 | 파일 | 내용 |
 |---|---|
-| `src/app/(public)/login/LoginContent.tsx` | `NEXT_PUBLIC_KAKAO_REQUEST_PHONE=true`일 때만 `phone_number` scope 요청 |
+| `src/lib/kakao/scopes.ts` | `NEXT_PUBLIC_KAKAO_SYNC=true`일 때 `phone_number` scope 요청 |
 | `src/app/auth/callback/route.ts` | 로그인 콜백에서 전화번호를 `User.phone`에 저장. Supabase가 안 넘겨주면 `provider_token`으로 카카오 API(`/v2/user/me`) 직접 조회해 보강 |
 | `src/lib/admin-queries/users.ts` | 저장된 phone을 읽어 사용자 관리에 표시 (변경 없음, 기존 코드) |
 
@@ -69,7 +74,7 @@
 ### D. (승인 후) 활성화
 
 1. **Vercel** → 프로젝트 → Settings → Environment Variables
-2. 추가: `NEXT_PUBLIC_KAKAO_REQUEST_PHONE` = `true` (Production)
+2. 추가: `NEXT_PUBLIC_KAKAO_SYNC` = `true` (Production)
 3. **재배포** (환경변수 반영을 위해)
 
 > ⚠️ **순서 주의**: C(검수 승인)가 끝나기 **전에** 이 플래그를 켜면, 승인 안 된 scope를 요청하게 되어 **카카오 로그인이 실패**할 수 있다. 반드시 **승인 후** 켠다.
@@ -83,7 +88,7 @@
 
 ## 4. 롤백
 
-문제가 생기면 **Vercel 환경변수 `NEXT_PUBLIC_KAKAO_REQUEST_PHONE`를 삭제(또는 false)** 후 재배포하면 즉시 기존 동작(전화번호 미요청)으로 복귀한다. 코드 되돌림 불필요.
+문제가 생기면 **Vercel 환경변수 `NEXT_PUBLIC_KAKAO_SYNC`를 삭제(또는 false)** 후 재배포하면 기존 프로필 전용 로그인으로 복귀한다. 이때 카카오 견적 전송 CTA와 API도 함께 비활성화된다.
 
 ## 5. 주의사항
 
@@ -103,7 +108,7 @@ B. 비즈니스 앱 전환 (사업자 정보)
       ↓
 C. 전화번호 동의항목 활성화 + 검수 신청  ← 승인 대기(며칠)
       ↓
-D. Vercel: NEXT_PUBLIC_KAKAO_REQUEST_PHONE=true + 재배포
+D. Vercel: NEXT_PUBLIC_KAKAO_SYNC=true + 재배포
       ↓
 E. 재로그인 → 사용자 관리에서 전화번호 표시 확인
 ```

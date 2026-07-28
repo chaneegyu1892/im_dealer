@@ -190,10 +190,19 @@ async function verifyPurgeAndImporter(db: PrismaClient, prefix: string): Promise
     displayOrder: 0,
     metadata: { sourceField: "cover" },
   };
-  check(await persistence.applyMirroredCandidate({ vehicleId: importVehicle.id, existingImageId: null, candidate, storageUrl: "https://storage.example/cover.webp" }) === "upserted", "importer write skipped");
+  const importedAsset = {
+    vehicleId: importVehicle.id,
+    existingImageId: null,
+    candidate,
+    storageUrl: "https://storage.example/cover.webp",
+    listThumbnailUrl: "https://storage.example/list/cover.webp",
+    listThumbnailStoragePath: "list-thumbnails/v1/cover.webp",
+    listThumbnailReservation: null,
+  };
+  check(await persistence.applyMirroredCandidate(importedAsset) === "upserted", "importer write skipped");
   const importAfter = await db.vehicle.findUniqueOrThrow({ where: { id: importVehicle.id }, select: { imageRevision: true } });
   check(importAfter.imageRevision === 1, "importer did not advance imageRevision");
-  check(await persistence.applyMirroredCandidate({ vehicleId: importVehicle.id, existingImageId: null, candidate, storageUrl: "https://storage.example/cover.webp" }) === "skipped", "importer no-op was not skipped");
+  check(await persistence.applyMirroredCandidate(importedAsset) === "skipped", "importer no-op was not skipped");
   const importNoOp = await db.vehicle.findUniqueOrThrow({ where: { id: importVehicle.id }, select: { imageRevision: true } });
   check(importNoOp.imageRevision === 1, "importer no-op bumped imageRevision");
 }

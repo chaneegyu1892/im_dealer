@@ -146,8 +146,7 @@ export function BottomSheet({
             tabIndex={-1}
             className={cn(
               "relative w-full overflow-hidden rounded-t-[24px] border border-border-subtle bg-surface text-text-body sm:max-w-[440px] sm:rounded-[24px]",
-              "shadow-modal sm:items-center",
-              "dark:border-border-strong"
+              "shadow-modal sm:items-center"
             )}
             style={{ maxHeight }}
             initial={sheetInitial}

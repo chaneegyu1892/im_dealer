@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolvePublicThumbnailUrl } from "./public";
+import {
+  resolvePublicListThumbnailUrl,
+  resolvePublicThumbnailUrl,
+} from "./public";
 
 const managedHistory = { images: 1 } as const;
 const noManagedHistory = { images: 0 } as const;
@@ -8,12 +11,14 @@ const primary = (overrides: {
   readonly type?: "MAIN" | "COVER";
   readonly sourceUrl?: string | null;
   readonly storageUrl?: string;
+  readonly listThumbnailUrl?: string | null;
   readonly isVisible?: boolean;
   readonly deletedAt?: Date | null;
 } = {}) => ({
   type: "COVER" as const,
   sourceUrl: "https://source.example/cover.webp",
   storageUrl: "https://cdn.example/cover.webp",
+  listThumbnailUrl: "https://cdn.example/list/cover.webp",
   isVisible: true,
   deletedAt: null,
   ...overrides,
@@ -29,6 +34,7 @@ function vehicle(overrides: Partial<Parameters<typeof resolvePublicThumbnailUrl>
       isVisible: true,
       deletedAt: null,
       storageUrl: "https://cdn.example/cover.webp",
+      listThumbnailUrl: "https://cdn.example/list/cover.webp",
     },
     images: [primary()],
     _count: managedHistory,
@@ -114,5 +120,33 @@ describe("resolvePublicThumbnailUrl", () => {
 
   it("rejects blank persisted URLs", () => {
     expect(resolvePublicThumbnailUrl(vehicle({ thumbnailUrl: "   " }))).toBe("");
+  });
+});
+
+describe("resolvePublicListThumbnailUrl", () => {
+  it("uses the linked representative's listing derivative", () => {
+    expect(resolvePublicListThumbnailUrl(vehicle())).toBe(
+      "https://cdn.example/list/cover.webp",
+    );
+  });
+
+  it("falls back to the uncropped original while a derivative is missing", () => {
+    expect(resolvePublicListThumbnailUrl(vehicle({
+      thumbnailImage: {
+        vehicleId: "vehicle-1",
+        isVisible: true,
+        deletedAt: null,
+        storageUrl: "https://cdn.example/cover.webp",
+        listThumbnailUrl: null,
+      },
+    }))).toBe("https://cdn.example/cover.webp");
+  });
+
+  it("uses a matching active managed derivative for an unlinked source projection", () => {
+    expect(resolvePublicListThumbnailUrl(vehicle({
+      thumbnailImageId: null,
+      thumbnailImage: null,
+      thumbnailUrl: "https://source.example/cover.webp",
+    }))).toBe("https://cdn.example/list/cover.webp");
   });
 });

@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AdminLayoutClient } from "@/components/admin/AdminLayoutClient";
 import { requireAccess } from "@/lib/require-access";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, nocache: true },
+};
 
 export default async function AdminLayout({
   children,

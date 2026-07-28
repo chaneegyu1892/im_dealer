@@ -1,6 +1,12 @@
 import type { VehicleImageKind } from "./api";
 import type { EngineType, VehicleCategory } from "./vehicle";
 
+export interface AdminVehicleLite {
+  id: string;
+  brand: string;
+  name: string;
+}
+
 export interface AdminVehicle {
   id: string;
   slug: string;
@@ -20,7 +26,6 @@ export interface AdminVehicle {
   displayOrder: number;
   tags: string[];
   description: string | null;
-  // 캐피탈사 회수율 스크래퍼 연결 (캐피탈사 코드 → { 브랜드코드, 모델명 })
   scraperRefs?: Record<string, { brandCd: string; modelName: string }> | null;
   createdAt: string;
   updatedAt: string;

@@ -1,6 +1,7 @@
 import { AuthError } from "./types";
-import type { AdapterContext, SiteAdapter } from "./types";
-import type { TrimScrapeResult, TrimMatchConfidence } from "../../../src/types/scraper";
+import type { AdapterContext, CatalogScrapeOptions, CatalogScrapeResult, SiteAdapter } from "./types";
+import type { CatalogTrimEntry, TrimScrapeResult, TrimMatchConfidence } from "../../../src/types/scraper";
+import { matchTrim, findModelIndex, type CatalogCandidate } from "../../../src/lib/scraper/trim-match";
 import { RATE_KEYS } from "../mapping";
 import { assertHttpUrl } from "../safe-url";
 
@@ -59,50 +60,29 @@ async function api(ctx: AdapterContext, body: Record<string, unknown>): Promise<
   }, body);
 }
 
-// ── 트림명 토큰 추출/매칭 ─────────────────────────────────
-const GRADES = ["시그니처 x-line", "캘리그래피 블랙 잉크", "캘리그래피 블랙 익스테리어", "캘리그래피", "시그니처", "노블레스", "프레스티지", "익스클루시브", "프리미엄", "인스퍼레이션", "아너스"];
-function norm(s: string): string { return (s || "").toLowerCase().replace(/\s+/g, ""); }
-function tokens(name: string) {
-  const n = (name || "").toLowerCase();
-  const nn = n.replace(/\s+/g, "");
-  const disp = n.match(/(\d\.\d)/)?.[1] ?? "";
-  const seats = n.match(/(\d)\s*인승/)?.[1] ?? "";
-  const drive = /4wd|awd/.test(n) ? "4wd" : /2wd|fwd/.test(n) ? "2wd" : "";
-  const engine = /하이브리드|hev/.test(n) ? "hev" : /디젤|diesel/.test(n) ? "diesel" : /lpg|엘피지/.test(n) ? "lpg" : /전기|ev\b/.test(n) ? "ev" : /가솔린|gasoline/.test(n) ? "gas" : "";
-  const grade = GRADES.find((g) => nn.includes(g.replace(/\s+/g, ""))) ?? "";
-  const nline = /n[\s-]?line|n라인/.test(n) ? "1" : "0"; // N Line 은 가격·잔존율이 다른 별도 트림
-  const range = /롱레인지|long\s*range/.test(n) ? "long" : /스탠다드|standard/.test(n) ? "std" : ""; // EV 배터리 등급
-  const year = n.match(/(20\d\d)/)?.[1] ?? ""; // 연식 (우리: "2026년형", ORIX MDEL_NAME2: "... [2027]")
-  return { disp, seats, drive, engine, grade, nline, range, year };
+// ── 트림명 토큰 매칭 — src/lib/scraper/trim-match 공유 모듈 사용 ─────────
+/** ORIX CAR_COMBO_3 레코드 → 사이트 중립 후보로 사상. */
+function toCandidates(catalog: any[]): CatalogCandidate[] {
+  return catalog.map((t) => ({
+    label: t.MDEL_NAME2 || t.MDEL_NAME || "",
+    year: String(t.MDEL_YEAR ?? "").trim(),
+  }));
 }
-const compat = (x: string, y: string) => !x || !y || x === y; // 한쪽이 비면 충돌 아님(호환)
-/** 우리 트림명 → ORIX 트림(MDEL_NAME2) 토큰 매칭. (export: 단위테스트 대상) */
-export function matchTrim(ourName: string, catalog: any[]): { trim: any; confidence: TrimMatchConfidence } | null {
-  const a = tokens(ourName);
-  let best: { trim: any; score: number; full: boolean } | null = null;
-  for (const t of catalog) {
-    const b = tokens(t.MDEL_NAME2 || t.MDEL_NAME || "");
-    const bYear = b.year || (String(t.MDEL_YEAR ?? "").match(/(20\d\d)/)?.[1] ?? ""); // 이름에 연식 없으면 MDEL_YEAR 폴백
-    if (a.grade && b.grade && a.grade !== b.grade) continue; // 등급 다르면 제외
-    if (a.engine && b.engine && a.engine !== b.engine) continue; // 연료 다르면 제외 (LPG↔가솔린 등)
-    if (a.disp && b.disp && a.disp !== b.disp) continue; // 배기량 다르면 제외 (2.5↔3.5 등)
-    if (a.nline !== b.nline) continue; // N Line ↔ 일반 제외 (가격·잔존율 다른 별도 트림)
-    if (a.range && b.range && a.range !== b.range) continue; // 롱레인지↔스탠다드 제외 (EV 배터리 등급)
-    let score = 0;
-    if (a.grade && a.grade === b.grade) score += 3;
-    if (a.disp && a.disp === b.disp) score += 2;
-    if (a.engine && a.engine === b.engine) score += 2;
-    if (a.year && a.year === bYear) score += 3; // 연식 일치 강한 가중치 — 교차연식 오매칭([2026]↔[2027]) 방지
-    if (a.drive && a.drive === b.drive) score += 1;
-    if (a.seats && a.seats === b.seats) score += 1;
-    // exact 판정: 등급 일치 + 나머지 토큰은 "충돌 없음"(한쪽 생략 허용, 예: ORIX가 2WD 표기 생략).
-    const full = !!a.grade && a.grade === b.grade
-      && compat(a.disp, b.disp) && compat(a.engine, b.engine)
-      && compat(a.drive, b.drive) && compat(a.seats, b.seats) && compat(a.year, bYear);
-    if (!best || score > best.score) best = { trim: t, score, full };
+
+/** 세부차종(DT_MDL_CD) 목록의 트림을 전부 긁어 견적가능(STD_RV_KUBUN 有)만 반환. */
+async function fetchQuotableTrims(ctx: AdapterContext, brandCd: string, dtMdls: { DT_MDL_CD: string; DT_MDL_NM?: string }[], lsWork: string): Promise<any[]> {
+  const trims: any[] = [];
+  for (const s of dtMdls) {
+    const list = (await api(ctx, { txGbCd: "CAR_COMBO_3", LS_WORK_KUBUN: lsWork, BRAND_CD: brandCd, DT_MDL_CD: s.DT_MDL_CD, PRE_ADC_YN: "N" })).LIST || [];
+    for (const t of list) { t.__dtMdlCd = s.DT_MDL_CD; t.__dtMdlNm = s.DT_MDL_NM; t.__brandCd = brandCd; trims.push(t); } // 부대비(출고지) 조회용 코드 태깅
+    await sleep(120);
   }
-  if (!best || best.score < 4) return null;
-  return { trim: best.trim, confidence: best.full ? "exact" : "fuzzy" };
+  // 잔가율 구분코드(STD_RV_KUBUN)가 비어있는 항목 = 잔존율 미설정 = 견적 불가(신규 연식 placeholder).
+  // 같은 트림의 견적가능 항목([2026] 등)을 매처가 가리지 않도록 제외한다.
+  const quotable = trims.filter((t: any) => String(t.STD_RV_KUBUN ?? "").trim() !== "");
+  const dropped = trims.length - quotable.length;
+  if (dropped > 0) ctx.log(`잔존율 미설정(견적불가) ${dropped}건 제외 → 견적가능 ${quotable.length}건`);
+  return quotable;
 }
 
 // 모델 카탈로그 캐시(한 작업 = 한 모델, 트림마다 재조회 방지). login 시 초기화.
@@ -111,20 +91,12 @@ async function resolveCatalog(ctx: AdapterContext, brandCd: string, modelName: s
   const key = `${brandCd}:${modelName}`;
   if (catalogCache?.key === key) return catalogCache.trims;
   const models = (await api(ctx, { txGbCd: "CAR_COMBO_1", LS_WORK_KUBUN: lsWork, BRAND_CD: brandCd, PRE_ADC_YN: "N" })).LIST || [];
-  const model = models.find((m: any) => norm(m.MDL_NM) === norm(modelName)) || models.find((m: any) => norm(m.MDL_NM).includes(norm(modelName)));
+  // ORIX 모델명은 짧은 정식명(예: "G80", "그랜저")이고 우리 차량명은 마케팅 이름("디 올 뉴 G80 F/L")일 수 있다 — 공유 3단 규칙.
+  const mi = findModelIndex(modelName, models.map((m: any) => String(m.MDL_NM ?? "")));
+  const model = mi >= 0 ? models[mi] : undefined;
   if (!model) { catalogCache = { key, trims: [] }; return []; }
   const subs = (await api(ctx, { txGbCd: "CAR_COMBO_2", LS_WORK_KUBUN: lsWork, BRAND_CD: brandCd, MDL_CD: model.MDL_CD, PRE_ADC_YN: "N" })).LIST || [];
-  const trims: any[] = [];
-  for (const s of subs) {
-    const list = (await api(ctx, { txGbCd: "CAR_COMBO_3", LS_WORK_KUBUN: lsWork, BRAND_CD: brandCd, DT_MDL_CD: s.DT_MDL_CD, PRE_ADC_YN: "N" })).LIST || [];
-    for (const t of list) { t.__dtMdlCd = s.DT_MDL_CD; t.__brandCd = brandCd; trims.push(t); } // 부대비(출고지) 조회용 코드 태깅
-    await sleep(120);
-  }
-  // 잔가율 구분코드(STD_RV_KUBUN)가 비어있는 항목 = 잔존율 미설정 = 견적 불가(신규 연식 placeholder).
-  // 같은 트림의 견적가능 항목([2026] 등)을 매처가 가리지 않도록 제외한다.
-  const quotable = trims.filter((t: any) => String(t.STD_RV_KUBUN ?? "").trim() !== "");
-  const dropped = trims.length - quotable.length;
-  if (dropped > 0) ctx.log(`잔존율 미설정(견적불가) ${dropped}건 제외 → 견적가능 ${quotable.length}건`);
+  const quotable = await fetchQuotableTrims(ctx, brandCd, subs, lsWork);
   catalogCache = { key, trims: quotable };
   return quotable;
 }
@@ -132,16 +104,18 @@ async function resolveCatalog(ctx: AdapterContext, brandCd: string, modelName: s
 /** 우리 trimId → ORIX 트림 레코드 해석 (이름매칭 우선, 없으면 trimMap). */
 async function resolveOrixTrim(ctx: AdapterContext, ourTrimId: string, lsWork: string): Promise<{ t?: any; confidence?: TrimMatchConfidence; label?: string; warn?: string }> {
   const { config, params, log } = ctx;
+  if ("mode" in params) return { warn: "카탈로그 작업에는 지정 트림 매칭을 사용할 수 없습니다." };
   const ref = params.scraperRef;
   if (ref?.brandCd && ref?.modelName) {
     const ourName = (params.trims ?? []).find((x) => x.trimId === ourTrimId)?.name ?? "";
     if (!ourName) return { warn: `트림명 없음 (${ourTrimId})` };
     const catalog = await resolveCatalog(ctx, ref.brandCd, ref.modelName, lsWork);
     if (catalog.length === 0) return { warn: `ORIX 모델 '${ref.modelName}'(브랜드 ${ref.brandCd}) 트림을 찾지 못했습니다.` };
-    const m = matchTrim(ourName, catalog);
+    const m = matchTrim(ourName, toCandidates(catalog));
     if (!m) return { warn: `이름 매칭 실패: "${ourName}"` };
-    log(`매칭: "${ourName}" → "${m.trim.MDEL_NAME2}" (${m.confidence})`);
-    return { t: m.trim, confidence: m.confidence, label: m.trim.MDEL_NAME2 };
+    const t = catalog[m.index];
+    log(`매칭: "${ourName}" → "${t.MDEL_NAME2}" (${m.confidence})`);
+    return { t, confidence: m.confidence, label: t.MDEL_NAME2 };
   }
   // 폴백: 명시 매핑
   const map = cfg<Record<string, OrixTrimRef>>(config, "trimMap", {})[ourTrimId];
@@ -179,7 +153,7 @@ export const orixAdapter: SiteAdapter = {
       log("이미 로그인 상태 — 로그인 폼 생략");
     }
     await page.evaluate((m: string) => {
-      const w = window as unknown as { goPageMenu?: (p: string) => void };
+      const w = window as Window & { goPageMenu?: (p: string) => void };
       if (typeof w.goPageMenu === "function") w.goPageMenu(m);
     }, menu);
     await sleep(2500);
@@ -212,9 +186,7 @@ export const orixAdapter: SiteAdapter = {
     if (Object.keys(baseRates).length === 0 && carAmt > 0) {
       log("월납입금 0건 — 세션 만료 가능성, 새 세션으로 재로그인 후 재시도");
       try {
-        const cookies = await ctx.page.cookies();
-        if (cookies.length) await ctx.page.deleteCookie(...cookies);
-        await orixAdapter.login(ctx); // 쿠키가 비었으므로 실제 새 세션 로그인 (catalogCache 도 리셋됨)
+        await freshLogin(ctx);
         const re = await resolveOrixTrim(ctx, ourTrimId, lsWork); // 새 세션에서 차량 콤보 재선택 (이게 빠지면 계산이 0 반환)
         const retry = re.t ? await collectBaseRates(ctx, re.t, lsWork) : { baseRates: {} as Record<string, number>, warnings: [re.warn ?? "재해석 실패"] };
         if (Object.keys(retry.baseRates).length > 0) {
@@ -229,7 +201,86 @@ export const orixAdapter: SiteAdapter = {
 
     return { trimId: ourTrimId, matchConfidence: resolved.confidence ?? "exact", externalTrimLabel: resolved.label ?? t.MDEL_NAME2, vehiclePrice: carAmt, baseRates, depositRate36_10000, prepayRate36_10000, warnings };
   },
+
+  // 선택 브랜드의 ORIX 등록 전 모델·전 트림 수집 (catalog 잡). 우리 트림 매칭 없이 원본 그대로.
+  async scrapeCatalog(ctx: AdapterContext, opts: CatalogScrapeOptions): Promise<CatalogScrapeResult> {
+    const { config, log } = ctx;
+    const lsWork = cfg(config, "lsWorkKubun", "CF100006");
+    let total = 0, skipped = 0, failed = 0, trimsDone = 0, trimsTotal = 0;
+    const brandSummaries: CatalogScrapeResult["brands"] = [];
+
+    for (let bi = 0; bi < opts.brands.length; bi++) {
+      const brand = opts.brands[bi];
+      if (ctx.isCanceled()) break;
+      const models = (await api(ctx, { txGbCd: "CAR_COMBO_1", LS_WORK_KUBUN: lsWork, BRAND_CD: brand.brandCd, PRE_ADC_YN: "N" })).LIST || [];
+      log(`[카탈로그] 브랜드 ${brand.name}(${brand.brandCd}) — 모델 ${models.length}개`);
+      let brandTrims = 0;
+
+      for (let mi = 0; mi < models.length; mi++) {
+        const model = models[mi];
+        if (ctx.isCanceled()) break;
+        opts.onProgress({
+          phase: "scraping", brandIdx: bi + 1, brandCount: opts.brands.length, brandName: brand.name,
+          modelIdx: mi + 1, modelCount: models.length, modelName: String(model.MDL_NM ?? ""),
+          trimsDone, trimsTotal, skipped, updatedAt: new Date().toISOString(),
+        });
+        const subs = (await api(ctx, { txGbCd: "CAR_COMBO_2", LS_WORK_KUBUN: lsWork, BRAND_CD: brand.brandCd, MDL_CD: model.MDL_CD, PRE_ADC_YN: "N" })).LIST || [];
+        const quotable = await fetchQuotableTrims(ctx, brand.brandCd, subs, lsWork);
+        trimsTotal += quotable.length;
+        log(`[카탈로그] ${brand.name} ${model.MDL_NM} — 견적가능 트림 ${quotable.length}개`);
+
+        for (const t of quotable) {
+          if (ctx.isCanceled()) break;
+          trimsDone++;
+          if (opts.isCollected(t.MDEL_CD)) { skipped++; continue; } // 이번주 기수집 — 재개 시 스킵
+          try {
+            // 카탈로그도 36개월/1만km 보증금10%·선납금10% 는 수집(트림당 2콜 추가). 나머지 셀은 baseRates만.
+            let r = await collectBaseRates(ctx, t, lsWork);
+            if (Object.keys(r.baseRates).length === 0 && Number(t.MDEL_PRICE) > 0) {
+              // 세션 만료 추정 — 새 세션 로그인 + 현재 위치 콤보 재선점화 후 1회 재시도
+              log(`[카탈로그] ${t.MDEL_NAME2}: 월납입금 0건 — 재로그인 후 재시도`);
+              await freshLogin(ctx);
+              await api(ctx, { txGbCd: "CAR_COMBO_1", LS_WORK_KUBUN: lsWork, BRAND_CD: brand.brandCd, PRE_ADC_YN: "N" });
+              await api(ctx, { txGbCd: "CAR_COMBO_2", LS_WORK_KUBUN: lsWork, BRAND_CD: brand.brandCd, MDL_CD: model.MDL_CD, PRE_ADC_YN: "N" });
+              await api(ctx, { txGbCd: "CAR_COMBO_3", LS_WORK_KUBUN: lsWork, BRAND_CD: brand.brandCd, DT_MDL_CD: t.__dtMdlCd, PRE_ADC_YN: "N" });
+              r = await collectBaseRates(ctx, t, lsWork);
+            }
+            if (Object.keys(r.baseRates).length === 0) failed++;
+            const entry: CatalogTrimEntry = {
+              brandCd: brand.brandCd, brandName: brand.name,
+              modelCd: String(model.MDL_CD), modelName: String(model.MDL_NM ?? ""),
+              dtMdlCd: String(t.__dtMdlCd ?? ""), dtMdlName: t.__dtMdlNm ? String(t.__dtMdlNm) : undefined,
+              mdelCd: String(t.MDEL_CD), trimName: String(t.MDEL_NAME2 || t.MDEL_NAME || ""),
+              modelYear: String(t.MDEL_YEAR ?? "").trim() || undefined,
+              vehiclePrice: Number(t.MDEL_PRICE) || 0,
+              baseRates: r.baseRates, warnings: r.warnings,
+              depositRate36_10000: r.depositRate36_10000,
+              prepayRate36_10000: r.prepayRate36_10000,
+            };
+            await opts.onTrimResult(entry);
+            total++;
+            brandTrims++;
+          } catch (e) {
+            failed++;
+            log(`[카탈로그] ${t.MDEL_NAME2 ?? t.MDEL_CD} 수집 실패: ${(e as Error).message.slice(0, 60)}`);
+          }
+          await sleep(reqDelay(config));
+        }
+        await opts.onModelDone(String(model.MDL_CD)); // 모델 경계 — 워커가 flush
+        await sleep(500 + rand(0, 350)); // 모델 간 지연 (트림 간보다 길게)
+      }
+      brandSummaries.push({ brandCd: brand.brandCd, name: brand.name, trims: brandTrims });
+    }
+    return { total, skipped, failed, brands: brandSummaries };
+  },
 };
+
+/** 쿠키 삭제 후 새 세션 로그인 (세션 만료 안전망 — scrapeTrim/scrapeCatalog 공용). */
+async function freshLogin(ctx: AdapterContext): Promise<void> {
+  const cookies = await ctx.page.cookies();
+  if (cookies.length) await ctx.page.deleteCookie(...cookies);
+  await orixAdapter.login(ctx); // 쿠키가 비었으므로 실제 새 세션 로그인 (catalogCache 도 리셋됨)
+}
 
 /**
  * 부대비 총액(취득원가 가산분) 계산. ORIX calcLsAmountCar() 재현.
@@ -269,8 +320,9 @@ async function surchargeTotal(ctx: AdapterContext, brandCd: string, dtMdlCd: str
 
 interface CollectResult { baseRates: Record<string, number>; warnings: string[]; depositRate36_10000?: number; prepayRate36_10000?: number }
 
-/** 트림 1개의 기간×거리 월납입금 수집 (세션 살아있을 때 정상값, 만료 시 빈 결과). */
-async function collectBaseRates(ctx: AdapterContext, t: any, lsWork: string): Promise<CollectResult> {
+/** 트림 1개의 기간×거리 월납입금 수집 (세션 살아있을 때 정상값, 만료 시 빈 결과).
+ *  opts.skipDepositPrepay: catalog 전량 수집 시 보증금/선납 2콜 생략 (요청량 절감). */
+async function collectBaseRates(ctx: AdapterContext, t: any, lsWork: string, opts?: { skipDepositPrepay?: boolean }): Promise<CollectResult> {
   const { config } = ctx;
   const warnings: string[] = [];
   const carAmt = Number(t.MDEL_PRICE);
@@ -281,13 +333,16 @@ async function collectBaseRates(ctx: AdapterContext, t: any, lsWork: string): Pr
   const speDisAmt = Math.round(carAmt * disPer / 100);
 
   const sup = await api(ctx, { txGbCd: "GET_SUPPLAYAMT", LS_GOOD_KUBUN: lsWork, MDEL_CD: t.MDEL_CD, SHIPMENT_KUBUN: shipment, CAR_AMT: String(carAmt), OPTION_AMT: "0", CAR_COR_AMT: "0", MAKER_TAK_AMT: "0", DIS_AMT_PER: String(disPer), DIS_AMT: String(speDisAmt), KIRATE: t.KIRATE_2015, AMT_KUBUN: "1" });
-  const LOAD_AMT = ceil10(Number(sup.LOAD_AMT));
-  if (!(LOAD_AMT > 0)) return { baseRates: {}, warnings: ["공급가 조회 실패 (세션 만료 추정)"] }; // 세션 끊김 빠른 감지
+  if (!(Number(sup.LOAD_AMT) > 0)) return { baseRates: {}, warnings: ["공급가 조회 실패 (세션 만료 추정)"] }; // 세션 끊김 빠른 감지
+  // 공급가(LOAD_AMT) = (차량가 − 특판할인) / KIRATE(트림별 기준이율). GET_SUPPLAYAMT(AMT_KUBUN=1)은 ÷1.1 고정이라
+  // KIRATE≠1.1 차종(예: LPG)에서 공급가·취득세·월납입금이 과대 산출됨 → ORIX 견적화면과 동일하게 KIRATE 로 나눈다.
+  const KIRATE = Number(t.KIRATE_2015) || 1.1;
+  const LOAD_AMT = ceil10((carAmt - speDisAmt) / KIRATE);
 
   const SPECIFIC_TAX = Number((await api(ctx, { txGbCd: "SPECIFIC_TAX_CAL", SHIPMENT_KUBUN: shipment, MDEL_CD: t.MDEL_CD, LOAD_AMT: String(carAmt), DIS_PER: String(disPer), DIS_AMT: String(speDisAmt), LS_WORK_KUBUN: lsWork, LS_GOOD_CODE: "0051" })).SPECIFIC_TAX);
   const GET_TAX = Number((await api(ctx, { txGbCd: "REG_TAX_CAL", LOAD_AMT: String(LOAD_AMT), MDEL_CD: t.MDEL_CD, SHIPMENT_KUBUN: shipment, MAKER_NO: "", LS_GOOD_CLASS: "CF200009", MAKER_TAK_AMT: "0" })).GET_TAX);
   // 취득원가 = 공급가 + 취득세 + 부대비 − 보조금. (보조금: HEV/가솔린 0, EV 별도 — 아래 경고)
-  const brandCd = t.__brandCd ?? ctx.params.scraperRef?.brandCd ?? "";
+  const brandCd = t.__brandCd ?? ("mode" in ctx.params ? undefined : ctx.params.scraperRef?.brandCd) ?? "";
   const regTot = brandCd && t.__dtMdlCd ? await surchargeTotal(ctx, brandCd, t.__dtMdlCd, lsWork) : 0;
   // EV 전기차보조금: 트림 SUBSIDY_USE_YN=Y 면 SUBSIDY_LIST 의 옵션(휠)별 보조금을 취득원가에서 차감.
   // 옵션이 여러 종이면 기본(첫 옵션). config.subsidyOption(예 "18인치")로 지정 가능.
@@ -329,7 +384,7 @@ async function collectBaseRates(ctx: AdapterContext, t: any, lsWork: string): Pr
     // 36개월·1만km 셀에 한해 보증금10%·선납금10% 견적도 수집 (캡처로 검증된 공식)
     //  - 보증금10%: PAYMENT_PER=10 + lsAmount·notRvAmt 에서 보증금(차량가×10%) 차감 → CAL 결과 그대로
     //  - 선납금10%: PAYMENT_PER=10(금액 유지) → CAL gross 에서 회차균등배분(선납금/기간) 차감
-    if (keyk === "36_10000" && ls > 0) {
+    if (keyk === "36_10000" && ls > 0 && !opts?.skipDepositPrepay) {
       const dep = Math.round(carAmt * 0.1); // 보증금/선납금 = 차량가 10%
       try {
         await sleep(reqDelay(config));

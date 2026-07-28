@@ -6,6 +6,14 @@ import type { Carpan2ImagePersistence } from "./persistence";
 import type { Carpan2ImageCandidate } from "./types";
 import { mirrorImage, type MirrorContext } from "../vehicle-image-mirror";
 
+const storageCleanupMocks = vi.hoisted(() => ({
+  enqueueStorageCleanup: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock("../vehicle-images/storage-cleanup", () => ({
+  enqueueStorageCleanup: storageCleanupMocks.enqueueStorageCleanup,
+}));
+
 const dbVehicle = { id: "vehicle-1", externalId: "model-1", brand: "기아", name: "쏘렌토" };
 const ctx: MirrorContext = { cache: new Map<string, string>(), timeoutMs: 1, supabase: createClient("http://127.0.0.1:54321", "fake-key") };
 
@@ -28,7 +36,24 @@ async function apply(
       url: (sourceUrl ?? "").replace("carpan", "storage"),
       uploaded: true,
     }));
-    return await applyCarpan2ImagePlans({ prisma, ctx, persistence, mirror: mirrorCandidate, plans: [{ dbVehicle, candidates }] });
+    return await applyCarpan2ImagePlans({
+      prisma,
+      ctx,
+      persistence,
+      mirror: mirrorCandidate,
+      createListThumbnail: async ({ storageUrl, reserveBeforeUpload }) => {
+        await reserveBeforeUpload("list-thumbnails/v1/test.webp");
+        return {
+          url: storageUrl.replace("/storage", "/storage/list"),
+          storagePath: "list-thumbnails/v1/test.webp",
+        };
+      },
+      listThumbnailCleanup: {
+        reserve: async (storagePath) => ({ storagePath, token: "reservation-token" }),
+        rollback: vi.fn(),
+      },
+      plans: [{ dbVehicle, candidates }],
+    });
   } finally {
     await prisma.$disconnect();
   }
@@ -61,7 +86,14 @@ describe("Carpan2 primary candidate failures", () => {
     const persistence: Carpan2ImagePersistence = {
       findExisting: async (_vehicleId, sourceKey) => {
         const existing = stored.get(sourceKey);
-        return existing ? { id: `image-${sourceKey}`, origin: "CARPAN2", sourceUrl: existing.sourceUrl, storageUrl: existing.sourceUrl.replace("carpan", "storage") } : null;
+        return existing ? {
+          id: `image-${sourceKey}`,
+          origin: "CARPAN2",
+          sourceUrl: existing.sourceUrl,
+          storageUrl: existing.sourceUrl.replace("carpan", "storage"),
+          listThumbnailUrl: existing.sourceUrl.replace("carpan", "storage/list"),
+          listThumbnailStoragePath: "list-thumbnails/v1/test.webp",
+        } : null;
       },
       applyMirroredCandidate: async ({ candidate: item }) => { stored.set(item.sourceKey, item); return "upserted"; },
       finalizeVehicleRepresentative: finalize,

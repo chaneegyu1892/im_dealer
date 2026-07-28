@@ -7,6 +7,7 @@
 export const revalidate = 600;
 
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
@@ -14,10 +15,10 @@ import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-que
 import type { RepresentativeQuote } from "@/lib/representative-quote";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import { buildCarJsonLd } from "@/lib/car-json-ld";
+import { SITE_URL, summarizeMetaDescription } from "@/lib/site-config";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 import { CarDetailClient } from "./CarDetailClient";
-import { CarNotFoundView } from "@/components/cars/CarNotFoundView";
 import {
   getPublicReviewsByVehicleId,
   getBestReviews,
@@ -31,8 +32,6 @@ import {
   resolvePublicThumbnailUrl,
   resolvePublicVehicleImages,
 } from "@/lib/vehicle-images/public";
-
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // 메타데이터·JSON-LD 용 가벼운 차량 조회. 본문 렌더링용 getVehicle 과 분리해
 // SEO 헤더 생성 시 무거운 join(트림·옵션·요율표 전체) 을 피한다.
@@ -72,9 +71,11 @@ export async function generateMetadata({
   const lowestPrice = v.trims[0]?.price ?? v.basePrice;
   const priceManwon = Math.round(lowestPrice / 10000).toLocaleString("ko-KR");
   const titleText = `${v.brand} ${v.name} 장기렌트·리스 견적`;
-  const descText = v.description
-    ? `${v.description} · 시작가 ${priceManwon}만원. AI 기반 진짜견적.`
-    : `${v.brand} ${v.name} 장기렌트·리스 견적을 시작가 ${priceManwon}만원부터 비교하세요. AI 기반 진짜견적.`;
+  const descText = summarizeMetaDescription(
+    v.description
+      ? `${v.description} · 시작가 ${priceManwon}만원. AI 기반 진짜견적.`
+      : `${v.brand} ${v.name} 장기렌트·리스 견적을 시작가 ${priceManwon}만원부터 비교하세요. AI 기반 진짜견적.`,
+  );
   const url = `${SITE_URL}/cars/${v.slug}`;
   const thumbnailUrl = resolvePublicThumbnailUrl(v);
 
@@ -206,7 +207,7 @@ export default async function CarDetailPage({
 }) {
   const { slug } = await params;
   const vehicle = await getVehicle(slug);
-  if (!vehicle) return <CarNotFoundView />;
+  if (!vehicle) notFound();
 
   const [reviews, bestReviews] = await Promise.all([
     getPublicReviewsByVehicleId(vehicle.id, 10),

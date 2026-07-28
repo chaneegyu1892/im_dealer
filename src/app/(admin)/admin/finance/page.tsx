@@ -1,4 +1,4 @@
-import { getAdminFinanceCompanies, getAdminVehicles } from "@/lib/admin-queries";
+import { getAdminFinanceCompanies, getAdminVehiclesLite } from "@/lib/admin-queries";
 import FinanceTabContainer from "@/components/admin/finance/FinanceTabContainer";
 
 export const metadata = { title: "견적 산출 로직 관리 | 아임딜러 어드민" };
@@ -6,7 +6,7 @@ export const metadata = { title: "견적 산출 로직 관리 | 아임딜러 어
 export default async function FinancePage() {
   const [financeCompanies, vehicles] = await Promise.all([
     getAdminFinanceCompanies(),
-    getAdminVehicles(),
+    getAdminVehiclesLite(),
   ]);
 
   return (

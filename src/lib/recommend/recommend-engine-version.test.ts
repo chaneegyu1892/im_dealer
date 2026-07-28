@@ -12,4 +12,8 @@ describe("recommend engine version", () => {
     expect(getRecommendEngineVersion("overlap-v2")).toBe("overlap-v2");
     expect(() => getRecommendEngineVersion("v2")).toThrow(/Invalid RECOMMEND_ENGINE_VERSION/);
   });
+
+  it("selects STEP 02 v3 only by its exact value", () => {
+    expect(getRecommendEngineVersion("step02-v3")).toBe("step02-v3");
+  });
 });

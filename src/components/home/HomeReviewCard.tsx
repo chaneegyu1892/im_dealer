@@ -28,7 +28,7 @@ export function HomeReviewCard({
           onOpen(review);
         }
       }}
-      className="w-[320px] shrink-0 cursor-pointer rounded-card-lg border border-border-subtle bg-surface p-5 shadow-card transition-all duration-state hover:border-brand/35 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
+      className="w-[calc(100vw-32px)] max-w-[320px] shrink-0 cursor-pointer rounded-card-lg border border-border-subtle bg-surface p-5 shadow-card transition-all duration-state hover:border-brand/35 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-app-bg"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-0.5">

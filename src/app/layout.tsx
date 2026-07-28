@@ -1,7 +1,15 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import localFont from "next/font/local";
 import type { ReactNode } from "react";
-import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { PUBLIC_VIEWPORT, ROOT_TOUCH_ACTION } from "@/lib/public-viewport";
+import {
+  HOME_TITLE,
+  SITE_DESCRIPTION,
+  SITE_LEGAL_NAME,
+  SITE_NAME,
+  SITE_URL,
+  absoluteSiteUrl,
+} from "@/lib/site-config";
 import "./globals.css";
 
 const pretendard = localFont({
@@ -12,40 +20,50 @@ const pretendard = localFont({
   display: "swap",
 });
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 5,
-  userScalable: true,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F5F6FA" },
-    { media: "(prefers-color-scheme: dark)", color: "#101216" },
-  ],
-};
-
-// 절대 URL 생성용 베이스. 개별 페이지의 OG 이미지·canonical 등이 이 값을 기준으로 절대화된다.
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+export const viewport = PUBLIC_VIEWPORT;
+const rootHtmlStyle = { touchAction: ROOT_TOUCH_ACTION } as const;
+const naverSiteVerification =
+  process.env.NAVER_SITE_VERIFICATION?.trim() || undefined;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
   title: {
-    default: "아임딜러 — AI 기반 진짜견적",
-    template: "%s | 아임딜러",
+    default: HOME_TITLE,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    "허위견적 없는 AI 기반 장기렌트·리스 견적 서비스. 고객이 먼저 탐색하고 이해하는 구조로 설계된 아임딜러입니다.",
+  description: SITE_DESCRIPTION,
+  authors: [{ name: SITE_LEGAL_NAME, url: SITE_URL }],
+  creator: SITE_LEGAL_NAME,
+  publisher: SITE_LEGAL_NAME,
   openGraph: {
-    title: "아임딜러 — AI 기반 진짜견적",
-    description: "허위견적 없는 AI 기반 장기렌트·리스 견적 서비스",
+    title: HOME_TITLE,
+    description: SITE_DESCRIPTION,
     locale: "ko_KR",
     type: "website",
-    siteName: "아임딜러",
+    siteName: SITE_NAME,
+    images: [
+      {
+        url: absoluteSiteUrl("/images/hero-bg-v3.png"),
+        width: 1716,
+        height: 917,
+        alt: "아임딜러 장기렌트·리스 견적 비교 서비스",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "아임딜러 — AI 기반 진짜견적",
-    description: "허위견적 없는 AI 기반 장기렌트·리스 견적 서비스",
+    title: HOME_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [absoluteSiteUrl("/images/hero-bg-v3.png")],
   },
+  verification: naverSiteVerification
+    ? {
+        other: {
+          "naver-site-verification": naverSiteVerification,
+        },
+      }
+    : undefined,
 };
 
 export default function RootLayout({
@@ -54,10 +72,8 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="ko" className={pretendard.variable} suppressHydrationWarning>
-      <body>
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
+    <html lang="ko" className={pretendard.variable} style={rootHtmlStyle}>
+      <body>{children}</body>
     </html>
   );
 }

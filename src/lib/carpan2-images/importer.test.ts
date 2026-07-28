@@ -1,6 +1,23 @@
 import { PrismaClient, type Vehicle, type VehicleImage } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  enqueueStorageCleanup: vi.fn().mockResolvedValue(true),
+  markVehicleImageStorageReservationReady: vi.fn().mockResolvedValue(undefined),
+  releaseVehicleImageStorageReservation: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../vehicle-images/storage-cleanup", () => ({
+  enqueueStorageCleanup: mocks.enqueueStorageCleanup,
+}));
+
+vi.mock("../vehicle-images/storage-reservation", () => ({
+  markVehicleImageStorageReservationReady: mocks.markVehicleImageStorageReservationReady,
+  releaseVehicleImageStorageReservation: mocks.releaseVehicleImageStorageReservation,
+  reserveVehicleImageStorage: vi.fn(),
+}));
+
 import { applyCarpan2ImagePlans, Carpan2ImageImportError } from "./importer";
 import {
   createCarpan2ImagePersistence,
@@ -24,6 +41,8 @@ const imageRow = (overrides: Partial<VehicleImage> = {}): VehicleImage => ({
   title: "관리자 제목", storageUrl: "https://storage.example/old.webp",
   sourceUrl: "https://carpan.example/old.webp", sourceKey: "COVER:cover",
   adminStoragePath: null, displayOrder: 17, isVisible: false, deletedAt: now,
+  listThumbnailUrl: "https://storage.example/list/old.webp",
+  listThumbnailStoragePath: "list-thumbnails/v1/old.webp",
   metadata: { editorial: true }, createdAt: now, updatedAt: now, ...overrides,
 });
 
@@ -39,7 +58,32 @@ const vehicleRow = (overrides: Partial<Vehicle> = {}): Vehicle => ({
 
 async function applyWith(persistence: Carpan2ImagePersistence, candidates: readonly Carpan2ImageCandidate[], mirror = vi.fn(async (sourceUrl: string | null | undefined) => ({ url: (sourceUrl ?? "").replace("carpan", "storage"), uploaded: true }))) {
   const prisma = new PrismaClient();
-  const stats = await applyCarpan2ImagePlans({ prisma, ctx, persistence, mirror, concurrency: 2, plans: [{ dbVehicle, candidates }] });
+  const createListThumbnail = vi.fn(async ({
+    storageUrl,
+    reserveBeforeUpload,
+  }: {
+    readonly storageUrl: string;
+    readonly reserveBeforeUpload: (storagePath: string) => Promise<void>;
+  }) => {
+    await reserveBeforeUpload("list-thumbnails/v1/new.webp");
+    return {
+      url: storageUrl.replace("/new-", "/list/new-"),
+      storagePath: "list-thumbnails/v1/new.webp",
+    };
+  });
+  const stats = await applyCarpan2ImagePlans({
+    prisma,
+    ctx,
+    persistence,
+    mirror,
+    createListThumbnail,
+    listThumbnailCleanup: {
+      reserve: async (storagePath) => ({ storagePath, token: "reservation-token" }),
+      rollback: vi.fn(),
+    },
+    concurrency: 2,
+    plans: [{ dbVehicle, candidates }],
+  });
   await prisma.$disconnect();
   return stats;
 }
@@ -63,8 +107,15 @@ describe("Carpan2 image persistence", () => {
     expect(imageUpdate).toHaveBeenCalledWith({ where: { id: "image-cover" }, data: {
       sourceUrl: "https://carpan.example/new-COVER.webp",
       storageUrl: "https://storage.example/new-COVER.webp",
+      listThumbnailUrl: "https://storage.example/list/new-COVER.webp",
+      listThumbnailStoragePath: "list-thumbnails/v1/new.webp",
       metadata: { sourceField: "cover" },
     } });
+    expect(mocks.enqueueStorageCleanup).toHaveBeenCalledOnce();
+    expect(mocks.enqueueStorageCleanup.mock.calls[0]?.[1]).toBe(
+      "list-thumbnails/v1/old.webp",
+    );
+    expect(mocks.enqueueStorageCleanup.mock.calls[0]?.[2]).toBe("IMAGE_PURGE");
     expect(vehicleUpdate).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: dbVehicle.id },
       data: {
@@ -99,7 +150,14 @@ describe("Carpan2 image persistence", () => {
     const finalize = vi.fn<Carpan2ImagePersistence["finalizeVehicleRepresentative"]>().mockResolvedValue("preserved");
     const mirror = vi.fn(async () => ({ url: "/never.webp", uploaded: true }));
     const persistence: Carpan2ImagePersistence = {
-      findExisting: async () => ({ id: "admin", origin: "ADMIN", sourceUrl: null, storageUrl: "/admin.webp" }),
+      findExisting: async () => ({
+        id: "admin",
+        origin: "ADMIN",
+        sourceUrl: null,
+        storageUrl: "/admin.webp",
+        listThumbnailUrl: "/admin-list.webp",
+        listThumbnailStoragePath: "list-thumbnails/v1/admin.webp",
+      }),
       applyMirroredCandidate: apply,
       finalizeVehicleRepresentative: finalize,
     };
@@ -127,6 +185,50 @@ describe("Carpan2 image persistence", () => {
       where: { id: dbVehicle.id },
       data: { imageRevision: { increment: 1 } },
     }));
+    await prisma.$disconnect();
+  });
+
+  it("파생 이미지 업로드 뒤 DB 저장이 실패하면 예약을 READY로 되돌린다", async () => {
+    const prisma = new PrismaClient();
+    const reservation = {
+      storagePath: "list-thumbnails/v1/new.webp",
+      token: "reservation-token",
+    };
+    const rollback = vi.fn().mockResolvedValue(undefined);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const persistence: Carpan2ImagePersistence = {
+      findExisting: async () => null,
+      applyMirroredCandidate: async () => {
+        throw new Error("database unavailable");
+      },
+      finalizeVehicleRepresentative: vi.fn().mockResolvedValue("missing"),
+    };
+
+    const stats = await applyCarpan2ImagePlans({
+      prisma,
+      ctx,
+      persistence,
+      mirror: async () => ({
+        url: "https://storage.example/new-COVER.webp",
+        uploaded: true,
+      }),
+      createListThumbnail: async ({ reserveBeforeUpload }) => {
+        await reserveBeforeUpload(reservation.storagePath);
+        return {
+          url: "https://storage.example/list/new-COVER.webp",
+          storagePath: reservation.storagePath,
+        };
+      },
+      listThumbnailCleanup: {
+        reserve: vi.fn().mockResolvedValue(reservation),
+        rollback,
+      },
+      plans: [{ dbVehicle, candidates: [candidate()] }],
+    });
+
+    expect(stats.failed).toBe(1);
+    expect(rollback).toHaveBeenCalledWith(reservation);
+    warn.mockRestore();
     await prisma.$disconnect();
   });
 

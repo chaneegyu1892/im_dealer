@@ -3,7 +3,8 @@ import type { OverlapScoringInput } from "./overlap-scoring";
 
 const common = z.object({
   industry: z.enum(["법인", "개인사업자", "개인"]),
-  industryDetail: z.string().min(1),
+  industryDetail: z.string().min(1).optional(),
+  budgetMax: z.number().int().nonnegative().optional(),
   primaryPreference: z.enum(["안정감", "주차편의", "경제성", "고급"]).optional(),
   annualMileage: z.union([z.literal(10_000), z.literal(20_000), z.literal(30_000)]),
   residenceRegion: z.enum(["일반", "강원·산간", "제주"]),

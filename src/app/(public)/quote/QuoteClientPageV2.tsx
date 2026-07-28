@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { z } from "zod";
 import {
   ChevronLeft,
   BriefcaseBusiness,
@@ -11,16 +18,17 @@ import {
   User,
   Check,
   ArrowRight,
-  ClipboardCheck,
-  Download,
   AlertCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { startKakaoLogin } from "@/lib/kakao/client-auth";
+import { isKakaoSyncEnabled } from "@/lib/kakao/scopes";
 import { cn } from "@/lib/utils";
 import { isSupabaseStorageUrl } from "@/lib/image-url";
 import { sortLineups } from "@/lib/lineup-sort";
 import { TossPrice } from "@/components/ui/TossPrice";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
+import { QuoteResultActions } from "@/components/quote/QuoteResultActions";
 import { openChannelTalkWithQuote } from "@/lib/channel-talk";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { type ComparisonTrimData } from "@/components/quote/VehicleConfigPanel";
@@ -33,6 +41,11 @@ import {
 import type { VehicleListItem, QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
 import type { PDFQuoteData } from "@/lib/quote-pdf-template";
+import {
+  deriveQuoteScenarioType,
+  realignSelectedQuoteScenarios,
+} from "@/lib/quote-scenario-selection";
+import { successfulCalculatedQuoteResponseSchema } from "@/lib/quote-response-schema";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
 import {
   type LineupChoice,
@@ -59,6 +72,30 @@ import {
 
 // ─── 상수 ────────────────────────────────────────────────
 const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
+
+const apiErrorSchema = z.object({
+  error: z.string().optional(),
+  code: z.string().optional(),
+});
+
+const savedQuoteResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    id: z.string().min(1),
+    sessionId: z.string().min(1),
+    requiresConsultation: z.boolean().optional(),
+  }),
+});
+
+type QuoteImageRequest = Omit<PDFQuoteData, "userEmail">;
+
+function hasLockedQuoteScenario(quote: QuoteResponse): boolean {
+  return (
+    quote.scenarios.conservative.locked === true ||
+    quote.scenarios.standard.locked === true ||
+    quote.scenarios.aggressive.locked === true
+  );
+}
 
 const CUSTOMER_TYPE_OPTIONS: {
   type: CustomerType;
@@ -204,8 +241,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
   const [costMode, setCostMode] = useState<CostMode>("none");
   const [isRecalculating, setIsRecalculating] = useState(false);
-  const [isImageDownloading, setIsImageDownloading] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [isDelivering, setIsDelivering] = useState(false);
+  const [deliverSuccess, setDeliverSuccess] = useState(false);
+  const kakaoDeliveryEnabled = isKakaoSyncEnabled();
   const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
   const recalculateRequestId = useRef(0);
   const lastQuotedSlug = useRef<string | null>(null);
@@ -556,6 +595,19 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteResult, customRates]);
 
+  const getEffectiveSelectedOptionIds = useCallback((): string[] => {
+    const currentOptionIds = Array.from(selectedOptionIds);
+    const restored = restoreRef.current;
+    if (
+      trimsLoaded ||
+      !restored ||
+      restored.vehicleSlug !== quoteResult?.vehicleSlug
+    ) {
+      return currentOptionIds;
+    }
+    return [...restored.selectedOptionIds];
+  }, [quoteResult?.vehicleSlug, selectedOptionIds, trimsLoaded]);
+
   const saveCurrentQuote = useCallback(async () => {
     if (!quoteResult?.trimId) {
       throw new Error("상담 요청을 저장하려면 트림을 선택해 주세요.");
@@ -568,13 +620,13 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         sessionId: quoteSessionId,
         vehicleSlug: quoteResult.vehicleSlug,
         trimId: quoteResult.trimId,
-        selectedOptionIds: Array.from(selectedOptionIds),
+        selectedOptionIds: getEffectiveSelectedOptionIds(),
         contractMonths: quoteResult.contractMonths,
         annualMileage: quoteResult.annualMileage,
         contractType: "반납형",
         customerType,
         productType: contractCategory,
-        scenarioType: "standard",
+        scenarioType: deriveQuoteScenarioType(customRates),
         customDepositRate: customRates.depositRate,
         customPrepayRate: customRates.prepayRate,
         exteriorColorId,
@@ -582,19 +634,21 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         quoteType: draftSource,
       }),
     });
-    const json = await saveRes.json().catch(() => null);
-    if (!saveRes.ok || !json?.success) {
-      throw new Error(json?.error ?? "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    const responsePayload: unknown = await saveRes.json().catch(() => null);
+    const savedQuoteResult = savedQuoteResponseSchema.safeParse(responsePayload);
+    if (!saveRes.ok || !savedQuoteResult.success) {
+      const apiErrorResult = apiErrorSchema.safeParse(responsePayload);
+      throw new Error(
+        apiErrorResult.success && apiErrorResult.data.error
+          ? apiErrorResult.data.error
+          : "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요."
+      );
     }
-    return json.data as {
-      id: string;
-      sessionId: string;
-      requiresConsultation?: boolean;
-    };
+    return savedQuoteResult.data.data;
   }, [
     quoteResult,
     quoteSessionId,
-    selectedOptionIds,
+    getEffectiveSelectedOptionIds,
     customerType,
     contractCategory,
     customRates,
@@ -692,27 +746,35 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     isApplying, saveCurrentQuote,
   ]);
 
-  // ─── 이미지 다운로드 (v1 계약 그대로) ─────────────────────
-  async function handleImageDownload() {
-    if (!quoteResult || !selectedVehicle) return;
-    setIsImageDownloading(true);
-    setImageError(null);
+  function buildQuotePayload(
+    result: QuoteResponse | null = quoteResult
+  ): QuoteImageRequest | null {
+    if (!result || !selectedVehicle) return null;
 
-    const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({ name, price }));
-    const payload: Partial<PDFQuoteData> = {
+    const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({
+      name,
+      price,
+    }));
+    const scenarioType = deriveQuoteScenarioType(customRates);
+    return {
       vehicleName: selectedVehicle.name,
       vehicleBrand: selectedVehicle.brand,
-      trimName: quoteResult.trimName,
-      trimPrice: quoteResult.trimPrice,
+      trimName: result.trimName,
+      trimPrice: result.trimPrice,
       selectedOptions,
       totalVehiclePrice:
-        quoteResult.totalVehiclePrice ??
-        quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? optionsTotalPrice) + colorDelta,
+        result.totalVehiclePrice ??
+        result.trimPrice + (result.optionsTotalPrice ?? optionsTotalPrice) + colorDelta,
       productType: contractCategory,
-      contractMonths: quoteResult.contractMonths,
-      annualMileage: quoteResult.annualMileage,
+      contractMonths: result.contractMonths,
+      annualMileage: result.annualMileage,
       contractType: "반납형",
-      scenarios: quoteResult.scenarios,
+      scenarioType,
+      scenarios: realignSelectedQuoteScenarios(
+        result.scenarios,
+        scenarioType,
+        baseStandardScenario.current ?? result.scenarios.standard
+      ),
       exteriorColor: selectedExteriorColor
         ? { name: selectedExteriorColor.name, hexCode: selectedExteriorColor.hexCode, priceDelta: selectedExteriorColor.priceDelta }
         : null,
@@ -720,36 +782,145 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         ? { name: selectedInteriorColor.name, hexCode: selectedInteriorColor.hexCode, priceDelta: selectedInteriorColor.priceDelta }
         : null,
     };
+  }
+
+  // ─── 카카오톡으로 견적서 전송 ─────────────────────────────
+  async function handleQuoteDeliver() {
+    if (!kakaoDeliveryEnabled || !quoteResult) return;
+    setIsDelivering(true);
+    setDeliveryError(null);
+    setDeliverSuccess(false);
 
     try {
-      const response = await fetch("/api/quote/image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        const json = await response.json().catch(() => null);
-        setImageError(json?.error ?? "이미지 다운로드에 실패했습니다.");
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        await startKakaoConsentFlow();
         return;
       }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const disposition = response.headers.get("Content-Disposition") ?? "";
-      const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/)?.[1];
-      const fallbackName = `아임딜러_견적서_${selectedVehicle.name}.png`;
-      const filename = encodedFilename ? decodeURIComponent(encodedFilename) : fallbackName;
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      setImageError("이미지 다운로드 중 네트워크 오류가 발생했습니다.");
+
+      const deliveryQuote = hasLockedQuoteScenario(quoteResult)
+        ? await refreshQuoteForDelivery()
+        : quoteResult;
+      const payload = buildQuotePayload(deliveryQuote);
+      if (!payload) {
+        throw new Error("전송할 견적 정보를 확인할 수 없습니다.");
+      }
+
+      const savedQuote = await saveCurrentQuote();
+      const response = await fetch("/api/quote/deliver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          savedQuoteId: savedQuote.id,
+          sessionId: savedQuote.sessionId,
+        }),
+      });
+      const responsePayload: unknown = await response.json().catch(() => null);
+      const apiErrorResult = apiErrorSchema.safeParse(responsePayload);
+
+      if (!response.ok) {
+        if (
+          response.status === 401 ||
+          (apiErrorResult.success &&
+            apiErrorResult.data.code === "KAKAO_REAUTH_REQUIRED")
+        ) {
+          await startKakaoConsentFlow();
+          return;
+        }
+        setDeliveryError(
+          apiErrorResult.success && apiErrorResult.data.error
+            ? apiErrorResult.data.error
+            : "카카오톡 전송에 실패했습니다."
+        );
+        return;
+      }
+
+      setDeliverSuccess(true);
+    } catch (deliverError) {
+      if (!(deliverError instanceof Error)) throw deliverError;
+      setDeliveryError(
+        deliverError.message ||
+          "전송 중 네트워크 오류가 발생했습니다."
+      );
     } finally {
-      setIsImageDownloading(false);
+      setIsDelivering(false);
     }
+  }
+
+  async function refreshQuoteForDelivery(): Promise<QuoteResponse> {
+    const baseQuote = await requestCalculatedQuoteForDelivery({
+      depositRate: 0,
+      prepayRate: 0,
+    });
+    baseStandardScenario.current = baseQuote.scenarios.standard;
+
+    const refreshedQuote =
+      customRates.depositRate > 0 || customRates.prepayRate > 0
+        ? await requestCalculatedQuoteForDelivery(customRates)
+        : baseQuote;
+
+    if (hasLockedQuoteScenario(refreshedQuote)) {
+      throw new Error(
+        "로그인 정보가 견적에 반영되지 않았습니다. 새로고침 후 다시 시도해 주세요."
+      );
+    }
+
+    recalculateRequestId.current += 1;
+    setQuoteResult(refreshedQuote);
+    return refreshedQuote;
+  }
+
+  async function requestCalculatedQuoteForDelivery(rates: {
+    readonly depositRate: number;
+    readonly prepayRate: number;
+  }): Promise<QuoteResponse> {
+    if (!selectedVehicle || !quoteResult?.trimId) {
+      throw new Error("전송할 견적 정보를 확인할 수 없습니다.");
+    }
+
+    const restored = restoreRef.current;
+    const response = await fetch(
+      `/api/vehicles/${selectedVehicle.slug}/quote`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: quoteSessionId,
+          trimId: quoteResult.trimId,
+          selectedOptionIds: getEffectiveSelectedOptionIds(),
+          contractMonths: quoteResult.contractMonths,
+          annualMileage: quoteResult.annualMileage,
+          contractType: "반납형",
+          productType: contractCategory,
+          customerType,
+          exteriorColorId: exteriorColorId ?? restored?.exteriorColorId ?? null,
+          interiorColorId: interiorColorId ?? restored?.interiorColorId ?? null,
+          ...(rates.depositRate > 0
+            ? { customDepositRate: rates.depositRate }
+            : {}),
+          ...(rates.prepayRate > 0
+            ? { customPrepayRate: rates.prepayRate }
+            : {}),
+        }),
+      }
+    );
+    const responsePayload: unknown = await response.json().catch(() => null);
+    const parsed = successfulCalculatedQuoteResponseSchema.safeParse(
+      responsePayload
+    );
+    if (!response.ok || !parsed.success) {
+      const apiErrorResult = apiErrorSchema.safeParse(responsePayload);
+      throw new Error(
+        apiErrorResult.success && apiErrorResult.data.error
+          ? apiErrorResult.data.error
+          : "로그인 후 견적을 다시 계산하지 못했습니다."
+      );
+    }
+    return parsed.data.data;
   }
 
   // ─── 복원 저장본 생성 + 게이트 로그인 (v1 계약 그대로) ──
@@ -760,7 +931,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       customerType,
       selectedLineup,
       selectedTrimName: selectedTrim?.name ?? null,
-      selectedOptionIds: Array.from(selectedOptionIds),
+      selectedOptionIds: getEffectiveSelectedOptionIds(),
       contractCategory,
       conditions: {
         contractMonths: conditions.contractMonths,
@@ -774,11 +945,24 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       baseStandard: baseStandardScenario.current,
       quoteResult,
     };
-  }, [quoteResult, selectedVehicle, customerType, selectedLineup, selectedTrim, selectedOptionIds, contractCategory, conditions, customRates, exteriorColorId, interiorColorId, costMode]);
+  }, [quoteResult, selectedVehicle, customerType, selectedLineup, selectedTrim, getEffectiveSelectedOptionIds, contractCategory, conditions, customRates, exteriorColorId, interiorColorId, costMode]);
+
+  async function startKakaoConsentFlow(): Promise<void> {
+    const state = buildRestoreState();
+    if (state) {
+      restoreRef.current = state;
+      saveQuoteImageRestore(state);
+    }
+    const next = `${window.location.pathname}${window.location.search}`;
+    await startKakaoLogin({ next });
+  }
 
   const handleGateLogin = useCallback(() => {
     const state = buildRestoreState();
-    if (state) saveQuoteImageRestore(state);
+    if (state) {
+      restoreRef.current = state;
+      saveQuoteImageRestore(state);
+    }
     const params = new URLSearchParams({
       vehicle: selectedVehicle?.slug ?? "",
       customerType,
@@ -792,7 +976,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   useEffect(() => {
     if (step === 3 && quoteResult && selectedVehicle) {
       const state = buildRestoreState();
-      if (state) saveQuoteImageRestore(state);
+      if (state) {
+        restoreRef.current = state;
+        saveQuoteImageRestore(state);
+      }
       // restore 마커 동기화
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
@@ -837,10 +1024,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const stepLabel = STEPS[step - 1];
 
   return (
-    <div className="min-h-screen bg-white pb-[calc(96px+env(safe-area-inset-bottom,0px))] md:pb-0">
-      {/* 모바일 미니멀 헤더 */}
-      <header className="sticky top-0 z-40 border-b border-[#E5E8EB] bg-white/95 backdrop-blur-md md:hidden">
-        <div className="flex h-14 items-center gap-3 px-5">
+    <div className="min-h-screen bg-app-bg pb-[calc(148px+env(safe-area-inset-bottom,0px))] md:pb-0">
+      <header className="sticky top-14 z-40 border-b border-border-subtle bg-surface/95 backdrop-blur-md md:hidden">
+        <div className="flex h-14 items-center gap-3 px-5 max-[340px]:px-3">
           <button
             type="button"
             onClick={() => {
@@ -855,7 +1041,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               }
             }}
             aria-label="뒤로"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-text-strong transition-colors hover:bg-surface-soft"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-text-strong transition-colors hover:bg-surface-soft"
           >
             <ChevronLeft size={20} />
           </button>
@@ -866,7 +1052,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
             {step}<span className="text-text-muted">/{STEPS.length}</span>
           </span>
         </div>
-        <div className="h-[2px] bg-[#E5E8EB]">
+        <div className="h-[2px] bg-border-subtle">
           <motion.div
             className="h-full bg-brand"
             initial={false}
@@ -877,7 +1063,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       </header>
 
       {/* 데스크톱 헤더 */}
-      <div className="hidden border-b border-[#E5E8EB] bg-white md:block">
+      <div className="hidden border-b border-border-subtle bg-surface md:block">
         <div className="mx-auto max-w-[680px] px-8 py-10">
           <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-[12px] font-bold text-brand">
             실시간 견적
@@ -892,7 +1078,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       </div>
 
       {/* 본문 */}
-      <main className="mx-auto max-w-[680px] px-5 py-8 md:px-8 md:py-10">
+      <main className="mx-auto max-w-[680px] px-5 py-8 max-[340px]:px-4 md:px-8 md:py-10">
         <AnimatePresence mode="wait">
           {step === 1 && (
             <Step1CustomerType
@@ -974,15 +1160,17 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               applyError={error}
               isConsultationSubmitting={isConsultationSubmitting}
               consultationError={consultationError}
-              isImageDownloading={isImageDownloading}
-              imageError={imageError}
+              kakaoDeliveryEnabled={kakaoDeliveryEnabled}
+              isDelivering={isDelivering}
+              deliverSuccess={deliverSuccess}
+              deliveryError={deliveryError}
+              onQuoteDeliver={handleQuoteDeliver}
               onCustomRatesChange={setCustomRates}
               onCostModeChange={setCostMode}
               onReset={restoreBaseStandardScenario}
               onMemberLogin={handleGateLogin}
               onContractApply={handleContractApply}
               onConsultationRequest={handleConsultationRequest}
-              onImageDownload={handleImageDownload}
               onPrev={() => {
                 setQuoteResult(null);
                 setError(null);
@@ -1033,7 +1221,7 @@ function Step1CustomerType({
           <br />
           계약하시나요?
         </h2>
-        <p className="mt-3 text-[15px] leading-relaxed text-text-body">
+        <p className="mt-3 break-keep text-[15px] leading-relaxed text-text-body">
           선택한 유형은 견적 저장과 계약 신청 서류 확인에 사용돼요.
         </p>
       </div>
@@ -1047,16 +1235,16 @@ function Step1CustomerType({
               type="button"
               onClick={() => onSelect(option.type)}
               className={cn(
-                "flex w-full items-center gap-4 rounded-[20px] px-5 py-5 text-left transition-all duration-200 md:px-6 md:py-6",
+                "flex w-full items-center gap-4 rounded-[20px] px-5 py-5 text-left transition-all duration-200 max-[340px]:gap-3 max-[340px]:px-4 md:px-6 md:py-6",
                 selected
                   ? "bg-brand-soft ring-[1.5px] ring-brand"
-                  : "bg-[#F8FAFC] ring-[1.5px] ring-transparent hover:ring-[#E5E8EB]"
+                  : "bg-surface-soft ring-[1.5px] ring-transparent hover:ring-border-subtle"
               )}
             >
               <span
                 className={cn(
                   "flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] transition-colors",
-                  selected ? "bg-brand text-white" : "bg-white text-text-body"
+                  selected ? "bg-brand text-[var(--color-brand-ink)]" : "bg-surface text-text-body"
                 )}
               >
                 {option.icon}
@@ -1065,14 +1253,14 @@ function Step1CustomerType({
                 <span className="block text-[17px] font-bold leading-tight text-text-strong md:text-[18px]">
                   {option.title}
                 </span>
-                <span className="mt-1 block text-[13.5px] leading-snug text-text-body">
+                <span className="mt-1 block break-keep text-[13.5px] leading-snug text-text-body">
                   {option.desc}
                 </span>
               </span>
               <span
                 className={cn(
                   "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all",
-                  selected ? "bg-brand text-white" : "bg-[#E5E8EB] text-transparent"
+                  selected ? "bg-brand text-[var(--color-brand-ink)]" : "bg-border-subtle text-transparent"
                 )}
               >
                 <Check size={14} strokeWidth={2.6} />
@@ -1110,15 +1298,17 @@ function Step3ResultHeader({
   applyError,
   isConsultationSubmitting,
   consultationError,
-  isImageDownloading,
-  imageError,
+  kakaoDeliveryEnabled,
+  isDelivering,
+  deliverSuccess,
+  deliveryError,
+  onQuoteDeliver,
   onCustomRatesChange,
   onCostModeChange,
   onReset,
   onMemberLogin,
   onContractApply,
   onConsultationRequest,
-  onImageDownload,
   onPrev,
 }: {
   quoteResult: QuoteResponse;
@@ -1126,8 +1316,8 @@ function Step3ResultHeader({
   customerType: CustomerType;
   contractCategory: "장기렌트" | "리스";
   selectedOptionDetails: { id: string; name: string; price: number }[];
-  selectedExteriorColor: { name: string; priceDelta: number } | null;
-  selectedInteriorColor: { name: string; priceDelta: number } | null;
+  selectedExteriorColor: { name: string; hexCode: string; priceDelta: number } | null;
+  selectedInteriorColor: { name: string; hexCode: string; priceDelta: number } | null;
   selectedTrim: { id: string; name: string; price: number; discountPrice: number | null; evSubsidy: number | null } | null;
   trims: { id: string; name: string; price: number; discountPrice: number | null }[];
   vehicles: VehicleListItem[];
@@ -1140,15 +1330,17 @@ function Step3ResultHeader({
   applyError: string | null;
   isConsultationSubmitting: boolean;
   consultationError: string | null;
-  isImageDownloading: boolean;
-  imageError: string | null;
+  kakaoDeliveryEnabled: boolean;
+  isDelivering: boolean;
+  deliverSuccess: boolean;
+  deliveryError: string | null;
+  onQuoteDeliver: () => void;
   onCustomRatesChange: (rates: { depositRate: number; prepayRate: number }) => void;
   onCostModeChange: (mode: CostMode) => void;
   onReset: () => void;
   onMemberLogin: () => void;
   onContractApply: () => void;
   onConsultationRequest: () => void;
-  onImageDownload: () => void;
   onPrev: () => void;
 }) {
   const standardScenario: QuoteScenarioDetail | undefined = quoteResult.scenarios.standard;
@@ -1164,119 +1356,154 @@ function Step3ResultHeader({
       transition={{ duration: 0.22 }}
       className="space-y-5"
     >
-      {/* ── 1) 차량 정보 카드 (실제 데이터) ── */}
-      <div className="rounded-[24px] bg-[#F8FAFC] p-5 md:p-6">
-        <div className="flex items-center gap-4">
-          <div className="relative h-[72px] w-[108px] shrink-0 overflow-hidden rounded-[14px] bg-white">
+      {/* ── 1) 차량 정보 카드 ── */}
+      <div className="overflow-hidden rounded-[24px] border border-border-subtle bg-surface shadow-soft">
+        {/* 상단: 이미지(가로 절반) + 차량명 */}
+        <div className="flex items-stretch gap-3 p-4 md:gap-4 md:p-5">
+          <div className="relative aspect-[4/3] w-1/2 shrink-0 overflow-hidden rounded-[16px] bg-surface-soft">
             {selectedVehicle?.thumbnailUrl ? (
               <Image
                 src={selectedVehicle.thumbnailUrl}
                 alt={selectedVehicle.name ?? "차량"}
                 fill
-                sizes="120px"
+                sizes="(max-width: 768px) 50vw, 280px"
                 unoptimized={isSupabaseStorageUrl(selectedVehicle.thumbnailUrl)}
                 className="object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-[11px] text-text-muted">
+              <div className="flex h-full w-full items-center justify-center text-[12px] text-text-muted">
                 이미지 없음
               </div>
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-text-muted">{selectedVehicle?.brand}</p>
-            <p className="truncate text-[18px] font-extrabold leading-tight text-text-strong">{selectedVehicle?.name}</p>
+          <div className="flex min-w-0 w-1/2 flex-col justify-center py-0.5">
+            <p className="text-[12.5px] font-bold uppercase tracking-[0.08em] text-text-muted">
+              {selectedVehicle?.brand}
+            </p>
+            <p className="mt-1 text-[19px] font-extrabold leading-snug text-text-strong sm:text-[21px]">
+              {selectedVehicle?.name}
+            </p>
             {quoteResult.trimName && (
-              <p className="mt-0.5 truncate text-[13.5px] text-text-body">{quoteResult.trimName}</p>
+              <p className="mt-1.5 text-[14px] font-medium leading-snug text-text-body">
+                {quoteResult.trimName}
+              </p>
             )}
           </div>
         </div>
 
-        {/* 선택한 구성 */}
-        <div className="mt-5 space-y-3">
-          <p className="text-[12px] font-bold uppercase tracking-[0.06em] text-text-muted">선택한 구성</p>
+        <div className="space-y-3 px-4 pb-4 md:px-5 md:pb-5">
+          {/* 선택한 구성 — 별도 패널로 시각 구분 */}
+          <div className="rounded-[16px] bg-surface-soft p-3.5 md:p-4">
+            <p className="text-[12.5px] font-extrabold uppercase tracking-[0.07em] text-text-muted">
+              선택한 구성
+            </p>
+            {selectedOptionDetails.length > 0 || selectedExteriorColor || selectedInteriorColor ? (
+              <div className="mt-2.5 space-y-2.5">
+                {selectedOptionDetails.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedOptionDetails.map((o) => (
+                      <span
+                        key={o.id}
+                        className="inline-flex items-center rounded-full bg-surface px-2.5 py-1 text-[13px] font-bold text-text-body ring-1 ring-border-subtle"
+                      >
+                        {o.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {(selectedExteriorColor || selectedInteriorColor) && (
+                  <div className="flex flex-col gap-2 text-[14px] sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2">
+                    {selectedExteriorColor && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-text-muted">외장</span>
+                        <span
+                          aria-hidden
+                          className="h-4 w-4 shrink-0 rounded-full ring-1 ring-black/10"
+                          style={{ backgroundColor: selectedExteriorColor.hexCode }}
+                          title={selectedExteriorColor.hexCode}
+                        />
+                        <span className="font-bold text-text-strong">{selectedExteriorColor.name}</span>
+                      </span>
+                    )}
+                    {selectedInteriorColor && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-text-muted">내장</span>
+                        <span
+                          aria-hidden
+                          className="h-4 w-4 shrink-0 rounded-full ring-1 ring-black/10"
+                          style={{ backgroundColor: selectedInteriorColor.hexCode }}
+                          title={selectedInteriorColor.hexCode}
+                        />
+                        <span className="font-bold text-text-strong">{selectedInteriorColor.name}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 text-[14px] font-medium text-text-body">기본 사양</p>
+            )}
+          </div>
 
-          {selectedOptionDetails.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {selectedOptionDetails.map((o) => (
-                <span
-                  key={o.id}
-                  className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-text-body ring-[1px] ring-[#E5E8EB]"
-                >
-                  {o.name}
-                </span>
-              ))}
+          {/* 상품 / 계약기간 / 약정거리 — 카드형 3분할 */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-[14px] bg-surface-soft px-2.5 py-3 text-center">
+              <p className="text-[12px] font-bold text-text-muted">상품</p>
+              <p className="mt-1 text-[14.5px] font-extrabold leading-tight text-text-strong sm:text-[15px]">
+                {contractCategory}
+              </p>
             </div>
-          )}
-
-          {(selectedExteriorColor || selectedInteriorColor) && (
-            <div className="flex items-center gap-2 text-[13px] text-text-body">
-              {selectedExteriorColor && (
-                <>
-                  <span className="text-text-muted">외장</span>
-                  <span className="font-bold text-text-strong">{selectedExteriorColor.name}</span>
-                </>
-              )}
-              {selectedExteriorColor && selectedInteriorColor && <span className="text-text-muted">·</span>}
-              {selectedInteriorColor && (
-                <>
-                  <span className="text-text-muted">내장</span>
-                  <span className="font-bold text-text-strong">{selectedInteriorColor.name}</span>
-                </>
-              )}
+            <div className="rounded-[14px] bg-surface-soft px-2.5 py-3 text-center">
+              <p className="text-[12px] font-bold text-text-muted">계약기간</p>
+              <p className="num mt-1 text-[14.5px] font-extrabold leading-tight tabular-nums text-text-strong sm:text-[15px]">
+                {quoteResult.contractMonths}개월
+              </p>
             </div>
-          )}
-        </div>
-
-        <div className="my-4 h-[1px] bg-[#E5E8EB]" />
-
-        {/* 계약 조건 */}
-        <div className="grid grid-cols-3 gap-2">
-          <div>
-            <p className="text-[11px] text-text-muted">상품</p>
-            <p className="mt-0.5 text-[13.5px] font-bold text-text-strong">{contractCategory}</p>
+            <div className="rounded-[14px] bg-surface-soft px-2.5 py-3 text-center">
+              <p className="text-[12px] font-bold text-text-muted">약정거리</p>
+              <p className="num mt-1 text-[14.5px] font-extrabold leading-tight tabular-nums text-text-strong sm:text-[15px]">
+                연 {(quoteResult.annualMileage / 10000).toFixed(0)}만km
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] text-text-muted">계약기간</p>
-            <p className="mt-0.5 num text-[13.5px] font-bold text-text-strong tabular-nums">{quoteResult.contractMonths}개월</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-text-muted">약정거리</p>
-            <p className="mt-0.5 num text-[13.5px] font-bold text-text-strong tabular-nums">연 {(quoteResult.annualMileage / 10000).toFixed(0)}만km</p>
-          </div>
-        </div>
 
-        <div className="my-4 h-[1px] bg-[#E5E8EB]" />
-
-        <div className="flex items-center justify-between">
-          <span className="text-[12.5px] text-text-body">
-            {quoteResult.trimName ? "차량가 (트림 + 옵션)" : "차량가격"}
-          </span>
-          <span className="num text-[14px] font-extrabold text-text-strong tabular-nums">
-            {Math.round(totalVehiclePrice / 10_000).toLocaleString()}만원
-          </span>
+          {/* 총 차량가 — 강조 블록 */}
+          <div className="flex items-center justify-between gap-3 rounded-[16px] bg-brand-soft/70 px-4 py-3.5 ring-1 ring-brand/15">
+            <div className="min-w-0">
+              <p className="text-[12.5px] font-extrabold uppercase tracking-[0.06em] text-brand">
+                총 차량가
+              </p>
+              <p className="mt-0.5 text-[12.5px] font-medium text-text-muted">
+                {quoteResult.trimName ? "트림 + 옵션 포함" : "기준 차량가격"}
+              </p>
+            </div>
+            <p className="num shrink-0 text-[26px] font-extrabold tabular-nums leading-none text-brand sm:text-[28px]">
+              {Math.round(totalVehiclePrice / 10_000).toLocaleString()}
+              <span className="ml-0.5 text-[15px] font-bold">만원</span>
+            </p>
+          </div>
         </div>
       </div>
 
       {quoteResult.requiresConsultation === true || !standardScenario ? (
         <>
-          <div className="rounded-[24px] bg-brand p-6 text-white md:p-7">
-            <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
+          <div className="rounded-[24px] bg-brand p-6 text-[var(--color-brand-ink)] md:p-7">
+            <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[var(--color-brand-ink)]">월 납입금</p>
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[30px] font-extrabold leading-tight text-white sm:text-[36px]">
+                <p className="text-[30px] font-extrabold leading-tight text-[var(--color-brand-ink)] sm:text-[36px]">
                   별도 상담 필요
                 </p>
-                <p className="mt-2 text-[14px] font-bold text-white/90">
+                <p className="mt-2 text-[14px] font-bold text-[var(--color-brand-ink)]">
                   이 차량은 별도 상담이 필요합니다
                 </p>
               </div>
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-white/85">
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-[var(--color-brand-ink)]">
                 <AlertCircle size={12} />
                 견적 준비중
               </span>
             </div>
-            <p className="mt-4 text-[13.5px] leading-relaxed text-white/75">
+            <p className="mt-4 text-[13.5px] leading-relaxed text-[var(--color-brand-ink)]">
               현재 자동 견적에 필요한 데이터가 등록되지 않아 정확한 월 납입금을 즉시 산출하기 어렵습니다.
               선택하신 조건 기준으로 상담을 통해 맞춤 견적을 안내해드릴게요.
             </p>
@@ -1285,16 +1512,16 @@ function Step3ResultHeader({
               label="선택 조건으로 상담 요청하기"
               onClick={onConsultationRequest}
               loading={isConsultationSubmitting}
-              className="mt-5 h-[48px] rounded-[14px] bg-white px-4 text-[14px] font-bold text-brand hover:bg-white/95"
+              className="mt-5 h-[48px] rounded-[14px] bg-white px-4 text-[14px] font-bold text-[var(--color-kakao-ink)] hover:bg-white/95"
             />
             {consultationError && (
-              <p role="alert" className="mt-3 rounded-[10px] bg-white/10 px-3 py-2 text-[12.5px] leading-relaxed text-white">
+              <p role="alert" className="mt-3 rounded-[10px] bg-white/10 px-3 py-2 text-[12.5px] leading-relaxed text-[var(--color-brand-ink)]">
                 {consultationError}
               </p>
             )}
           </div>
 
-          <div className="rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
+          <div className="rounded-[16px] bg-surface-soft p-4 text-[12px] leading-relaxed text-text-muted">
             옵션·계약조건에 따라 캐피탈사별 금액이 크게 달라질 수 있어 상담을 통한 견적이 더 정확합니다.
           </div>
 
@@ -1310,26 +1537,26 @@ function Step3ResultHeader({
       ) : (
         <>
           {/* ── 2) 월 납입금 대형 강조 (실제 데이터) ── */}
-          <div className="rounded-[24px] bg-brand p-6 text-white md:p-7">
+          <div className="rounded-[24px] bg-brand p-6 text-[var(--color-brand-ink)] md:p-7">
             <div className="flex items-center justify-between">
-              <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-white/70">월 납입금</p>
+              <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[var(--color-brand-ink)]">월 납입금</p>
               {isRecalculating && (
-                <span className="flex items-center gap-1.5 text-[11.5px] text-white/70">
-                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                <span className="flex items-center gap-1.5 text-[11.5px] text-[var(--color-brand-ink)]">
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[rgb(var(--color-brand-ink-rgb)/0.35)] border-t-[var(--color-brand-ink)]" />
                   재계산 중…
                 </span>
               )}
             </div>
             <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <TossPrice won={standardScenario.monthlyPayment} size="xl" tone="white" />
+              <TossPrice won={standardScenario.monthlyPayment} size="xl" tone="onBrand" />
               {standardScenario.bestFinanceCompany && (
-                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-white/85">
+                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-[var(--color-brand-ink)]">
                   <Building2 size={11} />
                   {standardScenario.bestFinanceCompany}
                 </span>
               )}
             </div>
-            <p className="mt-3 text-[13.5px] text-white/75">
+            <p className="mt-3 text-[13.5px] text-[var(--color-brand-ink)]">
               {CUSTOMER_TYPE_LABELS[customerType]} · {contractCategory}
             </p>
           </div>
@@ -1364,7 +1591,7 @@ function Step3ResultHeader({
           {standardScenario.rangeExceeded && (
             <div className="flex items-start gap-2 rounded-[14px] border border-status-warning/25 bg-status-warning-soft px-4 py-3 text-[12px] leading-relaxed text-status-warning">
               <AlertCircle size={13} className="mt-0.5 shrink-0" />
-              <p>
+              <p className="break-keep">
                 선택하신 옵션 조합으로 차량가가 등록된 견적 기준 범위를 초과해 참고용 견적으로 표시돼요.
                 정확한 금액은 상담을 통해 확인해 주세요.
               </p>
@@ -1399,68 +1626,22 @@ function Step3ResultHeader({
           <CostCheckpointV2 contractType="반납형" customerType={customerType} />
 
           {/* ── 11) 안내 + CTA ── */}
-          <div className="rounded-[16px] bg-[#F8FAFC] p-4 text-[12px] leading-relaxed text-text-muted">
-            위 견적은 실제 계약 가능한 기준이나, 최종 금액은 차량 상태·옵션·프로모션에 따라
-            달라질 수 있어요. 전문가 상담으로 확정 견적을 받아보세요.
+          <div className="break-keep rounded-[16px] bg-surface-soft p-4 text-[12px] leading-relaxed text-text-body">
+            <span className="inline-block">위 견적은 실제 계약 가능한 기준이나, 최종 금액은</span>{" "}
+            <span className="inline-block">차량 상태·옵션·프로모션에 따라 달라질 수 있어요.</span>{" "}
+            <span className="inline-block">전문가 상담으로 확정 견적을 받아보세요.</span>
           </div>
 
-          {/* 메인 CTA: 심사 요청 */}
-          <button
-            type="button"
-            onClick={onContractApply}
-            disabled={isApplying}
-            aria-busy={isApplying}
-            className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15.5px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99] disabled:cursor-wait disabled:opacity-60"
-          >
-            <ClipboardCheck size={17} strokeWidth={2.2} />
-            {isApplying ? "견적 저장 중…" : "이 조건으로 심사 요청하기"}
-          </button>
-
-          {applyError && (
-            <div role="alert" className="flex items-start gap-2 rounded-[14px] border border-status-danger/20 bg-status-danger-soft px-4 py-3 text-[14px] leading-relaxed">
-              <AlertCircle size={16} className="mt-0.5 shrink-0 text-status-danger" />
-              <p className="break-keep text-text-primary">{applyError}</p>
-            </div>
-          )}
-
-          {/* 보조 CTA 2분할: 이미지 / 상담 */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              onClick={onImageDownload}
-              disabled={isImageDownloading}
-              className={cn(
-                "flex h-[48px] items-center justify-center gap-1.5 rounded-[14px] border text-[13.5px] font-bold transition-all",
-                isImageDownloading
-                  ? "cursor-not-allowed border-[#E5E8EB] bg-[#F8FAFC] text-text-muted"
-                  : "border-brand/20 bg-white text-brand hover:bg-brand-soft active:scale-[0.99]"
-              )}
-            >
-              {isImageDownloading ? (
-                <>
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand/20 border-t-brand" />
-                  준비 중
-                </>
-              ) : (
-                <>
-                  <Download size={14} strokeWidth={2.2} />
-                  견적서 받기
-                </>
-              )}
-            </button>
-            <ChannelTalkButton
-              vehicleName={selectedVehicle?.name}
-              label="상담하기"
-              className="h-[48px] rounded-[14px] border border-[#E5E8EB] bg-white px-3 text-[13.5px] font-bold text-text-body hover:bg-[#F8FAFC]"
-            />
-          </div>
-
-          {imageError && (
-            <div className="flex items-start gap-2 rounded-[12px] border border-status-danger/20 bg-status-danger-soft p-3 text-[12px] text-status-danger">
-              <AlertCircle size={14} className="mt-0.5 shrink-0" />
-              <p>{imageError}</p>
-            </div>
-          )}
+          <QuoteResultActions
+            onContractApply={onContractApply}
+            isApplying={isApplying}
+            applyError={applyError}
+            kakaoDeliveryEnabled={kakaoDeliveryEnabled}
+            isDelivering={isDelivering}
+            deliverySuccess={deliverSuccess}
+            deliveryError={deliveryError}
+            onQuoteDeliver={onQuoteDeliver}
+          />
 
           <button
             type="button"
@@ -1489,13 +1670,13 @@ function FixedCTA({
   onPrev?: () => void;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E5E8EB] bg-white/95 px-5 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border-subtle bg-surface/95 px-5 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
       <div className="mx-auto flex max-w-[680px] gap-2">
         {onPrev && (
           <button
             type="button"
             onClick={onPrev}
-            className="flex h-[52px] items-center justify-center rounded-[14px] border border-[#E5E8EB] bg-white px-5 text-[15px] font-bold text-text-body transition-colors hover:bg-[#F8FAFC]"
+            className="flex h-[52px] items-center justify-center rounded-[14px] border border-border-subtle bg-surface px-5 text-[15px] font-bold text-text-body transition-colors hover:bg-surface-soft"
           >
             이전
           </button>
@@ -1503,7 +1684,7 @@ function FixedCTA({
         <button
           type="button"
           onClick={onClick}
-          className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99]"
+          className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-[var(--color-brand-ink)] shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99]"
         >
           {icon}
           {label}

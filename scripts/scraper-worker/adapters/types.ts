@@ -1,5 +1,5 @@
 import type { Page } from "puppeteer";
-import type { ScrapeJobParams, TrimScrapeResult } from "../../../src/types/scraper";
+import type { CatalogJobParams, CatalogProgress, CatalogTrimEntry, ScrapeJobParams, TrimScrapeResult } from "../../../src/types/scraper";
 
 /**
  * 자격증명(ID/PW) 오류로 인한 로그인 실패.
@@ -25,7 +25,7 @@ export interface AdapterContext {
   page: Page;
   credentials: AdapterCredentials;
   config: Record<string, unknown> | null;
-  params: ScrapeJobParams;
+  params: ScrapeJobParams | CatalogJobParams;
   log: (msg: string) => void;
   /**
    * 사람 개입(2FA·키보드보안 등)이 필요할 때 호출.
@@ -35,6 +35,26 @@ export interface AdapterContext {
   waitForHuman: (prompt: string) => Promise<void>;
   /** 어드민이 작업을 취소했는지 확인. */
   isCanceled: () => boolean;
+}
+
+/** catalog 잡 옵션 — 순회는 어댑터가, 버퍼링/flush/스킵 판정 데이터는 워커가 소유한다. */
+export interface CatalogScrapeOptions {
+  brands: { brandCd: string; name: string }[];
+  /** 이번주 이미 수집된 외부 트림코드면 true — 어댑터는 수집을 건너뛴다(재개 지원). */
+  isCollected: (mdelCd: string) => boolean;
+  /** 트림 1건 수집 완료 시 호출 — 워커가 버퍼에 쌓고 모델 경계/20건마다 flush. */
+  onTrimResult: (entry: CatalogTrimEntry) => Promise<void>;
+  /** 모델(MDL_CD) 경계 — 워커가 버퍼를 flush 한다. */
+  onModelDone: (modelCd: string) => Promise<void>;
+  /** 진행률 갱신 — 워커가 하트비트에 동봉한다. */
+  onProgress: (p: CatalogProgress) => void;
+}
+
+export interface CatalogScrapeResult {
+  total: number; // 수집(저장 시도)한 트림 수
+  skipped: number; // 이번주 기수집으로 건너뛴 수
+  failed: number; // 월납입금 0건 등 수집 실패 수
+  brands: { brandCd: string; name: string; trims: number }[];
 }
 
 /**
@@ -49,4 +69,6 @@ export interface SiteAdapter {
   keepAlive(ctx: AdapterContext): Promise<void>;
   /** 우리 trimId 1개에 대한 견적/회수율 수집. */
   scrapeTrim(ctx: AdapterContext, ourTrimId: string): Promise<TrimScrapeResult>;
+  /** 선택 브랜드의 캐피탈사 등록 전 모델·전 트림 수집 (catalog 잡). 미구현 어댑터 = 미지원. */
+  scrapeCatalog?(ctx: AdapterContext, opts: CatalogScrapeOptions): Promise<CatalogScrapeResult>;
 }

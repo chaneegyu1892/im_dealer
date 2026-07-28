@@ -7,6 +7,10 @@ import {
   getBestReviews,
   getPublicReviewsByVehicleId,
 } from "@/lib/admin-queries/reviews";
+import {
+  createPageMetadata,
+  summarizeMetaDescription,
+} from "@/lib/site-config";
 import { ReviewDetailClient } from "./ReviewDetailClient";
 import { ReviewCard } from "@/components/reviews/ReviewCard";
 
@@ -20,22 +24,25 @@ export async function generateMetadata({
   const { id } = await params;
   const review = await getPublicReviewById(id);
   if (!review) {
-    return { title: "후기를 찾을 수 없습니다 | 아임딜러" };
+    return {
+      title: "후기를 찾을 수 없습니다",
+      robots: { index: false, follow: false },
+    };
   }
-  const snippet = review.content.slice(0, 100).replace(/\s+/g, " ");
+  const snippet = summarizeMetaDescription(review.content);
   const titleParts = [
     `${review.displayName}님의 후기`,
     review.vehicleName ?? null,
   ].filter(Boolean);
-  return {
-    title: `${titleParts.join(" · ")} | 아임딜러`,
+  return createPageMetadata({
+    title: titleParts.join(" · "),
     description: snippet,
-    openGraph: {
-      title: titleParts.join(" · "),
-      description: snippet,
-      images: review.imageUrls.length > 0 ? [review.imageUrls[0]] : undefined,
-    },
-  };
+    path: `/reviews/${id}`,
+    image: review.imageUrls[0],
+    imageAlt: review.vehicleName
+      ? `${review.vehicleName} 고객 후기`
+      : "아임딜러 고객 후기",
+  });
 }
 
 export const dynamic = "force-dynamic";

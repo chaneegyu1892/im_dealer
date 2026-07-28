@@ -85,6 +85,25 @@ const frozenVehicle = {
   },
 } as const;
 
+const frozenV3Vehicle = {
+  ...frozenVehicle,
+  score: 8,
+  scoringVersion: "step02-v3",
+  stylePreference: "family-leisure",
+  styleScore: 5,
+  followupBonus: 3,
+  autoConditionScore: 0,
+  rankScore: 8,
+  tieBreak: {
+    modelYear: 2027,
+    companyPriority: 1,
+    immediateDeliveryAvailable: true,
+    availableStockCount: 2,
+    profitPriority: 1,
+    slug: "active-car",
+  },
+} as const;
+
 describe("GET /api/recommend/:sessionId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -110,6 +129,29 @@ describe("GET /api/recommend/:sessionId", () => {
     expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
   });
 
+  it("replays a STEP 02 v3 result and reconstructs its style selection", async () => {
+    mocks.findFirst.mockResolvedValue({
+      ...baseLog,
+      budgetMin: 1_000_000,
+      budgetMax: 0,
+      purpose: "family-leisure, 가족",
+      preferences: ["family-leisure", "가족"],
+      result: { version: "step02-v3", vehicles: [frozenV3Vehicle] },
+    });
+    mocks.findManyVehicles.mockResolvedValue([{ id: "vehicle-active" }]);
+    const response = await GET(request, context);
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.input.stylePreference).toBe("family-leisure");
+    expect(body.input.budgetRange).toBe("gte-1000k");
+    expect(body.input).toMatchObject({ budgetMin: 1_000_000, budgetMax: 0 });
+    expect(body.vehicles[0]).toMatchObject({
+      scoringVersion: "step02-v3",
+      rankScore: 8,
+    });
+    expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
+  });
+
   it("returns historical recommendation bytes without replacing its representative projection", async () => {
     const result = { version: "overlap-v2", vehicles: [frozenVehicle] } as const;
     const storedBytes = JSON.stringify(result);
@@ -127,6 +169,28 @@ describe("GET /api/recommend/:sessionId", () => {
     expect(body.vehicles).toEqual([frozenVehicle]);
     expect(JSON.stringify(result)).toBe(storedBytes);
     expect(body.vehicles[0].vehicle.thumbnailUrl).toBe("https://cdn.example/old-cover.jpg");
+    expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
+  });
+
+  it("replays frozen popularity evidence without recalculation", async () => {
+    const popularity = {
+      period: "2026-05",
+      rank: 2,
+      registrationCount: 7_086,
+    } as const;
+    const result = {
+      version: "overlap-v2",
+      vehicles: [{ ...frozenVehicle, popularity }],
+    } as const;
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "member" } } });
+    mocks.findFirst.mockResolvedValue({ ...baseLog, result });
+    mocks.findManyVehicles.mockResolvedValue([{ id: "vehicle-active" }]);
+
+    const response = await GET(request, context);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.vehicles[0]?.popularity).toEqual(popularity);
     expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
   });
 

@@ -18,7 +18,6 @@ const VIEWPORTS = [
 
 const VISUAL_PROFILES = [
   { name: "light", colorScheme: "light", reducedMotion: "no-preference" },
-  { name: "dark", colorScheme: "dark", reducedMotion: "no-preference" },
   { name: "reduced-motion", colorScheme: "light", reducedMotion: "reduce" },
 ] as const;
 
@@ -54,18 +53,6 @@ async function applyVisualContext(page: Page, context: VisualContext): Promise<v
     colorScheme: context.profile.colorScheme,
     reducedMotion: context.profile.reducedMotion,
   });
-  await page.addInitScript((colorScheme) => {
-    const applyColorScheme = () => {
-      document.documentElement.classList.toggle("dark", colorScheme === "dark");
-    };
-
-    if (document.documentElement === null) {
-      document.addEventListener("DOMContentLoaded", applyColorScheme, { once: true });
-      return;
-    }
-
-    applyColorScheme();
-  }, context.profile.colorScheme);
 }
 
 async function waitForStableRoute(page: Page): Promise<void> {

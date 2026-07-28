@@ -6,6 +6,12 @@ import {
   type Carpan2ImagePersistence,
 } from "./persistence";
 import { mirrorImage, type MirrorContext } from "../vehicle-image-mirror";
+import { createCarpan2ListThumbnail } from "./list-thumbnail";
+import {
+  markVehicleImageStorageReservationReady,
+  reserveVehicleImageStorage,
+  type VehicleImageStorageReservation,
+} from "../vehicle-images/storage-reservation";
 
 const DEFAULT_IMPORT_CONCURRENCY = 8;
 
@@ -46,6 +52,11 @@ export class Carpan2ImageFinalizationError extends Error {
     super("CARPAN2_IMAGE_FINALIZATION_FAILED", { cause: failures[0] });
   }
 }
+
+export type Carpan2ListThumbnailCleanup = {
+  readonly reserve: (storagePath: string) => Promise<VehicleImageStorageReservation>;
+  readonly rollback: (reservation: VehicleImageStorageReservation) => Promise<void>;
+};
 
 export async function loadCarpan2ImageDbVehicles(
   prisma: PrismaClient,
@@ -102,12 +113,20 @@ export async function applyCarpan2ImagePlans(input: {
   readonly concurrency?: number;
   readonly persistence?: Carpan2ImagePersistence;
   readonly mirror?: typeof mirrorImage;
+  readonly createListThumbnail?: typeof createCarpan2ListThumbnail;
+  readonly listThumbnailCleanup?: Carpan2ListThumbnailCleanup;
 }): Promise<Carpan2ImageImportStats> {
   const stats = createInitialStats();
   const tasks: ImportTask[] = [];
   const matchedVehicleIds = new Set<string>();
   const primaryFailureVehicleIds = new Set<string>();
   const persistence = input.persistence ?? createCarpan2ImagePersistence(input.prisma);
+  const listThumbnailCleanup = input.listThumbnailCleanup ?? {
+    reserve: (storagePath: string) =>
+      reserveVehicleImageStorage(input.prisma, storagePath),
+    rollback: (reservation: VehicleImageStorageReservation) =>
+      markVehicleImageStorageReservationReady(input.prisma, reservation),
+  };
   for (const plan of input.plans) {
     if (!plan.dbVehicle) {
       stats.vehiclesMissing += 1;
@@ -126,6 +145,8 @@ export async function applyCarpan2ImagePlans(input: {
       applyImageCandidate({
         ctx: input.ctx,
         mirror: input.mirror ?? mirrorImage,
+        createListThumbnail: input.createListThumbnail ?? createCarpan2ListThumbnail,
+        listThumbnailCleanup,
         persistence,
         primaryFailureVehicleIds,
         task,
@@ -188,12 +209,17 @@ type ImportTask = {
 async function applyImageCandidate(input: {
   readonly ctx: MirrorContext;
   readonly mirror: typeof mirrorImage;
+  readonly createListThumbnail: typeof createCarpan2ListThumbnail;
+  readonly listThumbnailCleanup: Carpan2ListThumbnailCleanup;
   readonly persistence: Carpan2ImagePersistence;
   readonly primaryFailureVehicleIds: Set<string>;
   readonly task: ImportTask;
   readonly stats: Carpan2ImageImportStats;
 }): Promise<void> {
   input.stats.candidates += 1;
+  const cleanupState: {
+    reservation: VehicleImageStorageReservation | null;
+  } = { reservation: null };
   try {
     const existing = await input.persistence.findExisting(
       input.task.dbVehicle.id,
@@ -203,35 +229,81 @@ async function applyImageCandidate(input: {
       input.stats.skippedExisting += 1;
       return;
     }
-    if (existing?.storageUrl && existing.sourceUrl === input.task.candidate.sourceUrl) {
+    const needsListThumbnail = input.task.candidate.type === "MAIN"
+      || input.task.candidate.type === "COVER";
+    if (
+      existing?.storageUrl
+      && existing.sourceUrl === input.task.candidate.sourceUrl
+      && (
+        !needsListThumbnail
+        || (
+          Boolean(existing.listThumbnailUrl?.trim())
+          && Boolean(existing.listThumbnailStoragePath?.trim())
+        )
+      )
+    ) {
       input.stats.skippedExisting += 1;
       return;
     }
     const mirrored = await input.mirror(input.task.candidate.sourceUrl, input.ctx);
     if (mirrored.uploaded) input.stats.uploaded += 1;
     else input.stats.mirroredCachedOrExisting += 1;
+    const listThumbnail = needsListThumbnail
+      ? await input.createListThumbnail({
+        ctx: input.ctx,
+        storageUrl: mirrored.url,
+        reserveBeforeUpload: async (storagePath) => {
+          if (cleanupState.reservation !== null) {
+            throw new Carpan2ImageImportError("LIST_THUMBNAIL_ALREADY_RESERVED");
+          }
+          cleanupState.reservation = await input.listThumbnailCleanup.reserve(storagePath);
+        },
+      })
+      : null;
+    const reservation = cleanupState.reservation;
+    if (needsListThumbnail && reservation === null) {
+      throw new Carpan2ImageImportError("LIST_THUMBNAIL_NOT_RESERVED");
+    }
+    if (listThumbnail !== null && reservation?.storagePath !== listThumbnail.storagePath) {
+      throw new Carpan2ImageImportError("LIST_THUMBNAIL_RESERVATION_MISMATCH");
+    }
     const result = await input.persistence.applyMirroredCandidate({
       vehicleId: input.task.dbVehicle.id,
       existingImageId: existing?.id ?? null,
       candidate: input.task.candidate,
       storageUrl: mirrored.url,
+      listThumbnailUrl: listThumbnail?.url ?? null,
+      listThumbnailStoragePath: listThumbnail?.storagePath ?? null,
+      listThumbnailReservation: reservation,
     });
+    cleanupState.reservation = null;
     if (result === "upserted") input.stats.upserted += 1;
     else input.stats.skippedExisting += 1;
     if (input.stats.candidates % 100 === 0) {
       console.log(`[APPLY] images ${input.stats.candidates}, upserted ${input.stats.upserted}`);
     }
   } catch (error) {
+    let failure = error;
+    if (cleanupState.reservation !== null) {
+      try {
+        await input.listThumbnailCleanup.rollback(cleanupState.reservation);
+      } catch (rollbackError) {
+        failure = new AggregateError(
+          [error, rollbackError],
+          "LIST_THUMBNAIL_ROLLBACK_FAILED",
+        );
+      }
+    }
     input.stats.failed += 1;
     if (input.task.candidate.type === "MAIN" || input.task.candidate.type === "COVER") {
       input.primaryFailureVehicleIds.add(input.task.dbVehicle.id);
     }
-    if (error instanceof Error) {
+    if (failure instanceof Error) {
       console.warn(
-        `[WARN] ${input.task.dbVehicle.brand}/${input.task.dbVehicle.name}: ${error.message} (${input.task.candidate.sourceUrl})`,
+        `[WARN] ${input.task.dbVehicle.brand}/${input.task.dbVehicle.name}: ${failure.message} (${input.task.candidate.sourceUrl})`,
       );
     } else {
-      throw error;
+      throw failure;
     }
   }
 }

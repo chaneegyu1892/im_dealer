@@ -41,7 +41,7 @@ export function MobileQuoteSummary({
             vehicleName={vehicleName}
             label="상담"
             size="sm"
-            className="shrink-0 rounded-pill border border-line bg-surface px-3.5 py-2 text-[12.5px] font-bold text-ink hover:bg-surface-muted hover:opacity-100"
+            className="min-h-11 shrink-0 rounded-pill border border-line bg-surface px-4 py-2.5 text-[13px] font-bold text-ink hover:bg-surface-muted hover:opacity-100"
           />
         </div>
         <Link
@@ -57,37 +57,49 @@ export function MobileQuoteSummary({
   );
 }
 
+const consultBtnClass =
+  "h-14 max-w-full shrink-0 gap-1.5 rounded-full border border-line bg-surface/95 px-5 text-[15px] font-extrabold text-ink shadow-[0_2px_12px_rgb(var(--color-text-strong-rgb)/0.08)] backdrop-blur-md hover:bg-surface-muted hover:opacity-100";
+
+const quoteBtnClass =
+  "inline-flex h-14 max-w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-brand px-5 text-[15px] font-extrabold text-white shadow-[0_2px_12px_rgb(var(--color-text-strong-rgb)/0.12)] transition-colors duration-150 hover:bg-brand-pressed";
+
 function MobileStickyQuoteBar({
   vehicleName,
   vehicleSlug,
-  quotes,
 }: {
   vehicleName: string;
   vehicleSlug: string;
   quotes: RepresentativeQuote[];
 }) {
-  const hasQuote = hasRepresentativeQuote(quotes);
   const prefersReducedMotion = useReducedMotion();
   const [hasScrolledPastSummary, setHasScrolledPastSummary] = useState(false);
+  /** BottomNav 축소 여부 — 펼침일 때 CTA를 우측 정렬 */
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const showStickyDock = hasScrolledPastSummary;
-  const showDockSummary = hasQuote;
 
   useEffect(() => {
     let animationFrameId: number | null = null;
 
-    const updateScrollState = () => {
-      if (animationFrameId !== null) return;
+    const readScrollY = () =>
+      window.scrollY ||
+      document.documentElement.scrollTop ||
+      document.body.scrollTop ||
+      0;
 
-      animationFrameId = window.requestAnimationFrame(() => {
-        animationFrameId = null;
-        const nextHasScrolledPastSummary = window.scrollY >= MOBILE_STICKY_SUMMARY_SCROLL_Y;
-        setHasScrolledPastSummary((current) =>
-          current === nextHasScrolledPastSummary ? current : nextHasScrolledPastSummary
-        );
-      });
+    const applyScrollState = () => {
+      animationFrameId = null;
+      const nextHasScrolledPastSummary = readScrollY() >= MOBILE_STICKY_SUMMARY_SCROLL_Y;
+      setHasScrolledPastSummary((current) =>
+        current === nextHasScrolledPastSummary ? current : nextHasScrolledPastSummary
+      );
     };
 
-    updateScrollState();
+    const updateScrollState = () => {
+      if (animationFrameId !== null) return;
+      animationFrameId = window.requestAnimationFrame(applyScrollState);
+    };
+
+    applyScrollState();
     window.addEventListener("scroll", updateScrollState, { passive: true });
 
     return () => {
@@ -98,62 +110,64 @@ function MobileStickyQuoteBar({
     };
   }, []);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    const syncNavCollapsed = () => {
+      // dataset 없으면 펼침(기본 메뉴바)으로 본다
+      setNavCollapsed(root.dataset.bottomNavCollapsed === "true");
+    };
+    syncNavCollapsed();
+    const observer = new MutationObserver(syncNavCollapsed);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-bottom-nav-collapsed"] });
+    return () => observer.disconnect();
+  }, []);
+
+  const quoteLink = (
+    <Link href={`/quote?vehicle=${vehicleSlug}`} className={quoteBtnClass}>
+      <Calculator size={17} strokeWidth={2.3} />
+      견적 내기
+    </Link>
+  );
+
+  const consultButton = (
+    <ChannelTalkButton
+      vehicleName={vehicleName}
+      label="상담"
+      size="sm"
+      className={consultBtnClass}
+    />
+  );
+
   return (
     <AnimatePresence initial={false}>
       {showStickyDock && (
         <motion.div
           key="mobile-sticky-quote-dock"
-          className="fixed left-0 right-0 z-40 px-3 lg:hidden"
-          style={{ bottom: "calc(104px + env(safe-area-inset-bottom, 0px))" }}
-          initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
+          className="mobile-sticky-quote-dock pointer-events-none fixed left-0 right-0 z-[60] px-3 lg:hidden"
+          style={{
+            // 축소: 중앙 FAB과 같은 바닥선 / 펼침: 메뉴바 위로 상승
+            bottom:
+              "calc(var(--bottom-nav-stack-offset, 88px) + env(safe-area-inset-bottom, 0px))",
+          }}
+          initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={prefersReducedMotion ? { opacity: 0, y: 0 } : { opacity: 0, y: 12 }}
-          transition={{ duration: prefersReducedMotion ? 0 : 0.2, ease: "easeOut" }}
+          exit={prefersReducedMotion ? { opacity: 0, y: 0 } : { opacity: 0, y: 8 }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
         >
-          <div className="rounded-[18px] border border-line bg-surface/95 p-3 shadow-[0_-2px_24px_rgb(var(--color-text-strong-rgb)/0.12)] backdrop-blur-md">
-            {showDockSummary && (
-              <div className="mb-3 min-w-0 px-1">
-                <RepresentativeQuotePrice
-                  quotes={quotes}
-                  tone="brand"
-                  size="sm"
-                  captionText="60개월 · 연 2만km · 무보증"
-                  captionClassName="text-[10.5px]"
-                  className="min-w-0"
-                />
-              </div>
-            )}
-            {hasQuote ? (
-              <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.25fr)] gap-2">
-                <ChannelTalkButton
-                  vehicleName={vehicleName}
-                  label="상담"
-                  size="sm"
-                  className="min-h-[48px] w-full rounded-btn border border-line bg-surface px-3 py-2 text-[14px] font-extrabold text-ink hover:bg-surface-muted hover:opacity-100"
-                />
-                <Link
-                  href={`/quote?vehicle=${vehicleSlug}`}
-                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-btn bg-brand px-3 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
-                >
-                  <Calculator size={16} strokeWidth={2.3} />
-                  견적 내기
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="px-1 text-[12px] font-medium leading-relaxed text-ink-label">
-                  조건을 선택하면 상담 필요 여부를 바로 확인할 수 있어요.
-                </p>
-                <Link
-                  href={`/quote?vehicle=${vehicleSlug}`}
-                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-btn bg-brand px-3 text-[15px] font-extrabold text-white transition-colors duration-150 hover:bg-brand-pressed"
-                >
-                  <Calculator size={16} strokeWidth={2.3} />
-                  견적 내기
-                </Link>
-              </div>
-            )}
-          </div>
+          {navCollapsed ? (
+            /* 축소: 점 기준 왼쪽 상담 · 오른쪽 견적 */
+            <div className="mx-auto grid max-w-[480px] grid-cols-[1fr_4rem_1fr] items-center gap-2">
+              <div className="pointer-events-auto flex min-w-0 justify-end">{consultButton}</div>
+              <div className="pointer-events-none h-16 w-16 shrink-0" aria-hidden />
+              <div className="pointer-events-auto flex min-w-0 justify-start">{quoteLink}</div>
+            </div>
+          ) : (
+            /* 펼침: 상담 + 견적 모두 우측 정렬, 메뉴바와 가깝게 */
+            <div className="pointer-events-auto mx-auto flex max-w-[480px] items-center justify-end gap-2.5">
+              {consultButton}
+              {quoteLink}
+            </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

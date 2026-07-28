@@ -97,6 +97,19 @@ export async function seedVehicleImageFixture(prefix: string, adminEmail = proce
   return fixture;
 }
 
+export async function createCurrentRecommendationSnapshot(
+  fixture: AdminVehicleImageFixture
+): Promise<{ readonly sessionId: string; readonly bytes: string }> {
+  const sessionId = `${fixture.prefix}-current`;
+  const current = { version: "overlap-v2", vehicles: [frozenVehicle(fixture.vehicleId, fixture.slug, fixture.mainUrl)] } as const;
+  await prisma.recommendationLog.create({ data: {
+    id: `${fixture.prefix}-current-recommendation`, sessionId, industry: "개인", purpose: "안정감", preferences: ["안정감"],
+    budgetMin: 0, budgetMax: 0, paymentStyle: "표준형", annualMileage: 20_000, returnType: "미정",
+    recommendedVehicleIds: [fixture.vehicleId], recommendedReason: {}, result: current,
+  } });
+  return { sessionId, bytes: JSON.stringify(current) };
+}
+
 async function cleanup(
   fixture: AdminVehicleImageFixture | null,
   prefix: string,

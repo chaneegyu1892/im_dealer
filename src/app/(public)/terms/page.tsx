@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-config";
 
-export const metadata: Metadata = {
-  title: "이용약관 | 아임딜러",
+export const metadata: Metadata = createPageMetadata({
+  title: "이용약관",
   description: "(주)모빌페이브 아임딜러(IM DEALER) 서비스 이용약관",
-};
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

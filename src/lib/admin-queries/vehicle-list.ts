@@ -1,7 +1,15 @@
 import { getBrandSignals } from "@/lib/brand-signals";
 import { makeBrandComparator } from "@/lib/brand-sort";
-import type { AdminBrand, AdminVehicle } from "@/types/admin";
+import { scraperRefsSchema } from "@/lib/validations/admin";
+import type { AdminBrand, AdminVehicle, AdminVehicleLite } from "@/types/admin";
 import { prisma } from "../prisma";
+
+export async function getAdminVehiclesLite(): Promise<AdminVehicleLite[]> {
+  return prisma.vehicle.findMany({
+    select: { id: true, brand: true, name: true },
+    orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }],
+  });
+}
 
 export async function getAdminVehicles(brand?: string): Promise<AdminVehicle[]> {
   const vehicles = await prisma.vehicle.findMany({
@@ -10,7 +18,9 @@ export async function getAdminVehicles(brand?: string): Promise<AdminVehicle[]> 
     include: { _count: { select: { trims: true } } },
   });
 
-  return vehicles.map((vehicle) => ({
+  return vehicles.map((vehicle) => {
+    const scraperRefs = scraperRefsSchema.safeParse(vehicle.scraperRefs);
+    return {
     id: vehicle.id,
     slug: vehicle.slug,
     name: vehicle.name,
@@ -29,10 +39,12 @@ export async function getAdminVehicles(brand?: string): Promise<AdminVehicle[]> 
     displayOrder: vehicle.displayOrder,
     tags: vehicle.tags,
     description: vehicle.description,
+    scraperRefs: scraperRefs.success ? scraperRefs.data : null,
     createdAt: vehicle.createdAt.toISOString(),
     updatedAt: vehicle.updatedAt.toISOString(),
-    _count: vehicle._count,
-  }));
+      _count: vehicle._count,
+    };
+  });
 }
 
 export async function getAdminBrands(): Promise<AdminBrand[]> {

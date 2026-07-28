@@ -6,9 +6,9 @@ import { maskAuthorName, formatReviewDate } from "@/lib/review-utils";
 import { ReviewWriteForm } from "./ReviewWriteForm";
 
 export const metadata: Metadata = {
-  title: "후기 작성 | 아임딜러",
+  title: "후기 작성",
   description: "차량 이용 경험을 남겨주세요.",
-  robots: { index: false, follow: false },
+  robots: { index: false, follow: false, nocache: true },
 };
 
 export const dynamic = "force-dynamic";

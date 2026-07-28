@@ -23,6 +23,8 @@ import {
   PREFERENCE_RULES,
   CHILD_RULES,
 } from "@/lib/recommend/scoring-rules";
+import { STEP02_V3_STYLE_OPTIONS } from "@/constants/recommend-step02-v3";
+import { STEP02_V3_STYLE_PLACEMENTS } from "@/lib/recommend/step02-v3-data";
 
 describe("스코어링 라벨이 실제 선택지와 일치", () => {
   it("스코어링 업종은 모두 실제 선택지에 존재", () => {
@@ -98,5 +100,13 @@ describe("스코어링 라벨이 실제 선택지와 일치", () => {
     expect([...CHARGING_PROFILE_KEYS].sort()).toEqual(
       CHARGING_OPTIONS.map((option) => option.value).sort()
     );
+  });
+
+  it("STEP 02 v3의 점수형 스타일은 PDF 배치표와 정확히 대응한다", () => {
+    const scoredStyles = STEP02_V3_STYLE_OPTIONS
+      .map((option) => option.value)
+      .filter((value) => value !== "auto")
+      .sort();
+    expect(scoredStyles).toEqual(Object.keys(STEP02_V3_STYLE_PLACEMENTS).sort());
   });
 });

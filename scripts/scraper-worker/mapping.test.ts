@@ -50,6 +50,8 @@ describe("buildDraftFromTrimResults", () => {
     expect(draft.maxDepositRates["36_10000"]).toBe(580000);
     expect(draft.minPrepayRates["36_10000"]).toBe(510000);
     expect(draft.maxPrepayRates["36_10000"]).toBe(610000);
+    expect(draft.trims.find((trim) => trim.trimId === "t1")?.depositRates?.["36_10000"]).toBe(480000);
+    expect(draft.trims.find((trim) => trim.trimId === "t2")?.prepayRates?.["36_10000"]).toBe(610000);
     // 9개 키 모두 채워짐
     expect(Object.keys(draft.minBaseRates).sort()).toEqual([...RATE_KEYS].sort());
     // 보증금/선납금은 36_10000 외 셀은 0

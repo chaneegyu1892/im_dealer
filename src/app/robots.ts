@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+import { SITE_URL } from "@/lib/site-config";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -14,9 +13,13 @@ export default function robots(): MetadataRoute.Robots {
           "/admin/",
           "/api/",
           "/auth/",
-          "/verify",
           "/login",
-          "/quote", // 사용자 입력 기반 동적 페이지
+          "/mypage",
+          "/quote/delivery/",
+          "/recommend/result",
+          "/reviews/write/",
+          "/unauthorized",
+          "/verify",
         ],
       },
     ],

@@ -12,12 +12,12 @@ type FeaturedVehiclesSectionProps = {
 export function CarsPageHero({ totalCount }: CarsPageHeroProps) {
   return (
     <section className="bg-white">
-      <div className="mx-auto w-full max-w-[1120px] px-5 py-8 md:px-8 md:py-14">
+      <div className="mx-auto w-full max-w-[1120px] px-5 py-8 max-[340px]:px-4 md:px-8 md:py-14">
         <div className="max-w-2xl">
           <p className="mb-3 inline-flex rounded-full bg-brand-soft px-3 py-1.5 text-[12.5px] font-bold text-brand">
             차량 탐색 · 총 {totalCount}개 차종
           </p>
-          <h1 className="break-keep text-[30px] font-extrabold leading-[1.12] tracking-[-0.04em] text-text-strong md:text-[44px]">
+          <h1 className="break-keep text-[30px] font-extrabold leading-[1.12] tracking-[-0.04em] text-text-strong max-[340px]:text-[28px] md:text-[44px]">
             월 납입금이 보이는
             <br />
             차량 리스트

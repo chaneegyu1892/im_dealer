@@ -71,6 +71,15 @@ describe("stateful vehicle image storage cleanup", () => {
     const result = await processStorageCleanupOnce({ now: NOW, deleteObject });
     expect(result).toEqual({ kind: "deferred", storagePath: job.storagePath, reason: "active_owner" });
     expect(deleteObject).not.toHaveBeenCalled();
+    expect(mocks.owner).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { adminStoragePath: job.storagePath },
+          { listThumbnailStoragePath: job.storagePath },
+        ],
+      },
+      select: { id: true },
+    });
     expect(mocks.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "READY" }) }));
   });
 
@@ -111,14 +120,25 @@ describe("stateful vehicle image storage cleanup", () => {
     const result = await recoverExpiredReservations({ apply: true, now: NOW });
     expect(result).toEqual({ eligible: 1, recovered: 1 });
     expect(mocks.executeRaw).toHaveBeenCalledOnce();
+    expect(mocks.executeRaw.mock.calls[0]?.[0]).toContain(
+      '"listThumbnailStoragePath"',
+    );
   });
 
-  it("enqueues every ADMIN-owned path in the same transaction as vehicle deletion", async () => {
+  it("enqueues originals and list derivatives in the same transaction as vehicle deletion", async () => {
     const raw = vi.fn().mockImplementation(async (query: string) => query.includes("INSERT INTO") ? [{ id: "cleanup" }] : []);
     mocks.vehicleFindUnique.mockResolvedValue({ id: "vehicle-1", name: "테스트 차량" });
     mocks.imageFindMany.mockResolvedValue([
-      { id: "image-a", adminStoragePath: "admin/vehicle-1/a.webp" },
-      { id: "image-b", adminStoragePath: "admin/vehicle-1/b.webp" },
+      {
+        id: "image-a",
+        adminStoragePath: "admin/vehicle-1/a.webp",
+        listThumbnailStoragePath: "list-thumbnails/v1/admin/vehicle-1/a.webp",
+      },
+      {
+        id: "image-b",
+        adminStoragePath: null,
+        listThumbnailStoragePath: "list-thumbnails/v1/carpan/b.webp",
+      },
     ]);
     mocks.vehicleDelete.mockResolvedValue({ id: "vehicle-1" });
     mocks.transaction.mockImplementation(async (callback) => callback({
@@ -127,9 +147,9 @@ describe("stateful vehicle image storage cleanup", () => {
       vehicleImage: { findMany: mocks.imageFindMany },
     }));
     const result = await deleteVehicleWithStorageCleanup("vehicle-1");
-    expect(result).toEqual({ vehicle: { id: "vehicle-1", name: "테스트 차량" }, cleanupJobs: 2 });
+    expect(result).toEqual({ vehicle: { id: "vehicle-1", name: "테스트 차량" }, cleanupJobs: 3 });
     expect(mocks.imageFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { vehicleId: "vehicle-1", origin: "ADMIN", adminStoragePath: { not: null } },
+      where: { vehicleId: "vehicle-1" },
     }));
     expect(mocks.vehicleDelete).toHaveBeenCalledWith({ where: { id: "vehicle-1" } });
   });

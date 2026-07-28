@@ -1,6 +1,9 @@
 import type { SiteAdapter } from "./types";
 import { pilotCompanyAdapter } from "./pilot-company";
 import { orixAdapter } from "./orix";
+import { woorifcAdapter } from "./woorifc";
+import { shinhanAdapter } from "./shinhan";
+import { jbwooriAdapter } from "./jbwoori";
 
 /**
  * 캐피탈사 → 어댑터 매핑.
@@ -10,6 +13,9 @@ import { orixAdapter } from "./orix";
 const ADAPTERS: Record<string, SiteAdapter> = {
   PILOT: pilotCompanyAdapter,
   ORIX: orixAdapter,
+  WOORIFC: woorifcAdapter,
+  SHINHAN: shinhanAdapter,
+  JBWOORI: jbwooriAdapter,
 };
 
 /** 로그인 URL 호스트 → 어댑터 자동 인식 (config.adapter 미지정 시). */
@@ -18,6 +24,9 @@ function inferAdapterFromUrl(loginUrl?: string): string | null {
   try {
     const host = new URL(loginUrl).hostname.toLowerCase();
     if (host.includes("orix")) return "ORIX";
+    if (host.includes("woorifcapital")) return "WOORIFC";
+    if (host.includes("shinhancard")) return "SHINHAN";
+    if (host.includes("wooricap")) return "JBWOORI";
   } catch {
     /* 무시 */
   }

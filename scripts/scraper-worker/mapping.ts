@@ -63,6 +63,14 @@ export function buildDraftFromTrimResults(
     vehiclePrice: r.vehiclePrice,
     // 라인업별 그룹핑용 트림별 월 지불액 (수집 성공분만)
     baseRates: r.vehiclePrice > 0 ? fillRates(r.baseRates) : undefined,
+    depositRates:
+      r.vehiclePrice > 0 && typeof r.depositRate36_10000 === "number"
+        ? fillRates({ "36_10000": r.depositRate36_10000 })
+        : undefined,
+    prepayRates:
+      r.vehiclePrice > 0 && typeof r.prepayRate36_10000 === "number"
+        ? fillRates({ "36_10000": r.prepayRate36_10000 })
+        : undefined,
   }));
 
   if (matched.length === 0) {

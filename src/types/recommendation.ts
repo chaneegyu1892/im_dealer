@@ -1,6 +1,11 @@
+import type { Step02V3Style } from "@/constants/recommend-step02-v3";
+import type { RecommendBudgetRange } from "@/constants/recommend-budget";
+
 export interface RecommendInput {
+  recommendationVersion?: "step02-v3";
   industry: string;        // 업종
   preferences: string[];
+  stylePreference?: Step02V3Style;
   primaryPreference?: string;
   situationPreference?: string;
   annualMileage: number;
@@ -17,6 +22,7 @@ export interface RecommendInput {
   // 옛 세션 호환용 (옵셔널) — 새 입력에서는 사용하지 않음
   purpose?: string;
   purposeDetail?: string;
+  budgetRange?: RecommendBudgetRange;
   budgetMin?: number;
   budgetMax?: number;
   paymentStyle?: PaymentStyle;
@@ -28,6 +34,13 @@ export interface RecommendResult {
   vehicles: RecommendedVehicle[];
 }
 
+export interface RecommendationPopularityEvidence {
+  // NICE 연료별 모델 등록 순위를 선택 답변에 맞춰 합친 기준 월(YYYY-MM).
+  readonly period: string;
+  readonly rank: number | null;
+  readonly registrationCount: number | null;
+}
+
 export interface RecommendedVehicleBase {
   vehicleId: string;
   rank: number;
@@ -37,6 +50,7 @@ export interface RecommendedVehicleBase {
   estimatedMonthly: number;
   vehicle: RecommendedVehicleDetail;
   scenarios: RecommendScenarios;
+  readonly popularity?: RecommendationPopularityEvidence;
 }
 
 export interface RecommendationScoreContribution {
@@ -70,13 +84,33 @@ export interface OverlapRecommendedVehicle extends RecommendedVehicleBase {
   readonly tieBreak: {
     readonly modelYear: number;
     readonly companyPriority: number;
-    readonly isPopular: boolean;
+    readonly isPopular?: boolean;
     readonly profitPriority: number;
     readonly slug: string;
   };
 }
 
-export type RecommendedVehicle = LegacyRecommendedVehicle | OverlapRecommendedVehicle;
+export interface Step02V3RecommendedVehicle extends RecommendedVehicleBase {
+  readonly scoringVersion: "step02-v3";
+  readonly stylePreference: Step02V3Style;
+  readonly styleScore: number;
+  readonly followupBonus: number;
+  readonly autoConditionScore: number;
+  readonly rankScore: number;
+  readonly tieBreak: {
+    readonly modelYear: number;
+    readonly companyPriority: number;
+    readonly immediateDeliveryAvailable: boolean;
+    readonly availableStockCount: number;
+    readonly profitPriority: number;
+    readonly slug: string;
+  };
+}
+
+export type RecommendedVehicle =
+  | LegacyRecommendedVehicle
+  | OverlapRecommendedVehicle
+  | Step02V3RecommendedVehicle;
 
 export interface PopularConfigItem {
   id: string;
@@ -143,6 +177,7 @@ export interface RecommendResultResponse {
     // 결과 요약 칩 표기용 — 신규 흐름은 선택한 선호 라벨, 옛 세션은 목적 문자열
     purpose: string;
     preferences?: string[];
+    stylePreference?: Step02V3Style;
     primaryPreference?: string;
     situationPreference?: string;
     childDetail?: string;
@@ -152,6 +187,7 @@ export interface RecommendResultResponse {
     fuelPreference?: string;
     chargingEnvironment?: "자택" | "직장" | "외부" | "없음";
     residenceRegion?: "일반" | "강원·산간" | "제주";
+    budgetRange?: RecommendBudgetRange;
     // 옛 세션 호환용 (옵셔널)
     budgetMin?: number;
     budgetMax?: number;

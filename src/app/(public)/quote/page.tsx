@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-config";
 
-export const metadata: Metadata = {
-  title: "견적 계산기",
-  description: "장기렌트·리스 실시간 견적 계산기. 차량·트림·옵션을 선택하고 초기 비용 유무에 따른 2가지 시나리오로 비교하세요.",
-  openGraph: {
-    title: "견적 계산기 | 아임딜러",
-    description: "장기렌트·리스 실시간 견적 계산기. 2가지 시나리오로 비교하세요.",
-  },
-};
+export const metadata: Metadata = createPageMetadata({
+  title: "장기렌트·리스 견적 계산기",
+  description:
+    "차량·트림·옵션을 선택하고 보증금·선납금 등 초기 비용 조건에 따른 장기렌트·리스 월 납입금을 비교하세요.",
+  path: "/quote",
+});
 
 export const dynamic = "force-dynamic";
 

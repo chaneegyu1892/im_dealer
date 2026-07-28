@@ -6,6 +6,7 @@ import { RecommendCardSkeleton } from "@/components/ui/Skeleton";
 export const metadata: Metadata = {
   title: "AI 추천 결과",
   description: "AI가 분석한 맞춤 차량 추천 결과를 확인해 보세요.",
+  robots: { index: false, follow: false, nocache: true },
 };
 
 export default function RecommendResultPage() {

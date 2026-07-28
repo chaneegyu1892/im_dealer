@@ -12,6 +12,7 @@ export type {
   AdminVehicleDetail,
   AdminVehicleImage,
   AdminVehicleLineup,
+  AdminVehicleLite,
   ColorKind,
 } from "./admin-vehicles";
 export type {

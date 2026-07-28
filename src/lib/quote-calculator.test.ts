@@ -183,6 +183,32 @@ describe("quote-calculator", () => {
     });
   });
 
+  // 카탈로그 반영(apply-catalog)이 만드는 정확값 시트: minVehiclePrice === maxVehiclePrice.
+  // getInterpolatedRate 의 min==max 가드(0나눗셈 방지, minRate 반환)를 고정한다.
+  describe("min==max 정확값 시트 (카탈로그 반영)", () => {
+    const exactConfig: RateConfigData = {
+      ...mockRateConfig,
+      minVehiclePrice: 30000000,
+      maxVehiclePrice: 30000000, // min == max
+      depositDiscountRate: 0,
+      prepayAdjustRate: 0,
+    };
+
+    it("차량가가 시트 가격과 달라도 NaN 없이 minRate 그대로 반환한다", () => {
+      for (const vehiclePrice of [30000000, 25000000, 35000000]) {
+        const results = calculateMultiFinanceQuote({
+          ...defaultInput,
+          vehiclePrice,
+          rateConfigs: [exactConfig],
+        });
+        expect(results).toHaveLength(1);
+        // 회수율은 보간 없이 매트릭스 값 고정 (0.014) — 월납입금 = 차량가 × 0.014
+        expect(results[0].baseMonthly).toBe(Math.round(vehiclePrice * 0.014));
+        expect(Number.isFinite(results[0].monthlyPayment)).toBe(true);
+      }
+    });
+  });
+
   // ─── 어드민 자동 산출 헬퍼 검증 ───────────────────────────
   describe("calcDepositDiscountRate 부호 컨벤션", () => {
     const VEHICLE_PRICE = 50_000_000;
