@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
+import { revokeReviewTokensForQuote } from "@/lib/review-token";
 import { QuoteStatus } from "@prisma/client";
 
 const patchSchema = z.object({
@@ -98,26 +99,34 @@ export async function DELETE(
 
   try {
     // 소프트 삭제: 감사용 행은 남기되 고객 연락처와 미사용 인증 capability 는 즉시 파기한다.
-    const result = await prisma.savedQuote.updateMany({
-      where: { id, deletedAt: null },
-      data: {
-        deletedAt: new Date(),
-        customerName: null,
-        phone: null,
-        verificationCapabilityHash: null,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const deleted = await tx.savedQuote.updateMany({
+        where: { id, deletedAt: null },
+        data: {
+          deletedAt: new Date(),
+          customerName: null,
+          phone: null,
+          verificationCapabilityHash: null,
+        },
+      });
+      if (deleted.count === 0) return deleted;
+
+      await revokeReviewTokensForQuote(id, tx);
+
+      await tx.quoteActivityLog.create({
+        data: {
+          quoteId: id,
+          actorId: admin!.id,
+          action: "DELETED",
+          payload: { soft: "true" },
+        },
+      });
+
+      return deleted;
     });
     if (result.count === 0) {
       return NextResponse.json({ error: "견적을 찾을 수 없습니다." }, { status: 404 });
     }
-    await prisma.quoteActivityLog.create({
-      data: {
-        quoteId: id,
-        actorId: admin!.id,
-        action: "DELETED",
-        payload: { soft: "true" },
-      },
-    });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[DELETE /api/admin/quotes/[id]]", err);

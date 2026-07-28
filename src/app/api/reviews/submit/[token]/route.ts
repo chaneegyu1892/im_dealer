@@ -107,6 +107,7 @@ export async function POST(
       const claimed = await tx.reviewRequestToken.updateMany({
         where: {
           id: tokenId,
+          savedQuote: { is: { deletedAt: null } },
           usedAt: null,
           revokedAt: null,
           expiresAt: { gt: new Date() },

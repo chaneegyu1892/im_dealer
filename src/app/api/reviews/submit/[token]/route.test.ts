@@ -85,4 +85,42 @@ describe("POST /api/reviews/submit/[token] image ownership", () => {
     expect(mocks.claimToken).not.toHaveBeenCalled();
     expect(mocks.createReview).not.toHaveBeenCalled();
   });
+
+  it("rejects a token invalidated by its deleted parent quote", async () => {
+    mocks.resolveReviewToken.mockResolvedValue({ ok: false, reason: "revoked" });
+
+    const response = await POST(
+      request([]),
+      { params: Promise.resolve({ token: "review-token" }) },
+    );
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({ reason: "revoked" });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("claims an active token only while its quote remains undeleted", async () => {
+    mocks.findUploads.mockResolvedValue([]);
+    mocks.claimToken.mockResolvedValue({ count: 1 });
+    mocks.createReview.mockResolvedValue({ id: "review-1" });
+    mocks.updateToken.mockResolvedValue({});
+
+    const response = await POST(
+      request([]),
+      { params: Promise.resolve({ token: "review-token" }) },
+    );
+
+    expect(response.status).toBe(201);
+    expect(mocks.claimToken).toHaveBeenCalledWith({
+      where: {
+        id: "token-row-1",
+        savedQuote: { is: { deletedAt: null } },
+        usedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: expect.any(Date) },
+      },
+      data: { usedAt: expect.any(Date) },
+    });
+    expect(mocks.createReview).toHaveBeenCalled();
+  });
 });

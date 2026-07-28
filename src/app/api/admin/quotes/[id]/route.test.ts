@@ -3,15 +3,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireRoleAtLeast: vi.fn(),
+  transaction: vi.fn(),
   updateMany: vi.fn(),
+  revokeTokens: vi.fn(),
   createActivityLog: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    savedQuote: { updateMany: mocks.updateMany },
-    quoteActivityLog: { create: mocks.createActivityLog },
+    $transaction: mocks.transaction,
   },
+}));
+
+vi.mock("@/lib/supabase/storage", () => ({
+  REVIEW_IMAGE_MAX_SIZE: 5,
+  reviewImagePublicUrl: (path: string) => `https://cdn.example/${path}`,
 }));
 
 vi.mock("@/lib/require-admin", () => ({
@@ -27,7 +33,13 @@ describe("DELETE /api/admin/quotes/[id]", () => {
       admin: { id: "staff-1" },
       error: null,
     });
+    mocks.transaction.mockImplementation(async (callback) => callback({
+      savedQuote: { updateMany: mocks.updateMany },
+      reviewRequestToken: { updateMany: mocks.revokeTokens },
+      quoteActivityLog: { create: mocks.createActivityLog },
+    }));
     mocks.updateMany.mockResolvedValue({ count: 1 });
+    mocks.revokeTokens.mockResolvedValue({ count: 1 });
     mocks.createActivityLog.mockResolvedValue({});
   });
 
@@ -45,6 +57,14 @@ describe("DELETE /api/admin/quotes/[id]", () => {
         phone: null,
         verificationCapabilityHash: null,
       },
+    });
+    expect(mocks.revokeTokens).toHaveBeenCalledWith({
+      where: {
+        savedQuoteId: "quote-1",
+        usedAt: null,
+        revokedAt: null,
+      },
+      data: { revokedAt: expect.any(Date) },
     });
     expect(mocks.createActivityLog).toHaveBeenCalledWith({
       data: {
