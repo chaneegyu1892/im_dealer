@@ -194,7 +194,7 @@ export async function getAdminUsers(): Promise<{
   stats: AdminUsersStats;
   authError?: string;
 }> {
-  const [quotes, authResult, dbAdmins] = await Promise.all([
+  const [quotes, authResult, dbUsers] = await Promise.all([
     prisma.savedQuote.findMany({
       orderBy: { createdAt: "desc" },
       select: {
@@ -215,19 +215,31 @@ export async function getAdminUsers(): Promise<{
     }),
     getSupabaseAuthUsers(),
     prisma.user.findMany({
-      where: { role: { not: "member" } },
-      select: { supabaseId: true, email: true, role: true }
+      select: {
+        supabaseId: true,
+        email: true,
+        role: true,
+        name: true,
+        profileCompleted: true,
+      },
     }),
   ]);
 
   const authUsers = authResult.users;
   const authError = authResult.error;
 
-  const adminMap = new Map<string, string>(); // supabaseId -> role
-  const emailMap = new Map<string, string>(); // email -> role
-  dbAdmins.forEach((a) => {
-    if (a.supabaseId) adminMap.set(a.supabaseId, a.role);
-    if (a.email) emailMap.set(a.email, a.role);
+  const adminMap = new Map<string, string>(); // supabaseId -> role (비-member만)
+  const emailMap = new Map<string, string>(); // email -> role (비-member만)
+  // 회원 실명 조회: 가입완료 폼으로 저장한 DB 실명을 카카오 닉네임보다 우선한다.
+  const dbNameBySupabaseId = new Map<string, string>();
+  dbUsers.forEach((u) => {
+    if (u.supabaseId && u.profileCompleted && u.name) {
+      dbNameBySupabaseId.set(u.supabaseId, u.name);
+    }
+    if (u.role !== "member") {
+      if (u.supabaseId) adminMap.set(u.supabaseId, u.role);
+      if (u.email) emailMap.set(u.email, u.role);
+    }
   });
 
   const vehicleIds = [...new Set(quotes.map((q) => q.vehicleId))];
@@ -245,11 +257,13 @@ export async function getAdminUsers(): Promise<{
     const contactDate = authUser.lastSignInAt ?? authUser.createdAt;
     const authKey = `auth:${authUser.id}`;
     const authPhone = getUsablePhone(authUser.phone);
+    // 가입완료 폼으로 저장한 실명이 있으면 우선, 없으면 카카오 닉네임 폴백.
+    const realName = dbNameBySupabaseId.get(authUser.id) ?? authUser.name;
 
     userMap.set(authKey, {
       id: authUser.id,
       authUserId: authUser.id,
-      name: authUser.name,
+      name: realName,
       phone: authPhone ?? UNKNOWN_PHONE,
       email: authUser.email,
       avatarUrl: authUser.avatarUrl,
