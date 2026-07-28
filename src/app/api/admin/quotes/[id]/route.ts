@@ -97,10 +97,15 @@ export async function DELETE(
   if (error) return error;
 
   try {
-    // 소프트 삭제: 행을 보존하여 감사 추적 유지.
+    // 소프트 삭제: 감사용 행은 남기되 고객 연락처와 미사용 인증 capability 는 즉시 파기한다.
     const result = await prisma.savedQuote.updateMany({
       where: { id, deletedAt: null },
-      data: { deletedAt: new Date() },
+      data: {
+        deletedAt: new Date(),
+        customerName: null,
+        phone: null,
+        verificationCapabilityHash: null,
+      },
     });
     if (result.count === 0) {
       return NextResponse.json({ error: "견적을 찾을 수 없습니다." }, { status: 404 });

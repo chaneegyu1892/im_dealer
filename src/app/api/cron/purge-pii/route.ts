@@ -8,8 +8,8 @@ import { timingSafeEqualString } from "@/lib/security";
  * 90일 경과 PII 자동 만료.
  *
  * 보호: Authorization: Bearer <CRON_SECRET> 일치 시에만 실행.
- * 동작: verifiedAt 이 90일 이상 지난 행의 PII 4개 컬럼을 NULL 로 비우고
- *       piiPurgedAt 에 처리 시각 기록 (감사용).
+ * 동작: verifiedAt 이 90일 이상 지난 인증 PII와, 삭제됐거나 90일 넘게 만료된
+ *       견적 연락처를 NULL 로 비운다. 인증 행은 piiPurgedAt 에 처리 시각을 기록한다.
  *
  * 호출 방법:
  *   - Vercel Cron: vercel.json 의 crons 에 등록(매일 03:00). Vercel 이 GET 으로 호출하며
@@ -74,10 +74,38 @@ async function handlePurge(request: NextRequest) {
       },
     });
 
+    // 삭제된 견적은 즉시, 만료된 견적은 기존 인증 PII와 같은 90일 보존기간 후
+    // 고객 연락처와 로그인 전 브라우저 capability 해시를 지운다. 견적 행과 감사 로그는 남긴다.
+    const quoteContactResult = await prisma.savedQuote.updateMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              { deletedAt: { not: null } },
+              { expiresAt: { lt: cutoff } },
+            ],
+          },
+          {
+            OR: [
+              { customerName: { not: null } },
+              { phone: { not: null } },
+              { verificationCapabilityHash: { not: null } },
+            ],
+          },
+        ],
+      },
+      data: {
+        customerName: null,
+        phone: null,
+        verificationCapabilityHash: null,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       purged: result.count,
       purgedDocuments: docResult.count,
+      purgedQuoteContacts: quoteContactResult.count,
       cutoff: cutoff.toISOString(),
       retentionDays: RETENTION_DAYS,
     });
