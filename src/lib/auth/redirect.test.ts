@@ -15,6 +15,7 @@ describe("getSafeInternalPath", () => {
     "@evil.example",
     "javascript:alert(1)",
     "/quote\nLocation: https://evil.example",
+    "/%2e%2e//evil.example/quote",
   ])("rejects an external or malformed redirect: %s", (value) => {
     expect(getSafeInternalPath(value)).toBe("/");
   });
