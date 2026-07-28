@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireWorker } from "@/lib/worker-auth";
 import { workerJobResultSchema } from "@/lib/validations/admin";
-import { isTerminalScrapeJobStatus } from "@/lib/scraper/job-state";
+import { getScrapeJobLeaseToken, isTerminalScrapeJobStatus } from "@/lib/scraper/job-state";
 
 const ACTIVE_STATUSES = ["running", "needs_human"];
 
@@ -18,6 +18,10 @@ export async function POST(
 
   try {
     const { id } = await params;
+    const leaseToken = getScrapeJobLeaseToken(request);
+    if (!leaseToken) {
+      return NextResponse.json({ error: "작업 lease token이 필요합니다." }, { status: 400 });
+    }
     const result = workerJobResultSchema.parse(await request.json());
     const db = prisma;
 
@@ -42,7 +46,7 @@ export async function POST(
       }
       // 완료 — 임시 로그인 정보 폐기
       const updated = await db.scrapeJob.updateMany({
-        where: { id, status: { in: ACTIVE_STATUSES } },
+        where: { id, status: { in: ACTIVE_STATUSES }, leaseToken },
         data: {
           status: "completed",
           draft: payload,
@@ -50,19 +54,21 @@ export async function POST(
           finishedAt: new Date(),
           credUsernameEnc: null,
           credPasswordEnc: null,
+          leaseToken: null,
         },
       });
       updatedCount = updated.count;
     } else {
       // 실패 — 임시 로그인 정보 폐기
       const updated = await db.scrapeJob.updateMany({
-        where: { id, status: { in: ACTIVE_STATUSES } },
+        where: { id, status: { in: ACTIVE_STATUSES }, leaseToken },
         data: {
           status: "failed",
           error: result.error,
           finishedAt: new Date(),
           credUsernameEnc: null,
           credPasswordEnc: null,
+          leaseToken: null,
         },
       });
       updatedCount = updated.count;
@@ -86,7 +92,11 @@ export async function POST(
     }
 
     if (updatedCount !== 1) {
-      return NextResponse.json({ success: true, ignored: true });
+      const current = await db.scrapeJob.findUnique({ where: { id }, select: { status: true } });
+      if (current && isTerminalScrapeJobStatus(current.status)) {
+        return NextResponse.json({ success: true, ignored: true });
+      }
+      return NextResponse.json({ error: "작업 lease가 일치하지 않습니다." }, { status: 409 });
     }
 
     return NextResponse.json({ success: true });

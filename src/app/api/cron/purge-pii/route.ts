@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { timingSafeEqualString } from "@/lib/security";
+import { purgeExpiredScrapeJobCredentials } from "@/lib/scraper/credential-retention";
 
 /**
  * 90일 경과 PII 자동 만료.
@@ -101,11 +102,16 @@ async function handlePurge(request: NextRequest) {
       },
     });
 
+    // Abandoned scraper jobs keep their audit row, but expired credentials are
+    // purged once the job is no longer actively claimed.
+    const scrapeCredentialResult = await purgeExpiredScrapeJobCredentials();
+
     return NextResponse.json({
       success: true,
       purged: result.count,
       purgedDocuments: docResult.count,
       purgedQuoteContacts: quoteContactResult.count,
+      purgedScrapeJobCredentials: scrapeCredentialResult.count,
       cutoff: cutoff.toISOString(),
       retentionDays: RETENTION_DAYS,
     });

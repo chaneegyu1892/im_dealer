@@ -5,6 +5,7 @@ import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { encryptString } from "@/lib/pii";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
+import { getScrapeCredentialExpiry } from "@/lib/scraper/credential-retention";
 import { ORIX_BRAND_CD } from "@/lib/scraper/orix-brands";
 import {
   catalogJobCreateSchema,
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
     }
     const credUsernameEnc = connection.requiresHuman ? null : encryptString(username ?? "");
     const credPasswordEnc = connection.requiresHuman ? null : encryptString(password ?? "");
+    const credentialExpiresAt = connection.requiresHuman ? null : getScrapeCredentialExpiry();
 
     // 동일 캐피탈사에 진행 중인 작업이 있으면 중복 세션 방지
     const inFlight = await db.scrapeJob.findFirst({
@@ -88,6 +90,7 @@ export async function POST(request: NextRequest) {
           productType: catalogInput.productType,
           credUsernameEnc,
           credPasswordEnc,
+          credentialExpiresAt,
           params: {
             mode: "catalog",
             brands: catalogInput.brands,
@@ -143,6 +146,7 @@ export async function POST(request: NextRequest) {
         // 입력한 개인 로그인 — 암호화해 이 작업에만 임시 저장, 종료 시 폐기
         credUsernameEnc,
         credPasswordEnc,
+        credentialExpiresAt,
         params: {
           trimIds: input.trimIds,
           vehicleId: input.vehicleId,

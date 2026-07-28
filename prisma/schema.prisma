@@ -899,6 +899,8 @@ model ScrapeJob {
   params           Json // trim_rates: { trimIds, vehicleId, ... } / catalog: { mode:"catalog", brands, weekOf, productType }
   credUsernameEnc  String? // encryptString(평문 ID) — 진행 중에만 존재, 종료 시 null
   credPasswordEnc  String? // encryptString(평문 PW) — 진행 중에만 존재, 종료 시 null
+  credentialExpiresAt DateTime? // 생성 후 24시간. 활성 heartbeat 작업은 유지하고 stale 작업만 purge
+  leaseToken       String?        @unique // claim 세대별 임의 토큰. stale worker 후속 쓰기 차단
   draft            Json? // trim_rates: ScrapeDraft / catalog: CatalogScrapeSummary (워커가 채움)
   progress         Json? // catalog 잡 진행률 (워커 하트비트가 갱신)
   error            String?
@@ -912,6 +914,7 @@ model ScrapeJob {
   financeCompany   FinanceCompany @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
 
   @@index([status, createdAt])
+  @@index([status, credentialExpiresAt])
   @@index([financeCompanyId, status])
 }
 

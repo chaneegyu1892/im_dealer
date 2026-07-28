@@ -1,12 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireWorker } from "@/lib/worker-auth";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
 import { buildClaimLeaseWhere } from "@/lib/scraper/job-state";
+import { SCRAPE_JOB_STALE_HEARTBEAT_MS } from "@/lib/scraper/credential-retention";
 import { markWorkerSeen } from "@/lib/scraper/worker-presence";
 import { WORKER_PROTOCOL_VERSION } from "@/lib/scraper/worker-version";
 
-const STALE_MS = 3 * 60 * 1000; // 하트비트 3분 초과 시 워커가 죽은 것으로 보고 재클레임
+const STALE_MS = SCRAPE_JOB_STALE_HEARTBEAT_MS; // 하트비트 3분 초과 시 워커가 죽은 것으로 보고 재클레임
 
 // POST /api/worker/scrape-jobs/claim — 대기 작업 1건을 원자적으로 클레임
 // 반환 자격증명은 암호문 그대로. 복호화는 워커가 자신의 PII_ENCRYPTION_KEY 로 로컬 수행.
@@ -55,12 +57,30 @@ export async function POST(request: NextRequest) {
     }
 
     // 이중 클레임 방지: 후보의 현재 상태를 조건으로 건 updateMany 가 정확히 1건일 때만 성공
+    const leaseToken = randomUUID();
     const claimed = await db.scrapeJob.updateMany({
       where: buildClaimLeaseWhere(candidate, staleCutoff),
-      data: { status: "running", claimedAt: now, heartbeatAt: now },
+      data: { status: "running", claimedAt: now, heartbeatAt: now, leaseToken },
     });
     if (claimed.count !== 1) {
       // 다른 워커가 먼저 가져감 — 다음 폴링에서 재시도
+      return NextResponse.json({ job: null });
+    }
+
+    // 크론 실행 시점 사이에 만료된 자동 로그인 암호문을 다시 워커로
+    // 전달하지 않는다. 이력 행은 남기되 자격증명만 즉시 폐기한다.
+    if (candidate.credentialExpiresAt && candidate.credentialExpiresAt <= now) {
+      await db.scrapeJob.updateMany({
+        where: { id: candidate.id, status: "running", leaseToken },
+        data: {
+          status: "failed",
+          error: "로그인 정보 보관 기간 만료",
+          finishedAt: new Date(),
+          credUsernameEnc: null,
+          credPasswordEnc: null,
+          leaseToken: null,
+        },
+      });
       return NextResponse.json({ job: null });
     }
 
@@ -79,13 +99,14 @@ export async function POST(request: NextRequest) {
     if (!connection || credentialsMissing) {
       // 접속 설정이 없거나, 필요한데 임시 자격증명이 사라짐 → 작업 실패 처리
       await db.scrapeJob.updateMany({
-        where: { id: candidate.id, status: "running", claimedAt: now },
+        where: { id: candidate.id, status: "running", leaseToken },
         data: {
           status: "failed",
           error: connection ? "로그인 정보 없음" : "지원하지 않는 캐피탈사",
           finishedAt: new Date(),
           credUsernameEnc: null,
           credPasswordEnc: null,
+          leaseToken: null,
         },
       });
       return NextResponse.json({ job: null });
@@ -95,6 +116,7 @@ export async function POST(request: NextRequest) {
       expectedWorkerVersion: WORKER_PROTOCOL_VERSION,
       job: {
         id: candidate.id,
+        leaseToken,
         financeCompanyId: candidate.financeCompanyId,
         jobType: candidate.jobType ?? "trim_rates",
         productType: candidate.productType,

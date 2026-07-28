@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   purgeVerification: vi.fn(),
   purgeDocuments: vi.fn(),
   purgeQuoteContacts: vi.fn(),
+  purgeScrapeCredentials: vi.fn(),
   timingSafeEqualString: vi.fn(),
 }));
 
@@ -20,6 +21,10 @@ vi.mock("@/lib/security", () => ({
   timingSafeEqualString: mocks.timingSafeEqualString,
 }));
 
+vi.mock("@/lib/scraper/credential-retention", () => ({
+  purgeExpiredScrapeJobCredentials: mocks.purgeScrapeCredentials,
+}));
+
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 
 import { POST } from "./route";
@@ -32,6 +37,7 @@ describe("POST /api/cron/purge-pii", () => {
     mocks.purgeVerification.mockResolvedValue({ count: 2 });
     mocks.purgeDocuments.mockResolvedValue({ count: 3 });
     mocks.purgeQuoteContacts.mockResolvedValue({ count: 4 });
+    mocks.purgeScrapeCredentials.mockResolvedValue({ count: 5 });
   });
 
   afterEach(() => {
@@ -74,6 +80,8 @@ describe("POST /api/cron/purge-pii", () => {
     await expect(response.json()).resolves.toMatchObject({
       success: true,
       purgedQuoteContacts: 4,
+      purgedScrapeJobCredentials: 5,
     });
+    expect(mocks.purgeScrapeCredentials).toHaveBeenCalledWith();
   });
 });

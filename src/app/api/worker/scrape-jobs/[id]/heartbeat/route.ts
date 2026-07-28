@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireWorker } from "@/lib/worker-auth";
 import { workerHeartbeatSchema } from "@/lib/validations/admin";
-import { isTerminalScrapeJobStatus } from "@/lib/scraper/job-state";
+import { getScrapeJobLeaseToken, isTerminalScrapeJobStatus } from "@/lib/scraper/job-state";
 import { markWorkerSeen } from "@/lib/scraper/worker-presence";
 
 const ACTIVE_STATUSES = ["running", "needs_human"];
@@ -23,6 +23,10 @@ export async function POST(
 
   try {
     const { id } = await params;
+    const leaseToken = getScrapeJobLeaseToken(request);
+    if (!leaseToken) {
+      return NextResponse.json({ error: "작업 lease token이 필요합니다." }, { status: 400 });
+    }
     const body = workerHeartbeatSchema.parse(await request.json().catch(() => ({})));
     const db = prisma;
 
@@ -44,7 +48,7 @@ export async function POST(
     if (body.progress !== undefined) data.progress = body.progress; // catalog 잡 진행률
 
     const updated = await db.scrapeJob.updateMany({
-      where: { id, status: { in: ACTIVE_STATUSES } },
+      where: { id, status: { in: ACTIVE_STATUSES }, leaseToken },
       data,
     });
     const current = await db.scrapeJob.findUnique({ where: { id }, select: { status: true } });
@@ -52,7 +56,7 @@ export async function POST(
       if (current && isTerminalScrapeJobStatus(current.status)) {
         return NextResponse.json({ status: current.status, ignored: true });
       }
-      return NextResponse.json({ error: "작업 상태가 변경되었습니다." }, { status: 409 });
+      return NextResponse.json({ error: "작업 lease가 일치하지 않습니다." }, { status: 409 });
     }
 
     return NextResponse.json({ status: current?.status ?? job.status });

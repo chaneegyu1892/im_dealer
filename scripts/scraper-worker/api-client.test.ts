@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
-import { claimJob } from "./api-client";
+import { SCRAPE_JOB_LEASE_TOKEN_HEADER } from "../../src/lib/scraper/job-state";
+import { claimJob, heartbeat, postCatalogResults, postResult } from "./api-client";
 
 describe("scraper worker API client", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -54,5 +55,40 @@ describe("scraper worker API client", () => {
       credential: null,
       expectedWorkerVersion: WORKER_PROTOCOL_VERSION + 1,
     });
+  });
+
+  it("sends the claimed lease token on every job mutation without duplicating it in payloads", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "running" }), { status: 200 }))
+      .mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const leaseToken = "25db3703-3c79-4b91-a138-b95cf86b4151";
+
+    await heartbeat("job-1", leaseToken);
+    await postResult("job-1", leaseToken, { ok: false, error: "failed" });
+    await postCatalogResults({
+      jobId: "job-1",
+      leaseToken,
+      financeCompanyId: "fc-1",
+      productType: "장기렌트",
+      weekOf: "2026-07-20",
+      entries: [{
+        brandCd: "B-1",
+        brandName: "브랜드",
+        modelCd: "M-1",
+        modelName: "모델",
+        dtMdlCd: "D-1",
+        mdelCd: "T-1",
+        trimName: "트림",
+        vehiclePrice: 40_000_000,
+        baseRates: {},
+        warnings: [],
+      }],
+    });
+
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(init.headers).toMatchObject({ [SCRAPE_JOB_LEASE_TOKEN_HEADER]: leaseToken });
+    }
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).not.toHaveProperty("leaseToken");
   });
 });
