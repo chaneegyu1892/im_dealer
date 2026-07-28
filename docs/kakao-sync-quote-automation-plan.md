@@ -35,7 +35,7 @@
 |---|---|---|
 | 카카오 로그인 | Supabase OAuth, scope = `profile_nickname profile_image`만 | `src/app/(public)/login/LoginContent.tsx` |
 | 로그인 콜백 | User upsert (phone/nickname/email 동의 시 수집) | `src/app/auth/callback/route.ts` |
-| 견적서 생성 | `POST /api/quote/image` → PNG 즉석 생성·다운로드(저장 안 함), 로그인 필수 | `src/app/api/quote/image/route.ts`, `src/lib/quote-image/render-quote-image.ts` |
+| 견적서 생성 | `POST /api/quote/image` → 로그인한 회원의 서버 저장 견적만 PNG로 즉석 생성·다운로드 | `src/app/api/quote/image/route.ts`, `src/lib/quote-delivery/official-image.ts`, `src/lib/quote-image/render-quote-image.ts` |
 | 견적서 트리거 | `handleImageDownload()` → fetch → blob 다운로드 | `src/app/(public)/quote/QuoteClientPageV2.tsx:572` |
 | 로그인 유도 모달 | 있음 | `src/components/quote/LoginRequiredModal.tsx` |
 | User 모델 | `phone`, `kakaoNickname`, `marketingConsent`, `provider` 컬럼 이미 존재 | `prisma/schema.prisma:567` |
