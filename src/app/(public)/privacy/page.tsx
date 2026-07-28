@@ -133,7 +133,7 @@ export default function PrivacyPage() {
           </div>
 
           <p className="mt-3 text-[13px] leading-6 text-text-muted">
-            ※ 본인 확인 과정에서 입력하신 주민등록번호 뒤 7자리는 생년월일을 산출하기 위해
+            ※ 본인 확인 과정에서는 주민등록번호 앞 6자리와 뒤 첫 숫자만 생년월일을 산출하기 위해
             이용자 기기 내에서만 처리되며, 회사 서버로 전송되거나 저장되지 않습니다.
           </p>
 
