@@ -24,7 +24,7 @@ export async function generateMetadata({
 }: QuoteDeliveryPageProps): Promise<Metadata> {
   const { id } = await params;
   const delivery = await findQuoteDelivery(id);
-  if (!delivery || delivery.status === "FAILED") {
+  if (!delivery || delivery.status === "FAILED" || delivery.imageDeletedAt) {
     return {
       title: "견적서",
       robots: noIndexRobots,
@@ -57,7 +57,7 @@ export default async function QuoteDeliveryPage({ params }: QuoteDeliveryPagePro
   const { id } = await params;
   const delivery = await findQuoteDelivery(id);
 
-  if (!delivery || delivery.status === "FAILED") {
+  if (!delivery || delivery.status === "FAILED" || delivery.imageDeletedAt) {
     notFound();
   }
 
@@ -113,6 +113,7 @@ function findQuoteDelivery(id: string) {
       vehicleName: true,
       imagePath: true,
       status: true,
+      imageDeletedAt: true,
     },
   });
 }

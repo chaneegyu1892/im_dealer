@@ -3,10 +3,14 @@
 // 카카오 메시지의 이미지는 카카오 서버가 직접 가져가므로 인증 없이 접근 가능한 URL 이어야 한다.
 // 서명 URL 은 만료가 있어 메시지가 나중에 깨지므로, 이미지는 공개 버킷을 쓰고
 // 대신 경로에 UUID 를 넣어 추측 불가능하게 한다(견적서엔 이름·연락처가 없다).
+// 공개 객체는 lifecycle 크론이 7일 후 삭제하고, 캐시는 1일만 허용한다.
 
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
-import { QUOTE_IMAGE_BUCKET } from "@/lib/quote-delivery/public-url";
+import {
+  QUOTE_IMAGE_BUCKET,
+  QUOTE_IMAGE_CACHE_CONTROL_SECONDS,
+} from "@/lib/quote-delivery/public-url";
 
 export class QuoteStorageError extends Error {
   readonly name = "QuoteStorageError";
@@ -24,7 +28,7 @@ export async function uploadQuoteImage(params: {
     .storage.from(QUOTE_IMAGE_BUCKET)
     .upload(path, params.png, {
       contentType: "image/png",
-      cacheControl: "31536000",
+      cacheControl: String(QUOTE_IMAGE_CACHE_CONTROL_SECONDS),
       upsert: false,
     });
 

@@ -83,4 +83,21 @@ describe("QuoteDeliveryPage", () => {
       ],
     });
   });
+
+  it("does not render an image after lifecycle cleanup marks it deleted", async () => {
+    mocks.findDelivery.mockResolvedValue({
+      id: "delivery-1",
+      vehicleName: "쏘렌토",
+      imagePath: "deliveries/quote.png",
+      status: "SENT",
+      imageDeletedAt: new Date("2026-07-28T00:00:00.000Z"),
+    });
+
+    await expect(
+      QuoteDeliveryPage({ params: Promise.resolve({ id: "delivery-1" }) })
+    ).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(
+      generateMetadata({ params: Promise.resolve({ id: "delivery-1" }) })
+    ).resolves.toMatchObject({ robots: { index: false, follow: false } });
+  });
 });

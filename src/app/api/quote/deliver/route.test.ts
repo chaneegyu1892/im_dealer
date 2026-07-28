@@ -214,7 +214,7 @@ describe("POST /api/quote/deliver", () => {
     expect(mocks.upload).not.toHaveBeenCalled();
   });
 
-  it("성공하면 업로드한 이미지 URL로 발송하고 SENT 로 기록한다", async () => {
+  it("성공하면 업로드한 이미지를 보존 기간 동안 유지하며 발송하고 SENT 로 기록한다", async () => {
     const res = await POST(request());
 
     expect(res.status).toBe(200);

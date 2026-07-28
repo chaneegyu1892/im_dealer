@@ -695,6 +695,11 @@ model QuoteDelivery {
   status        String    @default("PENDING") // PENDING | SENT | FAILED
   failReason    String?
   sentAt        DateTime?
+  // 공개 PNG lifecycle state. 정리 실패는 전송 상태와 분리해 기록하고 다음 크론에서 재시도한다.
+  imageDeletedAt             DateTime?
+  imageCleanupAttempts       Int       @default(0)
+  imageCleanupLastAttemptAt   DateTime?
+  imageCleanupError           String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -702,6 +707,7 @@ model QuoteDelivery {
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([imageDeletedAt, createdAt])
 }
 
 model AdminAuditLog {
