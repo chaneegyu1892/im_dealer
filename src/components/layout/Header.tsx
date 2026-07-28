@@ -53,8 +53,15 @@ export function Header() {
       return;
     }
     let cancelled = false;
+    const supabase = createClient();
     fetch("/api/me", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (res.status === 401) {
+          await supabase.auth.signOut();
+          return null;
+        }
+        return res.ok ? res.json() : null;
+      })
       .then((payload) => {
         if (!cancelled) {
           setDbRole(payload?.data?.role ?? null);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHmac } from "crypto";
-import { getCurrentUser } from "@/lib/admin-auth";
+import { getActiveUser } from "@/lib/require-user";
 import { toE164KR } from "@/lib/phone";
 
 // 채널톡 boot 에 전달할 로그인 회원 신원 정보.
@@ -11,7 +11,7 @@ import { toE164KR } from "@/lib/phone";
 // 이후 카카오 아이콘 경로로 유니피케이션(익명 → 회원 통합)이 동작한다.
 export async function GET() {
   const secret = process.env.CHANNEL_TALK_SECRET_KEY;
-  const user = await getCurrentUser();
+  const user = await getActiveUser();
 
   if (!user) {
     return NextResponse.json({ anonymous: true });

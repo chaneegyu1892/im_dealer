@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 const mocks = vi.hoisted(() => ({
-  getUser: vi.fn(),
+  requireActiveUser: vi.fn(),
   findVehicle: vi.fn(),
   findExistingQuote: vi.fn(),
   findCurrentQuote: vi.fn(),
@@ -28,8 +28,8 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(() => ({ auth: { getUser: mocks.getUser } })),
+vi.mock("@/lib/require-user", () => ({
+  requireActiveUser: mocks.requireActiveUser,
 }));
 
 vi.mock("@/lib/admin-notification", () => ({
@@ -62,7 +62,10 @@ function request(): NextRequest {
 describe("POST /api/quotes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+    mocks.requireActiveUser.mockResolvedValue({
+      user: { id: "member-1", supabaseId: "user-1", isActive: true },
+      error: null,
+    });
     mocks.findVehicle.mockResolvedValue({ id: "vehicle-1" });
     mocks.findExistingQuote.mockResolvedValue({
       id: "quote-1",
@@ -144,7 +147,10 @@ describe("POST /api/quotes", () => {
   });
 
   it("requires authentication before enriching a saved quote", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.requireActiveUser.mockResolvedValue({
+      user: null,
+      error: new Response(JSON.stringify({ error: "로그인이 필요합니다." }), { status: 401 }),
+    });
 
     const response = await POST(request());
 

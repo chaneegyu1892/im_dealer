@@ -29,6 +29,25 @@ export async function GET(request: Request) {
   }
 
   const user = data.user;
+  try {
+    const existingUser = await prisma.user.findUnique({
+      where: { supabaseId: user.id },
+      select: { isActive: true },
+    });
+    if (existingUser && !existingUser.isActive) {
+      const { error: signOutError } = await supabase.auth.signOut({ scope: "global" });
+      if (signOutError) {
+        console.error("[auth/callback] inactive account sign-out failed:", signOutError.message);
+      }
+      return NextResponse.redirect(`${redirectOrigin}/login?error=account_inactive`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    console.error("[auth/callback] local account status lookup failed:", message);
+    await supabase.auth.signOut({ scope: "global" });
+    return NextResponse.redirect(`${redirectOrigin}/login?error=auth_failed`);
+  }
+
   const providerToken =
     typeof data.session?.provider_token === "string" ? data.session.provider_token : null;
   // 견적서 전송은 로그인 한참 뒤에 일어나는데 Supabase 는 provider_token 을 보관하지 않는다.

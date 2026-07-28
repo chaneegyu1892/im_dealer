@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getActiveUser } from "@/lib/require-user";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
 import {
   calculateMultiFinanceQuote,
@@ -104,13 +104,10 @@ export async function POST(request: NextRequest) {
 
     const userAgent = request.headers.get("user-agent") ?? undefined;
     const logSessionId = input.sessionId ?? `anon-${Date.now()}`;
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getActiveUser();
     const calcLogBase = {
       sessionId: logSessionId,
-      userId: user?.id ?? null,
+      userId: user?.supabaseId ?? null,
       vehicleId: vehicle.id,
       vehicleSlug: input.vehicleSlug,
       vehicleName: vehicle.name,

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/require-user";
 import { completeEasyAuth } from "@/lib/codef/easyauth";
 import { encryptPII, encryptString } from "@/lib/pii";
 import { easyAuthFieldsSchema, twoWayInfoSchema, toEasyAuthInput } from "../validation";
@@ -11,13 +11,8 @@ import { easyAuthFieldsSchema, twoWayInfoSchema, toEasyAuthInput } from "../vali
 // 원본/PII 는 클라이언트에 노출하지 않고 처리 상태만 반환한다.
 export async function POST(request: NextRequest) {
   // 로그인 필수 — PII(원본 PDF) 저장을 인증된 사용자만 허용.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-  }
+  const { error: authError } = await requireActiveUser();
+  if (authError) return authError;
 
   const schema = easyAuthFieldsSchema.extend({ twoWayInfo: twoWayInfoSchema });
   const parsed = schema.safeParse(await request.json().catch(() => null));

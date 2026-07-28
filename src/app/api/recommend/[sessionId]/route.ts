@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getActiveUser } from "@/lib/require-user";
 import { recommendLegacyV1 } from "@/lib/ai-recommender";
 import { parseStoredResultState } from "@/lib/recommend-result";
 import { lockRecommendScenario } from "@/lib/member-gate";
@@ -72,11 +72,7 @@ export async function GET(
     const { sessionId } = await params;
 
     // 회원 여부 — 보증금형·선납형(낮아진 월납입금)은 회원 전용. 응답 직전에 게이팅.
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const isMember = !!user;
+    const isMember = !!(await getActiveUser());
 
     // 추천 로그 조회 (입력값 + freeze 스냅샷 복원)
     const log = await prisma.recommendationLog.findFirst({

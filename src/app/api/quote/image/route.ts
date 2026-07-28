@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/require-user";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
 import { strictRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { buildQuoteImageData } from "@/lib/quote-image/from-request";
@@ -11,14 +11,8 @@ export async function POST(req: NextRequest) {
   const limited = await checkRateLimit(req, strictRateLimit);
   if (limited) return limited;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-  }
+  const { user, error: authError } = await requireActiveUser();
+  if (authError) return authError;
 
   let body: unknown;
   try {

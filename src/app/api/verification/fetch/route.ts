@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/require-user";
 import {
   verifyDriverLicense,
   verifyHealthInsurance,
@@ -24,13 +24,8 @@ const fetchSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // 로그인 필수 — Codef 유료 API 호출 및 PII 저장을 인증된 사용자만 허용.
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-    }
+    const { error: authError } = await requireActiveUser();
+    if (authError) return authError;
 
     const body = await request.json();
     const parsed = fetchSchema.safeParse(body);

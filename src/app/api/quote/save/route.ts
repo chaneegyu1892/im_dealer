@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getActiveUser } from "@/lib/require-user";
 import {
   calculateMultiFinanceQuote,
   type CalcInput,
@@ -23,10 +23,7 @@ const SCENARIO_CONDITIONS = {
 } as const;
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getActiveUser();
 
   try {
     const body = await request.json();
@@ -113,7 +110,7 @@ export async function POST(request: NextRequest) {
     if (existing?.deletedAt) {
       return NextResponse.json({ error: "삭제된 견적입니다." }, { status: 410 });
     }
-    if (existing?.userId && existing.userId !== user?.id) {
+    if (existing?.userId && existing.userId !== user?.supabaseId) {
       return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
     }
     if (existing && existing.status !== "NEW") {
@@ -127,17 +124,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const memberProfile = user
-      ? await prisma.user.findUnique({
-          where: { supabaseId: user.id },
-          select: { name: true, phone: true },
-        })
-      : null;
     const contact = resolveQuoteContact({
       quoteName: existing?.customerName,
       quotePhone: existing?.phone,
-      memberName: memberProfile?.name,
-      memberPhone: memberProfile?.phone,
+      memberName: user?.name,
+      memberPhone: user?.phone,
     });
 
     const [rateSheets, rankSurcharges] = await Promise.all([
@@ -188,7 +179,7 @@ export async function POST(request: NextRequest) {
 
       const data = {
         sessionId: input.sessionId,
-        userId: user?.id ?? existing?.userId ?? null,
+        userId: user?.supabaseId ?? existing?.userId ?? null,
         vehicleId: vehicle.id,
         trimId: trim.id,
         contractMonths: input.contractMonths,
@@ -326,7 +317,7 @@ export async function POST(request: NextRequest) {
 
     const data = {
       sessionId: input.sessionId,
-      userId: user?.id ?? existing?.userId ?? null,
+      userId: user?.supabaseId ?? existing?.userId ?? null,
       vehicleId: vehicle.id,
       trimId: trim.id,
       contractMonths: input.contractMonths,

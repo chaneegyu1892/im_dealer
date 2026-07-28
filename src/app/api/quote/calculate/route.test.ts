@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   findRateSheets: vi.fn(),
   findRankSurcharges: vi.fn(),
   calculate: vi.fn(),
-  getUser: vi.fn(),
+  getActiveUser: vi.fn(),
   upsertLogs: vi.fn(),
 }));
 
@@ -18,8 +18,8 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(() => ({ auth: { getUser: mocks.getUser } })),
+vi.mock("@/lib/require-user", () => ({
+  getActiveUser: mocks.getActiveUser,
 }));
 
 vi.mock("@/lib/quote-calculator", () => ({
@@ -65,7 +65,11 @@ function request() {
 describe("POST /api/quote/calculate log persistence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "member-1" } } });
+    mocks.getActiveUser.mockResolvedValue({
+      id: "member-db-1",
+      supabaseId: "member-1",
+      isActive: true,
+    });
     mocks.findVehicle.mockResolvedValue({
       id: "vehicle-1",
       slug: "test-car",

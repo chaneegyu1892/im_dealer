@@ -3,12 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 const mocks = vi.hoisted(() => ({
-  getUser: vi.fn(),
+  getActiveUser: vi.fn(),
   findVehicle: vi.fn(),
   findRateSheets: vi.fn(),
   findRankSurcharges: vi.fn(),
   findSavedQuote: vi.fn(),
-  findMemberProfile: vi.fn(),
   upsertSavedQuote: vi.fn(),
   updateCalcLogs: vi.fn(),
   transaction: vi.fn(),
@@ -25,14 +24,13 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: mocks.findSavedQuote,
       upsert: mocks.upsertSavedQuote,
     },
-    user: { findUnique: mocks.findMemberProfile },
     quoteCalcLog: { updateMany: mocks.updateCalcLogs },
     $transaction: mocks.transaction,
   },
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(() => ({ auth: { getUser: mocks.getUser } })),
+vi.mock("@/lib/require-user", () => ({
+  getActiveUser: mocks.getActiveUser,
 }));
 
 vi.mock("@/lib/quote-calculator", () => ({
@@ -70,7 +68,7 @@ function request(): NextRequest {
 describe("POST /api/quote/save", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.getActiveUser.mockResolvedValue(null);
     mocks.findVehicle.mockResolvedValue({
       id: "vehicle-1",
       slug: "test-car",
@@ -99,7 +97,6 @@ describe("POST /api/quote/save", () => {
     }]);
     mocks.findRankSurcharges.mockResolvedValue([]);
     mocks.findSavedQuote.mockResolvedValue(null);
-    mocks.findMemberProfile.mockResolvedValue(null);
     mocks.upsertSavedQuote.mockResolvedValue({ id: "quote-1", sessionId: "session-1" });
     mocks.updateCalcLogs.mockResolvedValue({ count: 1 });
     mocks.transaction.mockImplementation((operations: Promise<unknown>[]) =>
@@ -156,8 +153,9 @@ describe("POST /api/quote/save", () => {
   });
 
   it("stores the linked member profile when the quote has no verified contact yet", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "member-1" } } });
-    mocks.findMemberProfile.mockResolvedValue({
+    mocks.getActiveUser.mockResolvedValue({
+      id: "member-db-1",
+      supabaseId: "member-1",
       name: "카카오회원",
       phone: "010-1234-5678",
     });
@@ -165,10 +163,6 @@ describe("POST /api/quote/save", () => {
     const response = await POST(request());
 
     expect(response.status).toBe(200);
-    expect(mocks.findMemberProfile).toHaveBeenCalledWith({
-      where: { supabaseId: "member-1" },
-      select: { name: true, phone: true },
-    });
     expect(mocks.upsertSavedQuote).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({
@@ -181,7 +175,12 @@ describe("POST /api/quote/save", () => {
   });
 
   it("keeps verified quote contact ahead of the linked member profile", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "member-1" } } });
+    mocks.getActiveUser.mockResolvedValue({
+      id: "member-db-1",
+      supabaseId: "member-1",
+      name: "카카오회원",
+      phone: "010-1234-5678",
+    });
     mocks.findSavedQuote.mockResolvedValue({
       id: "quote-1",
       userId: "member-1",
@@ -191,11 +190,6 @@ describe("POST /api/quote/save", () => {
       customerName: "본인확인 이름",
       phone: "010-9999-9999",
     });
-    mocks.findMemberProfile.mockResolvedValue({
-      name: "카카오회원",
-      phone: "010-1234-5678",
-    });
-
     const response = await POST(request());
 
     expect(response.status).toBe(200);

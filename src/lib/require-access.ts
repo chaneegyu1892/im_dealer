@@ -4,7 +4,8 @@
 
 import { redirect } from "next/navigation";
 import type { User } from "@prisma/client";
-import { getAdminSession } from "@/lib/admin-auth";
+import { getCurrentUser } from "@/lib/admin-auth";
+import { ADMIN_ROLES } from "@/lib/admin-roles";
 import { createClient } from "@/lib/supabase/server";
 import {
   hasAccess,
@@ -20,11 +21,19 @@ interface AccessContext {
 }
 
 async function resolveContext(): Promise<AccessContext> {
-  const admin = await getAdminSession();
-  if (admin) {
-    return { role: toRole(admin.role, true), admin, userId: admin.supabaseId ?? null };
+  const localUser = await getCurrentUser();
+  if (localUser) {
+    if (!localUser.isActive) {
+      return { role: "guest", admin: null, userId: null };
+    }
+    const isAdmin = (ADMIN_ROLES as readonly string[]).includes(localUser.role);
+    return {
+      role: toRole(localUser.role, true),
+      admin: isAdmin ? localUser : null,
+      userId: localUser.supabaseId ?? null,
+    };
   }
-  // 어드민이 아니면 Supabase 세션만 확인
+  // 로컬 계정 행이 아직 없는 직후 로그인은 기존 동작대로 Supabase 세션만 확인한다.
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();

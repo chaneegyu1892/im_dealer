@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/require-user";
 import { createAdminNotification } from "@/lib/admin-notification";
 import { z } from "zod";
 
@@ -21,10 +21,10 @@ class QuoteRequestError extends Error {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    const { user, error: authError } = await requireActiveUser();
+    if (authError) return authError;
+    if (!user.supabaseId) {
+      return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 404 });
     }
 
     const parsed = quotesPostSchema.safeParse(await request.json());
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
     const { sessionId, customerName, phone } = parsed.data;
     const contactData = {
-      userId: user.id,
+      userId: user.supabaseId,
       customerName: customerName ?? "고객",
       phone: phone ?? "연락처 미입력",
     };
@@ -54,14 +54,14 @@ export async function POST(request: NextRequest) {
       if (existingQuote.deletedAt) {
         throw new QuoteRequestError("삭제된 견적입니다.", 410);
       }
-      if (existingQuote.userId && existingQuote.userId !== user.id) {
+      if (existingQuote.userId && existingQuote.userId !== user.supabaseId) {
         throw new QuoteRequestError("접근 권한이 없습니다.", 403);
       }
 
       const ownershipWhere = {
         id: existingQuote.id,
         deletedAt: null,
-        OR: [{ userId: null }, { userId: user.id }],
+        OR: [{ userId: null }, { userId: user.supabaseId }],
       };
       const notificationClaim = await tx.savedQuote.updateMany({
         where: {
