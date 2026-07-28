@@ -78,7 +78,7 @@ describe("review token lifecycle", () => {
     await expect(
       revokeReviewTokensForQuote("quote-1", {
         reviewRequestToken: { updateMany: mocks.revokeTokens },
-      } as Pick<Prisma.TransactionClient, "reviewRequestToken">),
+      } as unknown as Pick<Prisma.TransactionClient, "reviewRequestToken">),
     ).resolves.toBe(2);
 
     expect(mocks.revokeTokens).toHaveBeenCalledWith({
