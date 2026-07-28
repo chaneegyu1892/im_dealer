@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { REVIEW_IMAGE_MAX_SIZE, reviewImagePublicUrl } from "@/lib/supabase/storage";
 
 export type TokenInvalidReason = "not_found" | "used" | "revoked" | "expired";
 
@@ -21,6 +23,13 @@ export const REVIEW_TOKEN_REASON_MESSAGE: Record<TokenInvalidReason, string> = {
   revoked: "사용이 중단된 링크입니다. 담당 딜러에게 문의해 주세요.",
   expired: "링크 사용 기간이 만료되었습니다.",
 };
+
+export const REVIEW_TOKEN_MAX_IMAGE_UPLOADS = 5;
+export const REVIEW_TOKEN_MAX_IMAGE_BYTES = REVIEW_TOKEN_MAX_IMAGE_UPLOADS * REVIEW_IMAGE_MAX_SIZE;
+
+export type ReviewImageUploadReservation =
+  | { ok: true; data: { id: string; path: string; url: string } }
+  | { ok: false; reason: "quota" | "invalid" };
 
 export async function resolveReviewToken(token: string): Promise<TokenResolution> {
   const row = await prisma.reviewRequestToken.findUnique({
@@ -62,4 +71,77 @@ export async function resolveReviewToken(token: string): Promise<TokenResolution
       quoteCreatedAt: row.savedQuote?.createdAt ?? null,
     },
   };
+}
+
+export async function reserveReviewImageUpload(params: {
+  reviewRequestTokenId: string;
+  byteSize: number;
+  contentType: string;
+}): Promise<ReviewImageUploadReservation> {
+  const path = `${params.reviewRequestTokenId}/${randomUUID()}`;
+  const url = reviewImagePublicUrl(path);
+  const now = new Date();
+
+  return prisma.$transaction(async (tx) => {
+    const reserved = await tx.reviewRequestToken.updateMany({
+      where: {
+        id: params.reviewRequestTokenId,
+        usedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: now },
+        imageUploadCount: { lt: REVIEW_TOKEN_MAX_IMAGE_UPLOADS },
+        imageUploadBytes: { lte: REVIEW_TOKEN_MAX_IMAGE_BYTES - params.byteSize },
+      },
+      data: {
+        imageUploadCount: { increment: 1 },
+        imageUploadBytes: { increment: params.byteSize },
+      },
+    });
+
+    if (reserved.count === 0) {
+      const token = await tx.reviewRequestToken.findUnique({
+        where: { id: params.reviewRequestTokenId },
+        select: { usedAt: true, revokedAt: true, expiresAt: true },
+      });
+      if (!token || token.usedAt || token.revokedAt || token.expiresAt.getTime() <= now.getTime()) {
+        return { ok: false, reason: "invalid" };
+      }
+      return { ok: false, reason: "quota" };
+    }
+
+    const upload = await tx.reviewImageUpload.create({
+      data: {
+        reviewRequestTokenId: params.reviewRequestTokenId,
+        path,
+        url,
+        byteSize: params.byteSize,
+        contentType: params.contentType,
+      },
+      select: { id: true, path: true, url: true },
+    });
+    return { ok: true, data: upload };
+  });
+}
+
+export async function releaseReviewImageUpload(uploadId: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const upload = await tx.reviewImageUpload.findUnique({
+      where: { id: uploadId },
+      select: { id: true, reviewRequestTokenId: true, byteSize: true, usedAt: true },
+    });
+    if (!upload || upload.usedAt) return;
+
+    const removed = await tx.reviewImageUpload.deleteMany({
+      where: { id: upload.id, usedAt: null },
+    });
+    if (removed.count === 0) return;
+
+    await tx.reviewRequestToken.updateMany({
+      where: { id: upload.reviewRequestTokenId },
+      data: {
+        imageUploadCount: { decrement: 1 },
+        imageUploadBytes: { decrement: upload.byteSize },
+      },
+    });
+  });
 }

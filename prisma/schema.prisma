@@ -805,20 +805,37 @@ model ReviewLike {
 }
 
 model ReviewRequestToken {
-  id           String     @id @default(cuid())
-  token        String     @unique
-  savedQuoteId String
-  savedQuote   SavedQuote @relation(fields: [savedQuoteId], references: [id], onDelete: Cascade)
-  expiresAt    DateTime
-  usedAt       DateTime?
-  revokedAt    DateTime?
-  reviewId     String?    @unique
-  review       Review?    @relation(fields: [reviewId], references: [id], onDelete: SetNull)
-  createdAt    DateTime   @default(now())
-  createdById  String?
+  id               String              @id @default(cuid())
+  token            String              @unique
+  savedQuoteId     String
+  savedQuote       SavedQuote          @relation(fields: [savedQuoteId], references: [id], onDelete: Cascade)
+  expiresAt        DateTime
+  usedAt           DateTime?
+  revokedAt        DateTime?
+  reviewId         String?             @unique
+  review           Review?             @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  imageUploadCount Int                 @default(0)
+  imageUploadBytes Int                 @default(0)
+  imageUploads     ReviewImageUpload[]
+  createdAt        DateTime            @default(now())
+  createdById      String?
 
   @@index([savedQuoteId])
   @@index([expiresAt])
+}
+
+model ReviewImageUpload {
+  id                   String             @id @default(cuid())
+  reviewRequestTokenId String
+  reviewRequestToken   ReviewRequestToken @relation(fields: [reviewRequestTokenId], references: [id], onDelete: Cascade)
+  path                 String             @unique
+  url                  String             @unique
+  byteSize             Int
+  contentType          String
+  usedAt               DateTime?
+  createdAt            DateTime           @default(now())
+
+  @@index([reviewRequestTokenId, usedAt])
 }
 
 model Inventory {
