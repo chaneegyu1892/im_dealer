@@ -70,7 +70,7 @@ describe("POST /api/quotes", () => {
     mocks.findExistingQuote.mockResolvedValue({
       id: "quote-1",
       sessionId: "session-1",
-      userId: null,
+      userId: "user-1",
       deletedAt: null,
       customerName: null,
       phone: null,
@@ -95,7 +95,7 @@ describe("POST /api/quotes", () => {
     mocks.createAdminNotification.mockResolvedValue(undefined);
   });
 
-  it("updates the pre-verification quote instead of creating a duplicate", async () => {
+  it("updates the caller-owned pre-verification quote instead of creating a duplicate", async () => {
     const response = await POST(request());
 
     expect(response.status).toBe(200);
@@ -108,7 +108,7 @@ describe("POST /api/quotes", () => {
         where: {
           id: "quote-1",
           deletedAt: null,
-          OR: [{ userId: null }, { userId: "user-1" }],
+          userId: "user-1",
           customerName: null,
           phone: null,
         },
@@ -165,6 +165,20 @@ describe("POST /api/quotes", () => {
 
     expect(response.status).toBe(409);
     expect(mocks.createQuote).not.toHaveBeenCalled();
+  });
+
+  it("does not let a member claim an unowned quote during verification enrichment", async () => {
+    mocks.findExistingQuote.mockResolvedValue({
+      id: "quote-unowned",
+      sessionId: "session-1",
+      userId: null,
+      deletedAt: null,
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(403);
+    expect(mocks.updateQuotes).not.toHaveBeenCalled();
   });
 
   it("does not repeat the admin notification after customer details are already present", async () => {

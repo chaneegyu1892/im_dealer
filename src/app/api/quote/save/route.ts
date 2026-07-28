@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -15,12 +16,37 @@ import { createAdminNotification } from "@/lib/admin-notification";
 import { saveQuoteSchema } from "./request-schema";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { resolveQuoteContact } from "@/lib/quote-contact";
+import {
+  createVerificationCapability,
+  hashVerificationCapability,
+  matchesVerificationCapability,
+  VERIFICATION_CAPABILITY_MAX_AGE_SECONDS,
+  verificationCapabilityCookieName,
+} from "@/lib/verification-capability";
 
 const SCENARIO_CONDITIONS = {
   conservative: { depositRate: 20, prepayRate: 0 },
   standard: { depositRate: 0, prepayRate: 0 },
   aggressive: { depositRate: 0, prepayRate: 30 },
 } as const;
+
+function attachVerificationCapability<T>(
+  response: NextResponse<T>,
+  sessionId: string,
+  capability: string | null
+): NextResponse<T> {
+  if (!capability) return response;
+  response.cookies.set({
+    name: verificationCapabilityCookieName(sessionId),
+    value: capability,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/api/verification",
+    maxAge: VERIFICATION_CAPABILITY_MAX_AGE_SECONDS,
+  });
+  return response;
+}
 
 export async function POST(request: NextRequest) {
   const user = await getActiveUser();
@@ -104,6 +130,7 @@ export async function POST(request: NextRequest) {
         pricingStatus: true,
         customerName: true,
         phone: true,
+        verificationCapabilityHash: true,
       },
     });
 
@@ -113,6 +140,25 @@ export async function POST(request: NextRequest) {
     if (existing?.userId && existing.userId !== user?.supabaseId) {
       return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
     }
+
+    const activeUserId = user?.supabaseId ?? null;
+    let issuedVerificationCapability: string | null = null;
+    let verificationCapabilityHash: string | null = null;
+
+    if (existing?.userId === null) {
+      const capability = (await cookies())
+        .get(verificationCapabilityCookieName(input.sessionId))
+        ?.value;
+      if (!capability || !matchesVerificationCapability(existing.verificationCapabilityHash, capability)) {
+        return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
+      }
+      verificationCapabilityHash = activeUserId ? null : existing.verificationCapabilityHash;
+    } else if (!existing && !activeUserId) {
+      issuedVerificationCapability = createVerificationCapability();
+      verificationCapabilityHash = hashVerificationCapability(issuedVerificationCapability);
+    }
+
+    const quoteOwnerId = activeUserId ?? existing?.userId ?? null;
     if (existing && existing.status !== "NEW") {
       return NextResponse.json({
         success: true,
@@ -179,7 +225,8 @@ export async function POST(request: NextRequest) {
 
       const data = {
         sessionId: input.sessionId,
-        userId: user?.supabaseId ?? existing?.userId ?? null,
+        userId: quoteOwnerId,
+        verificationCapabilityHash,
         vehicleId: vehicle.id,
         trimId: trim.id,
         contractMonths: input.contractMonths,
@@ -226,14 +273,14 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({
+      return attachVerificationCapability(NextResponse.json({
         success: true,
         data: {
           id: savedQuote.id,
           sessionId: savedQuote.sessionId,
           requiresConsultation: true,
         },
-      });
+      }), input.sessionId, issuedVerificationCapability);
     }
 
     const configs: RateConfigData[] = rateSheets.map((rs) => ({
@@ -317,7 +364,8 @@ export async function POST(request: NextRequest) {
 
     const data = {
       sessionId: input.sessionId,
-      userId: user?.supabaseId ?? existing?.userId ?? null,
+      userId: quoteOwnerId,
+      verificationCapabilityHash,
       vehicleId: vehicle.id,
       trimId: trim.id,
       contractMonths: input.contractMonths,
@@ -353,10 +401,10 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({
+    return attachVerificationCapability(NextResponse.json({
       success: true,
       data: { id: savedQuote.id, sessionId: savedQuote.sessionId },
-    });
+    }), input.sessionId, issuedVerificationCapability);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

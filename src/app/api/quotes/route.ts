@@ -54,14 +54,14 @@ export async function POST(request: NextRequest) {
       if (existingQuote.deletedAt) {
         throw new QuoteRequestError("삭제된 견적입니다.", 410);
       }
-      if (existingQuote.userId && existingQuote.userId !== user.supabaseId) {
+      if (existingQuote.userId !== user.supabaseId) {
         throw new QuoteRequestError("접근 권한이 없습니다.", 403);
       }
 
       const ownershipWhere = {
         id: existingQuote.id,
         deletedAt: null,
-        OR: [{ userId: null }, { userId: user.supabaseId }],
+        userId: user.supabaseId,
       };
       const notificationClaim = await tx.savedQuote.updateMany({
         where: {

@@ -70,8 +70,14 @@ describe("verification API staff authorization", () => {
 
   it("blocks dealers from session verification data before querying", async () => {
     const findFirst = vi.fn().mockResolvedValue({ id: "verification-1" });
+    const findQuote = vi.fn().mockResolvedValue({ userId: "member-1" });
     mockRole("dealer");
-    vi.doMock("@/lib/prisma", () => ({ prisma: { customerVerification: { findFirst } } }));
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        customerVerification: { findFirst },
+        savedQuote: { findUnique: findQuote },
+      },
+    }));
     vi.doMock("@/lib/pii", () => ({ decryptVerificationRow: vi.fn() }));
 
     const { GET } = await import("@/app/api/verification/session/[sessionId]/route");
@@ -82,13 +88,20 @@ describe("verification API staff authorization", () => {
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({ error: "권한이 없습니다." });
     expect(findFirst).not.toHaveBeenCalled();
+    expect(findQuote).not.toHaveBeenCalled();
   });
 
   it("allows staff to retrieve session verification data", async () => {
     const findFirst = vi.fn().mockResolvedValue({ id: "verification-1", documents: [] });
+    const findQuote = vi.fn().mockResolvedValue({ userId: "member-1" });
     const decryptVerificationRow = vi.fn().mockReturnValue({ id: "verification-1", name: "홍길동" });
     mockRole("staff");
-    vi.doMock("@/lib/prisma", () => ({ prisma: { customerVerification: { findFirst } } }));
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        customerVerification: { findFirst },
+        savedQuote: { findUnique: findQuote },
+      },
+    }));
     vi.doMock("@/lib/pii", () => ({ decryptVerificationRow }));
 
     const { GET } = await import("@/app/api/verification/session/[sessionId]/route");
@@ -98,7 +111,34 @@ describe("verification API staff authorization", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true, data: { id: "verification-1", name: "홍길동" } });
-    expect(findFirst).toHaveBeenCalledOnce();
+    expect(findQuote).toHaveBeenCalledWith({
+      where: { sessionId: "session-1" },
+      select: { userId: true },
+    });
+    expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { sessionId: "session-1", userId: "member-1" },
+    }));
+  });
+
+  it("does not let an ownerless legacy verification shadow a quote session", async () => {
+    const findFirst = vi.fn();
+    const findQuote = vi.fn().mockResolvedValue({ userId: null });
+    mockRole("staff");
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        customerVerification: { findFirst },
+        savedQuote: { findUnique: findQuote },
+      },
+    }));
+    vi.doMock("@/lib/pii", () => ({ decryptVerificationRow: vi.fn() }));
+
+    const { GET } = await import("@/app/api/verification/session/[sessionId]/route");
+    const response = await GET(new Request("https://example.com"), {
+      params: Promise.resolve({ sessionId: "session-1" }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(findFirst).not.toHaveBeenCalled();
   });
 
   it("blocks dealers from original verification PDFs before querying", async () => {

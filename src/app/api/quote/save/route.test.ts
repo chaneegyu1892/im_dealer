@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   calculate: vi.fn(),
   createAdminNotification: vi.fn(),
+  cookieGet: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -41,6 +42,10 @@ vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 
 vi.mock("@/lib/admin-notification", () => ({
   createAdminNotification: mocks.createAdminNotification,
+}));
+
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(async () => ({ get: mocks.cookieGet })),
 }));
 
 function request(): NextRequest {
@@ -103,6 +108,7 @@ describe("POST /api/quote/save", () => {
       Promise.all(operations)
     );
     mocks.createAdminNotification.mockResolvedValue(undefined);
+    mocks.cookieGet.mockReturnValue(undefined);
     mocks.calculate.mockReturnValue([{
       financeCompanyName: "테스트캐피탈",
       rank: 1,
@@ -150,6 +156,40 @@ describe("POST /api/quote/save", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.upsertSavedQuote).not.toHaveBeenCalled();
+  });
+
+  it("does not let a session ID alone update an unowned quote", async () => {
+    mocks.findSavedQuote.mockResolvedValue({
+      id: "quote-1",
+      userId: null,
+      deletedAt: null,
+      status: "NEW",
+      pricingStatus: "CALCULATED",
+      customerName: null,
+      phone: null,
+      verificationCapabilityHash: "a".repeat(64),
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(403);
+    expect(mocks.upsertSavedQuote).not.toHaveBeenCalled();
+  });
+
+  it("issues an HttpOnly verification capability for a new anonymous quote", async () => {
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    expect(mocks.upsertSavedQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          userId: null,
+          verificationCapabilityHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        }),
+      })
+    );
+    expect(response.headers.get("set-cookie")).toContain("HttpOnly");
+    expect(response.headers.get("set-cookie")).toContain("Path=/api/verification");
   });
 
   it("stores the linked member profile when the quote has no verified contact yet", async () => {

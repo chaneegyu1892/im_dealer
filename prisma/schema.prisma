@@ -431,7 +431,9 @@ model SavedQuote {
   updatedAt             DateTime           @updatedAt
   expiresAt             DateTime
   deletedAt             DateTime?
-  verificationSessionId String?
+  // 로그인 전 견적의 소유권을 로그인 후 안전하게 연결하는 브라우저 capability 해시.
+  // 실제 capability 값은 HttpOnly cookie 에만 두고 DB에는 SHA-256 해시만 저장한다.
+  verificationCapabilityHash String? @map("verificationSessionId")
   customerName          String?
   phone                 String?
 
@@ -724,6 +726,8 @@ model AdminAuditLog {
 model CustomerVerification {
   id                String    @id @default(cuid())
   sessionId         String
+  // SavedQuote.userId 와 같은 Supabase Auth user id. 기존 무소유 레코드는 nullable 로 유지한다.
+  userId            String?
   customerType      String
   connectedId       String?
   licenseVerified   Boolean   @default(false)
@@ -740,7 +744,9 @@ model CustomerVerification {
 
   documents VerificationDocument[]
 
+  @@unique([sessionId, userId])
   @@index([sessionId])
+  @@index([userId])
   @@index([verifiedAt, piiPurgedAt])
 }
 

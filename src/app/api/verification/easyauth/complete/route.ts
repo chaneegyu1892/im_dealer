@@ -11,8 +11,11 @@ import { easyAuthFieldsSchema, twoWayInfoSchema, toEasyAuthInput } from "../vali
 // 원본/PII 는 클라이언트에 노출하지 않고 처리 상태만 반환한다.
 export async function POST(request: NextRequest) {
   // 로그인 필수 — PII(원본 PDF) 저장을 인증된 사용자만 허용.
-  const { error: authError } = await requireActiveUser();
+  const { user, error: authError } = await requireActiveUser();
   if (authError) return authError;
+  if (!user.supabaseId) {
+    return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 403 });
+  }
 
   const schema = easyAuthFieldsSchema.extend({ twoWayInfo: twoWayInfoSchema });
   const parsed = schema.safeParse(await request.json().catch(() => null));
@@ -21,8 +24,8 @@ export async function POST(request: NextRequest) {
   }
   const { twoWayInfo, ...fields } = parsed.data;
 
-  const verification = await prisma.customerVerification.findUnique({
-    where: { id: fields.verificationId },
+  const verification = await prisma.customerVerification.findFirst({
+    where: { id: fields.verificationId, userId: user.supabaseId },
     select: { id: true },
   });
   if (!verification) {

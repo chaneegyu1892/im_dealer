@@ -5,8 +5,8 @@ import { POST } from "./route";
 const mocks = vi.hoisted(() => ({
   completeEasyAuth: vi.fn(),
   create: vi.fn(),
-  findFirst: vi.fn(),
-  findUnique: vi.fn(),
+  verificationFindFirst: vi.fn(),
+  documentFindFirst: vi.fn(),
   update: vi.fn(),
   requireActiveUser: vi.fn(),
 }));
@@ -14,10 +14,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     customerVerification: {
-      findUnique: mocks.findUnique,
+      findFirst: mocks.verificationFindFirst,
     },
     verificationDocument: {
-      findFirst: mocks.findFirst,
+      findFirst: mocks.documentFindFirst,
       create: mocks.create,
       update: mocks.update,
     },
@@ -56,8 +56,8 @@ describe("POST /api/verification/easyauth/complete", () => {
       user: { id: "member-1", supabaseId: "u1", isActive: true },
       error: null,
     });
-    mocks.findUnique.mockResolvedValue({ id: "v1" });
-    mocks.findFirst.mockResolvedValue(null);
+    mocks.verificationFindFirst.mockResolvedValue({ id: "v1" });
+    mocks.documentFindFirst.mockResolvedValue(null);
     mocks.create.mockResolvedValue({});
     mocks.update.mockResolvedValue({});
   });
@@ -71,7 +71,7 @@ describe("POST /api/verification/easyauth/complete", () => {
     const response = await POST(request({}));
 
     expect(response.status).toBe(403);
-    expect(mocks.findUnique).not.toHaveBeenCalled();
+    expect(mocks.verificationFindFirst).not.toHaveBeenCalled();
     expect(mockedCompleteEasyAuth).not.toHaveBeenCalled();
   });
 
