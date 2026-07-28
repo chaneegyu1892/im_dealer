@@ -33,6 +33,8 @@ export interface BuildVehicleScenariosInput {
   exteriorColorId?: string | null;
   /** 내장 색상 id */
   interiorColorId?: string | null;
+  /** 금융상품별 회수율 시트를 정확히 고르기 위한 저장 견적의 상품 유형 */
+  productType?: "장기렌트" | "리스";
 }
 
 export interface VehicleColorSnapshot {
@@ -163,7 +165,12 @@ export async function buildVehicleScenarios(
   // 2) 회수율 데이터 + 순위 가산 동시 조회
   const [rateSheets, rankSurcharges] = await Promise.all([
     prisma.capitalRateSheet.findMany({
-      where: { trimId: trim.id, isActive: true, financeCompany: { isActive: true } },
+      where: {
+        trimId: trim.id,
+        ...(input.productType ? { productType: input.productType } : {}),
+        isActive: true,
+        financeCompany: { isActive: true },
+      },
       include: { financeCompany: true },
     }),
     prisma.rankSurchargeConfig.findMany({ orderBy: { rank: "asc" } }),

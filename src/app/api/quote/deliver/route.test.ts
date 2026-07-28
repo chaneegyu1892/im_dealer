@@ -5,6 +5,7 @@ import { POST } from "./route";
 const mocks = vi.hoisted(() => ({
   requireActiveUser: vi.fn(),
   findSavedQuote: vi.fn(),
+  buildOfficialImageData: vi.fn(),
   createDelivery: vi.fn(),
   updateDelivery: vi.fn(),
   render: vi.fn(),
@@ -27,6 +28,10 @@ vi.mock("@/lib/require-user", () => ({
 
 vi.mock("@/lib/quote-image/render-quote-image", () => ({
   renderQuoteImageBuffer: mocks.render,
+}));
+
+vi.mock("@/lib/quote-delivery/official-image", () => ({
+  buildOfficialDeliveryImageData: mocks.buildOfficialImageData,
 }));
 
 vi.mock("@/lib/quote-delivery/store", () => ({
@@ -79,6 +84,44 @@ function quoteScenario(
   };
 }
 
+const officialImageData = {
+  vehicleName: "서버 쏘렌토",
+  vehicleBrand: "서버 기아",
+  trimName: "서버 트림",
+  trimPrice: 42_000_000,
+  selectedOptions: [],
+  totalVehiclePrice: 42_000_000,
+  productType: "장기렌트",
+  contractMonths: 48,
+  annualMileage: 20_000,
+  contractType: "반납형",
+  scenarioType: "standard" as const,
+  scenarios: {
+    conservative: quoteScenario(560_000, 8_000_000, 0),
+    standard: quoteScenario(500_000, 0, 0),
+    aggressive: quoteScenario(430_000, 0, 12_000_000),
+  },
+  userEmail: null,
+  exteriorColor: null,
+  interiorColor: null,
+};
+
+const savedQuote = {
+  id: "quote-1",
+  vehicleId: "vehicle-1",
+  trimId: "trim-1",
+  contractMonths: 48,
+  annualMileage: 20_000,
+  depositRate: 0,
+  prepayRate: 0,
+  contractType: "반납형",
+  monthlyPayment: 500_000,
+  pricingStatus: "CALCULATED",
+  breakdown: {},
+  exteriorColorId: null,
+  interiorColorId: null,
+};
+
 describe("POST /api/quote/deliver", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -88,7 +131,8 @@ describe("POST /api/quote/deliver", () => {
       user: { id: "user-1", supabaseId: "sb-1", email: "a@b.com" },
       error: null,
     });
-    mocks.findSavedQuote.mockResolvedValue({ id: "quote-1" });
+    mocks.findSavedQuote.mockResolvedValue(savedQuote);
+    mocks.buildOfficialImageData.mockResolvedValue({ ok: true, data: officialImageData });
     mocks.getAccessToken.mockResolvedValue("access-token");
     mocks.render.mockResolvedValue(new Uint8Array([1, 2, 3]));
     mocks.upload.mockResolvedValue({ path: "deliveries/img.png" });
@@ -142,7 +186,21 @@ describe("POST /api/quote/deliver", () => {
         deletedAt: null,
         expiresAt: { gt: expect.any(Date) },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        vehicleId: true,
+        trimId: true,
+        contractMonths: true,
+        annualMileage: true,
+        depositRate: true,
+        prepayRate: true,
+        contractType: true,
+        monthlyPayment: true,
+        pricingStatus: true,
+        breakdown: true,
+        exteriorColorId: true,
+        interiorColorId: true,
+      },
     });
     expect(mocks.render).not.toHaveBeenCalled();
   });
@@ -170,7 +228,7 @@ describe("POST /api/quote/deliver", () => {
       }
     );
     expect(mocks.render).toHaveBeenCalledWith(
-      expect.objectContaining({ userEmail: null })
+      expect.objectContaining({ vehicleName: "서버 쏘렌토", userEmail: null })
     );
     expect(mocks.createDelivery).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -189,6 +247,24 @@ describe("POST /api/quote/deliver", () => {
       })
     );
     expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it("ignores tampered client financial fields and renders only the server-built quote", async () => {
+    const res = await POST(request({
+      savedQuoteId: "quote-1",
+      sessionId: "session-1",
+      vehicleName: "위조 차량",
+      totalVehiclePrice: 1,
+      scenarios: {
+        conservative: quoteScenario(1, 0, 0),
+        standard: quoteScenario(1, 0, 0),
+        aggressive: quoteScenario(1, 0, 0),
+      },
+    }));
+
+    expect(res.status).toBe(200);
+    expect(mocks.buildOfficialImageData).toHaveBeenCalledWith(savedQuote);
+    expect(mocks.render).toHaveBeenCalledWith(officialImageData);
   });
 
   it("카카오 발송 실패는 502 + FAILED 기록(사유 포함)", async () => {

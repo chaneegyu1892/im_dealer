@@ -232,7 +232,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(requestedUrls.some((url) => url === "/api/quote/deliver")).toBe(false);
   });
 
-  it("saves the exact quote before delivering it to Kakao", async () => {
+  it("saves the exact quote before delivering its server-side identifier to Kakao", async () => {
     writeCalculatedRestore();
     supabaseMock.getUser.mockResolvedValue({
       data: { user: { id: "supabase-user-1" } },
@@ -276,18 +276,16 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(deliverIndex).toBeGreaterThan(saveIndex);
 
     const deliverCall = fetchMock.mock.calls[deliverIndex];
-    expect(JSON.parse(String(deliverCall?.[1]?.body))).toMatchObject({
+    expect(JSON.parse(String(deliverCall?.[1]?.body))).toEqual({
       savedQuoteId: "saved-quote-1",
       sessionId: "saved-session-1",
-      vehicleName: "준비중 차량",
-      scenarioType: "conservative",
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
       "카카오톡으로 견적서를 보냈어요"
     );
   });
 
-  it("refreshes a restored anonymous quote before delivering unlocked scenarios", async () => {
+  it("refreshes a restored anonymous quote before saving and delivering its server-side identifier", async () => {
     writeLockedCalculatedRestore();
     supabaseMock.getUser.mockResolvedValue({
       data: { user: { id: "supabase-user-1" } },
@@ -347,13 +345,10 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     const deliverBody = JSON.parse(
       String(fetchMock.mock.calls[deliverIndex]?.[1]?.body)
     );
-    expect(deliverBody.scenarios).toMatchObject({
-      conservative: { monthlyPayment: 610_000 },
-      standard: { monthlyPayment: 700_000 },
-      aggressive: { monthlyPayment: 530_000 },
+    expect(deliverBody).toEqual({
+      savedQuoteId: "saved-quote-1",
+      sessionId: "saved-session-1",
     });
-    expect(deliverBody.scenarios.conservative.locked).not.toBe(true);
-    expect(deliverBody.scenarios.aggressive.locked).not.toBe(true);
   });
 
   it("requests Kakao consent directly when the stored provider token must be renewed", async () => {
