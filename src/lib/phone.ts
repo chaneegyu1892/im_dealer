@@ -19,3 +19,14 @@ export function toE164KR(phone: string | null | undefined): string | undefined {
   }
   return `+82${digits}`;
 }
+
+// 저장·표시용 국내 하이픈 형식(010-1234-5678)으로 정규화한다.
+// toE164KR 로 유효성을 검증하므로 형식이 잘못된 값은 undefined 를 반환한다.
+export function toDomesticKR(phone: string | null | undefined): string | undefined {
+  const e164 = toE164KR(phone);
+  if (!e164) return undefined;
+  const digits = `0${e164.slice(3)}`; // "+8210…" → "010…"
+  if (digits.length === 11) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return digits;
+}

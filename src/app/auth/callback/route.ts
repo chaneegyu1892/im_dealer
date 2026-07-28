@@ -58,8 +58,9 @@ export async function GET(request: Request) {
     resolvedPhone = await fetchKakaoPhone(providerToken);
   }
 
+  let dbUser: { role: string; profileCompleted: boolean } | null = null;
   try {
-    await prisma.user.upsert({
+    dbUser = await prisma.user.upsert({
       where: { supabaseId: user.id },
       update: {
         lastLoginAt: new Date(),
@@ -79,11 +80,20 @@ export async function GET(request: Request) {
         isActive: true,
         lastLoginAt: new Date(),
       },
+      select: { role: true, profileCompleted: true },
     });
   } catch (err) {
     // upsert 실패해도 세션은 살아있다. 다음 요청에서 lazy 보정 가능.
     // 어드민 가드는 prisma.user 행 부재 시 null 반환이라 권한 우회 위험 없음.
     console.error("[auth/callback] user upsert failed:", err);
+  }
+
+  // 간편가입 미완료 회원(이름·전화 미수집)은 가입완료 폼으로 유도한다.
+  // 어드민 계열/이미 완료한 회원은 원래 목적지(next)로 바로 이동.
+  if (dbUser && dbUser.role === "member" && !dbUser.profileCompleted) {
+    return NextResponse.redirect(
+      `${redirectOrigin}/welcome?next=${encodeURIComponent(next)}`
+    );
   }
 
   return NextResponse.redirect(`${redirectOrigin}${next}`);
