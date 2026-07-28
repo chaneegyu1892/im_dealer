@@ -1,5 +1,9 @@
 import * as Sentry from "@sentry/nextjs";
-import { scrubEvent } from "@/lib/sentry-before-send";
+import {
+  scrubEvent,
+  scrubSpan,
+  scrubTransaction,
+} from "@/lib/sentry-before-send";
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -21,5 +25,7 @@ if (!dsn) {
     environment: process.env.NODE_ENV,
     // 한국 PII 가 외부로 전송되기 전 마스킹 (server/edge/client 공통 헬퍼).
     beforeSend: scrubEvent,
+    beforeSendTransaction: scrubTransaction,
+    beforeSendSpan: scrubSpan,
   });
 }

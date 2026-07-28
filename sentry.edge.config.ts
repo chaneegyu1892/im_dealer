@@ -1,5 +1,9 @@
 import * as Sentry from "@sentry/nextjs";
-import { scrubEvent } from "@/lib/sentry-before-send";
+import {
+  scrubEvent,
+  scrubSpan,
+  scrubTransaction,
+} from "@/lib/sentry-before-send";
 
 // Edge 런타임(미들웨어 src/proxy.ts 등)에서 발생하는 에러 캡처.
 // DSN 미설정 시 비활성 — server config 와 동일하게 부팅을 차단하지 않는다.
@@ -12,5 +16,7 @@ if (dsn) {
     debug: false,
     environment: process.env.NODE_ENV,
     beforeSend: scrubEvent,
+    beforeSendTransaction: scrubTransaction,
+    beforeSendSpan: scrubSpan,
   });
 }
