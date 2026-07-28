@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { decryptDocumentContent } from "@/lib/pii";
 
 // ─── GET /api/verification/documents/[docId] ─────────────
@@ -9,9 +9,8 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ docId: string }> }
 ) {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error: authError } = await requireRoleAtLeast("staff");
+  if (authError) return authError;
 
   const { docId } = await params;
   const doc = await prisma.verificationDocument.findUnique({ where: { id: docId } });

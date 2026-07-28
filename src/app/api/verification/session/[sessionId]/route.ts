@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAdminSession } from "@/lib/admin-auth";
+import { requireRoleAtLeast } from "@/lib/require-admin";
 import { decryptVerificationRow } from "@/lib/pii";
 
 // ─── GET /api/verification/session/[sessionId] ───────────
@@ -9,9 +9,8 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
-  if (!(await getAdminSession())) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
-  }
+  const { error: authError } = await requireRoleAtLeast("staff");
+  if (authError) return authError;
 
   try {
     const { sessionId } = await params;
