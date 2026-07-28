@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { AdminUserRecord, AdminUsersStats } from "@/lib/admin-queries";
 import UsersClient from "./UsersClient";
@@ -127,5 +127,67 @@ describe("UsersClient 카카오싱크 수집 정보", () => {
 
     expect(screen.getByText("카카오싱크 수집 정보")).toBeInTheDocument();
     expect(screen.getByText(/아직 수집되지 않았습니다/)).toBeInTheDocument();
+  });
+});
+
+describe("UsersClient 휴면 사용자 CSV", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("neutralizes formula-leading user values before creating the download", async () => {
+    const createObjectURL = vi.fn((blob: Blob) => {
+      void blob;
+      return "blob:users-csv";
+    });
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    const formulaValues = [
+      "=SUM(1,2)",
+      "+SUM(1,2)",
+      "-SUM(1,2)",
+      "@SUM(1,2)",
+      " \t=SUM(1,2)",
+      "\t+SUM(1,2)",
+      "  -SUM(1,2)",
+      " \t@SUM(1,2)",
+    ];
+    const records = formulaValues.map((name, index) => ({
+      ...user(`formula-${index}`, name, "2026-01-01T00:00:00.000Z", "2026-07-01T00:00:00.000Z"),
+      userStatus: "dormant" as const,
+      phone: index === 0 ? '홍길동, "VIP"\n연락처' : "연락처 없음",
+      internalMemo: name,
+    }));
+
+    render(
+      <UsersClient
+        users={records}
+        stats={{ ...stats, total: records.length, active: 0, dormant: records.length }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /휴면 사용자/ }));
+    fireEvent.click(screen.getByRole("button", { name: /CSV 내보내기/ }));
+
+    const blob = createObjectURL.mock.calls[0]?.[0] as Blob | undefined;
+    expect(blob).toBeInstanceOf(Blob);
+    const csv = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob as Blob);
+    });
+    for (const value of formulaValues) {
+      expect(csv).toContain(`'${value}`);
+    }
+    expect(csv).toContain('"홍길동, ""VIP""\n연락처"');
+    expect(csv).toContain(",0,0,");
   });
 });
