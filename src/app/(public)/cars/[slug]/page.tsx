@@ -15,6 +15,7 @@ import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-que
 import type { RepresentativeQuote } from "@/lib/representative-quote";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
 import { buildCarJsonLd } from "@/lib/car-json-ld";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { SITE_URL, summarizeMetaDescription } from "@/lib/site-config";
 import type { VehicleDetail, VehicleDetailedSpecs } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
@@ -232,8 +233,7 @@ export default async function CarDetailPage({
         <script
           key={i}
           type="application/ld+json"
-          // 컨트롤된 객체를 JSON.stringify 로 직렬화하므로 XSS 위험 없음.
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
         />
       ))}
       <CarDetailClient vehicle={vehicle} />
