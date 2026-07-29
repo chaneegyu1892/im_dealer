@@ -7,6 +7,7 @@ const props = {
   isApplying: false,
   applyError: null,
   kakaoDeliveryEnabled: true,
+  channelTalkDelivery: false,
   isDelivering: false,
   deliverySuccess: false,
   deliveryError: null,
@@ -46,8 +47,14 @@ describe("QuoteResultActions", () => {
       expect(onQuoteDeliver).toHaveBeenCalledTimes(1);
     });
 
-    it("When Kakao delivery is disabled Then it hides only the delivery action", () => {
-      render(<QuoteResultActions {...props} kakaoDeliveryEnabled={false} />);
+    it("When both delivery modes are disabled Then it hides only the delivery action", () => {
+      render(
+        <QuoteResultActions
+          {...props}
+          kakaoDeliveryEnabled={false}
+          channelTalkDelivery={false}
+        />
+      );
 
       expect(
         screen.queryByRole("button", { name: "카카오톡으로 견적서 받기" })
@@ -82,6 +89,51 @@ describe("QuoteResultActions", () => {
 
       expect(screen.getByRole("alert")).toHaveTextContent(
         "카카오톡 전송에 실패했습니다."
+      );
+    });
+  });
+
+  describe("Given the ChannelTalk delivery stopgap (Kakao auto-send off)", () => {
+    const stopgapProps = {
+      ...props,
+      kakaoDeliveryEnabled: false,
+      channelTalkDelivery: true,
+    };
+
+    it("When rendered Then it still exposes the quote delivery action", () => {
+      render(<QuoteResultActions {...stopgapProps} />);
+
+      expect(
+        screen.getByRole("button", { name: "카카오톡으로 견적서 받기" })
+      ).toBeInTheDocument();
+    });
+
+    it("When the delivery action is selected Then it calls the supplied callback", () => {
+      const onQuoteDeliver = vi.fn<() => void>();
+      render(
+        <QuoteResultActions {...stopgapProps} onQuoteDeliver={onQuoteDeliver} />
+      );
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "카카오톡으로 견적서 받기" })
+      );
+
+      expect(onQuoteDeliver).toHaveBeenCalledTimes(1);
+    });
+
+    it("When pending Then it shows the ChannelTalk busy label", () => {
+      render(<QuoteResultActions {...stopgapProps} isDelivering />);
+
+      const deliveryButton = screen.getByRole("button", { name: "상담창 여는 중…" });
+      expect(deliveryButton).toBeDisabled();
+      expect(deliveryButton).toHaveAttribute("aria-busy", "true");
+    });
+
+    it("When it succeeds Then it guides the customer to send the chat message", () => {
+      render(<QuoteResultActions {...stopgapProps} deliverySuccess />);
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "전송하시면 담당자가 견적서를 보내드려요."
       );
     });
   });

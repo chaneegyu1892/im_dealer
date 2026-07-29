@@ -8,6 +8,7 @@ interface QuoteResultActionsProps {
   readonly isApplying: boolean;
   readonly applyError: string | null;
   readonly kakaoDeliveryEnabled: boolean;
+  readonly channelTalkDelivery: boolean;
   readonly isDelivering: boolean;
   readonly deliverySuccess: boolean;
   readonly deliveryError: string | null;
@@ -19,14 +20,16 @@ export function QuoteResultActions({
   isApplying,
   applyError,
   kakaoDeliveryEnabled,
+  channelTalkDelivery,
   isDelivering,
   deliverySuccess,
   deliveryError,
   onQuoteDeliver,
 }: QuoteResultActionsProps) {
+  const showQuoteDelivery = kakaoDeliveryEnabled || channelTalkDelivery;
   return (
     <section aria-label="견적 결과 actions" className="space-y-3">
-      {kakaoDeliveryEnabled ? (
+      {showQuoteDelivery ? (
         <>
           <button
             type="button"
@@ -36,7 +39,11 @@ export function QuoteResultActions({
             className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-btn bg-[var(--color-kakao-action)] px-5 text-[15px] font-extrabold text-[var(--color-kakao-ink)] shadow-card transition-colors duration-state hover:bg-[var(--color-kakao-action-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
           >
             <KakaoBubbleIcon />
-            {isDelivering ? "전송 중…" : "카카오톡으로 견적서 받기"}
+            {isDelivering
+              ? channelTalkDelivery
+                ? "상담창 여는 중…"
+                : "전송 중…"
+              : "카카오톡으로 견적서 받기"}
           </button>
 
           {deliverySuccess ? (
@@ -45,7 +52,9 @@ export function QuoteResultActions({
               className="flex items-start gap-2 rounded-[12px] border border-brand/20 bg-brand-soft p-3 text-[12px] font-semibold text-brand"
             >
               <CheckCircle2 aria-hidden="true" size={14} className="mt-0.5 shrink-0" />
-              카카오톡으로 견적서를 보냈어요. 나와의 채팅에서 확인해 주세요.
+              {channelTalkDelivery
+                ? "채팅창에 요청을 담아뒀어요. 전송하시면 담당자가 견적서를 보내드려요."
+                : "카카오톡으로 견적서를 보냈어요. 나와의 채팅에서 확인해 주세요."}
             </p>
           ) : null}
 
