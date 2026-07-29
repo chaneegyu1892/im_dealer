@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CarFront, ClipboardCheck, Home, Info, MessageCircle, UserRound } from "lucide-react";
-import { openChannelTalk } from "@/lib/channel-talk";
+import { isChannelTalkSuppressedPath, openChannelTalk } from "@/lib/channel-talk";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -22,6 +22,7 @@ const NAV_LINKS = [
 export function Header() {
   const pathname = usePathname() ?? "";
   const isHome = pathname === "/";
+  const channelTalkSuppressed = isChannelTalkSuppressedPath(pathname);
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [dbRole, setDbRole] = useState<string | null>(null);
@@ -161,14 +162,16 @@ export function Header() {
                 </Link>
               );
             })}
-            <button
-              type="button"
-              onClick={openChannelTalk}
-              className="inline-flex min-h-11 items-center gap-2 rounded-pill px-4 text-[14px] font-bold text-text-body transition-all duration-state hover:bg-surface hover:text-text-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
-            >
-              <MessageCircle size={17} strokeWidth={2} />
-              상담
-            </button>
+            {!channelTalkSuppressed && (
+              <button
+                type="button"
+                onClick={openChannelTalk}
+                className="inline-flex min-h-11 items-center gap-2 rounded-pill px-4 text-[14px] font-bold text-text-body transition-all duration-state hover:bg-surface hover:text-text-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
+              >
+                <MessageCircle size={17} strokeWidth={2} />
+                상담
+              </button>
+            )}
           </nav>
 
           {/* 우측: 로그인 상태 */}
