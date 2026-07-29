@@ -39,17 +39,16 @@ test.describe("/verify 폼 검증", () => {
     // preset customerType=self_employed → 유형 단계 건너뛰고 정보입력 직행
     await expect(page.getByLabel("이름")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByPlaceholder("앞 6자리")).toBeVisible();
+    await expect(page.getByPlaceholder("뒷자리 첫 숫자")).toBeVisible();
     await expect(page.getByLabel("휴대폰 번호")).toBeVisible();
 
     // 미입력 상태에서는 진행 버튼 비활성
     const submitBtn = page.getByRole("button", { name: /간편인증으로 진행/ });
     await expect(submitBtn).toBeDisabled();
 
-    // 필수값(이름·주민번호 앞6/뒤7·휴대폰)을 채우면 활성화
-    // 등본 제거로 주소 입력은 더 이상 받지 않는다.
     await page.getByLabel("이름").fill("홍길동");
     await page.getByPlaceholder("앞 6자리").fill("900101");
-    await page.getByPlaceholder("뒤 7자리").fill("1234567");
+    await page.getByPlaceholder("뒷자리 첫 숫자").fill("1");
     await page.getByLabel("휴대폰 번호").fill("01012345678");
 
     await expect(submitBtn).toBeEnabled();
