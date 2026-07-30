@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { appendFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { sanitizeCaptureRecord } from "./capture-policy.mjs";
 
 /**
  * 사용자가 직접 견적을 끝까지(계산하기까지) 진행하는 동안 모든 내부 .act POST 를
@@ -41,9 +42,14 @@ page.on("requestfinished", async (req) => {
     const payload = (req.postData() || "").slice(0, 3000);
     let tx = "";
     try { tx = JSON.parse(req.postData() || "{}").txGbCd || ""; } catch {}
-    const rec = { t: new Date().toISOString().slice(11, 19), path: req.url().replace(/^https?:\/\/[^/]+/, ""), txGbCd: tx, payload, resp };
+    const sanitized = sanitizeCaptureRecord({
+      path: req.url().replace(/^https?:\/\/[^/]+/, ""),
+      payload,
+      resp,
+    });
+    if (!sanitized) return;
+    const rec = { t: new Date().toISOString().slice(11, 19), txGbCd: tx, ...sanitized };
     appendFileSync(OUT, JSON.stringify(rec) + "\n");
-    // 비밀번호가 들어가는 LOGIN 페이로드는 마커에서 가린다
     console.log(`[${++n}] ${rec.t}  ${rec.path}  ${tx}${/렌트료|월납|MONTH|RENT|FEE|CALC|월정액/i.test(resp) ? "  ← 금액 응답 가능성" : ""}`);
   } catch {}
 });

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { sanitizeCaptureRecord } from "./capture-policy.mjs";
 
 /**
  * 일회성 진단: 렌터카 견적 페이지의 차량선택 cascade + 계약조건 영역 구조와
@@ -62,7 +63,12 @@ try {
         const txt = res ? await res.text() : "";
         body = txt.slice(0, 600);
       } catch { /* ignore */ }
-      posts.push({ path, payload: (req.postData() || "").slice(0, 400), resp: body });
+      const record = sanitizeCaptureRecord({
+        path,
+        payload: (req.postData() || "").slice(0, 400),
+        resp: body,
+      });
+      if (record) posts.push(record);
     } catch { /* ignore */ }
   });
 

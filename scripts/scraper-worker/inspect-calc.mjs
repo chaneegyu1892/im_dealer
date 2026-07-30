@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { sanitizeCaptureRecord } from "./capture-policy.mjs";
 
 /** 쏘렌토 1트림으로 탁송·계산 동작과 내부 POST 를 진단. */
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -22,7 +23,12 @@ try {
     try {
       if (req.method() !== "POST" || !/\.act/.test(req.url())) return;
       let resp = ""; try { const r = req.response(); resp = r ? (await r.text()).slice(0, 800) : ""; } catch {}
-      posts.push({ path: req.url().replace(/^https?:\/\/[^/]+/, ""), payload: (req.postData() || "").slice(0, 300), resp });
+      const record = sanitizeCaptureRecord({
+        path: req.url().replace(/^https?:\/\/[^/]+/, ""),
+        payload: (req.postData() || "").slice(0, 300),
+        resp,
+      });
+      if (record) posts.push(record);
     } catch {}
   });
   await page.goto("https://nf.orix.co.kr/com/login.frm", { waitUntil: "networkidle2", timeout: 45000 });

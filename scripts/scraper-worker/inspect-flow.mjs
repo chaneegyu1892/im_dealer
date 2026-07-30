@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { sanitizeCaptureRecord } from "./capture-policy.mjs";
 
 /**
  * 렌터카 cascade 전체 happy-path 를 cascade 함수(getBrandCd 등)로 구동하며
@@ -59,7 +60,12 @@ try {
       if (req.method() !== "POST" || !/orix\.co\.kr/.test(req.url())) return;
       let resp = "";
       try { const r = req.response(); resp = r ? (await r.text()).slice(0, 1500) : ""; } catch {}
-      posts.push({ path: req.url().replace(/^https?:\/\/[^/]+/, ""), payload: (req.postData() || "").slice(0, 500), resp });
+      const record = sanitizeCaptureRecord({
+        path: req.url().replace(/^https?:\/\/[^/]+/, ""),
+        payload: (req.postData() || "").slice(0, 500),
+        resp,
+      });
+      if (record) posts.push(record);
     } catch {}
   });
 
