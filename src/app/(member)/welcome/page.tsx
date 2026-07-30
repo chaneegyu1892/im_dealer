@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/admin-auth";
+import { getSafeInternalPath } from "@/lib/auth/redirect";
 import { WelcomeForm } from "./WelcomeForm";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +13,7 @@ export default async function WelcomePage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const { next } = await searchParams;
-  // 오픈 리다이렉트 방지: 내부 경로(/…)만 허용.
-  const safeNext = next && next.startsWith("/") ? next : "/";
+  const safeNext = getSafeInternalPath(next);
 
   const user = await getCurrentUser();
   if (!user) {
