@@ -18,7 +18,7 @@
 ```bash
 git clone <포크 링크>
 cd im_dealer
-git checkout feat/capital-rate-scraper   # 작업 브랜치 (스크래퍼 포함)
+git checkout main
 ```
 
 ## 2. 패키지 매니저 (pnpm) — ⚠️ 중요
@@ -50,8 +50,10 @@ pnpm install
 ## 5. Prisma 클라이언트 — ⚠️ 함정
 pnpm 심링크 타이밍상 클라이언트가 `@prisma/client did not initialize yet` 에러를 낼 수 있습니다.
 - [ ] **`pnpm db:generate` 한 번 더 실행** → 해결
-- 같은 Supabase는 이미 마이그레이션돼 있어 **마이그레이션 불필요**.
-  (만약 *빈 새 DB*라면 `pnpm db:push` 또는 `prisma migrate deploy` 후 필요 시 `pnpm exec prisma db seed`)
+- 같은 Supabase를 공유해도 새 migration은 운영 DB에 **한 번만** 적용해야 합니다.
+- [ ] `pnpm exec prisma migrate status` 로 미적용 migration 확인
+- [ ] 미적용 항목이 있으면 운영 배포 전에 `pnpm exec prisma migrate deploy`
+- 빈 새 DB에서만 필요 시 `pnpm exec prisma db seed`
 
 ## 6. 실행 + 검증
 ```bash
