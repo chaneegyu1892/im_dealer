@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getActiveUser } from "@/lib/require-user";
 import {
   calculateMultiFinanceQuote,
   type RateConfigData,
@@ -67,10 +67,7 @@ export async function POST(
     // 0) 회원 여부 확인 — 보증금/선납금으로 낮아진 월납입금은 회원 전용.
     //    비회원에게는 (1) 커스텀 보증/선납 비율을 무시하고 (2) 보증금형·선납형
     //    시나리오를 잠가, 낮아진 금액이 응답 JSON 에 애초에 실리지 않게 한다(보안 경계).
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getActiveUser();
     const isMember = !!user;
 
     // 1) 차량 + 트림 조회
@@ -141,7 +138,7 @@ export async function POST(
         try {
           await upsertQuoteCalcLog({
             sessionId: input.sessionId,
-            userId: user?.id ?? null,
+            userId: user?.supabaseId ?? null,
             vehicleId: vehicle.id,
             vehicleSlug: slug,
             vehicleName: vehicle.name,
@@ -252,7 +249,7 @@ export async function POST(
     const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
     const userAgent = request.headers.get("user-agent") ?? undefined;
     const calcLogBase = {
-      userId: user?.id ?? null,
+      userId: user?.supabaseId ?? null,
       vehicleId: vehicle.id,
       vehicleSlug: slug,
       vehicleName: vehicle.name,

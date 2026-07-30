@@ -156,4 +156,40 @@ describe("public car detail SSR", () => {
     expect(payload).not.toContain("deleted.jpg");
   });
 
+  it("does not allow stored JSON-LD text to close its script tag", async () => {
+    mocks.findUnique.mockResolvedValue({
+      id: "vehicle",
+      slug: "test-car",
+      name: "테스트카",
+      brand: "테스트",
+      category: "SUV",
+      vehicleCode: null,
+      basePrice: 40_000_000,
+      thumbnailUrl: "",
+      thumbnailImageId: null,
+      thumbnailImage: null,
+      imageUrls: [],
+      surchargeRate: 0,
+      isVisible: true,
+      isPopular: false,
+      description: null,
+      detailedSpecs: null,
+      trims: [],
+      recConfigs: null,
+      images: [],
+      _count: { images: 0 },
+    });
+    const attack = "</script><script>globalThis.xss = true</script>";
+    mocks.buildJsonLd.mockReturnValue([{ "@context": "https://schema.org", description: attack }]);
+
+    const markup = renderToStaticMarkup(await CarDetailPage({
+      params: Promise.resolve({ slug: "test-car" }),
+    }));
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    const jsonLdText = document.querySelector('script[type="application/ld+json"]')?.textContent ?? "";
+
+    expect(markup).not.toContain(attack);
+    expect(JSON.parse(jsonLdText)).toMatchObject({ description: attack });
+  });
+
 });

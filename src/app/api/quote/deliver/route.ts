@@ -6,10 +6,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { requireActiveUser } from "@/lib/require-user";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
-import { buildQuoteImageData } from "@/lib/quote-image/from-request";
+import { buildOfficialDeliveryImageData } from "@/lib/quote-delivery/official-image";
 import { deleteQuoteImage, uploadQuoteImage } from "@/lib/quote-delivery/store";
 import { getKakaoAccessToken } from "@/lib/kakao/token";
 import { sendQuoteMemo } from "@/lib/kakao/memo";
@@ -33,13 +33,10 @@ export async function POST(req: NextRequest) {
   const limited = await checkRateLimit(req, strictRateLimit);
   if (limited) return limited;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  const { user, error: authError } = await requireActiveUser();
+  if (authError) return authError;
+  if (!user.supabaseId) {
+    return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 404 });
   }
 
   let body: unknown;
@@ -54,36 +51,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "저장된 견적 정보가 필요합니다." }, { status: 400 });
   }
 
-  let imageData;
-  try {
-    imageData = buildQuoteImageData(body, null);
-  } catch {
-    return NextResponse.json({ error: "필수 견적 정보가 누락되었습니다." }, { status: 400 });
-  }
-
-  const member = await prisma.user.findUnique({
-    where: { supabaseId: user.id },
-    select: { id: true },
-  });
-  if (!member) {
-    return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 404 });
-  }
-
   const savedQuote = await prisma.savedQuote.findFirst({
     where: {
       id: metadataResult.data.savedQuoteId,
       sessionId: metadataResult.data.sessionId,
-      userId: user.id,
+      userId: user.supabaseId,
       deletedAt: null,
       expiresAt: { gt: new Date() },
     },
-    select: { id: true },
+    select: {
+      id: true,
+      vehicleId: true,
+      trimId: true,
+      contractMonths: true,
+      annualMileage: true,
+      depositRate: true,
+      prepayRate: true,
+      contractType: true,
+      monthlyPayment: true,
+      pricingStatus: true,
+      breakdown: true,
+      exteriorColorId: true,
+      interiorColorId: true,
+    },
   });
   if (!savedQuote) {
     return NextResponse.json({ error: "전송할 견적을 확인할 수 없습니다." }, { status: 403 });
   }
 
-  const accessToken = await getKakaoAccessToken(user.id);
+  const imageResult = await buildOfficialDeliveryImageData(savedQuote);
+  if (!imageResult.ok) {
+    return NextResponse.json(
+      { error: imageResult.error.error },
+      { status: imageResult.error.status }
+    );
+  }
+  const imageData = imageResult.data;
+
+  const accessToken = await getKakaoAccessToken(user.supabaseId);
   if (!accessToken) {
     return NextResponse.json(
       { error: "카카오톡 전송 권한이 만료되었습니다. 다시 로그인해 주세요.", code: "KAKAO_REAUTH_REQUIRED" },
@@ -111,7 +116,7 @@ export async function POST(req: NextRequest) {
 
     delivery = await prisma.quoteDelivery.create({
       data: {
-        userId: member.id,
+        userId: user.id,
         savedQuoteId: savedQuote.id,
         vehicleName: imageData.vehicleName,
         imagePath: path,

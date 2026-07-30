@@ -19,7 +19,8 @@ import {
   parseLegacyQuoteDraft,
   parseQuoteDraft,
 } from "@/lib/quote-draft";
-import { EasyAuthStep } from "./EasyAuthStep";
+import { residentRegistrationBirthDate } from "@/lib/resident-registration";
+import { EasyAuthStep, type EasyAuthInfo } from "./EasyAuthStep";
 
 // ─── 타입 ────────────────────────────────────────────────
 type Step = 1 | 2 | 3 | "easyauth" | "done";
@@ -27,24 +28,11 @@ type Step = 1 | 2 | 3 | "easyauth" | "done";
 interface FormState {
   name: string;
   rrnFront: string; // 주민번호 앞 6자리
-  rrnBack: string; // 주민번호 뒤 7자리
+  rrnBackFirst: string; // 주민번호 뒤 첫 숫자 (세기 판별용)
   phone: string;
 }
 
-// 주민번호에서 생년월일 YYYYMMDD 생성 (홈택스 loginIdentity 용)
-function rrnToBirthDate(rrn: string): string {
-  if (rrn.length < 7) return "";
-  const yy = rrn.slice(0, 2);
-  const mmdd = rrn.slice(2, 6);
-  const g = rrn[6];
-  const century =
-    g === "1" || g === "2" || g === "5" || g === "6"
-      ? "19"
-      : g === "3" || g === "4" || g === "7" || g === "8"
-      ? "20"
-      : "19";
-  return `${century}${yy}${mmdd}`;
-}
+const EMPTY_FORM: FormState = { name: "", rrnFront: "", rrnBackFirst: "", phone: "" };
 
 // ─── StepIndicator ────────────────────────────────────────
 const VERIFY_STEPS = [
@@ -179,7 +167,7 @@ function Step1Consent({ consents, onChange, onNext }: Step1Props) {
             {
               key: "privacy" as const,
               label: "[필수] 개인정보 수집·이용에 동의합니다",
-              sub: "이름, 생년월일, 휴대전화번호, 통신사 정보를 서류 발급 목적으로 수집합니다. 주민등록번호 뒤 7자리는 생년월일 산출에만 사용되며 서버에 전송·저장되지 않습니다.",
+              sub: "이름, 생년월일, 휴대전화번호, 통신사 정보를 서류 발급 목적으로 수집합니다. 주민등록번호 앞 6자리와 뒤 첫 숫자만 생년월일 산출에 사용되며 서버에 전송·저장되지 않습니다.",
             },
             {
               key: "codef" as const,
@@ -338,7 +326,7 @@ function InputField({
   );
 }
 
-function Step3Form({
+export function Step3Form({
   form,
   onChange,
   onSubmit,
@@ -349,7 +337,7 @@ function Step3Form({
   const isValid =
     form.name.trim() !== "" &&
     form.rrnFront.length === 6 &&
-    form.rrnBack.length === 7 &&
+    form.rrnBackFirst.length === 1 &&
     form.phone.trim() !== "";
 
   return (
@@ -388,9 +376,10 @@ function Step3Form({
               type="password"
               inputMode="numeric"
               autoComplete="off"
-              value={form.rrnBack}
-              onChange={(e) => onChange("rrnBack", e.target.value.replace(/\D/g, "").slice(0, 7))}
-              placeholder="뒤 7자리"
+              maxLength={1}
+              value={form.rrnBackFirst}
+              onChange={(e) => onChange("rrnBackFirst", e.target.value.replace(/\D/g, "").slice(0, 1))}
+              placeholder="뒷자리 첫 숫자"
               className={cn(
                 "w-full rounded-[12px] border border-[#E5E8EB] bg-white px-4 py-3.5",
                 "text-[14px] text-ink placeholder:text-ink-caption tracking-wider",
@@ -398,7 +387,7 @@ function Step3Form({
               )}
             />
           </div>
-          <p className="text-[11px] text-text-muted">공공기관 본인확인용. 뒷자리는 가려지고 암호화 처리됩니다.</p>
+          <p className="text-[11px] text-text-muted">공공기관 본인확인용. 뒤 첫 숫자만 사용하며 주민번호 원문은 전송·저장하지 않습니다.</p>
         </div>
         <InputField
           label="휴대폰 번호"
@@ -535,12 +524,8 @@ export function VerifyClient() {
   const [customerType, setCustomerType] = useState<CustomerType>(
     presetCustomerType ?? "individual"
   );
-  const [form, setForm] = useState<FormState>({
-    name: "",
-    rrnFront: "",
-    rrnBack: "",
-    phone: "",
-  });
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [easyAuthInfo, setEasyAuthInfo] = useState<EasyAuthInfo | null>(null);
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -555,6 +540,16 @@ export function VerifyClient() {
 
   const handleSubmit = async () => {
     if (!sessionId) return;
+    const birthDate = residentRegistrationBirthDate(form.rrnFront, form.rrnBackFirst);
+    if (!birthDate) {
+      setError("주민등록번호 앞 6자리와 뒤 첫 숫자를 확인해 주세요.");
+      return;
+    }
+    const info: EasyAuthInfo = {
+      userName: form.name.trim(),
+      birthDate,
+      phoneNo: form.phone,
+    };
     setLoading(true);
     setError(null);
     try {
@@ -577,6 +572,9 @@ export function VerifyClient() {
         throw new Error(consentData.error ?? "동의 저장에 실패했습니다.");
       }
       setVerificationId(consentData.data.verificationId);
+      setEasyAuthInfo(info);
+      // 생년월일을 파생한 직후 원문 주민번호 자리는 더 이상 state에 남기지 않는다.
+      setForm((prev) => ({ ...prev, rrnFront: "", rrnBackFirst: "" }));
       setStep("easyauth");
     } catch (err) {
       setError(
@@ -590,6 +588,8 @@ export function VerifyClient() {
   // 간편인증 문서수집 완료 후 견적 초안 저장, 완료 화면
   const handleEasyAuthDone = async () => {
     if (!sessionId) {
+      setEasyAuthInfo(null);
+      setForm(EMPTY_FORM);
       setStep("done");
       return;
     }
@@ -648,6 +648,8 @@ export function VerifyClient() {
       const error = err instanceof Error ? err : new Error(String(err));
       Sentry.captureException(error, { tags: { area: "verify", customerType } });
     } finally {
+      setEasyAuthInfo(null);
+      setForm(EMPTY_FORM);
       setStep("done");
     }
   };
@@ -710,17 +712,16 @@ export function VerifyClient() {
           />
         )}
 
-        {step === "easyauth" && verificationId && (
+        {step === "easyauth" && verificationId && easyAuthInfo && (
           <EasyAuthStep
             verificationId={verificationId}
             customerType={customerType}
-            info={{
-              userName: form.name,
-              birthDate: rrnToBirthDate(form.rrnFront + form.rrnBack),
-              phoneNo: form.phone,
-            }}
+            info={easyAuthInfo}
             onDone={handleEasyAuthDone}
-            onBack={() => setStep(3)}
+            onBack={() => {
+              setEasyAuthInfo(null);
+              setStep(3);
+            }}
           />
         )}
 
@@ -730,7 +731,7 @@ export function VerifyClient() {
       {/* 진행 텍스트 */}
       {step !== "done" && (
         <p className="text-center text-[12px] text-text-muted mt-4">
-          {`${stepToNum(step)} / ${VERIFY_STEPS.length} 단계`} · 입력 정보는 암호화되어 전송됩니다
+          {`${stepToNum(step)} / ${VERIFY_STEPS.length} 단계`} · 주민등록번호 원문은 전송·저장하지 않습니다
         </p>
       )}
     </div>

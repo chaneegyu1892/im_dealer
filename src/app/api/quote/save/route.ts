@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getActiveUser } from "@/lib/require-user";
 import {
   calculateMultiFinanceQuote,
   type CalcInput,
@@ -15,6 +16,13 @@ import { createAdminNotification } from "@/lib/admin-notification";
 import { saveQuoteSchema } from "./request-schema";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { resolveQuoteContact } from "@/lib/quote-contact";
+import {
+  createVerificationCapability,
+  hashVerificationCapability,
+  matchesVerificationCapability,
+  VERIFICATION_CAPABILITY_MAX_AGE_SECONDS,
+  verificationCapabilityCookieName,
+} from "@/lib/verification-capability";
 
 const SCENARIO_CONDITIONS = {
   conservative: { depositRate: 20, prepayRate: 0 },
@@ -22,11 +30,26 @@ const SCENARIO_CONDITIONS = {
   aggressive: { depositRate: 0, prepayRate: 30 },
 } as const;
 
+function attachVerificationCapability<T>(
+  response: NextResponse<T>,
+  sessionId: string,
+  capability: string | null
+): NextResponse<T> {
+  if (!capability) return response;
+  response.cookies.set({
+    name: verificationCapabilityCookieName(sessionId),
+    value: capability,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/api/verification",
+    maxAge: VERIFICATION_CAPABILITY_MAX_AGE_SECONDS,
+  });
+  return response;
+}
+
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getActiveUser();
 
   try {
     const body = await request.json();
@@ -107,15 +130,35 @@ export async function POST(request: NextRequest) {
         pricingStatus: true,
         customerName: true,
         phone: true,
+        verificationCapabilityHash: true,
       },
     });
 
     if (existing?.deletedAt) {
       return NextResponse.json({ error: "삭제된 견적입니다." }, { status: 410 });
     }
-    if (existing?.userId && existing.userId !== user?.id) {
+    if (existing?.userId && existing.userId !== user?.supabaseId) {
       return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
     }
+
+    const activeUserId = user?.supabaseId ?? null;
+    let issuedVerificationCapability: string | null = null;
+    let verificationCapabilityHash: string | null = null;
+
+    if (existing?.userId === null) {
+      const capability = (await cookies())
+        .get(verificationCapabilityCookieName(input.sessionId))
+        ?.value;
+      if (!capability || !matchesVerificationCapability(existing.verificationCapabilityHash, capability)) {
+        return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
+      }
+      verificationCapabilityHash = activeUserId ? null : existing.verificationCapabilityHash;
+    } else if (!existing && !activeUserId) {
+      issuedVerificationCapability = createVerificationCapability();
+      verificationCapabilityHash = hashVerificationCapability(issuedVerificationCapability);
+    }
+
+    const quoteOwnerId = activeUserId ?? existing?.userId ?? null;
     if (existing && existing.status !== "NEW") {
       return NextResponse.json({
         success: true,
@@ -127,17 +170,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const memberProfile = user
-      ? await prisma.user.findUnique({
-          where: { supabaseId: user.id },
-          select: { name: true, phone: true },
-        })
-      : null;
     const contact = resolveQuoteContact({
       quoteName: existing?.customerName,
       quotePhone: existing?.phone,
-      memberName: memberProfile?.name,
-      memberPhone: memberProfile?.phone,
+      memberName: user?.name,
+      memberPhone: user?.phone,
     });
 
     const [rateSheets, rankSurcharges] = await Promise.all([
@@ -188,7 +225,8 @@ export async function POST(request: NextRequest) {
 
       const data = {
         sessionId: input.sessionId,
-        userId: user?.id ?? existing?.userId ?? null,
+        userId: quoteOwnerId,
+        verificationCapabilityHash,
         vehicleId: vehicle.id,
         trimId: trim.id,
         contractMonths: input.contractMonths,
@@ -235,14 +273,14 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({
+      return attachVerificationCapability(NextResponse.json({
         success: true,
         data: {
           id: savedQuote.id,
           sessionId: savedQuote.sessionId,
           requiresConsultation: true,
         },
-      });
+      }), input.sessionId, issuedVerificationCapability);
     }
 
     const configs: RateConfigData[] = rateSheets.map((rs) => ({
@@ -326,7 +364,8 @@ export async function POST(request: NextRequest) {
 
     const data = {
       sessionId: input.sessionId,
-      userId: user?.id ?? existing?.userId ?? null,
+      userId: quoteOwnerId,
+      verificationCapabilityHash,
       vehicleId: vehicle.id,
       trimId: trim.id,
       contractMonths: input.contractMonths,
@@ -362,10 +401,10 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({
+    return attachVerificationCapability(NextResponse.json({
       success: true,
       data: { id: savedQuote.id, sessionId: savedQuote.sessionId },
-    });
+    }), input.sessionId, issuedVerificationCapability);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

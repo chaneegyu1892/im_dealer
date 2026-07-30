@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/require-user";
 import {
   verifyDriverLicense,
   verifyHealthInsurance,
@@ -24,12 +24,10 @@ const fetchSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // 로그인 필수 — Codef 유료 API 호출 및 PII 저장을 인증된 사용자만 허용.
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    const { user, error: authError } = await requireActiveUser();
+    if (authError) return authError;
+    if (!user.supabaseId) {
+      return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 403 });
     }
 
     const body = await request.json();
@@ -44,8 +42,8 @@ export async function POST(request: NextRequest) {
 
     const { verificationId, connectedId, name, birthDate, licenseNo, bizNo } = parsed.data;
 
-    const verification = await prisma.customerVerification.findUnique({
-      where: { id: verificationId },
+    const verification = await prisma.customerVerification.findFirst({
+      where: { id: verificationId, userId: user.supabaseId },
     });
 
     if (!verification) {
@@ -54,11 +52,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-
-    // verification 레코드의 userId 가 현재 로그인 사용자와 일치하는지 확인.
-    // consent 라우트가 CustomerVerification 에 userId 를 저장하지 않으므로,
-    // sessionId 기반 매칭이 불가능 → 최소한 로그인 여부로 게이트한다.
-    // (TODO: CustomerVerification 에 userId 컬럼 추가 후 소유권 검증 강화)
 
     const customerType = verification.customerType as
       | "individual"

@@ -1,4 +1,5 @@
 import type { CatalogProgress, CatalogScrapeSummary, CatalogTrimEntry, ScrapeDraft, ScrapeJobType } from "../../src/types/scraper";
+import { SCRAPE_JOB_LEASE_TOKEN_HEADER } from "../../src/lib/scraper/job-state";
 import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
 
 /** 백엔드 워커 라우트와 통신하는 얇은 fetch 래퍼 (Bearer 시크릿). */
@@ -6,16 +7,18 @@ import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
 const BASE = process.env.WORKER_API_BASE ?? "http://localhost:3000";
 const SECRET = process.env.SCRAPER_WORKER_SECRET ?? "";
 
-function headers() {
+function headers(leaseToken?: string) {
   return {
     "content-type": "application/json",
     authorization: `Bearer ${SECRET}`,
     "x-worker-protocol-version": String(WORKER_PROTOCOL_VERSION),
+    ...(leaseToken ? { [SCRAPE_JOB_LEASE_TOKEN_HEADER]: leaseToken } : {}),
   };
 }
 
 export interface ClaimedJob {
   id: string;
+  leaseToken: string;
   financeCompanyId: string;
   jobType: ScrapeJobType;
   productType: string;
@@ -74,11 +77,12 @@ export async function claimJob(): Promise<ClaimResult> {
 /** 하트비트 전송. 백엔드가 알려준 현재 status 를 반환 (cancel/resume 감지용). */
 export async function heartbeat(
   jobId: string,
+  leaseToken: string,
   body?: { status?: "running" | "needs_human"; humanPrompt?: string; progress?: CatalogProgress }
 ): Promise<string> {
   const res = await fetch(`${BASE}/api/worker/scrape-jobs/${jobId}/heartbeat`, {
     method: "POST",
-    headers: headers(),
+    headers: headers(leaseToken),
     body: JSON.stringify(body ?? {}),
   });
   if (!res.ok) throw new Error(`heartbeat 실패: HTTP ${res.status}`);
@@ -88,6 +92,7 @@ export async function heartbeat(
 
 export async function postResult(
   jobId: string,
+  leaseToken: string,
   result:
     | { ok: true; draft: ScrapeDraft }
     | { ok: true; catalogSummary: CatalogScrapeSummary }
@@ -95,7 +100,7 @@ export async function postResult(
 ): Promise<void> {
   const res = await fetch(`${BASE}/api/worker/scrape-jobs/${jobId}/result`, {
     method: "POST",
-    headers: headers(),
+    headers: headers(leaseToken),
     body: JSON.stringify(result),
   });
   if (!res.ok) throw new Error(`result 실패: HTTP ${res.status}`);
@@ -104,27 +109,33 @@ export async function postResult(
 /** catalog 잡 증분 결과 flush (모델 경계/20건 단위). */
 export async function postCatalogResults(body: {
   jobId: string;
+  leaseToken: string;
   financeCompanyId: string;
   productType: string;
   weekOf: string;
   entries: CatalogTrimEntry[];
 }): Promise<void> {
+  const { leaseToken, ...payload } = body;
   const res = await fetch(`${BASE}/api/worker/catalog/results`, {
     method: "POST",
-    headers: headers(),
-    body: JSON.stringify(body),
+    headers: headers(leaseToken),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`catalog results 실패: HTTP ${res.status}`);
 }
 
 /** 이번주 이미 수집된 외부 트림코드 목록 (재개 시 스킵 판정). */
 export async function getCollectedMdelCds(
+  jobId: string,
+  leaseToken: string,
   financeCompanyId: string,
   productType: string,
   weekOf: string
 ): Promise<string[]> {
-  const qs = new URLSearchParams({ financeCompanyId, productType, weekOf });
-  const res = await fetch(`${BASE}/api/worker/catalog/collected?${qs}`, { headers: headers() });
+  const qs = new URLSearchParams({ jobId, financeCompanyId, productType, weekOf });
+  const res = await fetch(`${BASE}/api/worker/catalog/collected?${qs}`, {
+    headers: headers(leaseToken),
+  });
   if (!res.ok) throw new Error(`catalog collected 실패: HTTP ${res.status}`);
   const data = (await res.json()) as { mdelCds: string[] };
   return data.mdelCds ?? [];

@@ -4,7 +4,9 @@ import LoginContent from "./LoginContent";
 
 const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
-  getSession: vi.fn(async () => ({ data: { session: null } })),
+  getSession: vi.fn(async () => ({
+    data: { session: null as { user: { id: string } } | null },
+  })),
   signInWithOAuth: vi.fn(async () => ({
     data: { provider: "kakao", url: null },
     error: null,
@@ -91,5 +93,18 @@ describe("LoginContent Kakao OAuth", () => {
         redirectTo: "https://imdealer.example/auth/callback?next=%2F",
       }),
     });
+  });
+
+  it("does not navigate an existing session to an encoded protocol-relative next path", async () => {
+    navigation.searchParams = new URLSearchParams(
+      "next=%2F%252e%252e%2F%2Fevil.example%2Fphish"
+    );
+    mocks.getSession.mockResolvedValue({
+      data: { session: { user: { id: "member-1" } } },
+    });
+
+    render(<LoginContent />);
+
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/"));
   });
 });

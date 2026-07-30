@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { requireActiveUser } from "@/lib/require-user";
 import { startEasyAuth } from "@/lib/codef/easyauth";
 import { docTypesForCustomer } from "@/lib/codef/doc-types";
 import { isCustomerType } from "@/constants/customer-types";
@@ -11,12 +11,10 @@ import { easyAuthFieldsSchema, toEasyAuthInput } from "../validation";
 // 클라이언트는 twoWayInfo 와 입력값을 complete 에 다시 실어 보낸다(서버 무상태).
 export async function POST(request: NextRequest) {
   // 로그인 필수 — 간편인증 요청(유료 Codef API)을 인증된 사용자만 허용.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  const { user, error: authError } = await requireActiveUser();
+  if (authError) return authError;
+  if (!user.supabaseId) {
+    return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 403 });
   }
 
   const parsed = easyAuthFieldsSchema.safeParse(await request.json().catch(() => null));
@@ -25,8 +23,8 @@ export async function POST(request: NextRequest) {
   }
   const fields = parsed.data;
 
-  const verification = await prisma.customerVerification.findUnique({
-    where: { id: fields.verificationId },
+  const verification = await prisma.customerVerification.findFirst({
+    where: { id: fields.verificationId, userId: user.supabaseId },
   });
   if (!verification) {
     return NextResponse.json({ error: "해당 인증 레코드를 찾을 수 없습니다." }, { status: 404 });

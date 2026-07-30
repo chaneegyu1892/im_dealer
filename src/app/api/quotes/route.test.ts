@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 const mocks = vi.hoisted(() => ({
-  getUser: vi.fn(),
+  requireActiveUser: vi.fn(),
   findVehicle: vi.fn(),
   findExistingQuote: vi.fn(),
   findCurrentQuote: vi.fn(),
@@ -28,8 +28,8 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(() => ({ auth: { getUser: mocks.getUser } })),
+vi.mock("@/lib/require-user", () => ({
+  requireActiveUser: mocks.requireActiveUser,
 }));
 
 vi.mock("@/lib/admin-notification", () => ({
@@ -62,12 +62,15 @@ function request(): NextRequest {
 describe("POST /api/quotes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
+    mocks.requireActiveUser.mockResolvedValue({
+      user: { id: "member-1", supabaseId: "user-1", isActive: true },
+      error: null,
+    });
     mocks.findVehicle.mockResolvedValue({ id: "vehicle-1" });
     mocks.findExistingQuote.mockResolvedValue({
       id: "quote-1",
       sessionId: "session-1",
-      userId: null,
+      userId: "user-1",
       deletedAt: null,
       customerName: null,
       phone: null,
@@ -92,7 +95,7 @@ describe("POST /api/quotes", () => {
     mocks.createAdminNotification.mockResolvedValue(undefined);
   });
 
-  it("updates the pre-verification quote instead of creating a duplicate", async () => {
+  it("updates the caller-owned pre-verification quote instead of creating a duplicate", async () => {
     const response = await POST(request());
 
     expect(response.status).toBe(200);
@@ -105,7 +108,7 @@ describe("POST /api/quotes", () => {
         where: {
           id: "quote-1",
           deletedAt: null,
-          OR: [{ userId: null }, { userId: "user-1" }],
+          userId: "user-1",
           customerName: null,
           phone: null,
         },
@@ -144,7 +147,10 @@ describe("POST /api/quotes", () => {
   });
 
   it("requires authentication before enriching a saved quote", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.requireActiveUser.mockResolvedValue({
+      user: null,
+      error: new Response(JSON.stringify({ error: "로그인이 필요합니다." }), { status: 401 }),
+    });
 
     const response = await POST(request());
 
@@ -159,6 +165,20 @@ describe("POST /api/quotes", () => {
 
     expect(response.status).toBe(409);
     expect(mocks.createQuote).not.toHaveBeenCalled();
+  });
+
+  it("does not let a member claim an unowned quote during verification enrichment", async () => {
+    mocks.findExistingQuote.mockResolvedValue({
+      id: "quote-unowned",
+      sessionId: "session-1",
+      userId: null,
+      deletedAt: null,
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(403);
+    expect(mocks.updateQuotes).not.toHaveBeenCalled();
   });
 
   it("does not repeat the admin notification after customer details are already present", async () => {

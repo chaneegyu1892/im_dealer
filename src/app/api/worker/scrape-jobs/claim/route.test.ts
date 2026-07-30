@@ -128,6 +128,7 @@ describe("POST /api/worker/scrape-jobs/claim", () => {
         status: "running",
         claimedAt: expect.any(Date),
         heartbeatAt: expect.any(Date),
+        leaseToken: expect.any(String),
       },
     });
   });
@@ -151,7 +152,7 @@ describe("POST /api/worker/scrape-jobs/claim", () => {
       where: {
         id: "job-1",
         status: "running",
-        claimedAt: expect.any(Date),
+        leaseToken: expect.any(String),
       },
       data: expect.objectContaining({ status: "failed" }),
     });
@@ -177,6 +178,8 @@ describe("POST /api/worker/scrape-jobs/claim", () => {
     const body = await res.json();
 
     expect(body.job?.id).toBe("job-1");
+    expect(body.job?.leaseToken).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(body.job?.leaseToken).toBe(mocks.updateMany.mock.calls[0][0].data.leaseToken);
     expect(body.credential.requiresHuman).toBe(true);
     expect(body.credential.usernameEnc).toBe("");
     // 실패 처리(2번째 updateMany)가 일어나지 않아야 한다
@@ -200,6 +203,33 @@ describe("POST /api/worker/scrape-jobs/claim", () => {
     expect(mocks.updateMany).toHaveBeenLastCalledWith({
       where: expect.anything(),
       data: expect.objectContaining({ status: "failed", error: "로그인 정보 없음" }),
+    });
+  });
+
+  it("만료된 자동 로그인 자격증명을 워커에 다시 내려주지 않는다", async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: "job-1",
+      status: "pending",
+      financeCompanyId: "fc-1",
+      credUsernameEnc: "encrypted-user",
+      credPasswordEnc: "encrypted-pass",
+      credentialExpiresAt: new Date("2020-01-01T00:00:00.000Z"),
+    });
+    mocks.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 1 });
+
+    const res = await POST(claimRequest());
+
+    expect((await res.json()).job).toBeNull();
+    expect(mocks.financeCompanyFindUnique).not.toHaveBeenCalled();
+    expect(mocks.updateMany).toHaveBeenLastCalledWith({
+      where: { id: "job-1", status: "running", leaseToken: expect.any(String) },
+      data: expect.objectContaining({
+        status: "failed",
+        error: "로그인 정보 보관 기간 만료",
+        credUsernameEnc: null,
+        credPasswordEnc: null,
+        leaseToken: null,
+      }),
     });
   });
 });

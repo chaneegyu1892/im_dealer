@@ -1,18 +1,25 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mocks = vi.hoisted(() => ({ findMany: vi.fn() }));
+const mocks = vi.hoisted(() => ({ findMany: vi.fn(), jobFindUnique: vi.fn() }));
 
 vi.mock("@/lib/worker-auth", () => ({ requireWorker: () => ({ error: null }) }));
 vi.mock("@/lib/prisma", () => ({
-  prisma: { capitalCatalogTrim: { findMany: mocks.findMany } },
+  prisma: {
+    scrapeJob: { findUnique: mocks.jobFindUnique },
+    capitalCatalogTrim: { findMany: mocks.findMany },
+  },
 }));
 
 import { GET } from "./route";
 
-function request() {
+const CURRENT_LEASE = "25db3703-3c79-4b91-a138-b95cf86b4151";
+const STALE_LEASE = "916fbf19-aea3-4e59-ae78-434cf60ac578";
+
+function request(leaseToken = CURRENT_LEASE) {
   return new NextRequest(
-    "http://localhost/api/worker/catalog/collected?financeCompanyId=fc-1&productType=장기렌트&weekOf=2026-07-20"
+    "http://localhost/api/worker/catalog/collected?jobId=job-1&financeCompanyId=fc-1&productType=장기렌트&weekOf=2026-07-20",
+    { headers: { "x-scrape-job-lease-token": leaseToken } }
   );
 }
 
@@ -23,7 +30,22 @@ async function collectedFrom(rows: { mdelCd: string; baseRates: unknown }[]) {
 }
 
 describe("GET /api/worker/catalog/collected", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.jobFindUnique.mockResolvedValue({
+      status: "running",
+      jobType: "catalog",
+      financeCompanyId: "fc-1",
+      productType: "장기렌트",
+      leaseToken: CURRENT_LEASE,
+      params: {
+        mode: "catalog",
+        productType: "장기렌트",
+        weekOf: "2026-07-20",
+        brands: [{ brandCd: "B-1", name: "브랜드" }],
+      },
+    });
+  });
 
   it("회수율이 있는 모델만 수집됨으로 본다", async () => {
     const mdelCds = await collectedFrom([
@@ -56,9 +78,17 @@ describe("GET /api/worker/catalog/collected", () => {
   it("weekOf 형식이 틀리면 400", async () => {
     const res = await GET(
       new NextRequest(
-        "http://localhost/api/worker/catalog/collected?financeCompanyId=fc-1&productType=장기렌트&weekOf=2026-7-20"
+        "http://localhost/api/worker/catalog/collected?jobId=job-1&financeCompanyId=fc-1&productType=장기렌트&weekOf=2026-7-20",
+        { headers: { "x-scrape-job-lease-token": CURRENT_LEASE } }
       )
     );
     expect(res.status).toBe(400);
+  });
+
+  it("stale lease는 다른 워커가 회수한 작업 범위를 조회하지 못한다", async () => {
+    const res = await GET(request(STALE_LEASE));
+
+    expect(res.status).toBe(409);
+    expect(mocks.findMany).not.toHaveBeenCalled();
   });
 });

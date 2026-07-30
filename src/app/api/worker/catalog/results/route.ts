@@ -4,7 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { requireWorker } from "@/lib/worker-auth";
 import { workerCatalogResultsSchema } from "@/lib/validations/admin";
 import { RATE_KEYS } from "@/lib/quote-calculator";
-import { canAcceptCatalogResults, isTerminalScrapeJobStatus } from "@/lib/scraper/job-state";
+import {
+  canAcceptCatalogResults,
+  getScrapeJobLeaseToken,
+  isTerminalScrapeJobStatus,
+} from "@/lib/scraper/job-state";
 
 // POST /api/worker/catalog/results — catalog 잡의 증분 결과(모델 단위 flush)를 upsert.
 // 몇 시간짜리 잡이 중간에 죽어도 이미 저장된 트림은 유효하며, 재클레임 시 collected 로 스킵된다.
@@ -13,12 +17,22 @@ export async function POST(request: NextRequest) {
   if (error) return error;
 
   try {
+    const leaseToken = getScrapeJobLeaseToken(request);
+    if (!leaseToken) {
+      return NextResponse.json({ error: "작업 lease token이 필요합니다." }, { status: 400 });
+    }
     const input = workerCatalogResultsSchema.parse(await request.json());
     const db = prisma;
 
     const job = await db.scrapeJob.findUnique({
       where: { id: input.jobId },
-      select: { status: true, jobType: true, financeCompanyId: true, productType: true },
+      select: {
+        status: true,
+        jobType: true,
+        financeCompanyId: true,
+        productType: true,
+        params: true,
+      },
     });
     if (!job) return NextResponse.json({ error: "없는 작업" }, { status: 404 });
     if (job.status === "canceled") {
@@ -26,7 +40,12 @@ export async function POST(request: NextRequest) {
     }
     if (
       isTerminalScrapeJobStatus(job.status) ||
-      !canAcceptCatalogResults(job, input)
+      !canAcceptCatalogResults(job, {
+        financeCompanyId: input.financeCompanyId,
+        productType: input.productType,
+        weekOf: input.weekOf,
+        brandCds: input.entries.map((entry) => entry.brandCd),
+      })
     ) {
       return NextResponse.json({ error: "작업 컨텍스트 또는 상태가 일치하지 않습니다." }, { status: 409 });
     }
@@ -41,6 +60,7 @@ export async function POST(request: NextRequest) {
           jobType: "catalog",
           financeCompanyId: input.financeCompanyId,
           productType: input.productType,
+          leaseToken,
         },
         data: { heartbeatAt: scrapedAt },
       });

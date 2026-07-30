@@ -1,23 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireActiveUser } from "@/lib/require-user";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
 import { strictRateLimit, checkRateLimit } from "@/lib/rate-limit";
-import { buildQuoteImageData } from "@/lib/quote-image/from-request";
+import { buildOfficialDeliveryImageData } from "@/lib/quote-delivery/official-image";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
+
+const imageMetadataSchema = z.object({
+  savedQuoteId: z.string().trim().min(1).max(200),
+  sessionId: z.string().trim().min(1).max(200),
+});
 
 export async function POST(req: NextRequest) {
   const limited = await checkRateLimit(req, strictRateLimit);
   if (limited) return limited;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  const { user, error: authError } = await requireActiveUser();
+  if (authError) return authError;
+  if (!user.supabaseId) {
+    return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 404 });
   }
 
   let body: unknown;
@@ -27,12 +31,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 });
   }
 
-  let imageData;
-  try {
-    imageData = buildQuoteImageData(body, user.email ?? "이메일 미등록");
-  } catch {
-    return NextResponse.json({ error: "필수 견적 정보가 누락되었습니다." }, { status: 400 });
+  const metadataResult = imageMetadataSchema.safeParse(body);
+  if (!metadataResult.success) {
+    return NextResponse.json({ error: "저장된 견적 정보가 필요합니다." }, { status: 400 });
   }
+
+  const savedQuote = await prisma.savedQuote.findFirst({
+    where: {
+      id: metadataResult.data.savedQuoteId,
+      sessionId: metadataResult.data.sessionId,
+      userId: user.supabaseId,
+      deletedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    select: {
+      id: true,
+      vehicleId: true,
+      trimId: true,
+      contractMonths: true,
+      annualMileage: true,
+      depositRate: true,
+      prepayRate: true,
+      contractType: true,
+      monthlyPayment: true,
+      pricingStatus: true,
+      breakdown: true,
+      exteriorColorId: true,
+      interiorColorId: true,
+    },
+  });
+  if (!savedQuote) {
+    return NextResponse.json({ error: "다운로드할 견적을 확인할 수 없습니다." }, { status: 403 });
+  }
+
+  const imageResult = await buildOfficialDeliveryImageData(savedQuote);
+  if (!imageResult.ok) {
+    return NextResponse.json(
+      { error: imageResult.error.error },
+      { status: imageResult.error.status }
+    );
+  }
+  const imageData = { ...imageResult.data, userEmail: user.email ?? "이메일 미등록" };
 
   try {
     const imageBuffer = await renderQuoteImageBuffer(imageData);

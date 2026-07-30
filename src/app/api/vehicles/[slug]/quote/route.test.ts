@@ -11,15 +11,15 @@ const prismaMock = vi.hoisted(() => ({
   },
 }));
 
-const createClientMock = vi.hoisted(() => vi.fn());
+const getActiveUserMock = vi.hoisted(() => vi.fn());
 const upsertQuoteCalcLogMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/prisma", () => ({
   prisma: prismaMock,
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: createClientMock,
+vi.mock("@/lib/require-user", () => ({
+  getActiveUser: getActiveUserMock,
 }));
 
 vi.mock("@/lib/ip-hash", () => ({
@@ -50,11 +50,7 @@ function quoteRequest(body: Record<string, unknown> = {}): NextRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  createClientMock.mockResolvedValue({
-    auth: {
-      getUser: async () => ({ data: { user: null } }),
-    },
-  });
+  getActiveUserMock.mockResolvedValue(null);
   upsertQuoteCalcLogMock.mockResolvedValue({ id: "calc-1" });
 });
 

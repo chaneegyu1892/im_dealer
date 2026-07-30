@@ -43,11 +43,7 @@ import {
 } from "@/constants/customer-types";
 import type { VehicleListItem, QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
-import type { PDFQuoteData } from "@/lib/quote-pdf-template";
-import {
-  deriveQuoteScenarioType,
-  realignSelectedQuoteScenarios,
-} from "@/lib/quote-scenario-selection";
+import { deriveQuoteScenarioType } from "@/lib/quote-scenario-selection";
 import { successfulCalculatedQuoteResponseSchema } from "@/lib/quote-response-schema";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
 import {
@@ -89,8 +85,6 @@ const savedQuoteResponseSchema = z.object({
     requiresConsultation: z.boolean().optional(),
   }),
 });
-
-type QuoteImageRequest = Omit<PDFQuoteData, "userEmail">;
 
 function hasLockedQuoteScenario(quote: QuoteResponse): boolean {
   return (
@@ -752,44 +746,6 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     isApplying, saveCurrentQuote,
   ]);
 
-  function buildQuotePayload(
-    result: QuoteResponse | null = quoteResult
-  ): QuoteImageRequest | null {
-    if (!result || !selectedVehicle) return null;
-
-    const selectedOptions = selectedOptionDetails.map(({ name, price }) => ({
-      name,
-      price,
-    }));
-    const scenarioType = deriveQuoteScenarioType(customRates);
-    return {
-      vehicleName: selectedVehicle.name,
-      vehicleBrand: selectedVehicle.brand,
-      trimName: result.trimName,
-      trimPrice: result.trimPrice,
-      selectedOptions,
-      totalVehiclePrice:
-        result.totalVehiclePrice ??
-        result.trimPrice + (result.optionsTotalPrice ?? optionsTotalPrice) + colorDelta,
-      productType: contractCategory,
-      contractMonths: result.contractMonths,
-      annualMileage: result.annualMileage,
-      contractType: "반납형",
-      scenarioType,
-      scenarios: realignSelectedQuoteScenarios(
-        result.scenarios,
-        scenarioType,
-        baseStandardScenario.current ?? result.scenarios.standard
-      ),
-      exteriorColor: selectedExteriorColor
-        ? { name: selectedExteriorColor.name, hexCode: selectedExteriorColor.hexCode, priceDelta: selectedExteriorColor.priceDelta }
-        : null,
-      interiorColor: selectedInteriorColor
-        ? { name: selectedInteriorColor.name, hexCode: selectedInteriorColor.hexCode, priceDelta: selectedInteriorColor.priceDelta }
-        : null,
-    };
-  }
-
   // ─── 카카오톡으로 견적서 전송 ─────────────────────────────
   async function handleQuoteDeliver() {
     if (!kakaoDeliveryEnabled || !quoteResult) return;
@@ -807,12 +763,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         return;
       }
 
-      const deliveryQuote = hasLockedQuoteScenario(quoteResult)
-        ? await refreshQuoteForDelivery()
-        : quoteResult;
-      const payload = buildQuotePayload(deliveryQuote);
-      if (!payload) {
-        throw new Error("전송할 견적 정보를 확인할 수 없습니다.");
+      if (hasLockedQuoteScenario(quoteResult)) {
+        await refreshQuoteForDelivery();
       }
 
       const savedQuote = await saveCurrentQuote();
@@ -820,7 +772,6 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...payload,
           savedQuoteId: savedQuote.id,
           sessionId: savedQuote.sessionId,
         }),

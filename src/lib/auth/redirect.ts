@@ -19,7 +19,11 @@ export function getSafeInternalPath(
 
   try {
     const url = new URL(candidate, INTERNAL_ORIGIN);
-    if (url.origin !== INTERNAL_ORIGIN) return fallback;
+    // URL normalization can turn an encoded dot segment into a
+    // protocol-relative pathname. Never return that shape to a router.
+    if (url.origin !== INTERNAL_ORIGIN || url.pathname.startsWith("//")) {
+      return fallback;
+    }
     return `${url.pathname}${url.search}${url.hash}`;
   } catch (error) {
     if (error instanceof Error) return fallback;

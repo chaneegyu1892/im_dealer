@@ -431,7 +431,9 @@ model SavedQuote {
   updatedAt             DateTime           @updatedAt
   expiresAt             DateTime
   deletedAt             DateTime?
-  verificationSessionId String?
+  // 로그인 전 견적의 소유권을 로그인 후 안전하게 연결하는 브라우저 capability 해시.
+  // 실제 capability 값은 HttpOnly cookie 에만 두고 DB에는 SHA-256 해시만 저장한다.
+  verificationCapabilityHash String? @map("verificationSessionId")
   customerName          String?
   phone                 String?
 
@@ -694,6 +696,11 @@ model QuoteDelivery {
   status        String    @default("PENDING") // PENDING | SENT | FAILED
   failReason    String?
   sentAt        DateTime?
+  // 공개 PNG lifecycle state. 정리 실패는 전송 상태와 분리해 기록하고 다음 크론에서 재시도한다.
+  imageDeletedAt             DateTime?
+  imageCleanupAttempts       Int       @default(0)
+  imageCleanupLastAttemptAt   DateTime?
+  imageCleanupError           String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -701,6 +708,7 @@ model QuoteDelivery {
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([imageDeletedAt, createdAt])
 }
 
 model AdminAuditLog {
@@ -725,6 +733,8 @@ model AdminAuditLog {
 model CustomerVerification {
   id                String    @id @default(cuid())
   sessionId         String
+  // SavedQuote.userId 와 같은 Supabase Auth user id. 기존 무소유 레코드는 nullable 로 유지한다.
+  userId            String?
   customerType      String
   connectedId       String?
   licenseVerified   Boolean   @default(false)
@@ -741,7 +751,9 @@ model CustomerVerification {
 
   documents VerificationDocument[]
 
+  @@unique([sessionId, userId])
   @@index([sessionId])
+  @@index([userId])
   @@index([verifiedAt, piiPurgedAt])
 }
 
@@ -806,20 +818,37 @@ model ReviewLike {
 }
 
 model ReviewRequestToken {
-  id           String     @id @default(cuid())
-  token        String     @unique
-  savedQuoteId String
-  savedQuote   SavedQuote @relation(fields: [savedQuoteId], references: [id], onDelete: Cascade)
-  expiresAt    DateTime
-  usedAt       DateTime?
-  revokedAt    DateTime?
-  reviewId     String?    @unique
-  review       Review?    @relation(fields: [reviewId], references: [id], onDelete: SetNull)
-  createdAt    DateTime   @default(now())
-  createdById  String?
+  id               String              @id @default(cuid())
+  token            String              @unique
+  savedQuoteId     String
+  savedQuote       SavedQuote          @relation(fields: [savedQuoteId], references: [id], onDelete: Cascade)
+  expiresAt        DateTime
+  usedAt           DateTime?
+  revokedAt        DateTime?
+  reviewId         String?             @unique
+  review           Review?             @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  imageUploadCount Int                 @default(0)
+  imageUploadBytes Int                 @default(0)
+  imageUploads     ReviewImageUpload[]
+  createdAt        DateTime            @default(now())
+  createdById      String?
 
   @@index([savedQuoteId])
   @@index([expiresAt])
+}
+
+model ReviewImageUpload {
+  id                   String             @id @default(cuid())
+  reviewRequestTokenId String
+  reviewRequestToken   ReviewRequestToken @relation(fields: [reviewRequestTokenId], references: [id], onDelete: Cascade)
+  path                 String             @unique
+  url                  String             @unique
+  byteSize             Int
+  contentType          String
+  usedAt               DateTime?
+  createdAt            DateTime           @default(now())
+
+  @@index([reviewRequestTokenId, usedAt])
 }
 
 model Inventory {
@@ -871,6 +900,8 @@ model ScrapeJob {
   params           Json // trim_rates: { trimIds, vehicleId, ... } / catalog: { mode:"catalog", brands, weekOf, productType }
   credUsernameEnc  String? // encryptString(평문 ID) — 진행 중에만 존재, 종료 시 null
   credPasswordEnc  String? // encryptString(평문 PW) — 진행 중에만 존재, 종료 시 null
+  credentialExpiresAt DateTime? // 생성 후 24시간. 활성 heartbeat 작업은 유지하고 stale 작업만 purge
+  leaseToken       String?        @unique // claim 세대별 임의 토큰. stale worker 후속 쓰기 차단
   draft            Json? // trim_rates: ScrapeDraft / catalog: CatalogScrapeSummary (워커가 채움)
   progress         Json? // catalog 잡 진행률 (워커 하트비트가 갱신)
   error            String?
@@ -884,6 +915,7 @@ model ScrapeJob {
   financeCompany   FinanceCompany @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
 
   @@index([status, createdAt])
+  @@index([status, credentialExpiresAt])
   @@index([financeCompanyId, status])
 }
 

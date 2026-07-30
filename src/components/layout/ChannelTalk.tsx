@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { isChannelTalkSuppressedPath } from '@/lib/channel-talk';
 
 declare global {
   interface Window {
@@ -20,7 +22,17 @@ type ChannelIdentity =
     };
 
 export function ChannelTalk() {
+  const pathname = usePathname() ?? '';
+  const suppressed = isChannelTalkSuppressedPath(pathname);
+
   useEffect(() => {
+    if (suppressed) {
+      window.ChannelIO?.('shutdown');
+      delete window.ChannelIO;
+      delete window.ChannelIOInitialized;
+      return;
+    }
+
     const pluginKey = process.env.NEXT_PUBLIC_CHANNEL_TALK_PLUGIN_KEY;
     if (!pluginKey || window.ChannelIO) return;
 
@@ -91,7 +103,7 @@ export function ChannelTalk() {
       delete window.ChannelIO;
       delete window.ChannelIOInitialized;
     };
-  }, []);
+  }, [suppressed]);
 
   return null;
 }

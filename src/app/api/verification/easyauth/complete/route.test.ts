@@ -5,29 +5,27 @@ import { POST } from "./route";
 const mocks = vi.hoisted(() => ({
   completeEasyAuth: vi.fn(),
   create: vi.fn(),
-  findFirst: vi.fn(),
-  findUnique: vi.fn(),
+  verificationFindFirst: vi.fn(),
+  documentFindFirst: vi.fn(),
   update: vi.fn(),
-  getUser: vi.fn(),
+  requireActiveUser: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     customerVerification: {
-      findUnique: mocks.findUnique,
+      findFirst: mocks.verificationFindFirst,
     },
     verificationDocument: {
-      findFirst: mocks.findFirst,
+      findFirst: mocks.documentFindFirst,
       create: mocks.create,
       update: mocks.update,
     },
   },
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(() => ({
-    auth: { getUser: mocks.getUser },
-  })),
+vi.mock("@/lib/require-user", () => ({
+  requireActiveUser: mocks.requireActiveUser,
 }));
 
 vi.mock("@/lib/codef/easyauth", () => ({
@@ -54,11 +52,27 @@ function request(body: unknown): NextRequest {
 describe("POST /api/verification/easyauth/complete", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
-    mocks.findUnique.mockResolvedValue({ id: "v1" });
-    mocks.findFirst.mockResolvedValue(null);
+    mocks.requireActiveUser.mockResolvedValue({
+      user: { id: "member-1", supabaseId: "u1", isActive: true },
+      error: null,
+    });
+    mocks.verificationFindFirst.mockResolvedValue({ id: "v1" });
+    mocks.documentFindFirst.mockResolvedValue(null);
     mocks.create.mockResolvedValue({});
     mocks.update.mockResolvedValue({});
+  });
+
+  it("blocks an inactive account before calling Codef or reading verification data", async () => {
+    mocks.requireActiveUser.mockResolvedValue({
+      user: null,
+      error: new Response(JSON.stringify({ error: "비활성화된 계정입니다." }), { status: 403 }),
+    });
+
+    const response = await POST(request({}));
+
+    expect(response.status).toBe(403);
+    expect(mocks.verificationFindFirst).not.toHaveBeenCalled();
+    expect(mockedCompleteEasyAuth).not.toHaveBeenCalled();
   });
 
   it("stores the Codef failure message when document issuance fails", async () => {

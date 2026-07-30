@@ -57,24 +57,25 @@ export function reviewImagePublicUrlPrefix(): string {
   return `${base}/storage/v1/object/public/${REVIEW_IMAGE_BUCKET}/`;
 }
 
+export function reviewImagePublicUrl(path: string): string {
+  return `${reviewImagePublicUrlPrefix()}${path}`;
+}
+
 export function isReviewImagePublicUrl(url: string): boolean {
   if (!url) return false;
   return url.startsWith(reviewImagePublicUrlPrefix());
 }
 
 export async function uploadReviewImage(params: {
-  tokenFolder: string;
+  path: string;
   file: Blob;
   contentType: string;
-}): Promise<{ url: string; path: string }> {
-  const ext = EXT_BY_MIME[params.contentType];
-  if (!ext) throw new Error("UNSUPPORTED_MIME");
-
-  const path = `${params.tokenFolder}/${randomUUID()}.${ext}`;
+}): Promise<void> {
+  if (!EXT_BY_MIME[params.contentType]) throw new Error("UNSUPPORTED_MIME");
   const admin = supabaseAdmin();
   const { error } = await admin.storage
     .from(REVIEW_IMAGE_BUCKET)
-    .upload(path, params.file, {
+    .upload(params.path, params.file, {
       contentType: params.contentType,
       cacheControl: "31536000",
       upsert: false,
@@ -83,9 +84,12 @@ export async function uploadReviewImage(params: {
   if (error) {
     throw new Error(`STORAGE_UPLOAD_FAILED: ${error.message}`);
   }
+}
 
-  const { data } = admin.storage.from(REVIEW_IMAGE_BUCKET).getPublicUrl(path);
-  return { url: data.publicUrl, path };
+export async function deleteReviewImage(path: string): Promise<void> {
+  const admin = supabaseAdmin();
+  const { error } = await admin.storage.from(REVIEW_IMAGE_BUCKET).remove([path]);
+  if (error) throw new Error(`STORAGE_DELETE_FAILED: ${error.message}`);
 }
 
 // ─── 어드민 업로드 (차량/브랜드/트림/색상 등) ─────────────────────────────

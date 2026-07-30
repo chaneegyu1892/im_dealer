@@ -14,6 +14,7 @@ import { resolveAdapter } from "./adapters/registry";
 import { AuthError } from "./adapters/types";
 import type { AdapterContext } from "./adapters/types";
 import { claimJob, getCollectedMdelCds, heartbeat, postCatalogResults, postResult, type ClaimedJob, type ClaimedCredential } from "./api-client";
+import { shouldApplyJobCooldown, type JobOutcome } from "./job-outcome";
 
 const POLL_MS = Number(process.env.SCRAPER_POLL_MS ?? 5000);
 const HEADFUL = process.env.SCRAPER_HEADFUL === "true";
@@ -127,8 +128,6 @@ async function preflight(): Promise<boolean> {
   }
 }
 
-type JobOutcome = "completed" | "canceled" | "failed";
-
 async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<JobOutcome> {
   const log = (msg: string) => console.log(`[job ${job.id}] ${msg}`);
 
@@ -140,7 +139,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
   if (!credential.requiresHuman && (!username || !password)) {
     // 암호문 유무로 원인을 갈라 준다. 둘을 같은 메시지로 뭉뚱그리면
     // 실제로는 워커가 옛 코드인데 키 문제로 오진하게 된다.
-    await postResult(job.id, {
+    await postResult(job.id, job.leaseToken, {
       ok: false,
       error: hasCiphertext
         ? "자격증명 복호화 실패 (PII_ENCRYPTION_KEY 불일치 가능)"
@@ -151,7 +150,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
 
   const adapter = resolveAdapter(credential.config, credential.loginUrl);
   if (!adapter) {
-    await postResult(job.id, { ok: false, error: "해당 캐피탈사에 맞는 어댑터가 없습니다." });
+    await postResult(job.id, job.leaseToken, { ok: false, error: "해당 캐피탈사에 맞는 어댑터가 없습니다." });
     return "failed";
   }
 
@@ -162,7 +161,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
     ? catalogJobParamsSchema.safeParse(job.params)
     : scrapeJobParamsSchema.safeParse(job.params);
   if (!paramsResult.success) {
-    await postResult(job.id, { ok: false, error: "작업 파라미터가 올바르지 않습니다." });
+    await postResult(job.id, job.leaseToken, { ok: false, error: "작업 파라미터가 올바르지 않습니다." });
     return "failed";
   }
   const params: CatalogJobParams | ScrapeJobParams = paramsResult.data;
@@ -180,7 +179,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
 
   const heartbeatTimer = setInterval(async () => {
     try {
-      const status = await heartbeat(job.id, currentProgress ? { progress: currentProgress } : undefined);
+      const status = await heartbeat(job.id, job.leaseToken, currentProgress ? { progress: currentProgress } : undefined);
       if (status === "canceled") canceled = true;
     } catch (e) {
       log(`하트비트 오류: ${(e as Error).message}`);
@@ -201,13 +200,13 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
       isCanceled: () => canceled,
       waitForHuman: async (prompt: string) => {
         log(`사람 개입 대기: ${prompt}`);
-        await heartbeat(job.id, { status: "needs_human", humanPrompt: prompt });
+        await heartbeat(job.id, job.leaseToken, { status: "needs_human", humanPrompt: prompt });
         // 어드민이 [재개] → running 으로 바뀔 때까지 폴링
         for (;;) {
           await sleep(3000);
           let status: string;
           try {
-            status = await heartbeat(job.id);
+            status = await heartbeat(job.id, job.leaseToken);
           } catch {
             continue;
           }
@@ -245,7 +244,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
     if (job.jobType === "catalog") {
       // ── 카탈로그 전량 수집: 어댑터가 순회, 워커가 버퍼링/증분 flush ──
       if (!adapter.scrapeCatalog) {
-        await postResult(job.id, { ok: false, error: "이 캐피탈사 어댑터는 카탈로그 수집을 지원하지 않습니다." });
+        await postResult(job.id, job.leaseToken, { ok: false, error: "이 캐피탈사 어댑터는 카탈로그 수집을 지원하지 않습니다." });
         return "failed";
       }
       if (!("mode" in params)) {
@@ -253,12 +252,18 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
       }
       const cParams = params;
       // 재개 지원: 이번주 이미 수집된 외부 트림코드는 스킵
-      const collected = new Set(await getCollectedMdelCds(job.financeCompanyId, cParams.productType, cParams.weekOf));
+      const collected = new Set(await getCollectedMdelCds(
+        job.id,
+        job.leaseToken,
+        job.financeCompanyId,
+        cParams.productType,
+        cParams.weekOf
+      ));
       if (collected.size > 0) log(`이번주 기수집 ${collected.size}건 — 스킵하고 이어서 수집`);
 
       const resultBuffer = createCatalogResultBuffer<CatalogTrimEntry>(async (entries) => {
           await postCatalogResults({
-            jobId: job.id, financeCompanyId: job.financeCompanyId,
+            jobId: job.id, leaseToken: job.leaseToken, financeCompanyId: job.financeCompanyId,
             productType: cParams.productType, weekOf: cParams.weekOf, entries,
           });
       });
@@ -287,7 +292,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
         await flush(true);
       }
       if (canceled) throw new CanceledError();
-      await postResult(job.id, {
+      await postResult(job.id, job.leaseToken, {
         ok: true,
         catalogSummary: { mode: "catalog", ...summary, finishedAt: new Date().toISOString() },
       });
@@ -317,7 +322,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
         job.productType,
         new Date().toISOString()
       );
-      await postResult(job.id, { ok: true, draft });
+      await postResult(job.id, job.leaseToken, { ok: true, draft });
       log(`완료 — 트림 ${results.length}건, 경고 ${draft.warnings.length}건`);
     }
     return "completed";
@@ -330,7 +335,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
     const authFailed = e instanceof AuthError; // 자격증명 오류 → 차단기 작동(재시도 금지·자격증명 비활성화)
     log(authFailed ? `[차단기] 인증 실패 — 자격증명 비활성화 요청: ${msg}` : `실패: ${msg}`);
     try {
-      await postResult(job.id, { ok: false, error: msg.slice(0, 500), ...(authFailed ? { authFailed: true } : {}) });
+      await postResult(job.id, job.leaseToken, { ok: false, error: msg.slice(0, 500), ...(authFailed ? { authFailed: true } : {}) });
     } catch {
       /* 보고 실패는 무시 */
     }
@@ -386,7 +391,7 @@ async function main(): Promise<void> {
         const outcome = await runJob(claimed.job, claimed.credential);
         // 정상 완료 후에만 버스트 완화 쿨다운(분산) — 사람처럼 간격을 둠.
         // 취소/실패는 실제 수집이 없었으므로 쿨다운을 건너뛰고 즉시 다음 작업(예: 재시작한 수집)을 잡는다.
-        if (outcome === "completed") {
+        if (shouldApplyJobCooldown(outcome)) {
           await sleep(jitter(JOB_COOLDOWN_MS));
         }
       }

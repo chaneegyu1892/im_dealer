@@ -13,6 +13,7 @@ import type { EngineType } from "@/types/vehicle";
 import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
 import { lowestMonthly } from "@/lib/representative-quote";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
+import { serializeJsonLd } from "@/lib/json-ld";
 import type { PublicReview } from "@/types/review";
 import {
   publicThumbnailProjectionInclude,
@@ -85,10 +86,7 @@ const homeStructuredData = {
   ],
 };
 
-const homeStructuredDataJson = JSON.stringify(homeStructuredData).replace(
-  /</g,
-  "\\u003c",
-);
+const homeStructuredDataJson = serializeJsonLd(homeStructuredData);
 
 const DEV_REVIEW_CONTENTS = [
   "처음에는 월 납입금 차이를 잘 몰랐는데, 조건별로 비교하니까 상담 전에 기준을 잡기 쉬웠어요.",

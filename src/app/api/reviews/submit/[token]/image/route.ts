@@ -1,9 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  releaseReviewImageUpload,
+  reserveReviewImageUpload,
   resolveReviewToken,
   REVIEW_TOKEN_REASON_MESSAGE,
 } from "@/lib/review-token";
 import {
+  deleteReviewImage,
   REVIEW_IMAGE_ALLOWED_MIME,
   REVIEW_IMAGE_MAX_SIZE,
   uploadReviewImage,
@@ -52,14 +55,48 @@ export async function POST(
     );
   }
 
+  let reservation: Awaited<ReturnType<typeof reserveReviewImageUpload>>;
   try {
-    const { url, path } = await uploadReviewImage({
-      tokenFolder: token,
+    reservation = await reserveReviewImageUpload({
+      reviewRequestTokenId: resolved.data.id,
+      byteSize: file.size,
+      contentType,
+    });
+  } catch (error) {
+    console.error("[POST /api/reviews/submit/[token]/image] upload reservation failed:", error);
+    return NextResponse.json(
+      { error: "이미지 업로드 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+
+  if (!reservation.ok) {
+    if (reservation.reason === "quota") {
+      return NextResponse.json(
+        { error: "이미지는 최대 5장, 총 25MB까지 업로드할 수 있습니다." },
+        { status: 429 }
+      );
+    }
+    return NextResponse.json(
+      { error: "이미 처리 중이거나 만료된 링크입니다.", reason: "used" },
+      { status: 410 }
+    );
+  }
+
+  try {
+    await uploadReviewImage({
+      path: reservation.data.path,
       file,
       contentType,
     });
-    return NextResponse.json({ success: true, data: { url, path } }, { status: 201 });
+    return NextResponse.json({ success: true, data: reservation.data }, { status: 201 });
   } catch (error) {
+    try {
+      await deleteReviewImage(reservation.data.path);
+      await releaseReviewImageUpload(reservation.data.id);
+    } catch {
+      console.error("[POST /api/reviews/submit/[token]/image] upload cleanup failed");
+    }
     console.error("[POST /api/reviews/submit/[token]/image]", error);
     return NextResponse.json(
       { error: "이미지 업로드 중 오류가 발생했습니다." },

@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   findManyVehicles: vi.fn(),
   queryRaw: vi.fn(),
   recommendLegacyV1: vi.fn(),
-  getUser: vi.fn(),
+  getActiveUser: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -17,8 +17,8 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/ai-recommender", () => ({ recommendLegacyV1: mocks.recommendLegacyV1 }));
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => ({ auth: { getUser: mocks.getUser } })),
+vi.mock("@/lib/require-user", () => ({
+  getActiveUser: mocks.getActiveUser,
 }));
 
 import { GET } from "./route";
@@ -107,7 +107,7 @@ const frozenV3Vehicle = {
 describe("GET /api/recommend/:sessionId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.getActiveUser.mockResolvedValue(null);
     mocks.recommendLegacyV1.mockResolvedValue([]);
     mocks.findManyVehicles.mockResolvedValue([]);
     mocks.queryRaw.mockResolvedValue([{ isSqlNull: true }]);
@@ -155,7 +155,7 @@ describe("GET /api/recommend/:sessionId", () => {
   it("returns historical recommendation bytes without replacing its representative projection", async () => {
     const result = { version: "overlap-v2", vehicles: [frozenVehicle] } as const;
     const storedBytes = JSON.stringify(result);
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "member" } } });
+    mocks.getActiveUser.mockResolvedValue({ id: "member-db-1", supabaseId: "member", isActive: true });
     mocks.findFirst.mockResolvedValue({ ...baseLog, result });
     mocks.findManyVehicles.mockResolvedValue([{
       id: "vehicle-active",
@@ -182,7 +182,7 @@ describe("GET /api/recommend/:sessionId", () => {
       version: "overlap-v2",
       vehicles: [{ ...frozenVehicle, popularity }],
     } as const;
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "member" } } });
+    mocks.getActiveUser.mockResolvedValue({ id: "member-db-1", supabaseId: "member", isActive: true });
     mocks.findFirst.mockResolvedValue({ ...baseLog, result });
     mocks.findManyVehicles.mockResolvedValue([{ id: "vehicle-active" }]);
 

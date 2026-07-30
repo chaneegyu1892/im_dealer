@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireWorker } from "@/lib/worker-auth";
+import { canAcceptCatalogResults, getScrapeJobLeaseToken } from "@/lib/scraper/job-state";
 import { hasUsableRates } from "@/lib/scraper/rate-matrices";
 
-// GET /api/worker/catalog/collected?financeCompanyId=&productType=&weekOf=
+// GET /api/worker/catalog/collected?jobId=&financeCompanyId=&productType=&weekOf=
 // 이번주(weekOf) 이미 수집된 외부 트림코드(mdelCd) 목록 — 워커가 재개 시 스킵 판정에 사용.
 export async function GET(request: NextRequest) {
   const { error } = requireWorker(request);
@@ -11,11 +12,42 @@ export async function GET(request: NextRequest) {
 
   try {
     const sp = new URL(request.url).searchParams;
+    const jobId = sp.get("jobId");
     const financeCompanyId = sp.get("financeCompanyId");
     const productType = sp.get("productType");
     const weekOf = sp.get("weekOf");
-    if (!financeCompanyId || !productType || !weekOf || !/^\d{4}-\d{2}-\d{2}$/.test(weekOf)) {
-      return NextResponse.json({ error: "financeCompanyId/productType/weekOf(YYYY-MM-DD) 필요" }, { status: 400 });
+    const leaseToken = getScrapeJobLeaseToken(request);
+    if (
+      !jobId ||
+      !leaseToken ||
+      !financeCompanyId ||
+      !productType ||
+      !weekOf ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(weekOf)
+    ) {
+      return NextResponse.json(
+        { error: "jobId/lease token/financeCompanyId/productType/weekOf(YYYY-MM-DD) 필요" },
+        { status: 400 }
+      );
+    }
+
+    const job = await prisma.scrapeJob.findUnique({
+      where: { id: jobId },
+      select: {
+        status: true,
+        jobType: true,
+        financeCompanyId: true,
+        productType: true,
+        params: true,
+        leaseToken: true,
+      },
+    });
+    if (!job) return NextResponse.json({ error: "없는 작업" }, { status: 404 });
+    if (
+      job.leaseToken !== leaseToken ||
+      !canAcceptCatalogResults(job, { financeCompanyId, productType, weekOf, brandCds: [] })
+    ) {
+      return NextResponse.json({ error: "작업 컨텍스트 또는 lease가 일치하지 않습니다." }, { status: 409 });
     }
 
     const rows = await prisma.capitalCatalogTrim.findMany({

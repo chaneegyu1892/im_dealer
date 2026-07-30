@@ -64,6 +64,12 @@ export async function POST(
   }
 
   const imageUrls = parsed.data.imageUrls ?? [];
+  if (new Set(imageUrls).size !== imageUrls.length) {
+    return NextResponse.json(
+      { error: "같은 이미지를 중복으로 첨부할 수 없습니다." },
+      { status: 400 }
+    );
+  }
   if (imageUrls.some((u) => !isReviewImagePublicUrl(u))) {
     return NextResponse.json(
       { error: "허용되지 않는 이미지 URL이 포함되어 있습니다." },
@@ -84,9 +90,24 @@ export async function POST(
 
   try {
     const review = await prisma.$transaction(async (tx) => {
+      const uploads = imageUrls.length > 0
+        ? await tx.reviewImageUpload.findMany({
+            where: {
+              reviewRequestTokenId: tokenId,
+              url: { in: imageUrls },
+              usedAt: null,
+            },
+            select: { id: true, url: true },
+          })
+        : [];
+      if (uploads.length !== imageUrls.length) {
+        throw new Error("UNOWNED_IMAGE");
+      }
+
       const claimed = await tx.reviewRequestToken.updateMany({
         where: {
           id: tokenId,
+          savedQuote: { is: { deletedAt: null } },
           usedAt: null,
           revokedAt: null,
           expiresAt: { gt: new Date() },
@@ -117,6 +138,20 @@ export async function POST(
         data: { reviewId: created.id },
       });
 
+      if (uploads.length > 0) {
+        const marked = await tx.reviewImageUpload.updateMany({
+          where: {
+            id: { in: uploads.map((upload) => upload.id) },
+            reviewRequestTokenId: tokenId,
+            usedAt: null,
+          },
+          data: { usedAt: new Date() },
+        });
+        if (marked.count !== uploads.length) {
+          throw new Error("IMAGE_RACE");
+        }
+      }
+
       return created;
     });
 
@@ -129,6 +164,18 @@ export async function POST(
       return NextResponse.json(
         { error: "이미 처리 중이거나 만료된 링크입니다.", reason: "used" },
         { status: 410 }
+      );
+    }
+    if (error instanceof Error && error.message === "UNOWNED_IMAGE") {
+      return NextResponse.json(
+        { error: "이 링크에서 업로드한 이미지만 첨부할 수 있습니다." },
+        { status: 400 }
+      );
+    }
+    if (error instanceof Error && error.message === "IMAGE_RACE") {
+      return NextResponse.json(
+        { error: "이미지 처리 중 충돌이 발생했습니다. 다시 시도해 주세요." },
+        { status: 409 }
       );
     }
     console.error("[POST /api/reviews/submit/[token]]", error);

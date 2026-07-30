@@ -94,7 +94,10 @@ function todayKey() {
 }
 
 function csvCell(value: string | number | null | undefined) {
-  const s = value == null ? "" : String(value);
+  const raw = value == null ? "" : String(value);
+  // Spreadsheet applications evaluate cells beginning with these characters as formulas.
+  // Only string fields are user-controlled; preserve numeric CSV cells (including negatives).
+  const s = typeof value === "string" && /^\s*[=+\-@]/.test(raw) ? `'${raw}` : raw;
   if (s.includes(",") || s.includes('"') || s.includes("\n")) {
     return `"${s.replace(/"/g, '""')}"`;
   }

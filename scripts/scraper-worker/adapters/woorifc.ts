@@ -44,10 +44,19 @@ let sess: SessionState | null = null;
 
 class SessionExpired extends Error {}
 
+// WOORIFC endpoints return small per-model/rate JSON documents. Keep a generous
+// per-response ceiling so a compromised upstream cannot synchronously materialize
+// an arbitrarily large deflate stream in the worker.
+export const WOORIFC_MAX_DECODED_RESPONSE_BYTES = 8 * 1024 * 1024;
+
 function inflate(b64: string): string {
-  return zlib.inflateSync(Buffer.from(b64.trim(), "base64")).toString("utf8");
+  return zlib
+    .inflateSync(Buffer.from(b64.trim(), "base64"), {
+      maxOutputLength: WOORIFC_MAX_DECODED_RESPONSE_BYTES,
+    })
+    .toString("utf8");
 }
-function decode(raw: string): any {
+export function decodeWoorifcResponse(raw: string): any {
   const t = raw.trim();
   if (/^<(!doctype|html)/i.test(t)) throw new SessionExpired(); // 세션 만료 시 견적 페이지 HTML 반환
   if (t.startsWith("{") || t.startsWith("[")) {
@@ -84,7 +93,7 @@ async function apiGet(ctx: AdapterContext, path: string, _retried = false): Prom
     throw new Error(raw.slice(12));
   }
   try {
-    return decode(raw);
+    return decodeWoorifcResponse(raw);
   } catch (e) {
     if (e instanceof SessionExpired) {
       if (!_retried) { await trimBigCookies(ctx); await sleep(800); return apiGet(ctx, path, true); }
