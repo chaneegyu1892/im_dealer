@@ -26,5 +26,8 @@ describe("toE164KR", () => {
     expect(toE164KR("010-0000-0000")).toBe("+821000000000"); // 형식상 유효
     expect(toE164KR("1234")).toBeUndefined(); // 너무 짧음
     expect(toE164KR("021234567")).toBeUndefined(); // 휴대폰 아님(0 제거 후 2로 시작)
+    expect(toE164KR("010123456789")).toBeUndefined(); // 자릿수 초과
+    expect(toE164KR("text01012345678text")).toBeUndefined(); // 임의 문자가 섞인 입력
+    expect(toE164KR("011-123-4567")).toBeUndefined(); // 신규 가입은 010만 허용
   });
 });

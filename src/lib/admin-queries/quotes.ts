@@ -55,7 +55,7 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
     }),
     prisma.trim.findMany({
       where: { id: { in: trimIds } },
-      select: { id: true, name: true },
+      select: { id: true, name: true, price: true, discountPrice: true },
     }),
     memberIds.length > 0
       ? prisma.user.findMany({
@@ -96,6 +96,8 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       vehicleBrand: vehicle?.brand ?? "",
       trimId: q.trimId,
       trimName: trim?.name ?? "삭제된 트림",
+      trimPrice: trim?.price ?? null,
+      discountPrice: trim?.discountPrice ?? null,
       contractMonths: q.contractMonths,
       annualMileage: q.annualMileage,
       depositRate: q.depositRate,

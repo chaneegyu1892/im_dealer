@@ -29,7 +29,10 @@ import { sortLineups } from "@/lib/lineup-sort";
 import { TossPrice } from "@/components/ui/TossPrice";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { QuoteResultActions } from "@/components/quote/QuoteResultActions";
-import { openChannelTalkWithQuote } from "@/lib/channel-talk";
+import {
+  openChannelTalkWithQuote,
+  openChannelTalkWithQuoteMessage,
+} from "@/lib/channel-talk";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { type ComparisonTrimData } from "@/components/quote/VehicleConfigPanel";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
@@ -239,6 +242,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [isDelivering, setIsDelivering] = useState(false);
   const [deliverSuccess, setDeliverSuccess] = useState(false);
   const kakaoDeliveryEnabled = isKakaoSyncEnabled();
+  // 비즈톡/카카오싱크 자동발송 준비 전 임시방편: 자동발송이 꺼져 있으면
+  // '견적서 받기'를 채널톡 상담으로 유도해 담당자가 수동으로 견적서를 보낸다.
+  const channelTalkDelivery = !kakaoDeliveryEnabled;
   const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
   const recalculateRequestId = useRef(0);
   const lastQuotedSlug = useRef<string | null>(null);
@@ -802,6 +808,47 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     }
   }
 
+  // ─── 임시방편: 견적서 받기 → 채널톡 유도 (비즈톡 자동발송 전) ───
+  async function handleQuoteReceiveViaChannelTalk() {
+    if (!quoteResult || isDelivering) return;
+    setIsDelivering(true);
+    setDeliveryError(null);
+    setDeliverSuccess(false);
+
+    try {
+      const savedQuote = await saveCurrentQuote();
+      const vehicleName = selectedVehicle?.name ?? "";
+      const requestSubject = [vehicleName, quoteResult.trimName]
+        .filter(Boolean)
+        .join(" ");
+      const opened = openChannelTalkWithQuoteMessage(
+        {
+          quoteId: savedQuote.id,
+          sessionId: savedQuote.sessionId,
+          vehicleName,
+          trimName: quoteResult.trimName,
+          productType: contractCategory,
+          contractMonths: quoteResult.contractMonths,
+          annualMileage: quoteResult.annualMileage,
+        },
+        `${requestSubject} 견적서를 받고 싶어요.`
+      );
+      if (!opened) {
+        setDeliveryError("상담창을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+      setDeliverSuccess(true);
+    } catch (deliverError) {
+      setDeliveryError(
+        deliverError instanceof Error
+          ? deliverError.message
+          : "견적서 요청 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+      );
+    } finally {
+      setIsDelivering(false);
+    }
+  }
+
   async function refreshQuoteForDelivery(): Promise<QuoteResponse> {
     const baseQuote = await requestCalculatedQuoteForDelivery({
       depositRate: 0,
@@ -1112,10 +1159,15 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               isConsultationSubmitting={isConsultationSubmitting}
               consultationError={consultationError}
               kakaoDeliveryEnabled={kakaoDeliveryEnabled}
+              channelTalkDelivery={channelTalkDelivery}
               isDelivering={isDelivering}
               deliverSuccess={deliverSuccess}
               deliveryError={deliveryError}
-              onQuoteDeliver={handleQuoteDeliver}
+              onQuoteDeliver={
+                kakaoDeliveryEnabled
+                  ? handleQuoteDeliver
+                  : handleQuoteReceiveViaChannelTalk
+              }
               onCustomRatesChange={setCustomRates}
               onCostModeChange={setCostMode}
               onReset={restoreBaseStandardScenario}
@@ -1250,6 +1302,7 @@ function Step3ResultHeader({
   isConsultationSubmitting,
   consultationError,
   kakaoDeliveryEnabled,
+  channelTalkDelivery,
   isDelivering,
   deliverSuccess,
   deliveryError,
@@ -1282,6 +1335,7 @@ function Step3ResultHeader({
   isConsultationSubmitting: boolean;
   consultationError: string | null;
   kakaoDeliveryEnabled: boolean;
+  channelTalkDelivery: boolean;
   isDelivering: boolean;
   deliverSuccess: boolean;
   deliveryError: string | null;
@@ -1588,6 +1642,7 @@ function Step3ResultHeader({
             isApplying={isApplying}
             applyError={applyError}
             kakaoDeliveryEnabled={kakaoDeliveryEnabled}
+            channelTalkDelivery={channelTalkDelivery}
             isDelivering={isDelivering}
             deliverySuccess={deliverSuccess}
             deliveryError={deliveryError}

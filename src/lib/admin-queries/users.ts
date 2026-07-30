@@ -249,6 +249,7 @@ export async function getAdminUsers(): Promise<{
         channelRelation: true,
         marketingConsent: true,
         consentedAt: true,
+        profileCompleted: true,
       },
     }),
   ]);
@@ -259,10 +260,15 @@ export async function getAdminUsers(): Promise<{
   const adminMap = new Map<string, string>(); // supabaseId -> role
   const emailMap = new Map<string, string>(); // email -> role
   const kakaoInfoMap = new Map<string, AdminUserKakaoInfo>(); // supabaseId -> 싱크 정보
+  // 회원 실명: 가입완료 폼(profileCompleted)으로 저장한 DB 실명을 카카오 닉네임보다 우선한다.
+  const dbNameBySupabaseId = new Map<string, string>();
   dbMembers.forEach((m) => {
     if (m.role !== "member") {
       if (m.supabaseId) adminMap.set(m.supabaseId, m.role);
       if (m.email) emailMap.set(m.email, m.role);
+    }
+    if (m.supabaseId && m.profileCompleted && m.name) {
+      dbNameBySupabaseId.set(m.supabaseId, m.name);
     }
     if (m.supabaseId) {
       kakaoInfoMap.set(m.supabaseId, {
@@ -295,11 +301,13 @@ export async function getAdminUsers(): Promise<{
     const kakaoInfo = kakaoInfoMap.get(authUser.id) ?? null;
     // Supabase 메타에 전화번호가 없어도 카카오싱크로 받은 값이 있으면 그걸 쓴다.
     const authPhone = getUsablePhone(authUser.phone) ?? getUsablePhone(kakaoInfo?.memberPhone);
+    // 가입완료 폼으로 저장한 실명이 있으면 우선, 없으면 Supabase 인증 이름(카카오 닉네임) 폴백.
+    const realName = dbNameBySupabaseId.get(authUser.id) ?? authUser.name;
 
     userMap.set(authKey, {
       id: authUser.id,
       authUserId: authUser.id,
-      name: authUser.name,
+      name: realName,
       phone: authPhone ?? UNKNOWN_PHONE,
       email: authUser.email,
       avatarUrl: authUser.avatarUrl,

@@ -36,3 +36,19 @@ export function openChannelTalkWithQuote(context: ChannelTalkQuoteContext): bool
   window.ChannelIO("showMessenger");
   return true;
 }
+
+// 비즈톡 자동발송 연동 전 임시방편: '견적서 받기'를 눌렀을 때
+// 채널톡 상담창을 열고 요청 메시지를 미리 채워, 고객이 전송하면
+// 담당자가 수동으로 견적서 이미지를 보내도록 유도한다.
+export function openChannelTalkWithQuoteMessage(
+  context: ChannelTalkQuoteContext,
+  message: string
+): boolean {
+  if (typeof window === "undefined" || !window.ChannelIO) {
+    return false;
+  }
+
+  window.ChannelIO("track", "quote_consultation_requested", context);
+  window.ChannelIO("openChat", undefined, message);
+  return true;
+}

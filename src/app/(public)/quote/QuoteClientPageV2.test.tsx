@@ -400,17 +400,50 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     );
   });
 
-  it("hides the Kakao delivery action when the feature flag is disabled", async () => {
+  it("routes quote delivery to ChannelTalk when the Kakao flag is disabled (stopgap)", async () => {
     vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "false");
     writeCalculatedRestore();
-    vi.stubGlobal("fetch", createFetchMock());
+    const channelCalls: unknown[][] = [];
+    window.ChannelIO = (...args: unknown[]) => {
+      channelCalls.push(args);
+    };
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+        });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "카카오톡으로 견적서 받기" })
+    );
 
-    await screen.findByRole("button", { name: "심사 요청하기" });
-    expect(
-      screen.queryByRole("button", { name: "카카오톡으로 견적서 받기" })
-    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/save",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+
+    // 임시방편: 자동발송(/api/quote/deliver) 대신 채널톡 openChat 으로 유도한다.
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/quote/deliver",
+      expect.anything()
+    );
+    const openChatCall = channelCalls.find((args) => args[0] === "openChat");
+    expect(openChatCall).toBeDefined();
+    expect(String(openChatCall?.[2])).toContain("견적서를 받고 싶어요");
   });
 
   it("shows an inline error and stays on the quote when persistence fails", async () => {

@@ -673,6 +673,7 @@ model User {
   kakaoRefreshToken String?
   marketingConsent Boolean   @default(false)
   consentedAt      DateTime? // 카카오싱크 동의창을 통과한 시각(재동의 시 갱신)
+  profileCompleted Boolean   @default(false) // 간편가입 폼(이름·전화) 완료 여부. 미완료 회원은 로그인 후 /welcome 로 유도.
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @default(now()) @updatedAt
 

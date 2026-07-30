@@ -11,6 +11,8 @@ export interface AdminSavedQuote {
   vehicleBrand: string;
   trimId: string;
   trimName: string;
+  trimPrice: number | null;
+  discountPrice: number | null;
   contractMonths: number;
   annualMileage: number;
   depositRate: number;

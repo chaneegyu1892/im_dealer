@@ -116,20 +116,21 @@ KAKAO_CLIENT_SECRET=             # 카카오 콘솔에 표시된 Client Secret
 > 회원들이 재로그인해야 전송 기능이 복구된다.
 
 > `NEXT_PUBLIC_KAKAO_REQUEST_PHONE` 은 **제거됨** — 전화번호가 싱크 스코프에 포함되어 `NEXT_PUBLIC_KAKAO_SYNC` 로 통합.
-> 문제 발생 시 `NEXT_PUBLIC_KAKAO_SYNC` 를 끄면 프로필-only 로그인으로 즉시 롤백된다(재빌드 필요).
+> 문제 발생 시 `NEXT_PUBLIC_KAKAO_SYNC` 를 끄면 자동발송 대신 채널톡 상담 요청으로 전환된다(재빌드 필요).
 
 **필수 마이그레이션:**
 - `20260720000000_kakao_sync_consent`: 카카오 동의 정보 컬럼
 - `20260720010000_quote_delivery`: 리프레시 토큰과 전송 이력
 - `20260720020000_quote_image_storage_bucket`: 공개 `quotes` Storage 버킷
+- `20260728000000_add_user_profile_completed`: 간편가입 완료 여부와 기존 사용자 backfill
 
-이 저장소의 기존 마이그레이션 히스토리는 shadow DB 재생에 제약이 있으므로, 운영 DB에 이미 적용된 항목을 확인한 뒤 누락 SQL만 Supabase SQL Editor에서 실행한다.
+같은 Supabase를 공유하는 환경에서는 데이터를 복사하지 않는다. `pnpm exec prisma migrate status`로 운영 DB 상태를 확인하고, 미적용 항목만 `pnpm exec prisma migrate deploy`로 한 번 적용한다.
 
 ## 5. 주의사항
 
 - **검수·신청 소요**: 비즈니스 채널·싱크·전화번호 검수는 각각 영업일 며칠 소요.
 - **기존 회원 소급 불가**: 채널추가·마케팅동의는 재로그인/재동의로만 채워짐.
-- **배포 안전**: `NEXT_PUBLIC_KAKAO_SYNC=false`면 CTA가 숨겨지고 전송 API는 404를 반환한다.
+- **배포 안전**: `NEXT_PUBLIC_KAKAO_SYNC=false`면 자동발송 API는 404를 반환하고 견적서 CTA는 채널톡 상담 요청을 연다.
 - **공개 이미지**: 카카오 서버가 읽어야 하므로 사용자 식별자가 없는 UUID 경로의 공개 PNG를 사용한다. 전송 PNG에는 고객 이메일을 렌더링하지 않으며 파일은 5MB 이하여야 한다.
 - **카카오싱크 ≠ 전화번호**: 둘 다 비즈니스 앱을 공유하지만 독립. 전화번호는 싱크 없이 먼저 가능.
 
