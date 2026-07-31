@@ -441,19 +441,27 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       );
     });
 
-    // 임시방편: 자동발송(/api/quote/deliver) 대신 카카오 채널추가 + 채널톡 상담으로 유도한다.
+    // 임시방편: 자동발송(/api/quote/deliver) 대신 카카오 채널추가 + 채널 대화창으로 유도한다.
     expect(fetchMock).not.toHaveBeenCalledWith(
       "/api/quote/deliver",
       expect.anything()
     );
-    // ① 채널톡 상담창에 견적 요청 메시지를 프리필(고객 전송 시 상담사 알림)
-    const openChatCall = channelCalls.find((args) => args[0] === "openChat");
-    expect(openChatCall).toBeDefined();
-    expect(String(openChatCall?.[2])).toContain("견적서를 받고 싶어요");
-    // ② 카카오 채널추가 팝업(JS SDK 미로드 → 친구추가 URL 폴백)
+    // ① 상담사가 볼 견적 컨텍스트를 채널톡 track 으로 기록
+    const trackCall = channelCalls.find(
+      (args) => args[0] === "track" && args[1] === "quote_delivery_requested"
+    );
+    expect(trackCall).toBeDefined();
+    // ② 카카오 채널추가 팝업 + ③ 카카오 채널 대화창 (JS SDK 미로드 → URL 폴백)
     await waitFor(() =>
       expect(openSpy).toHaveBeenCalledWith(
         expect.stringContaining("pf.kakao.com/_TestCh/friend"),
+        expect.anything(),
+        expect.anything()
+      )
+    );
+    await waitFor(() =>
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringContaining("pf.kakao.com/_TestCh/chat"),
         expect.anything(),
         expect.anything()
       )

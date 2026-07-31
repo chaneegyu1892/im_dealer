@@ -12,6 +12,7 @@ const SDK_SRC = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js";
 
 interface KakaoChannelApi {
   addChannel: (opts: { channelPublicId: string }) => void;
+  chat: (opts: { channelPublicId: string }) => void;
 }
 interface KakaoSDK {
   init: (key: string) => void;
@@ -77,5 +78,28 @@ export async function addKakaoChannel(): Promise<boolean> {
 
   // 폴백: 친구추가 URL (JS 키 없이도 동작)
   window.open(`https://pf.kakao.com/${id}/friend`, "_blank", "noopener,noreferrer");
+  return true;
+}
+
+/**
+ * 카카오톡 채널 1:1 대화창을 연다 — 고객이 채널로 직접 메시지를 보내도록 유도한다.
+ * 고객이 채널로 메시지를 보내면 채널톡(카카오 채널 연동)으로 상담사에게 알림이 간다.
+ * SDK 사용 불가 시 채널 채팅 URL(pf.kakao.com/_XXXXX/chat)을 새 창으로 연다.
+ * 채널 ID 미설정이면 false.
+ */
+export async function openKakaoChannelChat(): Promise<boolean> {
+  const id = channelPublicId();
+  if (!id) {
+    console.warn("[kakao] NEXT_PUBLIC_KAKAO_CHANNEL_PUBLIC_ID 미설정");
+    return false;
+  }
+
+  const kakao = await loadKakaoSdk();
+  if (kakao?.Channel) {
+    kakao.Channel.chat({ channelPublicId: id });
+    return true;
+  }
+
+  window.open(`https://pf.kakao.com/${id}/chat`, "_blank", "noopener,noreferrer");
   return true;
 }
