@@ -41,7 +41,7 @@ export function QuoteResultActions({
             <KakaoBubbleIcon />
             {isDelivering
               ? channelTalkDelivery
-                ? "채널 추가 중…"
+                ? "상담창 여는 중…"
                 : "전송 중…"
               : "카카오톡으로 견적서 받기"}
           </button>
@@ -53,7 +53,7 @@ export function QuoteResultActions({
             >
               <CheckCircle2 aria-hidden="true" size={14} className="mt-0.5 shrink-0" />
               {channelTalkDelivery
-                ? "카카오 채널을 추가하시면 상담사가 확인 후 견적서를 보내드려요."
+                ? "채팅창에 요청을 담아뒀어요. 전송하시면 상담사가 확인 후 견적서를 보내드려요."
                 : "카카오톡으로 견적서를 보냈어요. 나와의 채팅에서 확인해 주세요."}
             </p>
           ) : null}

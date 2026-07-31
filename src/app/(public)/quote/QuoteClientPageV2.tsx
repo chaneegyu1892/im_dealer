@@ -31,7 +31,7 @@ import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { QuoteResultActions } from "@/components/quote/QuoteResultActions";
 import {
   openChannelTalkWithQuote,
-  trackQuoteDeliveryRequested,
+  openChannelTalkWithQuoteMessage,
 } from "@/lib/channel-talk";
 import { addKakaoChannel } from "@/lib/kakao/channel-add";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
@@ -812,10 +812,11 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     }
   }
 
-  // ─── 임시방편: 견적서 받기 → 카카오 채널추가 유도 (비즈톡 자동발송 전) ───
-  // 견적 요청 컨텍스트를 채널톡에 기록하고 카카오 채널추가 팝업을 띄운다.
-  // 고객이 채널을 추가하면 채널톡↔카카오 채널 통합으로 상담사 데스크에 떠서,
-  // 상담사가 확인 후 견적서 이미지를 발송한다.
+  // ─── 임시방편: 견적서 받기 → 카카오 채널추가 + 채널톡 상담 요청 (비즈톡 자동발송 전) ───
+  // ① 카카오 채널추가 팝업(상담사가 카카오 채널로 답장 가능)
+  // ② 채널톡 상담창에 견적 요청 메시지를 프리필 → 고객이 전송하면 상담이 생성되어
+  //    상담사에게 채널톡 알림이 가고, 상담사가 확인 후 견적서 이미지를 수동 발송한다.
+  //    (채널추가만으로는 상담이 생성되지 않아 상담사에게 뜨지 않으므로 메시지 전송을 유도한다.)
   async function handleQuoteReceiveViaChannelTalk() {
     if (!quoteResult || isDelivering) return;
     setIsDelivering(true);
@@ -825,8 +826,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     try {
       const savedQuote = await saveCurrentQuote();
       const vehicleName = selectedVehicle?.name ?? "";
-      // 상담사가 채널톡 데스크에서 볼 견적 요청 컨텍스트를 기록.
-      trackQuoteDeliveryRequested({
+      const requestSubject = [vehicleName, quoteResult.trimName]
+        .filter(Boolean)
+        .join(" ");
+      const context = {
         quoteId: savedQuote.id,
         sessionId: savedQuote.sessionId,
         vehicleName,
@@ -834,11 +837,18 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         productType: contractCategory,
         contractMonths: quoteResult.contractMonths,
         annualMileage: quoteResult.annualMileage,
-      });
-      // 카카오 채널추가 팝업.
-      const opened = await addKakaoChannel();
+      };
+
+      // ① 카카오 채널추가 팝업 (실패해도 채널톡 요청은 계속 진행).
+      await addKakaoChannel();
+
+      // ② 채널톡 상담창에 견적 요청 메시지 프리필 → 고객 전송 시 상담사 알림.
+      const opened = openChannelTalkWithQuoteMessage(
+        context,
+        `${requestSubject} 견적서를 받고 싶어요.`
+      );
       if (!opened) {
-        setDeliveryError("카카오 채널 설정을 확인해 주세요. 잠시 후 다시 시도해주세요.");
+        setDeliveryError("상담창을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
         return;
       }
       setDeliverSuccess(true);
