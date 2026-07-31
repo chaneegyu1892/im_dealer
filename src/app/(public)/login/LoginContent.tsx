@@ -38,6 +38,31 @@ export default function LoginContent() {
     }
   }
 
+  // 개발 전용: 카카오 OAuth(운영 도메인 리다이렉트) 없이 테스트 계정으로 로그인.
+  const isDev = process.env.NODE_ENV === "development";
+  async function handleDevLogin(fresh = false) {
+    if (isStartingLogin) return;
+    setIsStartingLogin(true);
+    setLoginError(null);
+    try {
+      const res = await fetch("/api/dev/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fresh }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? "개발용 로그인에 실패했습니다.");
+      }
+      // fresh 모드는 간편가입 완료 화면(/welcome)으로 유도.
+      router.replace(fresh ? "/welcome" : next !== "/" ? next : "/mypage");
+      router.refresh();
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "개발용 로그인에 실패했습니다.");
+      setIsStartingLogin(false);
+    }
+  }
+
   return (
     <main className="home-showroom-scope min-h-screen bg-app-bg px-4 py-8 pb-[calc(112px+env(safe-area-inset-bottom,0px))] md:py-14 md:pb-16">
       <div className="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[440px] flex-col justify-center">
@@ -88,8 +113,30 @@ export default function LoginContent() {
                 className="mt-8 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-[var(--color-kakao-action)] px-5 text-[16px] font-extrabold text-[var(--color-kakao-ink)] shadow-card transition-all duration-state hover:bg-[var(--color-kakao-action-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 active:scale-[0.98] disabled:cursor-wait disabled:opacity-70"
               >
                 <KakaoIcon />
-                {isStartingLogin ? "카카오 연결 중…" : "카카오로 시작하기"}
+                {isStartingLogin ? "카카오 연결 중…" : "카카오 로그인"}
               </button>
+
+              {isDev ? (
+                <div className="mt-3 grid gap-2 rounded-[14px] border border-dashed border-border-strong bg-surface-soft p-3">
+                  <p className="text-center text-[11px] font-bold text-text-muted">🔧 개발 전용 (운영 빌드 미노출)</p>
+                  <button
+                    type="button"
+                    onClick={() => handleDevLogin(false)}
+                    disabled={isStartingLogin}
+                    className="flex min-h-[40px] w-full items-center justify-center gap-2 rounded-[12px] border border-border-strong bg-surface px-4 text-[13px] font-bold text-text-body transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 disabled:cursor-wait disabled:opacity-70"
+                  >
+                    개발용 로그인 → 마이페이지
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDevLogin(true)}
+                    disabled={isStartingLogin}
+                    className="flex min-h-[40px] w-full items-center justify-center gap-2 rounded-[12px] border border-border-strong bg-surface px-4 text-[13px] font-bold text-text-body transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 disabled:cursor-wait disabled:opacity-70"
+                  >
+                    개발용 로그인 → 간편가입 흐름(/welcome)
+                  </button>
+                </div>
+              ) : null}
 
               {loginError ? (
                 <p

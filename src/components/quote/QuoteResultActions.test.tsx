@@ -124,7 +124,7 @@ describe("QuoteResultActions", () => {
     it("When pending Then it shows the ChannelTalk busy label", () => {
       render(<QuoteResultActions {...stopgapProps} isDelivering />);
 
-      const deliveryButton = screen.getByRole("button", { name: "상담창 여는 중…" });
+      const deliveryButton = screen.getByRole("button", { name: "카카오 채널 여는 중…" });
       expect(deliveryButton).toBeDisabled();
       expect(deliveryButton).toHaveAttribute("aria-busy", "true");
     });
@@ -133,7 +133,7 @@ describe("QuoteResultActions", () => {
       render(<QuoteResultActions {...stopgapProps} deliverySuccess />);
 
       expect(screen.getByRole("status")).toHaveTextContent(
-        "전송하시면 담당자가 견적서를 보내드려요."
+        "요청 메시지를 복사했어요"
       );
     });
   });

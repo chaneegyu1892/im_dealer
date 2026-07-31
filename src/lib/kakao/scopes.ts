@@ -11,11 +11,9 @@ const BASE_SCOPES = ["profile_nickname", "profile_image"] as const;
 //    반드시 콘솔 동의항목 설정·승인을 먼저 확인하고 추가할 것.
 //
 // talk_message = "나에게 보내기"(견적서 전송) 권한
-//
-// plusfriends(카카오톡 채널 관계 확인)는 콘솔 미설정으로 제외했다.
-// 설정 후 다시 추가하면 getChannelRelation() 이 동작한다.
-// 없는 동안엔 User.channelRelation 이 null 로 남고, marketingConsent 는 약관 tag 로만 판정된다.
-const SYNC_SCOPES = ["account_email", "name", "phone_number", "talk_message"] as const;
+// plusfriends = 카카오톡 채널 추가 상태 확인 → getChannelRelation() 이 동작하여
+//              User.channelRelation(ADDED/BLOCKED/NONE) 을 채운다. (콘솔 "필수 동의" 승인됨)
+const SYNC_SCOPES = ["account_email", "name", "phone_number", "talk_message", "plusfriends"] as const;
 
 export function isKakaoSyncEnabled(): boolean {
   return process.env.NEXT_PUBLIC_KAKAO_SYNC === "true";

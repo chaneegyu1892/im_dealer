@@ -55,6 +55,8 @@ vi.mock("@/lib/supabase/client", () => ({
 beforeEach(() => {
   vi.stubGlobal("scrollTo", vi.fn());
   vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "true");
+  // 자동발송(나에게 보내기) 테스트용 — 기본 흐름은 채널추가 수동 발송이므로 명시적으로 켠다.
+  vi.stubEnv("NEXT_PUBLIC_KAKAO_QUOTE_AUTO_SEND", "true");
   vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://imdealer.example");
   supabaseMock.getUser.mockReset();
   supabaseMock.getUser.mockResolvedValue({ data: { user: null } });
@@ -400,8 +402,13 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     );
   });
 
-  it("routes quote delivery to ChannelTalk when the Kakao flag is disabled (stopgap)", async () => {
+  it("routes quote delivery to Kakao channel add when the Kakao flag is disabled (stopgap)", async () => {
     vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "false");
+    vi.stubEnv("NEXT_PUBLIC_KAKAO_CHANNEL_PUBLIC_ID", "_TestCh");
+    const openSpy = vi.fn();
+    vi.stubGlobal("open", openSpy);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     writeCalculatedRestore();
     const channelCalls: unknown[][] = [];
     window.ChannelIO = (...args: unknown[]) => {
@@ -436,14 +443,35 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       );
     });
 
-    // 임시방편: 자동발송(/api/quote/deliver) 대신 채널톡 openChat 으로 유도한다.
+    // 임시방편: 자동발송(/api/quote/deliver) 대신 카카오 채널추가 + 채널 대화창으로 유도한다.
     expect(fetchMock).not.toHaveBeenCalledWith(
       "/api/quote/deliver",
       expect.anything()
     );
-    const openChatCall = channelCalls.find((args) => args[0] === "openChat");
-    expect(openChatCall).toBeDefined();
-    expect(String(openChatCall?.[2])).toContain("견적서를 받고 싶어요");
+    // ① 상담사가 볼 견적 컨텍스트를 채널톡 track 으로 기록
+    const trackCall = channelCalls.find(
+      (args) => args[0] === "track" && args[1] === "quote_delivery_requested"
+    );
+    expect(trackCall).toBeDefined();
+    // ②' 견적 요청 메시지를 클립보드에 복사(붙여넣기 유도)
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("[견적서 요청]"))
+    );
+    // ② 카카오 채널추가 팝업 + ③ 카카오 채널 대화창 (JS SDK 미로드 → URL 폴백)
+    await waitFor(() =>
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringContaining("pf.kakao.com/_TestCh/friend"),
+        expect.anything(),
+        expect.anything()
+      )
+    );
+    await waitFor(() =>
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringContaining("pf.kakao.com/_TestCh/chat"),
+        expect.anything(),
+        expect.anything()
+      )
+    );
   });
 
   it("shows an inline error and stays on the quote when persistence fails", async () => {

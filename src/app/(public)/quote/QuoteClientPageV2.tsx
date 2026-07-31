@@ -31,8 +31,9 @@ import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { QuoteResultActions } from "@/components/quote/QuoteResultActions";
 import {
   openChannelTalkWithQuote,
-  openChannelTalkWithQuoteMessage,
+  trackQuoteDeliveryRequested,
 } from "@/lib/channel-talk";
+import { addKakaoChannel, openKakaoChannelChat } from "@/lib/kakao/channel-add";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { type ComparisonTrimData } from "@/components/quote/VehicleConfigPanel";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
@@ -241,9 +242,12 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [isDelivering, setIsDelivering] = useState(false);
   const [deliverSuccess, setDeliverSuccess] = useState(false);
-  const kakaoDeliveryEnabled = isKakaoSyncEnabled();
-  // 비즈톡/카카오싱크 자동발송 준비 전 임시방편: 자동발송이 꺼져 있으면
-  // '견적서 받기'를 채널톡 상담으로 유도해 담당자가 수동으로 견적서를 보낸다.
+  // 카카오톡 '나에게 보내기' 자동발송은 카카오싱크 + 명시적 자동발송 플래그가 모두 켜졌을 때만.
+  // (KAKAO_SYNC 는 간편가입 로그인용이라, 자동발송과는 분리한다.)
+  const kakaoDeliveryEnabled =
+    isKakaoSyncEnabled() && process.env.NEXT_PUBLIC_KAKAO_QUOTE_AUTO_SEND === "true";
+  // 비즈톡 자동발송 전 기본 임시방편: '견적서 받기' → 카카오 채널추가 유도 →
+  // 채널톡(↔카카오 채널 통합)으로 상담사가 확인 후 견적서를 수동 발송한다.
   const channelTalkDelivery = !kakaoDeliveryEnabled;
   const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
   const recalculateRequestId = useRef(0);
@@ -808,7 +812,11 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     }
   }
 
-  // ─── 임시방편: 견적서 받기 → 채널톡 유도 (비즈톡 자동발송 전) ───
+  // ─── 임시방편: 견적서 받기 → 카카오 채널추가 + 채널 대화창 유도 (비즈톡 자동발송 전) ───
+  // ① 카카오 채널추가 팝업
+  // ② 카카오톡 채널 대화창을 열어 고객이 채널로 직접 메시지를 보내도록 유도한다.
+  //    고객이 채널로 메시지를 보내면 채널톡(↔카카오 채널 연동)으로 상담사에게 알림이 가고,
+  //    상담사가 확인 후 견적서 이미지를 수동 발송한다.
   async function handleQuoteReceiveViaChannelTalk() {
     if (!quoteResult || isDelivering) return;
     setIsDelivering(true);
@@ -818,23 +826,37 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     try {
       const savedQuote = await saveCurrentQuote();
       const vehicleName = selectedVehicle?.name ?? "";
-      const requestSubject = [vehicleName, quoteResult.trimName]
-        .filter(Boolean)
-        .join(" ");
-      const opened = openChannelTalkWithQuoteMessage(
-        {
-          quoteId: savedQuote.id,
-          sessionId: savedQuote.sessionId,
-          vehicleName,
-          trimName: quoteResult.trimName,
-          productType: contractCategory,
-          contractMonths: quoteResult.contractMonths,
-          annualMileage: quoteResult.annualMileage,
-        },
-        `${requestSubject} 견적서를 받고 싶어요.`
-      );
+      // 상담사가 채널톡 데스크에서 볼 견적 요청 컨텍스트를 기록.
+      trackQuoteDeliveryRequested({
+        quoteId: savedQuote.id,
+        sessionId: savedQuote.sessionId,
+        vehicleName,
+        trimName: quoteResult.trimName,
+        productType: contractCategory,
+        contractMonths: quoteResult.contractMonths,
+        annualMileage: quoteResult.annualMileage,
+      });
+
+      // 채널 대화창은 메시지 프리필이 불가하므로, 견적 정보가 담긴 요청 메시지를
+      // 클립보드에 복사해 고객이 대화창에 붙여넣고 보내도록 유도한다(상담사가 견적 파악).
+      const requestSubject = [vehicleName, quoteResult.trimName].filter(Boolean).join(" ");
+      const deliveryMessage =
+        `[견적서 요청] ${requestSubject}\n` +
+        `${contractCategory} · ${quoteResult.contractMonths}개월 · 연 ${quoteResult.annualMileage.toLocaleString()}km\n` +
+        `견적서 보내주세요.`;
+      try {
+        await navigator.clipboard?.writeText(deliveryMessage);
+      } catch {
+        // 클립보드 권한/미지원 — 무시하고 대화창은 계속 연다.
+      }
+
+      // ① 카카오 채널추가 팝업 (실패해도 대화창 유도는 계속 진행).
+      await addKakaoChannel();
+
+      // ② 카카오톡 채널 대화창 열기 → 고객이 붙여넣어 채널로 메시지를 보내도록 유도.
+      const opened = await openKakaoChannelChat();
       if (!opened) {
-        setDeliveryError("상담창을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        setDeliveryError("카카오 채널 설정을 확인해 주세요. 잠시 후 다시 시도해주세요.");
         return;
       }
       setDeliverSuccess(true);

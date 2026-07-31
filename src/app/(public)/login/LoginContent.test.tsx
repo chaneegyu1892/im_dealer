@@ -60,7 +60,7 @@ describe("LoginContent Kakao OAuth", () => {
   it("requests the talk_message scope when Kakao quote delivery is enabled", async () => {
     render(<LoginContent />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "카카오로 시작하기" }));
+    fireEvent.click(await screen.findByRole("button", { name: "카카오 로그인" }));
 
     await waitFor(() => expect(mocks.signInWithOAuth).toHaveBeenCalledTimes(1));
     expect(mocks.signInWithOAuth).toHaveBeenCalledWith({
@@ -69,10 +69,10 @@ describe("LoginContent Kakao OAuth", () => {
         redirectTo:
           "https://imdealer.example/auth/callback?next=%2Fquote%3Fvehicle%3Dsonata",
         scopes:
-          "profile_nickname,profile_image,account_email,name,phone_number,talk_message",
+          "profile_nickname,profile_image,account_email,name,phone_number,talk_message,plusfriends",
         queryParams: {
           scope:
-            "profile_nickname,profile_image,account_email,name,phone_number,talk_message",
+            "profile_nickname,profile_image,account_email,name,phone_number,talk_message,plusfriends",
         },
       },
     });
@@ -84,7 +84,7 @@ describe("LoginContent Kakao OAuth", () => {
     );
     render(<LoginContent />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "카카오로 시작하기" }));
+    fireEvent.click(await screen.findByRole("button", { name: "카카오 로그인" }));
 
     await waitFor(() => expect(mocks.signInWithOAuth).toHaveBeenCalledTimes(1));
     expect(mocks.signInWithOAuth).toHaveBeenCalledWith({

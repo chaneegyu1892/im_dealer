@@ -52,3 +52,10 @@ export function openChannelTalkWithQuoteMessage(
   window.ChannelIO("openChat", undefined, message);
   return true;
 }
+
+// 카카오 채널로 견적서를 요청할 때, 상담사가 채널톡 데스크에서 볼 견적 컨텍스트를 남긴다.
+// (고객은 카카오 채널로 메시지를 보내고, 채널톡↔카카오 연동으로 상담이 뜬다.)
+export function trackQuoteDeliveryRequested(context: ChannelTalkQuoteContext): void {
+  if (typeof window === "undefined" || !window.ChannelIO) return;
+  window.ChannelIO("track", "quote_delivery_requested", context);
+}

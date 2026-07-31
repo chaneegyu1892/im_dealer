@@ -14,6 +14,7 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MyPageConsultationButton } from "@/components/mypage/MyPageConsultationButton";
 import { QuoteConditionDialog } from "@/components/mypage/QuoteConditionDialog";
+import { MarketingConsentToggle } from "@/components/mypage/MarketingConsentToggle";
 import { isSupabaseStorageUrl } from "@/lib/image-url";
 import { getMyPageData, type MyPageQuote, type MyPageStatusTone } from "@/lib/member-queries/mypage";
 import { requireMember } from "@/lib/require-access";
@@ -46,6 +47,13 @@ export default async function MyPage() {
   if (!access.userId) redirect("/login");
 
   const data = await getMyPageData(access.userId);
+
+  // 채널 미추가 회원에게 노출할 카카오 채널 친구추가 URL.
+  // KAKAO_CHANNEL_ID 가 공개 ID(_XXXXX) 형태일 때만 친구추가 링크를 만든다.
+  const kakaoChannelId = process.env.KAKAO_CHANNEL_ID?.trim();
+  const channelAddUrl = kakaoChannelId?.startsWith("_")
+    ? `https://pf.kakao.com/${kakaoChannelId}/friend`
+    : null;
 
   return (
     <main className="public-app-page min-h-[100dvh] pb-[calc(112px+env(safe-area-inset-bottom,0px))] lg:pb-14">
@@ -131,6 +139,7 @@ export default async function MyPage() {
             provider={data.profile.provider}
             channelRelation={data.profile.channelRelation}
             marketingConsent={data.profile.marketingConsent}
+            channelAddUrl={channelAddUrl}
           />
           <section className="rounded-card border border-border-subtle bg-surface p-5 shadow-card md:p-6">
             <div className="flex items-start gap-3">
@@ -297,6 +306,7 @@ function ProfileSummary({
   provider,
   channelRelation,
   marketingConsent,
+  channelAddUrl,
 }: {
   name: string;
   email: string | null;
@@ -304,6 +314,7 @@ function ProfileSummary({
   provider: string | null;
   channelRelation: string | null;
   marketingConsent: boolean;
+  channelAddUrl: string | null;
 }) {
   const channelLabel =
     channelRelation === "ADDED"
@@ -311,6 +322,8 @@ function ProfileSummary({
       : channelRelation === "BLOCKED"
         ? "채널 차단됨"
         : "채널 추가 전";
+  // 아직 채널을 추가하지 않은 회원에게 추가를 유도한다(차단 회원은 제외).
+  const showChannelAdd = channelRelation !== "ADDED" && channelRelation !== "BLOCKED" && Boolean(channelAddUrl);
 
   return (
     <section className="rounded-card border border-border-subtle bg-surface p-5 shadow-card md:p-6">
@@ -329,12 +342,17 @@ function ProfileSummary({
         <ProfileRow label="이메일" value={maskEmail(email) ?? "미등록"} />
         <ProfileRow label="알림 채널" value={channelLabel} />
       </dl>
-      <div className="mt-4 flex items-center justify-between gap-3 text-[12px]">
-        <span className="font-semibold text-text-muted">마케팅 수신 동의</span>
-        <span className={marketingConsent ? "font-extrabold text-status-positive" : "font-extrabold text-text-body"}>
-          {marketingConsent ? "동의함" : "미동의"}
-        </span>
-      </div>
+      <MarketingConsentToggle initial={marketingConsent} />
+      {showChannelAdd && channelAddUrl ? (
+        <a
+          href={channelAddUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-btn bg-[var(--color-kakao-action)] px-4 text-[13px] font-extrabold text-[var(--color-kakao-ink)] transition-colors hover:bg-[var(--color-kakao-action-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        >
+          카카오 채널 추가하고 견적·상담 소식 받기
+        </a>
+      ) : null}
     </section>
   );
 }
