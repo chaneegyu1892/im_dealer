@@ -38,6 +38,26 @@ export default function LoginContent() {
     }
   }
 
+  // 개발 전용: 카카오 OAuth(운영 도메인 리다이렉트) 없이 테스트 계정으로 로그인.
+  const isDev = process.env.NODE_ENV === "development";
+  async function handleDevLogin() {
+    if (isStartingLogin) return;
+    setIsStartingLogin(true);
+    setLoginError(null);
+    try {
+      const res = await fetch("/api/dev/login", { method: "POST" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? "개발용 로그인에 실패했습니다.");
+      }
+      router.replace(next !== "/" ? next : "/mypage");
+      router.refresh();
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "개발용 로그인에 실패했습니다.");
+      setIsStartingLogin(false);
+    }
+  }
+
   return (
     <main className="home-showroom-scope min-h-screen bg-app-bg px-4 py-8 pb-[calc(112px+env(safe-area-inset-bottom,0px))] md:py-14 md:pb-16">
       <div className="mx-auto flex min-h-[calc(100dvh-96px)] w-full max-w-[440px] flex-col justify-center">
@@ -90,6 +110,17 @@ export default function LoginContent() {
                 <KakaoIcon />
                 {isStartingLogin ? "카카오 연결 중…" : "카카오 로그인"}
               </button>
+
+              {isDev ? (
+                <button
+                  type="button"
+                  onClick={handleDevLogin}
+                  disabled={isStartingLogin}
+                  className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-[14px] border border-dashed border-border-strong bg-surface-soft px-5 text-[13px] font-bold text-text-body transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 disabled:cursor-wait disabled:opacity-70"
+                >
+                  🔧 개발용 로그인 (테스트 계정)
+                </button>
+              ) : null}
 
               {loginError ? (
                 <p
