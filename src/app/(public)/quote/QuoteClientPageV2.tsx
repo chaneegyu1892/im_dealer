@@ -31,8 +31,9 @@ import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { QuoteResultActions } from "@/components/quote/QuoteResultActions";
 import {
   openChannelTalkWithQuote,
-  openChannelTalkWithQuoteMessage,
+  trackQuoteDeliveryRequested,
 } from "@/lib/channel-talk";
+import { addKakaoChannel } from "@/lib/kakao/channel-add";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { type ComparisonTrimData } from "@/components/quote/VehicleConfigPanel";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
@@ -241,9 +242,12 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [isDelivering, setIsDelivering] = useState(false);
   const [deliverSuccess, setDeliverSuccess] = useState(false);
-  const kakaoDeliveryEnabled = isKakaoSyncEnabled();
-  // 비즈톡/카카오싱크 자동발송 준비 전 임시방편: 자동발송이 꺼져 있으면
-  // '견적서 받기'를 채널톡 상담으로 유도해 담당자가 수동으로 견적서를 보낸다.
+  // 카카오톡 '나에게 보내기' 자동발송은 카카오싱크 + 명시적 자동발송 플래그가 모두 켜졌을 때만.
+  // (KAKAO_SYNC 는 간편가입 로그인용이라, 자동발송과는 분리한다.)
+  const kakaoDeliveryEnabled =
+    isKakaoSyncEnabled() && process.env.NEXT_PUBLIC_KAKAO_QUOTE_AUTO_SEND === "true";
+  // 비즈톡 자동발송 전 기본 임시방편: '견적서 받기' → 카카오 채널추가 유도 →
+  // 채널톡(↔카카오 채널 통합)으로 상담사가 확인 후 견적서를 수동 발송한다.
   const channelTalkDelivery = !kakaoDeliveryEnabled;
   const baseStandardScenario = useRef<QuoteScenarioDetail | null>(null);
   const recalculateRequestId = useRef(0);
@@ -808,7 +812,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     }
   }
 
-  // ─── 임시방편: 견적서 받기 → 채널톡 유도 (비즈톡 자동발송 전) ───
+  // ─── 임시방편: 견적서 받기 → 카카오 채널추가 유도 (비즈톡 자동발송 전) ───
+  // 견적 요청 컨텍스트를 채널톡에 기록하고 카카오 채널추가 팝업을 띄운다.
+  // 고객이 채널을 추가하면 채널톡↔카카오 채널 통합으로 상담사 데스크에 떠서,
+  // 상담사가 확인 후 견적서 이미지를 발송한다.
   async function handleQuoteReceiveViaChannelTalk() {
     if (!quoteResult || isDelivering) return;
     setIsDelivering(true);
@@ -818,23 +825,20 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     try {
       const savedQuote = await saveCurrentQuote();
       const vehicleName = selectedVehicle?.name ?? "";
-      const requestSubject = [vehicleName, quoteResult.trimName]
-        .filter(Boolean)
-        .join(" ");
-      const opened = openChannelTalkWithQuoteMessage(
-        {
-          quoteId: savedQuote.id,
-          sessionId: savedQuote.sessionId,
-          vehicleName,
-          trimName: quoteResult.trimName,
-          productType: contractCategory,
-          contractMonths: quoteResult.contractMonths,
-          annualMileage: quoteResult.annualMileage,
-        },
-        `${requestSubject} 견적서를 받고 싶어요.`
-      );
+      // 상담사가 채널톡 데스크에서 볼 견적 요청 컨텍스트를 기록.
+      trackQuoteDeliveryRequested({
+        quoteId: savedQuote.id,
+        sessionId: savedQuote.sessionId,
+        vehicleName,
+        trimName: quoteResult.trimName,
+        productType: contractCategory,
+        contractMonths: quoteResult.contractMonths,
+        annualMileage: quoteResult.annualMileage,
+      });
+      // 카카오 채널추가 팝업.
+      const opened = await addKakaoChannel();
       if (!opened) {
-        setDeliveryError("상담창을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+        setDeliveryError("카카오 채널 설정을 확인해 주세요. 잠시 후 다시 시도해주세요.");
         return;
       }
       setDeliverSuccess(true);

@@ -52,3 +52,11 @@ export function openChannelTalkWithQuoteMessage(
   window.ChannelIO("openChat", undefined, message);
   return true;
 }
+
+// 카카오 채널추가 유도 방식: 채널톡에 견적서 요청 컨텍스트만 기록한다.
+// 상담사 알림/대화는 채널톡 ↔ 카카오톡 채널 통합으로 이뤄지므로(고객이 채널을 추가하면
+// 채널톡 데스크에 뜬다), 여기서는 상담사가 볼 견적 정보만 이벤트로 남긴다.
+export function trackQuoteDeliveryRequested(context: ChannelTalkQuoteContext): void {
+  if (typeof window === "undefined" || !window.ChannelIO) return;
+  window.ChannelIO("track", "quote_delivery_requested", context);
+}
