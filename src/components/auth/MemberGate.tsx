@@ -74,7 +74,7 @@ export function MemberGate({
             {message}
           </span>
           <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-status-warning-soft px-3 py-1.5 text-[12px] font-semibold text-status-warning">
-            카카오로 로그인
+            카카오 로그인
           </span>
         </button>
       )}

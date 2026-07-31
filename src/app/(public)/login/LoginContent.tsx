@@ -88,7 +88,7 @@ export default function LoginContent() {
                 className="mt-8 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-[var(--color-kakao-action)] px-5 text-[16px] font-extrabold text-[var(--color-kakao-ink)] shadow-card transition-all duration-state hover:bg-[var(--color-kakao-action-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30 active:scale-[0.98] disabled:cursor-wait disabled:opacity-70"
               >
                 <KakaoIcon />
-                {isStartingLogin ? "카카오 연결 중…" : "카카오로 시작하기"}
+                {isStartingLogin ? "카카오 연결 중…" : "카카오 로그인"}
               </button>
 
               {loginError ? (
