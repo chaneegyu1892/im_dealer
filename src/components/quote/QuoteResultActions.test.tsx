@@ -133,7 +133,7 @@ describe("QuoteResultActions", () => {
       render(<QuoteResultActions {...stopgapProps} deliverySuccess />);
 
       expect(screen.getByRole("status")).toHaveTextContent(
-        "상담사가 확인 후 견적서를 보내드려요."
+        "요청 메시지를 복사했어요"
       );
     });
   });

@@ -407,6 +407,8 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     vi.stubEnv("NEXT_PUBLIC_KAKAO_CHANNEL_PUBLIC_ID", "_TestCh");
     const openSpy = vi.fn();
     vi.stubGlobal("open", openSpy);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     writeCalculatedRestore();
     const channelCalls: unknown[][] = [];
     window.ChannelIO = (...args: unknown[]) => {
@@ -451,6 +453,10 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       (args) => args[0] === "track" && args[1] === "quote_delivery_requested"
     );
     expect(trackCall).toBeDefined();
+    // ②' 견적 요청 메시지를 클립보드에 복사(붙여넣기 유도)
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("[견적서 요청]"))
+    );
     // ② 카카오 채널추가 팝업 + ③ 카카오 채널 대화창 (JS SDK 미로드 → URL 폴백)
     await waitFor(() =>
       expect(openSpy).toHaveBeenCalledWith(

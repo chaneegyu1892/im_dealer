@@ -837,10 +837,23 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         annualMileage: quoteResult.annualMileage,
       });
 
+      // 채널 대화창은 메시지 프리필이 불가하므로, 견적 정보가 담긴 요청 메시지를
+      // 클립보드에 복사해 고객이 대화창에 붙여넣고 보내도록 유도한다(상담사가 견적 파악).
+      const requestSubject = [vehicleName, quoteResult.trimName].filter(Boolean).join(" ");
+      const deliveryMessage =
+        `[견적서 요청] ${requestSubject}\n` +
+        `${contractCategory} · ${quoteResult.contractMonths}개월 · 연 ${quoteResult.annualMileage.toLocaleString()}km\n` +
+        `견적서 보내주세요.`;
+      try {
+        await navigator.clipboard?.writeText(deliveryMessage);
+      } catch {
+        // 클립보드 권한/미지원 — 무시하고 대화창은 계속 연다.
+      }
+
       // ① 카카오 채널추가 팝업 (실패해도 대화창 유도는 계속 진행).
       await addKakaoChannel();
 
-      // ② 카카오톡 채널 대화창 열기 → 고객이 채널로 직접 메시지를 보내도록 유도.
+      // ② 카카오톡 채널 대화창 열기 → 고객이 붙여넣어 채널로 메시지를 보내도록 유도.
       const opened = await openKakaoChannelChat();
       if (!opened) {
         setDeliveryError("카카오 채널 설정을 확인해 주세요. 잠시 후 다시 시도해주세요.");
