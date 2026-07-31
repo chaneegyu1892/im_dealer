@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { prisma } from "@/lib/prisma";
@@ -6,10 +6,15 @@ import { prisma } from "@/lib/prisma";
 // ⚠️ 개발 전용 로그인 — 카카오 OAuth(운영 도메인 리다이렉트) 없이 로컬에서 회원 기능을
 // 테스트하기 위한 우회로. NODE_ENV=development 에서만 동작하며, 운영 빌드에선 404.
 // DEV_LOGIN_EMAIL / DEV_LOGIN_PASSWORD 로 Supabase 테스트 계정을 부트스트랩한 뒤 세션을 세팅한다.
-export async function POST() {
+//
+// body { fresh: true } → profileCompleted=false 로 만들어 간편가입(/welcome) 흐름을 테스트한다.
+export async function POST(request: NextRequest) {
   if (process.env.NODE_ENV !== "development") {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
+
+  const body = await request.json().catch(() => ({}));
+  const fresh = body?.fresh === true;
 
   const email = process.env.DEV_LOGIN_EMAIL?.trim();
   const password = process.env.DEV_LOGIN_PASSWORD?.trim();
@@ -55,17 +60,23 @@ export async function POST() {
   try {
     await prisma.user.upsert({
       where: { supabaseId: authUserId },
-      update: { lastLoginAt: new Date() },
+      update: {
+        lastLoginAt: new Date(),
+        // fresh 모드면 간편가입 미완료 상태로 되돌려 /welcome 흐름을 테스트한다.
+        profileCompleted: !fresh,
+        ...(fresh ? { phone: null, kakaoNickname: "테스트닉네임" } : {}),
+      },
       create: {
         supabaseId: authUserId,
         email,
         name: "테스트 회원",
         role: "member",
         provider: "kakao",
-        phone: "010-0000-0000",
+        kakaoNickname: fresh ? "테스트닉네임" : null,
+        phone: fresh ? null : "010-0000-0000",
         channelRelation: null, // 채널 미추가 → 채널추가 CTA 노출
         marketingConsent: false,
-        profileCompleted: true, // 곧바로 마이페이지 진입
+        profileCompleted: !fresh, // fresh=false → 곧바로 마이페이지, true → /welcome 유도
         isActive: true,
         lastLoginAt: new Date(),
       },
