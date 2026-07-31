@@ -114,3 +114,33 @@ export async function fetchAgreedTermTags(providerToken: string): Promise<string
     throw error;
   }
 }
+
+// ---------------------------------------------------------------------------
+// 서비스 약관 동의 철회 — 마이페이지에서 마케팅 수신 동의를 철회할 때 카카오 기록도 맞춘다.
+// 카카오 API: POST https://kapi.kakao.com/v1/user/revoke/service/terms (body: tags=marketing)
+// best-effort — 실패해도 앱 DB(marketingConsent=false) 기준으로 발송이 차단되므로 흐름을 막지 않는다.
+
+/** 지정한 tag 들의 약관 동의를 철회한다. 성공 시 true. */
+export async function revokeKakaoServiceTerms(
+  accessToken: string,
+  tags: string[]
+): Promise<boolean> {
+  if (!accessToken || tags.length === 0) return false;
+  try {
+    const res = await fetch("https://kapi.kakao.com/v1/user/revoke/service/terms", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ tags: tags.join(",") }),
+    });
+    return res.ok;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("[kakao] revokeKakaoServiceTerms failed:", error);
+      return false;
+    }
+    throw error;
+  }
+}
