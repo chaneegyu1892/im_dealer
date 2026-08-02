@@ -33,7 +33,8 @@ import {
   openChannelTalkWithQuote,
   trackQuoteDeliveryRequested,
 } from "@/lib/channel-talk";
-import { addKakaoChannel, openKakaoChannelChat } from "@/lib/kakao/channel-add";
+import { kakaoChannelChatUrl } from "@/lib/kakao/channel-add";
+import { QuoteDeliveryGuideModal } from "@/components/quote/QuoteDeliveryGuideModal";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { type ComparisonTrimData } from "@/components/quote/VehicleConfigPanel";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
@@ -242,6 +243,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [isDelivering, setIsDelivering] = useState(false);
   const [deliverSuccess, setDeliverSuccess] = useState(false);
+  // 견적 요청 안내 모달 — null 이 아니면 열림(값 = 클립보드에 복사한 요청 메시지)
+  const [deliveryGuideMessage, setDeliveryGuideMessage] = useState<string | null>(null);
   // 카카오톡 '나에게 보내기' 자동발송은 카카오싱크 + 명시적 자동발송 플래그가 모두 켜졌을 때만.
   // (KAKAO_SYNC 는 간편가입 로그인용이라, 자동발송과는 분리한다.)
   const kakaoDeliveryEnabled =
@@ -812,13 +815,18 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     }
   }
 
-  // ─── 임시방편: 견적서 받기 → 카카오 채널추가 + 채널 대화창 유도 (비즈톡 자동발송 전) ───
-  // ① 카카오 채널추가 팝업
-  // ② 카카오톡 채널 대화창을 열어 고객이 채널로 직접 메시지를 보내도록 유도한다.
-  //    고객이 채널로 메시지를 보내면 채널톡(↔카카오 채널 연동)으로 상담사에게 알림이 가고,
-  //    상담사가 확인 후 견적서 이미지를 수동 발송한다.
+  // ─── 임시방편: 견적서 받기 → 안내 모달 → 카카오 채널 대화창 (비즈톡 자동발송 전) ───
+  // ① 견적 저장 + 채널톡 track(상담사용 컨텍스트) + 요청 메시지 클립보드 복사
+  // ② 안내 모달을 띄워 "복사했어요, 붙여넣어 보내주세요"를 이동 전에 반드시 읽게 한다.
+  // ③ 모달 CTA 클릭 시(handleDeliveryGuideConfirm) 대화창을 연다 — 클릭 직후 동기
+  //    실행이라 팝업 차단에 안 걸린다. 여기서 바로 열면 await 뒤라 차단되어
+  //    고객이 채널 홈에 떨어진다(채널추가 팝업만 열리던 기존 문제).
   async function handleQuoteReceiveViaChannelTalk() {
     if (!quoteResult || isDelivering) return;
+    if (!kakaoChannelChatUrl()) {
+      setDeliveryError("카카오 채널 설정을 확인해 주세요. 잠시 후 다시 시도해주세요.");
+      return;
+    }
     setIsDelivering(true);
     setDeliveryError(null);
     setDeliverSuccess(false);
@@ -847,19 +855,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       try {
         await navigator.clipboard?.writeText(deliveryMessage);
       } catch {
-        // 클립보드 권한/미지원 — 무시하고 대화창은 계속 연다.
+        // 클립보드 권한/미지원 — 모달 CTA 클릭 시 한 번 더 복사한다.
       }
 
-      // ① 카카오 채널추가 팝업 (실패해도 대화창 유도는 계속 진행).
-      await addKakaoChannel();
-
-      // ② 카카오톡 채널 대화창 열기 → 고객이 붙여넣어 채널로 메시지를 보내도록 유도.
-      const opened = await openKakaoChannelChat();
-      if (!opened) {
-        setDeliveryError("카카오 채널 설정을 확인해 주세요. 잠시 후 다시 시도해주세요.");
-        return;
-      }
-      setDeliverSuccess(true);
+      setDeliveryGuideMessage(deliveryMessage);
     } catch (deliverError) {
       setDeliveryError(
         deliverError instanceof Error
@@ -869,6 +868,27 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     } finally {
       setIsDelivering(false);
     }
+  }
+
+  // 안내 모달 CTA — 클릭 직후 동기적으로 대화창을 열어야 팝업 차단에 안 걸린다.
+  function handleDeliveryGuideConfirm() {
+    const chatUrl = kakaoChannelChatUrl();
+    if (!chatUrl) {
+      setDeliveryGuideMessage(null);
+      setDeliveryError("카카오 채널 설정을 확인해 주세요. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    // 첫 복사의 사용자 활성화가 만료됐을 수 있어(Safari 등) 새 제스처에서 한 번 더 복사.
+    if (deliveryGuideMessage) {
+      try {
+        navigator.clipboard?.writeText(deliveryGuideMessage).catch(() => {});
+      } catch {
+        // 복사 실패해도 대화창은 연다.
+      }
+    }
+    window.open(chatUrl, "_blank", "noopener,noreferrer");
+    setDeliveryGuideMessage(null);
+    setDeliverSuccess(true);
   }
 
   async function refreshQuoteForDelivery(): Promise<QuoteResponse> {
@@ -1216,6 +1236,13 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
           )}
         </AnimatePresence>
       </main>
+
+      <QuoteDeliveryGuideModal
+        open={deliveryGuideMessage !== null}
+        message={deliveryGuideMessage ?? ""}
+        onClose={() => setDeliveryGuideMessage(null)}
+        onConfirm={handleDeliveryGuideConfirm}
+      />
     </div>
   );
 }

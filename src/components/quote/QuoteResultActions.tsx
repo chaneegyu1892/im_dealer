@@ -41,7 +41,7 @@ export function QuoteResultActions({
             <KakaoBubbleIcon />
             {isDelivering
               ? channelTalkDelivery
-                ? "카카오 채널 여는 중…"
+                ? "요청 준비 중…"
                 : "전송 중…"
               : "카카오톡으로 견적서 받기"}
           </button>

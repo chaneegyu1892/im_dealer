@@ -124,7 +124,7 @@ describe("QuoteResultActions", () => {
     it("When pending Then it shows the ChannelTalk busy label", () => {
       render(<QuoteResultActions {...stopgapProps} isDelivering />);
 
-      const deliveryButton = screen.getByRole("button", { name: "카카오 채널 여는 중…" });
+      const deliveryButton = screen.getByRole("button", { name: "요청 준비 중…" });
       expect(deliveryButton).toBeDisabled();
       expect(deliveryButton).toHaveAttribute("aria-busy", "true");
     });
