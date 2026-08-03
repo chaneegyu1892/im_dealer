@@ -443,7 +443,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       );
     });
 
-    // 임시방편: 자동발송(/api/quote/deliver) 대신 카카오 채널추가 + 채널 대화창으로 유도한다.
+    // 임시방편: 자동발송(/api/quote/deliver) 대신 안내 모달 → 카카오 채널 대화창으로 유도한다.
     expect(fetchMock).not.toHaveBeenCalledWith(
       "/api/quote/deliver",
       expect.anything()
@@ -453,25 +453,35 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       (args) => args[0] === "track" && args[1] === "quote_delivery_requested"
     );
     expect(trackCall).toBeDefined();
-    // ②' 견적 요청 메시지를 클립보드에 복사(붙여넣기 유도)
+    // ② 견적 요청 메시지를 클립보드에 복사(붙여넣기 유도)
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith(expect.stringContaining("[견적서 요청]"))
     );
-    // ② 카카오 채널추가 팝업 + ③ 카카오 채널 대화창 (JS SDK 미로드 → URL 폴백)
-    await waitFor(() =>
-      expect(openSpy).toHaveBeenCalledWith(
-        expect.stringContaining("pf.kakao.com/_TestCh/friend"),
-        expect.anything(),
-        expect.anything()
-      )
+    // ③ 바로 이동하지 않고 안내 모달을 띄운다 — 복사 안내를 읽은 뒤 CTA 로 이동.
+    const dialog = await screen.findByRole("dialog", {
+      name: "견적 요청 메시지를 복사했어요",
+    });
+    expect(dialog).toHaveTextContent("길게 눌러 붙여넣기");
+    expect(openSpy).not.toHaveBeenCalled();
+
+    // ④ 모달 CTA 클릭 → 채널 홈이 아니라 채널 "대화창"(/chat)을 연다.
+    //    (클릭 직후 동기 실행 — 팝업 차단 회피를 위해 한 번의 창 열기만 수행)
+    fireEvent.click(screen.getByRole("button", { name: "견적서 받으러 가기" }));
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://pf.kakao.com/_TestCh/chat",
+      "_blank",
+      "noopener,noreferrer"
     );
+    // CTA 클릭 시 새 제스처에서 한 번 더 복사한다(첫 복사의 활성화 만료 대비).
+    expect(writeText).toHaveBeenCalledTimes(2);
+    // 모달이 닫히고 완료 안내가 남는다.
     await waitFor(() =>
-      expect(openSpy).toHaveBeenCalledWith(
-        expect.stringContaining("pf.kakao.com/_TestCh/chat"),
-        expect.anything(),
-        expect.anything()
-      )
+      expect(
+        screen.queryByRole("dialog", { name: "견적 요청 메시지를 복사했어요" })
+      ).not.toBeInTheDocument()
     );
+    expect(screen.getByRole("status")).toHaveTextContent("요청 메시지를 복사했어요");
   });
 
   it("shows an inline error and stays on the quote when persistence fails", async () => {
