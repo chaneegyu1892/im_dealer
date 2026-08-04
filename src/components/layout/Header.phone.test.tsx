@@ -41,17 +41,45 @@ describe("Header 대표전화", () => {
     render(<Header />);
 
     const trigger = screen.getByRole("button", { name: "대표전화 보기" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("1688-8479")).not.toBeInTheDocument();
 
     fireEvent.click(trigger);
 
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("대표전화")).toBeInTheDocument();
-    expect(screen.getByText("대표전화").parentElement).toHaveClass("max-[340px]:-right-12");
     expect(screen.getByText("1688-8479")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "1688-8479 전화 걸기" })).toHaveAttribute(
       "href",
       "tel:16888479",
     );
+  });
+
+  it("ESC 키를 누르면 대표전화 패널이 닫히고 포커스가 트리거로 돌아온다", () => {
+    render(<Header />);
+
+    const trigger = screen.getByRole("button", { name: "대표전화 보기" });
+    fireEvent.click(trigger);
+    expect(screen.getByText("1688-8479")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByText("1688-8479")).not.toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveFocus();
+  });
+
+  it("닫기 버튼을 누르면 대표전화 패널이 닫히고 포커스가 트리거로 돌아온다", () => {
+    render(<Header />);
+
+    const trigger = screen.getByRole("button", { name: "대표전화 보기" });
+    fireEvent.click(trigger);
+
+    fireEvent.click(screen.getByRole("button", { name: "대표전화 닫기" }));
+
+    expect(screen.queryByText("1688-8479")).not.toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveFocus();
   });
 
   it("로그인 회원 메뉴에서 마이페이지로 이동할 수 있다", async () => {
