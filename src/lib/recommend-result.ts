@@ -4,6 +4,7 @@ import type {
   OverlapRecommendedVehicle,
   Step02V3RecommendedVehicle,
 } from "@/types/recommendation";
+import { NICE_POPULARITY_TOTAL_COUNT } from "@/lib/recommend/nice-popularity";
 
 const scenarioSchema = z.object({
   monthlyPayment: z.number(),
@@ -44,7 +45,10 @@ const vehicleDetailSchema = z.object({
 
 const popularitySchema = z.object({
   period: z.string().regex(/^\d{4}-(?:0[1-9]|1[0-2])$/, "인기순위 기준월 형식이 올바르지 않습니다."),
-  rank: z.number().int().min(1).max(30).nullable(),
+  // 연료 선호가 "상관없음"이면 연료별 30위 네 목록을 하나로 합쳐 최대 120위까지
+  // 순위가 매겨진다. 단일 전체 30위 스냅샷 기준 상한을 남겨두면 31위 이상 차량이
+  // 담긴 freeze 스냅샷 전체가 invalid 로 떨어져 결과 페이지가 열리지 않는다.
+  rank: z.number().int().min(1).max(NICE_POPULARITY_TOTAL_COUNT).nullable(),
   registrationCount: z.number().int().positive().nullable(),
 }).strict().superRefine((popularity, context) => {
   if ((popularity.rank === null) !== (popularity.registrationCount === null)) {
@@ -171,6 +175,8 @@ const step02V3VehicleSchema = z.object({
 const step02V3ResultSchema = z.object({
   version: z.literal("step02-v3"),
   vehicles: z.array(step02V3VehicleSchema),
+  // 근접 후보가 생기기 전에 저장된 스냅샷도 그대로 읽혀야 한다.
+  nearMissVehicles: z.array(step02V3VehicleSchema).optional(),
 }).strict();
 
 export interface StoredResultIssue {
@@ -183,7 +189,11 @@ export type StoredResultParseResult =
   | { readonly kind: "missing" }
   | { readonly kind: "legacy"; readonly vehicles: readonly LegacyRecommendedVehicle[] }
   | { readonly kind: "v2"; readonly vehicles: readonly OverlapRecommendedVehicle[] }
-  | { readonly kind: "v3"; readonly vehicles: readonly Step02V3RecommendedVehicle[] }
+  | {
+      readonly kind: "v3";
+      readonly vehicles: readonly Step02V3RecommendedVehicle[];
+      readonly nearMissVehicles: readonly Step02V3RecommendedVehicle[];
+    }
   | { readonly kind: "invalid"; readonly issues: readonly StoredResultIssue[] };
 
 function issues(error: z.ZodError): StoredResultIssue[] {
@@ -211,6 +221,10 @@ export function parseStoredResultState(
   if (overlap.success) return { kind: "v2", vehicles: overlap.data.vehicles };
   const step02V3 = step02V3ResultSchema.safeParse(value);
   return step02V3.success
-    ? { kind: "v3", vehicles: step02V3.data.vehicles }
+    ? {
+        kind: "v3",
+        vehicles: step02V3.data.vehicles,
+        nearMissVehicles: step02V3.data.nearMissVehicles ?? [],
+      }
     : { kind: "invalid", issues: issues(step02V3.error) };
 }

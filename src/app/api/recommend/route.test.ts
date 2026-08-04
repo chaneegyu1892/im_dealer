@@ -147,7 +147,7 @@ describe("POST /api/recommend", () => {
     vi.clearAllMocks();
     mocks.version.value = "overlap-v2";
     mocks.projection.value = "https://cdn.example/old-cover.jpg";
-    mocks.recommendForVersion.mockResolvedValue([]);
+    mocks.recommendForVersion.mockResolvedValue({ vehicles: [], nearMissVehicles: [] });
     mocks.create.mockResolvedValue({ id: "log" });
   });
 
@@ -192,6 +192,7 @@ describe("POST /api/recommend", () => {
     expect(mocks.create.mock.calls[0]?.[0].data.result).toEqual({
       version: "step02-v3",
       vehicles: [],
+      nearMissVehicles: [],
     });
     expect(mocks.create.mock.calls[0]?.[0].data).toMatchObject({
       budgetMin: 0,
@@ -199,7 +200,44 @@ describe("POST /api/recommend", () => {
     });
   });
 
-  it("stores the derived lower bound for the 100만원 이상 mode", async () => {
+  // 결과 화면이 재계산 없이 근접 후보를 그대로 보여주려면 함께 얼려야 한다.
+  it("freezes the v3 near miss list in the same envelope", async () => {
+    mocks.recommendForVersion.mockResolvedValue({
+      vehicles: [],
+      nearMissVehicles: [{ vehicleId: "veh_near", reason: "근접" }],
+    });
+    const response = await POST(request(validV3));
+    expect(response.status).toBe(200);
+    expect(mocks.create.mock.calls[0]?.[0].data.result).toEqual({
+      version: "step02-v3",
+      vehicles: [],
+      nearMissVehicles: [{ vehicleId: "veh_near", reason: "근접" }],
+    });
+  });
+
+  // overlap-v2 봉투는 strict 스키마라 없는 키가 붙으면 통째로 invalid 가 된다.
+  it("does not attach a near miss list to the v2 envelope", async () => {
+    const response = await POST(request(valid));
+    expect(response.status).toBe(200);
+    expect(mocks.create.mock.calls[0]?.[0].data.result).toEqual({
+      version: "overlap-v2",
+      vehicles: [],
+    });
+  });
+
+  it("keeps the near miss list out of the creation response", async () => {
+    mocks.recommendForVersion.mockResolvedValue({
+      vehicles: [],
+      nearMissVehicles: [{ vehicleId: "veh_near", reason: "근접" }],
+    });
+    const response = await POST(request(validV3));
+    expect(await response.json()).toEqual({
+      sessionId: expect.any(String),
+      vehicles: [],
+    });
+  });
+
+  it("stores the derived lower bound for the 예산 여유 mode", async () => {
     const response = await POST(request({ ...validV3, budgetRange: "gte-1000k" }));
     expect(response.status).toBe(200);
     expect(mocks.create.mock.calls[0]?.[0].data).toMatchObject({
@@ -216,9 +254,12 @@ describe("POST /api/recommend", () => {
   });
 
   it("freezes each new recommendation with the representative projected at generation time", async () => {
-    mocks.recommendForVersion.mockImplementation(async (input: RecommendInput) => [
-      ...recommendOverlapV2FromSnapshot(input, projectionSnapshot(mocks.projection.value)).vehicles,
-    ]);
+    mocks.recommendForVersion.mockImplementation(async (input: RecommendInput) => ({
+      vehicles: [
+        ...recommendOverlapV2FromSnapshot(input, projectionSnapshot(mocks.projection.value)).vehicles,
+      ],
+      nearMissVehicles: [],
+    }));
 
     await POST(request(valid));
     const oldSnapshotBytes = JSON.stringify(mocks.create.mock.calls[0]?.[0].data.result);

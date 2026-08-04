@@ -152,6 +152,50 @@ describe("GET /api/recommend/:sessionId", () => {
     expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
   });
 
+  // 예산 때문에 결과가 비었을 때 "조금만 더 쓰면 가능한 차량"을 보여주려면
+  // 프리즈된 근접 후보를 그대로 내려줘야 한다.
+  it("returns the frozen near miss list for an empty v3 result", async () => {
+    const nearMiss = { ...frozenV3Vehicle, vehicleId: "vehicle-active", estimatedMonthly: 1_100_000 };
+    mocks.findFirst.mockResolvedValue({
+      ...baseLog,
+      preferences: ["family-leisure", "가족"],
+      result: { version: "step02-v3", vehicles: [], nearMissVehicles: [nearMiss] },
+    });
+    mocks.findManyVehicles.mockResolvedValue([{ id: "vehicle-active" }]);
+
+    const body = await (await GET(request, context)).json();
+    expect(body.vehicles).toEqual([]);
+    expect(body.nearMissVehicles).toHaveLength(1);
+    expect(body.nearMissVehicles[0]).toMatchObject({ estimatedMonthly: 1_100_000 });
+    expect(mocks.recommendLegacyV1).not.toHaveBeenCalled();
+  });
+
+  it("drops a near miss vehicle that is no longer visible", async () => {
+    const nearMiss = { ...frozenV3Vehicle, vehicleId: "vehicle-gone" };
+    mocks.findFirst.mockResolvedValue({
+      ...baseLog,
+      preferences: ["family-leisure", "가족"],
+      result: { version: "step02-v3", vehicles: [], nearMissVehicles: [nearMiss] },
+    });
+    mocks.findManyVehicles.mockResolvedValue([]);
+
+    const body = await (await GET(request, context)).json();
+    expect(body.nearMissVehicles).toEqual([]);
+  });
+
+  it("reports an empty near miss list for envelopes that predate it", async () => {
+    mocks.findFirst.mockResolvedValue({
+      ...baseLog,
+      preferences: ["family-leisure", "가족"],
+      result: { version: "step02-v3", vehicles: [frozenV3Vehicle] },
+    });
+    mocks.findManyVehicles.mockResolvedValue([{ id: "vehicle-active" }]);
+
+    const body = await (await GET(request, context)).json();
+    expect(body.vehicles).toHaveLength(1);
+    expect(body.nearMissVehicles).toEqual([]);
+  });
+
   it("returns historical recommendation bytes without replacing its representative projection", async () => {
     const result = { version: "overlap-v2", vehicles: [frozenVehicle] } as const;
     const storedBytes = JSON.stringify(result);

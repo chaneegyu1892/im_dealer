@@ -12,7 +12,9 @@ export const RECOMMEND_BUDGET_RANGE_OPTIONS = [
   { id: "lte-500k", label: "50만원 이하", desc: "월 부담을 가장 낮게 보고 싶어요" },
   { id: "lte-800k", label: "80만원 이하", desc: "실속 있는 선택지를 보고 싶어요" },
   { id: "lte-1000k", label: "100만원 이하", desc: "선택 폭과 월 부담을 함께 봐요" },
-  { id: "gte-1000k", label: "100만원 이상", desc: "고급·대형 차량까지 살펴봐요" },
+  // id 는 저장된 로그의 상하한 역매핑 식별자라 유지한다. 라벨만 실제 동작
+  // (상한 해제 + 사양·등급 우선)에 맞춘다.
+  { id: "gte-1000k", label: "예산 여유 있어요", desc: "가격보다 사양·등급 위주로 볼게요" },
   { id: "auto", label: "AI에게 맡길게요", desc: "조건에 맞는 예산대를 함께 찾아드려요" },
 ] as const satisfies ReadonlyArray<{
   readonly id: RecommendBudgetRange;

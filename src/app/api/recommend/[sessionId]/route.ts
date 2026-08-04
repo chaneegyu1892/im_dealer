@@ -129,13 +129,16 @@ export async function GET(
     }
     if (stored.kind === "legacy" || stored.kind === "v2" || stored.kind === "v3") {
       const frozen = stored.vehicles;
+      // 예산 상한만 넘겨 탈락한 근접 후보. 결과가 비었을 때 안내에 쓴다.
+      const frozenNearMiss = stored.kind === "v3" ? stored.nearMissVehicles : [];
       // 추천 이후 삭제/비노출된 차량만 걸러낸다 (견적 링크 깨짐 방지).
       // 가격·이유 등 나머지는 스냅샷 그대로 유지(freeze).
-      const visibleIds = frozen.length
+      const frozenIds = [...frozen, ...frozenNearMiss].map((v) => v.vehicleId);
+      const visibleIds = frozenIds.length
         ? new Set(
             (
               await prisma.vehicle.findMany({
-                where: { id: { in: frozen.map((v) => v.vehicleId) }, isVisible: true },
+                where: { id: { in: frozenIds }, isVisible: true },
                 select: { id: true },
               })
             ).map((v) => v.id)
@@ -147,6 +150,10 @@ export async function GET(
         input,
         vehicles: gateVehiclesForMember(
           frozen.filter((v) => visibleIds.has(v.vehicleId)),
+          isMember
+        ),
+        nearMissVehicles: gateVehiclesForMember(
+          frozenNearMiss.filter((v) => visibleIds.has(v.vehicleId)),
           isMember
         ),
       };
@@ -185,6 +192,8 @@ export async function GET(
       sessionId,
       input,
       vehicles: gateVehiclesForMember(vehiclesWithReasons, isMember),
+      // 옛 로그 재계산 경로에는 근접 후보 개념이 없다.
+      nearMissVehicles: [],
     };
 
     return NextResponse.json(response);

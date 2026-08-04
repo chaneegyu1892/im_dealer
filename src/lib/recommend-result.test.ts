@@ -137,6 +137,41 @@ describe("stored recommendation result boundary", () => {
     });
   });
 
+  // 연료 선호 "상관없음"은 연료별 30위 네 목록을 하나로 합친 최대 120위 풀을
+  // 사용한다. 30위 상한은 단일 전체 30위 스냅샷 시절의 잔재라 결과 freeze 를
+  // 통째로 무효화시켰다.
+  it("keeps a pooled fuel popularity rank above the per-fuel 30 limit", () => {
+    const withPooledRank = {
+      ...v3Vehicle,
+      popularity: {
+        period: "2026-06",
+        rank: 54,
+        registrationCount: 812,
+      },
+    };
+    const value = { version: "step02-v3", vehicles: [withPooledRank] };
+    expect(parseStoredResultState(value)).toEqual({
+      kind: "v3",
+      vehicles: [withPooledRank],
+      nearMissVehicles: [],
+    });
+  });
+
+  it("keeps the last pooled rank of the four fuel rankings", () => {
+    const withLastRank = {
+      ...legacyVehicle,
+      popularity: {
+        period: "2026-06",
+        rank: 120,
+        registrationCount: 101,
+      },
+    };
+    expect(parseStoredResultState([withLastRank])).toEqual({
+      kind: "legacy",
+      vehicles: [withLastRank],
+    });
+  });
+
   it.each([
     {
       period: "2026-4",
@@ -150,7 +185,7 @@ describe("stored recommendation result boundary", () => {
     },
     {
       period: "2026-05",
-      rank: 31,
+      rank: 121,
       registrationCount: 100,
     },
   ])("rejects malformed popularity evidence", (popularity) => {
@@ -170,7 +205,42 @@ describe("stored recommendation result boundary", () => {
 
   it("keeps a populated STEP 02 v3 envelope with complete evidence", () => {
     const value = { version: "step02-v3", vehicles: [v3Vehicle] };
-    expect(parseStoredResultState(value)).toEqual({ kind: "v3", vehicles: [v3Vehicle] });
+    expect(parseStoredResultState(value)).toEqual({
+      kind: "v3",
+      vehicles: [v3Vehicle],
+      nearMissVehicles: [],
+    });
+  });
+
+  // 예산 하나 때문에 잘린 차를 결과 화면에서 안내하려면 freeze 스냅샷에
+  // 함께 얼려둬야 한다. 재계산하면 같은 세션이 흔들린다.
+  it("freezes the near miss list alongside the recommended vehicles", () => {
+    const nearMiss = { ...v3Vehicle, vehicleId: "veh_near", estimatedMonthly: 1_100_000 };
+    const value = {
+      version: "step02-v3",
+      vehicles: [v3Vehicle],
+      nearMissVehicles: [nearMiss],
+    };
+    expect(parseStoredResultState(value)).toEqual({
+      kind: "v3",
+      vehicles: [v3Vehicle],
+      nearMissVehicles: [nearMiss],
+    });
+  });
+
+  it("reads a v3 envelope saved before the near miss list existed", () => {
+    const value = { version: "step02-v3", vehicles: [v3Vehicle] };
+    const parsed = parseStoredResultState(value);
+    expect(parsed.kind === "v3" && parsed.nearMissVehicles).toEqual([]);
+  });
+
+  it("rejects a near miss entry that fails the same evidence rules", () => {
+    const value = {
+      version: "step02-v3",
+      vehicles: [v3Vehicle],
+      nearMissVehicles: [{ ...v3Vehicle, score: 999 }],
+    };
+    expect(parseStoredResultState(value).kind).toBe("invalid");
   });
 
   it("rejects a STEP 02 v3 envelope whose total does not match its evidence", () => {

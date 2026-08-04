@@ -217,7 +217,9 @@ describe("recommendStep02V3FromSnapshot", () => {
       .toBe("outside_budget_range");
   });
 
-  it("gte-1000k includes the exact boundary, orders closest from above, and never fills from below", () => {
+  // "예산 여유 있어요"는 상한 해제다. 하한으로 걸러버리면 인기순위 풀 최고가가
+  // 100만원에 못 미쳐 결과가 영구히 0건이 된다.
+  it("gte-1000k keeps every candidate and leads with the highest grade", () => {
     const result = recommendStep02V3FromSnapshot({
       ...baseInput,
       budgetRange: "gte-1000k",
@@ -231,9 +233,91 @@ describe("recommendStep02V3FromSnapshot", () => {
     ]));
 
     expect(result.vehicles.map((item) => item.scenarios.standard.monthlyPayment))
-      .toEqual([1_000_000, 1_100_000]);
-    expect(result.diagnostics.find((item) => item.slug === "kia-11606")?.status)
-      .toBe("outside_budget_range");
+      .toEqual([1_100_000, 1_000_000, 900_000]);
+    expect(result.diagnostics.every((item) => item.status !== "outside_budget_range"))
+      .toBe(true);
+    expect(result.nearMissVehicles).toEqual([]);
+  });
+
+  // 예산 하나 때문에 잘린 차를 사용자가 모른 채 빈 화면만 보는 걸 막는다.
+  describe("근접 후보", () => {
+    it("예산 상한만 넘긴 차를 상한에 가까운 순으로 돌려준다", () => {
+      const result = recommendStep02V3FromSnapshot({
+        ...baseInput,
+        budgetRange: "lte-500k",
+        situationPreference: undefined,
+        childDetail: undefined,
+        preferences: ["family-leisure"],
+      }, budgetSnapshot([
+        pricedVehicle("kia-11606", "더 뉴 카니발", 25_000_000),
+        pricedVehicle("hyundai-11576", "디 올 뉴 싼타페", 50_000_000),
+        pricedVehicle("kia-11573", "디 올 뉴 팰리세이드", 40_000_000),
+      ]));
+
+      expect(result.vehicles.map((item) => item.scenarios.standard.monthlyPayment))
+        .toEqual([500_000]);
+      expect(result.nearMissVehicles.map((item) => item.scenarios.standard.monthlyPayment))
+        .toEqual([800_000, 1_000_000]);
+    });
+
+    it("예산이 아닌 이유로 걸러진 차는 근접 후보에 넣지 않는다", () => {
+      const result = recommendStep02V3FromSnapshot({
+        ...baseInput,
+        budgetRange: "lte-500k",
+        situationPreference: undefined,
+        childDetail: undefined,
+        preferences: ["family-leisure"],
+      }, budgetSnapshot([
+        pricedVehicle("kia-11573", "디 올 뉴 팰리세이드", 40_000_000),
+        pricedVehicle("kia-11606", "더 뉴 카니발", 45_000_000),
+      ]), {}, (slug) => ({
+        period: "2026-06",
+        rank: slug === "kia-11573" ? 4 : null,
+        registrationCount: slug === "kia-11573" ? 5_522 : null,
+      }));
+
+      expect(result.nearMissVehicles.map((item) => item.vehicle.slug))
+        .toEqual(["kia-11573"]);
+    });
+
+    it("근접 후보에도 순위를 1부터 매기고 3대까지만 담는다", () => {
+      const result = recommendStep02V3FromSnapshot({
+        ...baseInput,
+        budgetRange: "lte-500k",
+        situationPreference: undefined,
+        childDetail: undefined,
+        preferences: ["family-leisure"],
+      }, budgetSnapshot([
+        pricedVehicle("kia-11606", "더 뉴 카니발", 30_000_000),
+        pricedVehicle("kia-11573", "디 올 뉴 팰리세이드", 35_000_000),
+        pricedVehicle("hyundai-11576", "디 올 뉴 싼타페", 40_000_000),
+        pricedVehicle("hyundai-11609", "더 뉴 쏘렌토", 45_000_000),
+      ]));
+
+      expect(result.vehicles).toEqual([]);
+      expect(result.nearMissVehicles.map((item) => item.rank)).toEqual([1, 2, 3]);
+      expect(result.nearMissVehicles.map((item) => item.scenarios.standard.monthlyPayment))
+        .toEqual([600_000, 700_000, 800_000]);
+    });
+
+    it("상한 안에서 3대를 채워도 놓친 차가 있으면 함께 알린다", () => {
+      const result = recommendStep02V3FromSnapshot({
+        ...baseInput,
+        budgetRange: "lte-1000k",
+        situationPreference: undefined,
+        childDetail: undefined,
+        preferences: ["family-leisure"],
+      }, budgetSnapshot([
+        pricedVehicle("kia-11606", "더 뉴 카니발", 25_000_000),
+        pricedVehicle("kia-11573", "디 올 뉴 팰리세이드", 40_000_000),
+        pricedVehicle("hyundai-11576", "디 올 뉴 싼타페", 50_000_000),
+        pricedVehicle("hyundai-11609", "더 뉴 쏘렌토", 55_000_000),
+      ]));
+
+      expect(result.vehicles).toHaveLength(3);
+      expect(result.nearMissVehicles.map((item) => item.scenarios.standard.monthlyPayment))
+        .toEqual([1_100_000]);
+    });
   });
 
   it("auto does not filter or apply monthly proximity ahead of the existing PDF/tie order", () => {

@@ -20,6 +20,7 @@ import {
   type RecommendBudgetRange,
 } from "@/constants/recommend-budget";
 import { SelectionCard } from "./SelectionCard";
+import { RecommendNearMissSection } from "./RecommendNearMissSection";
 
 const LABEL_MAP: Record<string, string> = {
   법인: "법인",
@@ -210,6 +211,11 @@ export function RecommendResultView() {
             예산 범위를 조정하면 더 많은 차량을 찾을 수 있어요.
           </p>
         </div>
+
+        <RecommendNearMissSection
+          vehicles={result.nearMissVehicles ?? []}
+          budgetRange={result.input.budgetRange}
+        />
 
         {canRetryBudget ? (
           <section

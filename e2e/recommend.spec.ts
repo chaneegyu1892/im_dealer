@@ -45,7 +45,7 @@ test("recommendation starts with the first question without the browse panel", a
     "50만원 이하 월 부담을 가장 낮게 보고 싶어요",
     "80만원 이하 실속 있는 선택지를 보고 싶어요",
     "100만원 이하 선택 폭과 월 부담을 함께 봐요",
-    "100만원 이상 고급·대형 차량까지 살펴봐요",
+    "예산 여유 있어요 가격보다 사양·등급 위주로 볼게요",
     "AI에게 맡길게요 조건에 맞는 예산대를 함께 찾아드려요",
   ]) {
     await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
@@ -129,6 +129,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1280, height: 900 
           body: JSON.stringify({
             sessionId: postPayloads.length === 1 ? "e2e-zero" : "e2e-retry",
             vehicles: [],
+            nearMissVehicles: [],
           }),
         });
       } else {
@@ -152,6 +153,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1280, height: 900 
               residenceRegion: "일반",
             },
             vehicles: [],
+            nearMissVehicles: [],
           }),
         });
       }
@@ -163,7 +165,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 1280, height: 900 
 
     const retryButton = page.getByRole("button", { name: "예산 바꿔 다시 추천받기" });
     await expect(retryButton).toBeDisabled();
-    await choose(page, "100만원 이상 고급·대형 차량까지 살펴봐요");
+    await choose(page, "예산 여유 있어요 가격보다 사양·등급 위주로 볼게요");
     await expect(retryButton).toBeEnabled();
     await retryButton.click();
 

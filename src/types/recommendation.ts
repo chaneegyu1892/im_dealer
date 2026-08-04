@@ -194,6 +194,8 @@ export interface RecommendResultResponse {
     paymentStyle?: PaymentStyle;
   };
   vehicles: RecommendedVehicle[];
+  /** 예산 상한만 넘겨 탈락한 차량. 결과가 비었을 때 대안으로 안내한다. */
+  nearMissVehicles: RecommendedVehicle[];
 }
 
 export type PaymentStyle = "보수형" | "표준형" | "공격형";

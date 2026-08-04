@@ -73,8 +73,15 @@ export interface Step02V3EligibilityDiagnostic {
 
 export interface Step02V3RecommendationRun {
   readonly vehicles: readonly Step02V3RecommendedVehicle[];
+  /**
+   * 예산 상한 하나 때문에만 탈락한 차량. 결과가 비었을 때 "조금만 더 쓰면
+   * 가능한 차량"으로 안내한다. 스타일·연료·재고 때문에 탈락한 차는 담지 않는다.
+   */
+  readonly nearMissVehicles: readonly Step02V3RecommendedVehicle[];
   readonly diagnostics: readonly Step02V3EligibilityDiagnostic[];
 }
+
+const NEAR_MISS_LIMIT = 3;
 
 function inferFuelGroup(
   vehicleName: string,
@@ -218,6 +225,28 @@ function toRecommendedVehicle(
   };
 }
 
+function takeOnePerModel(
+  candidates: readonly Step02V3RuntimeCandidate[]
+): Step02V3RuntimeCandidate[] {
+  const modelKeys = new Set<string>();
+  return candidates.filter((candidate) => {
+    if (modelKeys.has(candidate.modelKey)) return false;
+    modelKeys.add(candidate.modelKey);
+    return true;
+  });
+}
+
+/** 상한을 가장 조금 넘긴 순 — 안내의 목적은 "얼마나 아까운가"다. */
+function selectNearMissCandidates(
+  candidates: readonly Step02V3RuntimeCandidate[]
+): Step02V3RuntimeCandidate[] {
+  const sorted = [...candidates].sort((left, right) => {
+    const byPayment = left.standardMonthlyPayment - right.standardMonthlyPayment;
+    return byPayment !== 0 ? byPayment : compareStep02V3Candidates(left, right);
+  });
+  return takeOnePerModel(sorted).slice(0, NEAR_MISS_LIMIT);
+}
+
 function deduplicateModels(
   candidates: readonly Step02V3RuntimeCandidate[],
   budgetRange: RecommendBudgetRange
@@ -230,12 +259,7 @@ function deduplicateModels(
     );
     return budgetOrder !== 0 ? budgetOrder : compareStep02V3Candidates(left, right);
   });
-  const modelKeys = new Set<string>();
-  return sorted.filter((candidate) => {
-    if (modelKeys.has(candidate.modelKey)) return false;
-    modelKeys.add(candidate.modelKey);
-    return true;
-  });
+  return takeOnePerModel(sorted);
 }
 
 export function recommendStep02V3FromSnapshot(
@@ -254,6 +278,7 @@ export function recommendStep02V3FromSnapshot(
   const requiredFuel = requiredFuelGroup(input.fuelPreference);
   const diagnostics: Step02V3EligibilityDiagnostic[] = [];
   const candidates: Step02V3RuntimeCandidate[] = [];
+  const nearMissCandidates: Step02V3RuntimeCandidate[] = [];
 
   for (const vehicle of snapshot.vehicles) {
     if (!STEP02_V3_CATALOG_NAMES.has(vehicle.name)) {
@@ -297,17 +322,12 @@ export function recommendStep02V3FromSnapshot(
       rateConfigs: eligibility.rateConfigs,
       estimatedMonthly: eligibility.estimatedMonthly,
     }).monthlyPayment;
-    if (!isWithinRecommendationBudgetRange(standardMonthlyPayment, input.budgetRange)) {
-      diagnostics.push({ slug: vehicle.slug, status: "outside_budget_range" });
-      continue;
-    }
-
     const styleScore = STEP02_V3_POINTS[styleLevel];
     const followupBonus = getStep02V3FollowupBonus(input, vehicle.name);
     const conditionScore = input.stylePreference === "auto"
       ? autoConditionScore(input, eligibility)
       : 0;
-    candidates.push({
+    const candidate: Step02V3RuntimeCandidate = {
       vehicleId: vehicle.vehicleId,
       slug: vehicle.slug,
       modelKey: getRecommendationModelKey({
@@ -330,7 +350,16 @@ export function recommendStep02V3FromSnapshot(
       immediateDeliveryAvailable: vehicle.immediateDeliveryAvailable ?? false,
       availableStockCount: vehicle.availableStockCount ?? 0,
       standardMonthlyPayment,
-    });
+    };
+
+    // 예산 상한만 넘긴 차는 버리지 않고 근접 후보로 남긴다.
+    if (!isWithinRecommendationBudgetRange(standardMonthlyPayment, input.budgetRange)) {
+      diagnostics.push({ slug: vehicle.slug, status: "outside_budget_range" });
+      nearMissCandidates.push(candidate);
+      continue;
+    }
+
+    candidates.push(candidate);
     diagnostics.push({ slug: vehicle.slug, status: "eligible" });
   }
 
@@ -340,6 +369,9 @@ export function recommendStep02V3FromSnapshot(
   );
   return {
     vehicles: ranked.map((candidate, index) =>
+      toRecommendedVehicle(candidate, snapshot.rankSurchargeRates, index + 1)
+    ),
+    nearMissVehicles: selectNearMissCandidates(nearMissCandidates).map((candidate, index) =>
       toRecommendedVehicle(candidate, snapshot.rankSurchargeRates, index + 1)
     ),
     diagnostics,
@@ -371,19 +403,31 @@ export async function finalizeStep02V3Reasons(
   }));
 }
 
+export interface Step02V3RecommendRun {
+  readonly vehicles: Step02V3RecommendedVehicle[];
+  readonly nearMissVehicles: Step02V3RecommendedVehicle[];
+}
+
+/**
+ * 추천 이유 LLM 은 실제 추천 차량에만 쓴다. 근접 후보 카드가 전하는 정보는
+ * "예산을 얼마나 넘겼는가"라서 규칙 기반 문구로 충분하다.
+ */
 export async function recommendStep02V3(
   input: RecommendInput,
   selectionOptions: RecommendationSelectionOptions = {}
-): Promise<Step02V3RecommendedVehicle[]> {
+): Promise<Step02V3RecommendRun> {
   const [snapshot, popularityLookup] = await Promise.all([
     loadOverlapCandidateSnapshot(),
     loadCurrentPopularityEvidenceLookup(input.fuelPreference),
   ]);
-  const vehicles = recommendStep02V3FromSnapshot(
+  const run = recommendStep02V3FromSnapshot(
     input,
     snapshot,
     selectionOptions,
     popularityLookup
-  ).vehicles;
-  return finalizeStep02V3Reasons(vehicles, input);
+  );
+  return {
+    vehicles: await finalizeStep02V3Reasons(run.vehicles, input),
+    nearMissVehicles: [...run.nearMissVehicles],
+  };
 }

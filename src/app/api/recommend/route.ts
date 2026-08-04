@@ -22,12 +22,16 @@ export async function POST(request: NextRequest) {
     const engineVersion = "recommendationVersion" in input
       ? input.recommendationVersion
       : getRecommendEngineVersion();
-    const vehicles = await recommendForVersion(input, engineVersion, {
+    const { vehicles, nearMissVehicles } = await recommendForVersion(input, engineVersion, {
       variationSeed: sessionId,
     });
+    // 근접 후보는 step02-v3 봉투에만 존재한다. overlap-v2 봉투는 strict 스키마라
+    // 없는 키가 붙으면 복원 시 통째로 invalid 가 된다.
     const storedResult = engineVersion === "legacy-v1"
       ? vehicles
-      : { version: engineVersion, vehicles };
+      : engineVersion === "step02-v3"
+        ? { version: engineVersion, vehicles, nearMissVehicles }
+        : { version: engineVersion, vehicles };
 
     // 추천 로그 저장 (AI 고도화용 데이터 축적)
     await prisma.recommendationLog.create({

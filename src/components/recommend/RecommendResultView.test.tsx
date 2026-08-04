@@ -43,6 +43,7 @@ const recommendResult = {
     vehicleId: `vehicle-${rank}`,
     rank,
   })),
+  nearMissVehicles: [],
 } as unknown as RecommendResultResponse;
 
 const emptyRecommendResult = {
@@ -62,7 +63,26 @@ const emptyRecommendResult = {
     residenceRegion: "제주",
   },
   vehicles: [],
+  nearMissVehicles: [],
 } satisfies RecommendResultResponse;
+
+function nearMiss(name: string, estimatedMonthly: number, rank: number) {
+  return {
+    vehicleId: `near-${rank}`,
+    rank,
+    estimatedMonthly,
+    vehicle: { name, brand: "현대", slug: `slug-${rank}` },
+    popularity: { period: "2026-06", rank: 5, registrationCount: 1_000 },
+  };
+}
+
+const nearMissResult = {
+  ...emptyRecommendResult,
+  nearMissVehicles: [
+    nearMiss("더 뉴 아이오닉 5", 624_000, 1),
+    nearMiss("더 EV5", 635_000, 2),
+  ],
+} as unknown as RecommendResultResponse;
 
 describe("RecommendResultView", () => {
   beforeEach(() => {
@@ -152,6 +172,68 @@ describe("RecommendResultView", () => {
       expect(mocks.router.push).toHaveBeenCalledWith(
         "/recommend/result?session=retry-session"
       );
+    });
+  });
+
+  // 예산 하나 때문에 잘린 차를 감추면 사용자는 "그냥 고장났다"고 읽는다.
+  // 조건에 못 맞췄다고 먼저 밝히고 대안을 보여줘야 신뢰가 유지된다.
+  describe("근접 후보 안내", () => {
+    it("예산을 조금 넘긴 차량과 초과 금액을 함께 알린다", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => nearMissResult,
+      }));
+
+      render(<RecommendResultView />);
+
+      expect(await screen.findByText("조금만 더 쓰면 가능한 차량")).toBeInTheDocument();
+      expect(screen.getByText("더 뉴 아이오닉 5")).toBeInTheDocument();
+      expect(screen.getByText("더 EV5")).toBeInTheDocument();
+      expect(screen.getByText(/12만 4,000원 더/)).toBeInTheDocument();
+      expect(screen.getByText(/13만 5,000원 더/)).toBeInTheDocument();
+    });
+
+    it("조건을 못 맞췄다는 사실을 근접 후보보다 먼저 밝힌다", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => nearMissResult,
+      }));
+
+      render(<RecommendResultView />);
+
+      const heading = await screen.findByText("추천 결과가 없어요");
+      const nearMissTitle = screen.getByText("조금만 더 쓰면 가능한 차량");
+      expect(
+        heading.compareDocumentPosition(nearMissTitle)
+          & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
+
+    it("근접 후보가 없으면 섹션을 띄우지 않는다", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => emptyRecommendResult,
+      }));
+
+      render(<RecommendResultView />);
+
+      expect(await screen.findByText("추천 결과가 없어요")).toBeInTheDocument();
+      expect(screen.queryByText("조금만 더 쓰면 가능한 차량")).not.toBeInTheDocument();
+    });
+
+    it("추천 결과가 있으면 근접 후보를 섞지 않는다", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...recommendResult,
+          nearMissVehicles: nearMissResult.nearMissVehicles,
+        }),
+      }));
+
+      render(<RecommendResultView />);
+
+      expect(await screen.findByTestId("recommend-card-1")).toBeInTheDocument();
+      expect(screen.queryByText("조금만 더 쓰면 가능한 차량")).not.toBeInTheDocument();
     });
   });
 });

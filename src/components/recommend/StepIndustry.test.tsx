@@ -53,7 +53,9 @@ describe("StepIndustry", () => {
     expect(screen.getByRole("button", { name: /50만원 이하/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /80만원 이하/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /100만원 이하/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /100만원 이상/ })).toBeInTheDocument();
+    // 인기순위 풀 최고가가 100만원에 못 미쳐 "100만원 이상"은 지킬 수 없는 약속이었다.
+    expect(screen.getByRole("button", { name: /예산 여유 있어요/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /100만원 이상/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /AI에게 맡길게요/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /150만원/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /예산 아직 미정/ })).not.toBeInTheDocument();
