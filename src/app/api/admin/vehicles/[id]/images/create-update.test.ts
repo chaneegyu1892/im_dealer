@@ -1,3 +1,9 @@
+// @vitest-environment node
+//
+// 이 라우트는 multipart 본문을 Node 런타임(undici)에서 파싱한다. 기본 환경인 jsdom 에서
+// 돌리면 전역 File 이 jsdom 것이라 undici 파서의 브랜드 검사(webidl.is.File)가 실패하고,
+// 파일이 담긴 요청이 전부 500 이 된다. 운영(Vercel Node 런타임)에는 jsdom 이 없으므로
+// 실제 동작 문제가 아니라 테스트 환경 불일치다 — 런타임을 실제와 맞춰준다.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 
