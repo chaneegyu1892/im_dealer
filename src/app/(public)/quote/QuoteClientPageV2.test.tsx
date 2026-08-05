@@ -27,7 +27,15 @@ const supabaseMock = vi.hoisted(() => ({
   getUser: vi.fn<
     () => Promise<{ readonly data: { readonly user: MockAuthUser } }>
   >(async () => ({ data: { user: null } })),
-  signInWithOAuth: vi.fn(async () => ({ data: { provider: "kakao", url: null }, error: null })),
+  signInWithOAuth: vi.fn<
+    (params: {
+      readonly provider: string;
+      readonly options?: { readonly redirectTo?: string };
+    }) => Promise<{
+      readonly data: { readonly provider: string; readonly url: string | null };
+      readonly error: null;
+    }>
+  >(async () => ({ data: { provider: "kakao", url: null }, error: null })),
   onAuthStateChange: vi.fn(() => ({
     data: { subscription: { unsubscribe: vi.fn() } },
   })),
@@ -405,6 +413,10 @@ describe("QuoteClientPageV2 consultation fallback", () => {
   it("routes quote delivery to Kakao channel add when the Kakao flag is disabled (stopgap)", async () => {
     vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "false");
     vi.stubEnv("NEXT_PUBLIC_KAKAO_CHANNEL_PUBLIC_ID", "_TestCh");
+    // 견적서 수령은 회원 전용 — 채널톡 경로도 로그인 세션이 있어야 진행된다.
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
     const openSpy = vi.fn();
     vi.stubGlobal("open", openSpy);
     const writeText = vi.fn().mockResolvedValue(undefined);
@@ -482,6 +494,116 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       ).not.toBeInTheDocument()
     );
     expect(screen.getByRole("status")).toHaveTextContent("요청 메시지를 복사했어요");
+  });
+
+  it("gates the channel-talk quote delivery behind login when signed out", async () => {
+    vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "false");
+    vi.stubEnv("NEXT_PUBLIC_KAKAO_CHANNEL_PUBLIC_ID", "_TestCh");
+    supabaseMock.getUser.mockResolvedValue({ data: { user: null } });
+    const openSpy = vi.fn();
+    vi.stubGlobal("open", openSpy);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    writeCalculatedRestore();
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "카카오톡으로 견적서 받기" })
+    );
+
+    // 로그인 안내 모달만 뜨고, 견적 저장·복사·대화창은 모두 보류된다.
+    await screen.findByRole("dialog", { name: "로그인이 필요해요" });
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/quote/save", expect.anything());
+    expect(writeText).not.toHaveBeenCalled();
+    expect(openSpy).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("dialog", { name: "견적 요청 메시지를 복사했어요" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("starts Kakao login with a delivery resume marker from the login gate", async () => {
+    vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "false");
+    vi.stubEnv("NEXT_PUBLIC_KAKAO_CHANNEL_PUBLIC_ID", "_TestCh");
+    supabaseMock.getUser.mockResolvedValue({ data: { user: null } });
+    writeCalculatedRestore();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ success: true, data: [] }))
+    );
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "카카오톡으로 견적서 받기" })
+    );
+    await screen.findByRole("dialog", { name: "로그인이 필요해요" });
+    fireEvent.click(screen.getByRole("button", { name: "카카오 로그인" }));
+
+    await waitFor(() => expect(supabaseMock.signInWithOAuth).toHaveBeenCalled());
+    const redirectTo = supabaseMock.signInWithOAuth.mock.calls.at(-1)?.[0]?.options
+      ?.redirectTo as string;
+    // 로그인 후 돌아와 견적 요청을 이어가도록 복귀 주소에 표식을 남긴다.
+    const next = decodeURIComponent(new URL(redirectTo).searchParams.get("next") ?? "");
+    expect(next).toContain("/quote");
+    expect(next).toContain("deliver=1");
+    expect(next).toContain("restore=1");
+  });
+
+  it("resumes the delivery guide after returning from login and never auto-opens the chat", async () => {
+    vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "false");
+    vi.stubEnv("NEXT_PUBLIC_KAKAO_CHANNEL_PUBLIC_ID", "_TestCh");
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&restore=1&deliver=1"
+    );
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const openSpy = vi.fn();
+    vi.stubGlobal("open", openSpy);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    writeCalculatedRestore();
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+        });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    // 버튼을 다시 누르지 않아도 안내 모달까지 자동으로 이어진다.
+    await screen.findByRole("dialog", { name: "견적 요청 메시지를 복사했어요" });
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/save",
+        expect.objectContaining({ method: "POST" })
+      )
+    );
+    // 팝업 차단 때문에 대화창은 CTA 클릭으로만 연다.
+    expect(openSpy).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("dialog", { name: "로그인이 필요해요" })
+    ).not.toBeInTheDocument();
   });
 
   it("shows an inline error and stays on the quote when persistence fails", async () => {

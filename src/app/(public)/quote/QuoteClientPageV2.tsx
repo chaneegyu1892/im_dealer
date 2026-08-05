@@ -35,6 +35,7 @@ import {
 } from "@/lib/channel-talk";
 import { kakaoChannelChatUrl } from "@/lib/kakao/channel-add";
 import { QuoteDeliveryGuideModal } from "@/components/quote/QuoteDeliveryGuideModal";
+import { LoginRequiredModal } from "@/components/quote/LoginRequiredModal";
 import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { type ComparisonTrimData } from "@/components/quote/VehicleConfigPanel";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
@@ -73,6 +74,9 @@ import {
 
 // ─── 상수 ────────────────────────────────────────────────
 const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
+
+// 견적서 받기 로그인 게이트 → 로그인 후 복귀 시 요청 흐름을 이어가기 위한 URL 표식.
+const DELIVERY_RESUME_PARAM = "deliver";
 
 const apiErrorSchema = z.object({
   error: z.string().optional(),
@@ -169,6 +173,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const customerTypeParam = searchParams?.get("customerType") ?? null;
   const initialCustomerType = isCustomerType(customerTypeParam) ? customerTypeParam : null;
   const isRestoreReturn = searchParams?.get("restore") === "1";
+  // 로그인 게이트를 통과하고 돌아왔다는 표식 — 견적서 요청 흐름을 1회 자동 재개한다.
+  const isDeliveryResumeReturn = searchParams?.get(DELIVERY_RESUME_PARAM) === "1";
   const prefillOptionsParam = searchParams?.get("options") ?? "";
   const productTypeParam = searchParams?.get("productType");
   const initialProductType = productTypeParam === "리스"
@@ -245,6 +251,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [deliverSuccess, setDeliverSuccess] = useState(false);
   // 견적 요청 안내 모달 — null 이 아니면 열림(값 = 클립보드에 복사한 요청 메시지)
   const [deliveryGuideMessage, setDeliveryGuideMessage] = useState<string | null>(null);
+  // 견적서 받기 로그인 게이트 — 비회원이 눌렀을 때 노출한다.
+  const [deliveryLoginGateOpen, setDeliveryLoginGateOpen] = useState(false);
   // 카카오톡 '나에게 보내기' 자동발송은 카카오싱크 + 명시적 자동발송 플래그가 모두 켜졌을 때만.
   // (KAKAO_SYNC 는 간편가입 로그인용이라, 자동발송과는 분리한다.)
   const kakaoDeliveryEnabled =
@@ -827,6 +835,13 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       setDeliveryError("카카오 채널 설정을 확인해 주세요. 잠시 후 다시 시도해주세요.");
       return;
     }
+    // 견적서 수령은 회원 전용 — 비회원이면 저장·복사 전에 로그인 게이트로 보낸다.
+    if (!(await hasActiveSession())) {
+      setDeliveryError(null);
+      setDeliverSuccess(false);
+      setDeliveryLoginGateOpen(true);
+      return;
+    }
     setIsDelivering(true);
     setDeliveryError(null);
     setDeliverSuccess(false);
@@ -867,6 +882,38 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       );
     } finally {
       setIsDelivering(false);
+    }
+  }
+
+  // 세션 조회 실패는 "로그인 안 됨"으로 간주한다 — 인증 오류가 게이트를 뚫으면 안 된다.
+  async function hasActiveSession(): Promise<boolean> {
+    try {
+      const {
+        data: { user },
+      } = await createClient().auth.getUser();
+      return Boolean(user);
+    } catch (sessionError) {
+      if (!(sessionError instanceof Error)) throw sessionError;
+      return false;
+    }
+  }
+
+  // 로그인 게이트 CTA — 견적 상태를 보관하고, 복귀 후 이어갈 표식과 함께 카카오 로그인으로.
+  async function handleDeliveryLoginGateConfirm() {
+    const state = buildRestoreState();
+    if (state) {
+      restoreRef.current = state;
+      saveQuoteImageRestore(state);
+    }
+    setDeliveryLoginGateOpen(false);
+    const params = new URLSearchParams(window.location.search);
+    params.set("restore", "1");
+    params.set(DELIVERY_RESUME_PARAM, "1");
+    try {
+      await startKakaoLogin({ next: `${window.location.pathname}?${params.toString()}` });
+    } catch (loginError) {
+      if (!(loginError instanceof Error)) throw loginError;
+      setDeliveryError("로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.");
     }
   }
 
@@ -1031,6 +1078,31 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, quoteResult, costMode, customRates]);
+
+  // ─── 로그인 게이트 복귀 → 견적서 요청 흐름 1회 자동 재개 ─────
+  // 대화창은 여기서 열지 않는다. 페이지 로드 직후의 window.open 은 팝업 차단에 걸리므로,
+  // 안내 모달까지만 띄우고 대화창은 모달 CTA(사용자 제스처)로 연다.
+  const deliveryResumeHandled = useRef(false);
+  useEffect(() => {
+    if (!channelTalkDelivery || !isDeliveryResumeReturn) return;
+    if (deliveryResumeHandled.current) return;
+    if (step !== 3 || !quoteResult) return;
+    deliveryResumeHandled.current = true;
+
+    // 표식 제거 — 새로고침으로 다시 실행되지 않게 한다.
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.delete(DELIVERY_RESUME_PARAM);
+      window.history.replaceState(null, "", `/quote?${params.toString()}`);
+    }
+
+    void (async () => {
+      // 로그인이 끝나지 않았다면 조용히 넘어간다. 버튼을 다시 누르면 게이트가 다시 뜬다.
+      if (!(await hasActiveSession())) return;
+      await handleQuoteReceiveViaChannelTalk();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelTalkDelivery, isDeliveryResumeReturn, step, quoteResult]);
 
   // quoteSessionId 는 3회차(견적 초안 저장)에서 사용.
   void quoteSessionId;
@@ -1236,6 +1308,19 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
           )}
         </AnimatePresence>
       </main>
+
+      <LoginRequiredModal
+        open={deliveryLoginGateOpen}
+        onClose={() => setDeliveryLoginGateOpen(false)}
+        onKakaoLogin={() => void handleDeliveryLoginGateConfirm()}
+        description={
+          <>
+            견적서는 회원에게만 보내드리고 있어요.
+            <br />
+            카카오톡으로 빠르게 시작해보세요.
+          </>
+        }
+      />
 
       <QuoteDeliveryGuideModal
         open={deliveryGuideMessage !== null}

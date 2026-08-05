@@ -1,15 +1,30 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { LockKeyhole, X } from "lucide-react";
+
+const DEFAULT_DESCRIPTION = (
+  <>
+    견적서 이미지 다운로드는 회원만 이용할 수 있어요.
+    <br />
+    카카오톡으로 빠르게 시작해보세요.
+  </>
+);
 
 interface LoginRequiredModalProps {
   open: boolean;
   onClose: () => void;
   onKakaoLogin: () => void;
+  /** 로그인이 필요한 이유. 미지정 시 견적서 이미지 다운로드 문구를 쓴다. */
+  description?: ReactNode;
 }
 
-export function LoginRequiredModal({ open, onClose, onKakaoLogin }: LoginRequiredModalProps) {
+export function LoginRequiredModal({
+  open,
+  onClose,
+  onKakaoLogin,
+  description = DEFAULT_DESCRIPTION,
+}: LoginRequiredModalProps) {
   // ESC 키로 닫기
   useEffect(() => {
     if (!open) return;
@@ -55,11 +70,7 @@ export function LoginRequiredModal({ open, onClose, onKakaoLogin }: LoginRequire
           <h2 id="login-required-title" className="text-[18px] font-extrabold text-text-strong">
             로그인이 필요해요
           </h2>
-          <p className="mt-2 text-[13px] leading-relaxed text-text-body">
-            견적서 이미지 다운로드는 회원만 이용할 수 있어요.
-            <br />
-            카카오톡으로 빠르게 시작해보세요.
-          </p>
+          <p className="mt-2 text-[13px] leading-relaxed text-text-body">{description}</p>
         </div>
 
         <button
