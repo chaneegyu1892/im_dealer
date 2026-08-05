@@ -59,3 +59,10 @@ export function trackQuoteDeliveryRequested(context: ChannelTalkQuoteContext): v
   if (typeof window === "undefined" || !window.ChannelIO) return;
   window.ChannelIO("track", "quote_delivery_requested", context);
 }
+
+// 고객이 "보냈어요"로 전송을 자가 확인했을 때. 요청만 하고 실제로 안 보낸 고객과
+// 구분되어, 상담사가 미전송 건에 먼저 연락할 수 있다.
+export function trackQuoteDeliverySent(context: ChannelTalkQuoteContext): void {
+  if (typeof window === "undefined" || !window.ChannelIO) return;
+  window.ChannelIO("track", "quote_delivery_sent", context);
+}

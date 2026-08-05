@@ -32,6 +32,8 @@ import { QuoteResultActions } from "@/components/quote/QuoteResultActions";
 import {
   openChannelTalkWithQuote,
   trackQuoteDeliveryRequested,
+  trackQuoteDeliverySent,
+  type ChannelTalkQuoteContext,
 } from "@/lib/channel-talk";
 import { kakaoChannelChatUrl } from "@/lib/kakao/channel-add";
 import { QuoteDeliveryGuideModal } from "@/components/quote/QuoteDeliveryGuideModal";
@@ -249,8 +251,14 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [isDelivering, setIsDelivering] = useState(false);
   const [deliverSuccess, setDeliverSuccess] = useState(false);
-  // 견적 요청 안내 모달 — null 이 아니면 열림(값 = 클립보드에 복사한 요청 메시지)
-  const [deliveryGuideMessage, setDeliveryGuideMessage] = useState<string | null>(null);
+  // 클립보드에 복사한 견적 요청 메시지. 모달을 닫은 뒤에도 '대화창 다시 열기'에서 재복사하므로
+  // 모달 열림 상태(deliveryGuideOpen)와 분리해 보관한다.
+  const [deliveryRequestMessage, setDeliveryRequestMessage] = useState<string | null>(null);
+  const [deliveryGuideOpen, setDeliveryGuideOpen] = useState(false);
+  // 웹은 고객이 실제로 대화창에서 전송했는지 알 수 없다 — '보냈어요' 자가 확인으로 받는다.
+  const [deliveryConfirmedBySender, setDeliveryConfirmedBySender] = useState(false);
+  const [deliveryTrackContext, setDeliveryTrackContext] =
+    useState<ChannelTalkQuoteContext | null>(null);
   // 견적서 받기 로그인 게이트 — 비회원이 눌렀을 때 노출한다.
   const [deliveryLoginGateOpen, setDeliveryLoginGateOpen] = useState(false);
   // 카카오톡 '나에게 보내기' 자동발송은 카카오싱크 + 명시적 자동발송 플래그가 모두 켜졌을 때만.
@@ -845,12 +853,13 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     setIsDelivering(true);
     setDeliveryError(null);
     setDeliverSuccess(false);
+    setDeliveryConfirmedBySender(false);
 
     try {
       const savedQuote = await saveCurrentQuote();
       const vehicleName = selectedVehicle?.name ?? "";
       // 상담사가 채널톡 데스크에서 볼 견적 요청 컨텍스트를 기록.
-      trackQuoteDeliveryRequested({
+      const deliveryContext: ChannelTalkQuoteContext = {
         quoteId: savedQuote.id,
         sessionId: savedQuote.sessionId,
         vehicleName,
@@ -858,7 +867,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         productType: contractCategory,
         contractMonths: quoteResult.contractMonths,
         annualMileage: quoteResult.annualMileage,
-      });
+      };
+      trackQuoteDeliveryRequested(deliveryContext);
+      setDeliveryTrackContext(deliveryContext);
 
       // 채널 대화창은 메시지 프리필이 불가하므로, 견적 정보가 담긴 요청 메시지를
       // 클립보드에 복사해 고객이 대화창에 붙여넣고 보내도록 유도한다(상담사가 견적 파악).
@@ -873,7 +884,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         // 클립보드 권한/미지원 — 모달 CTA 클릭 시 한 번 더 복사한다.
       }
 
-      setDeliveryGuideMessage(deliveryMessage);
+      setDeliveryRequestMessage(deliveryMessage);
+      setDeliveryGuideOpen(true);
     } catch (deliverError) {
       setDeliveryError(
         deliverError instanceof Error
@@ -919,23 +931,40 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
 
   // 안내 모달 CTA — 클릭 직후 동기적으로 대화창을 열어야 팝업 차단에 안 걸린다.
   function handleDeliveryGuideConfirm() {
+    if (!openChannelChatWithMessage()) return;
+    setDeliveryGuideOpen(false);
+    setDeliverSuccess(true);
+  }
+
+  // '보냈어요' — 고객 자가 확인. 상담사 데스크에도 남겨 미전송 건과 구분되게 한다.
+  function handleConfirmChannelSent() {
+    setDeliveryConfirmedBySender(true);
+    if (deliveryTrackContext) trackQuoteDeliverySent(deliveryTrackContext);
+  }
+
+  // '대화창 다시 열기' — 창을 닫았거나 붙여넣기를 놓친 고객이 되돌아갈 길.
+  function handleReopenChannelChat() {
+    openChannelChatWithMessage();
+  }
+
+  // 요청 문구를 다시 복사하고 대화창을 연다. 클릭 핸들러에서 동기 호출해야 팝업 차단을 피한다.
+  function openChannelChatWithMessage(): boolean {
     const chatUrl = kakaoChannelChatUrl();
     if (!chatUrl) {
-      setDeliveryGuideMessage(null);
+      setDeliveryGuideOpen(false);
       setDeliveryError("카카오 채널 설정을 확인해 주세요. 잠시 후 다시 시도해주세요.");
-      return;
+      return false;
     }
-    // 첫 복사의 사용자 활성화가 만료됐을 수 있어(Safari 등) 새 제스처에서 한 번 더 복사.
-    if (deliveryGuideMessage) {
+    // 앞선 복사의 사용자 활성화가 만료됐을 수 있어(Safari 등) 새 제스처에서 한 번 더 복사.
+    if (deliveryRequestMessage) {
       try {
-        navigator.clipboard?.writeText(deliveryGuideMessage).catch(() => {});
+        navigator.clipboard?.writeText(deliveryRequestMessage).catch(() => {});
       } catch {
         // 복사 실패해도 대화창은 연다.
       }
     }
     window.open(chatUrl, "_blank", "noopener,noreferrer");
-    setDeliveryGuideMessage(null);
-    setDeliverSuccess(true);
+    return true;
   }
 
   async function refreshQuoteForDelivery(): Promise<QuoteResponse> {
@@ -1282,6 +1311,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
                   ? handleQuoteDeliver
                   : handleQuoteReceiveViaChannelTalk
               }
+              onReopenChannelChat={handleReopenChannelChat}
+              onConfirmChannelSent={handleConfirmChannelSent}
+              deliveryConfirmedBySender={deliveryConfirmedBySender}
               onCustomRatesChange={setCustomRates}
               onCostModeChange={setCostMode}
               onReset={restoreBaseStandardScenario}
@@ -1323,9 +1355,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       />
 
       <QuoteDeliveryGuideModal
-        open={deliveryGuideMessage !== null}
-        message={deliveryGuideMessage ?? ""}
-        onClose={() => setDeliveryGuideMessage(null)}
+        open={deliveryGuideOpen}
+        message={deliveryRequestMessage ?? ""}
+        onClose={() => setDeliveryGuideOpen(false)}
         onConfirm={handleDeliveryGuideConfirm}
       />
     </div>
@@ -1441,6 +1473,9 @@ function Step3ResultHeader({
   deliverSuccess,
   deliveryError,
   onQuoteDeliver,
+  onReopenChannelChat,
+  onConfirmChannelSent,
+  deliveryConfirmedBySender,
   onCustomRatesChange,
   onCostModeChange,
   onReset,
@@ -1474,6 +1509,9 @@ function Step3ResultHeader({
   deliverSuccess: boolean;
   deliveryError: string | null;
   onQuoteDeliver: () => void;
+  onReopenChannelChat: () => void;
+  onConfirmChannelSent: () => void;
+  deliveryConfirmedBySender: boolean;
   onCustomRatesChange: (rates: { depositRate: number; prepayRate: number }) => void;
   onCostModeChange: (mode: CostMode) => void;
   onReset: () => void;
@@ -1781,6 +1819,9 @@ function Step3ResultHeader({
             deliverySuccess={deliverSuccess}
             deliveryError={deliveryError}
             onQuoteDeliver={onQuoteDeliver}
+            onReopenChannelChat={onReopenChannelChat}
+            onConfirmChannelSent={onConfirmChannelSent}
+            deliveryConfirmedBySender={deliveryConfirmedBySender}
           />
 
           <button

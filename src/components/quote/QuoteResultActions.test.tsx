@@ -12,6 +12,9 @@ const props = {
   deliverySuccess: false,
   deliveryError: null,
   onQuoteDeliver: () => undefined,
+  onReopenChannelChat: () => undefined,
+  onConfirmChannelSent: () => undefined,
+  deliveryConfirmedBySender: false,
 };
 
 describe("QuoteResultActions", () => {
@@ -129,12 +132,66 @@ describe("QuoteResultActions", () => {
       expect(deliveryButton).toHaveAttribute("aria-busy", "true");
     });
 
-    it("When it succeeds Then it guides the customer to send the chat message", () => {
+    it("When the chat opens Then it states the request is not sent yet", () => {
       render(<QuoteResultActions {...stopgapProps} deliverySuccess />);
 
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "요청 메시지를 복사했어요"
+      // 붙여넣기 전에는 상담사에게 아무것도 가지 않는다 — 완료로 읽히면 안 된다.
+      const status = screen.getByRole("status");
+      expect(status).toHaveTextContent("아직 보내지 않았어요");
+      expect(status).not.toHaveTextContent("요청 메시지를 복사했어요");
+    });
+
+    it("When the customer confirms they sent it Then it calls the supplied callback", () => {
+      const onConfirmChannelSent = vi.fn<() => void>();
+      render(
+        <QuoteResultActions
+          {...stopgapProps}
+          deliverySuccess
+          onConfirmChannelSent={onConfirmChannelSent}
+        />
       );
+
+      fireEvent.click(screen.getByRole("button", { name: "보냈어요" }));
+
+      expect(onConfirmChannelSent).toHaveBeenCalledTimes(1);
+    });
+
+    it("When the customer confirmed sending Then it drops the warning and thanks them", () => {
+      render(
+        <QuoteResultActions {...stopgapProps} deliverySuccess deliveryConfirmedBySender />
+      );
+
+      const status = screen.getByRole("status");
+      expect(status).toHaveTextContent("상담사가 확인 후");
+      expect(status).not.toHaveTextContent("아직 보내지 않았어요");
+      expect(screen.queryByRole("button", { name: "보냈어요" })).not.toBeInTheDocument();
+      // 착각해서 눌렀거나 전송이 안 됐을 수도 있으니 돌아갈 길은 남긴다.
+      expect(
+        screen.getByRole("button", { name: "대화창 다시 열기" })
+      ).toBeInTheDocument();
+    });
+
+    it("When the chat window was closed Then it offers to reopen it", () => {
+      const onReopenChannelChat = vi.fn<() => void>();
+      render(
+        <QuoteResultActions
+          {...stopgapProps}
+          deliverySuccess
+          onReopenChannelChat={onReopenChannelChat}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "대화창 다시 열기" }));
+
+      expect(onReopenChannelChat).toHaveBeenCalledTimes(1);
+    });
+
+    it("When the chat has not been opened yet Then it hides the reopen action", () => {
+      render(<QuoteResultActions {...stopgapProps} />);
+
+      expect(
+        screen.queryByRole("button", { name: "대화창 다시 열기" })
+      ).not.toBeInTheDocument();
     });
   });
 

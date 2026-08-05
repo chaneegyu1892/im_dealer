@@ -493,7 +493,32 @@ describe("QuoteClientPageV2 consultation fallback", () => {
         screen.queryByRole("dialog", { name: "견적 요청 메시지를 복사했어요" })
       ).not.toBeInTheDocument()
     );
-    expect(screen.getByRole("status")).toHaveTextContent("요청 메시지를 복사했어요");
+    // 붙여넣기 전에는 상담사에게 가지 않았으므로 완료가 아니라 미전송 안내가 남는다.
+    expect(screen.getByRole("status")).toHaveTextContent("아직 보내지 않았어요");
+
+    // ⑤ 창을 닫았거나 붙여넣기를 놓쳤을 때 대화창으로 되돌아갈 길을 남긴다.
+    fireEvent.click(screen.getByRole("button", { name: "대화창 다시 열기" }));
+    expect(openSpy).toHaveBeenCalledTimes(2);
+    expect(openSpy).toHaveBeenLastCalledWith(
+      "https://pf.kakao.com/_TestCh/chat",
+      "_blank",
+      "noopener,noreferrer"
+    );
+    // 다시 열 때도 요청 문구를 새로 복사해 준다.
+    expect(writeText).toHaveBeenCalledTimes(3);
+
+    // ⑥ 실제로 보낸 고객은 '보냈어요'로 경고를 닫을 수 있다.
+    fireEvent.click(screen.getByRole("button", { name: "보냈어요" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("상담사가 확인 후")
+    );
+    expect(screen.getByRole("status")).not.toHaveTextContent("아직 보내지 않았어요");
+    // 상담사 데스크에도 고객이 전송했다고 남긴다.
+    expect(
+      channelCalls.find(
+        (args) => args[0] === "track" && args[1] === "quote_delivery_sent"
+      )
+    ).toBeDefined();
   });
 
   it("gates the channel-talk quote delivery behind login when signed out", async () => {
