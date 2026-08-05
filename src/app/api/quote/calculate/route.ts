@@ -11,16 +11,10 @@ import {
 } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
 import type { RateSheetRaw } from "@/types/admin";
-import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
 import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { upsertQuoteCalcLogs } from "@/lib/quote-calc-log";
-
-const SCENARIO_CONDITIONS = {
-  conservative: { depositRate: 20, prepayRate: 0 },
-  standard: { depositRate: 0, prepayRate: 0 },
-  aggressive: { depositRate: 0, prepayRate: 30 },
-} as const;
 
 const calculateSchema = z.object({
   sessionId: z.string().min(1).optional(),

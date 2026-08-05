@@ -9,7 +9,8 @@ import {
   parseQuoteScenarioType,
   realignSelectedQuoteScenarios,
 } from "@/lib/quote-scenario-selection";
-import type { QuoteScenarioDetail } from "@/types/quote";
+import { parseScenarioSnapshots } from "@/lib/quote-scenario-snapshots";
+import type { QuoteScenarioDetail, QuoteScenarioDetails } from "@/types/quote";
 
 export interface OfficialDeliveryQuote {
   id: string;
@@ -135,7 +136,19 @@ export async function buildOfficialDeliveryImageData(
   const savedQuoteBreakdown = asRecord(breakdown.quoteBreakdown);
   const calculatedDeposit = Math.round(totalVehiclePrice * quote.depositRate / 100);
   const calculatedPrepay = Math.round(totalVehiclePrice * quote.prepayRate / 100);
-  const fallbackScenario = rebuilt.data.scenarios[selectedScenarioType];
+
+  // 저장 시점 스냅샷이 있으면 비교 시나리오도 그 값으로 고정한다.
+  // 스냅샷이 없는 과거 견적은 기존처럼 현재 요율로 재계산한 값을 쓴다.
+  const snapshots = parseScenarioSnapshots(breakdown.scenarioSnapshots);
+  const baseScenarios: QuoteScenarioDetails = snapshots
+    ? {
+        conservative: { ...rebuilt.data.scenarios.conservative, ...snapshots.conservative },
+        standard: { ...rebuilt.data.scenarios.standard, ...snapshots.standard },
+        aggressive: { ...rebuilt.data.scenarios.aggressive, ...snapshots.aggressive },
+      }
+    : rebuilt.data.scenarios;
+
+  const fallbackScenario = baseScenarios[selectedScenarioType];
   const selectedScenario: QuoteScenarioDetail = {
     ...fallbackScenario,
     monthlyPayment: quote.monthlyPayment,
@@ -149,7 +162,7 @@ export async function buildOfficialDeliveryImageData(
   };
 
   const scenariosWithSavedSelection = {
-    ...rebuilt.data.scenarios,
+    ...baseScenarios,
     standard: selectedScenario,
   };
   const scenarios = selectedScenarioType === "standard"
@@ -157,7 +170,7 @@ export async function buildOfficialDeliveryImageData(
     : realignSelectedQuoteScenarios(
         scenariosWithSavedSelection,
         selectedScenarioType,
-        rebuilt.data.scenarios.standard
+        baseScenarios.standard
       );
 
   const exteriorColor = color(breakdown.exteriorColor) ?? rebuilt.data.exteriorColor;

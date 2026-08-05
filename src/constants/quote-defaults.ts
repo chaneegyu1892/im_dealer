@@ -10,6 +10,14 @@ export const QUOTE_DEFAULTS = {
 /** 순위 가산율 — 1순위: 1%, 2순위: 1.5%, 3순위: 2%, 4순위+: 2.5% */
 export const RANK_SURCHARGE_RATES = [1.0, 1.5, 2.0, 2.5] as const;
 
+/** 표준 3개 시나리오(보증금/무보증/선납금)의 초기비용 조건.
+ * 견적 계산·저장 스냅샷·견적서 재발급이 모두 공유한다 — 값을 바꾸면 전부 함께 바뀐다. */
+export const SCENARIO_CONDITIONS = {
+  conservative: { depositRate: 20, prepayRate: 0 },
+  standard: { depositRate: 0, prepayRate: 0 },
+  aggressive: { depositRate: 0, prepayRate: 30 },
+} as const;
+
 /** 고객용 차량 카드·추천 결과에서 공통으로 사용하는 대표 견적 조건. */
 export const PUBLIC_CARD_QUOTE_CONDITION = {
   contractMonths: 60,

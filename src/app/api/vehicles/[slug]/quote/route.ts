@@ -9,7 +9,7 @@ import {
   type CalcInput,
 } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
-import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
 import { normalizeSelectedOptions } from "@/lib/option-rules";
 import { lockQuoteScenario } from "@/lib/member-gate";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
@@ -41,13 +41,6 @@ const quoteSchema = z
       (input.customDepositRate ?? 0) === 0 || (input.customPrepayRate ?? 0) === 0,
     { message: "보증금과 선납금은 동시에 적용할 수 없습니다." }
   );
-
-// ── 시나리오별 보증금·선납금 조건 ───────────────────────
-const SCENARIO_CONDITIONS = {
-  conservative: { depositRate: 20, prepayRate: 0 },  // 보수형: 보증금 20%
-  standard:     { depositRate: 0,  prepayRate: 0 },   // 표준형: 없음
-  aggressive:   { depositRate: 0,  prepayRate: 30 },  // 공격형: 선납금 30%
-} as const;
 
 // ─── POST /api/vehicles/:slug/quote ─────────────────────
 // 조건별 3개 시나리오 견적 (전체 파이프라인: 선형보간 → 보증금/선납금 → 순위가산 + 차량가산 + 금융사가산)

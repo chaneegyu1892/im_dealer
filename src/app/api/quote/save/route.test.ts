@@ -243,6 +243,52 @@ describe("POST /api/quote/save", () => {
     );
   });
 
+  it("stores per-scenario snapshots so reissued documents keep the original comparison amounts", async () => {
+    mocks.calculate.mockImplementation((input: { depositRate: number; prepayRate: number }) => {
+      const monthlyPayment =
+        input.depositRate === 20 ? 610_000 : input.prepayRate === 30 ? 510_000 : 810_000;
+      return [{
+        financeCompanyName: "테스트캐피탈",
+        rank: 1,
+        monthlyPayment,
+        baseMonthly: monthlyPayment,
+        breakdown: {
+          depositAmount: input.depositRate === 20 ? 8_000_000 : 0,
+          prepayAmount: input.prepayRate === 30 ? 12_000_000 : 0,
+        },
+        surcharges: {},
+      }];
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    const createData = mocks.upsertSavedQuote.mock.calls[0][0].create;
+    expect(createData.breakdown.scenarioSnapshots).toEqual({
+      conservative: {
+        monthlyPayment: 610_000,
+        depositAmount: 8_000_000,
+        prepayAmount: 0,
+        bestFinanceCompany: "테스트캐피탈",
+        purchaseSurcharge: 0,
+      },
+      standard: {
+        monthlyPayment: 810_000,
+        depositAmount: 0,
+        prepayAmount: 0,
+        bestFinanceCompany: "테스트캐피탈",
+        purchaseSurcharge: 0,
+      },
+      aggressive: {
+        monthlyPayment: 510_000,
+        depositAmount: 0,
+        prepayAmount: 12_000_000,
+        bestFinanceCompany: "테스트캐피탈",
+        purchaseSurcharge: 0,
+      },
+    });
+  });
+
   it("persists the full selected configuration when rate data is unavailable", async () => {
     mocks.findVehicle.mockResolvedValue({
       id: "vehicle-1",
