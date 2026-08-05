@@ -17,6 +17,7 @@ import { ReviewLinkSection } from "@/components/admin/quotations/ReviewLinkSecti
 import { QuoteCalculationHistory } from "@/components/admin/quotations/QuoteCalculationHistory";
 import { VerificationResult } from "@/components/admin/VerificationResult";
 import { formatQuoteForClipboard } from "@/lib/admin/quote-clipboard";
+import { productTypeLabel } from "@/constants/product-type";
 
 type UIQuoteStatus = "상담대기" | "상담중" | "계약완료" | "계약취소" | "연락완료";
 
@@ -879,7 +880,7 @@ function QuotationsContent() {
                       ["트림 할인가", (drawerQuote.discountPrice ?? drawerQuote.trimPrice) != null
                         ? `${(drawerQuote.discountPrice ?? drawerQuote.trimPrice)!.toLocaleString()}원`
                         : "-"],
-                      ["상품 유형", drawerQuote.productType],
+                      ["상품 유형", productTypeLabel(drawerQuote.productType)],
                       ["계약 조건", `${drawerQuote.contractMonths}개월 · 연 ${drawerQuote.annualMileage.toLocaleString()}km · ${drawerQuote.contractType}`],
                       ["외장 색상", drawerQuote.exteriorColorName ?? "미선택"],
                       ["내장 색상", drawerQuote.interiorColorName ?? "미선택"],
@@ -896,7 +897,7 @@ function QuotationsContent() {
                 <section>
                   <div className="bg-[#0D0D1F] rounded-[10px] p-4 text-white shadow-lg overflow-hidden relative">
                     <div className="absolute top-0 right-0 p-3 opacity-10"><FileText size={60} /></div>
-                    <p className="text-[11px] text-[#9BA4C0] font-medium mb-1 relative z-10">최종 렌트/리스 조건 요약</p>
+                    <p className="text-[11px] text-[#9BA4C0] font-medium mb-1 relative z-10">최종 렌트/운용리스 조건 요약</p>
                     <div className="flex justify-between items-end relative z-10">
                       <div>
                         {drawerQuote.pricingStatus === "CONSULTATION_REQUIRED" ? (
@@ -904,7 +905,7 @@ function QuotationsContent() {
                         ) : (
                           <p className="text-[18px] font-bold mt-1 text-white">{drawerQuote.monthlyPayment.toLocaleString()} <span className="text-[12px] font-medium text-[#C0C5DC]">원 / 월</span></p>
                         )}
-                        <p className="text-[11px] text-[#9BA4C0] mt-1">{drawerQuote.vehicleBrand} · {drawerQuote.productType} · {drawerQuote.contractMonths}개월</p>
+                        <p className="text-[11px] text-[#9BA4C0] mt-1">{drawerQuote.vehicleBrand} · {productTypeLabel(drawerQuote.productType)} · {drawerQuote.contractMonths}개월</p>
                       </div>
                       <button
                         type="button"

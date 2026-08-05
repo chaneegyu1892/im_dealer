@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { productTypeLabel } from "@/constants/product-type";
 import {
   availableRepresentativeQuotes,
   type RepresentativeQuote,
@@ -8,7 +9,7 @@ import {
 
 /**
  * 대표 견적가 표시 — 60개월 / 연 2만km / 무보증 기준.
- * 장기렌트·리스가 모두 있으면 두 줄로 나란히 노출.
+ * 장기렌트·운용리스가 모두 있으면 두 줄로 나란히 노출.
  * 목록 카드·홈 인기차량·차량 상세에서 공통 사용해 표기를 통일한다.
  */
 
@@ -123,7 +124,7 @@ export function RepresentativeQuotePrice({
             >
               {showLabels && (
                 <span className={cn("text-[11px] font-medium shrink-0", t.label)}>
-                  {q.productType}
+                  {productTypeLabel(q.productType)}
                 </span>
               )}
               <span

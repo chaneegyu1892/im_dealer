@@ -16,6 +16,7 @@ import ScrapeJobStatus from "./ScrapeJobStatus";
 import ScrapeReviewPanel, { type PerLineupResult } from "./ScrapeReviewPanel";
 import BrandBatchCollector from "./BrandBatchCollector";
 import { useBrandSignals } from "@/lib/use-brand-signals";
+import { productTypeLabel } from "@/constants/product-type";
 import { buildRateGroupMarkers } from "./rate-group-markers";
 import type { ScrapeDraft, ScrapeJobStatus as JobStatus } from "@/types/scraper";
 import type { RateSheetRaw } from "@/types/admin";
@@ -1073,7 +1074,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                     selectedProductType === pt ? "bg-white shadow-sm text-[#6066EE]" : "text-[#9BA4C0]"
                   }`}
                 >
-                  {pt}
+                  {productTypeLabel(pt)}
                 </button>
               ))}
             </div>

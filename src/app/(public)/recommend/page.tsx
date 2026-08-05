@@ -5,7 +5,7 @@ import { createPageMetadata } from "@/lib/site-config";
 export const metadata: Metadata = createPageMetadata({
   title: "AI 맞춤 차량 추천",
   description:
-    "업종·이용 목적·예산·주행거리와 연료 선호를 입력하면 장기렌트·리스 견적이 가능한 차량을 추천해 드려요.",
+    "업종·이용 목적·예산·주행거리와 연료 선호를 입력하면 장기렌트·운용리스 견적이 가능한 차량을 추천해 드려요.",
   path: "/recommend",
 });
 

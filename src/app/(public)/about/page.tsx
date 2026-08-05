@@ -43,7 +43,7 @@ const STATS = [
 export const metadata: Metadata = createPageMetadata({
   title: "아임딜러 소개",
   description:
-    "아임딜러는 장기렌트·리스 월 납입금과 초기 비용을 상담 전에 비교하고 이해할 수 있도록 돕는 견적 서비스입니다.",
+    "아임딜러는 장기렌트·운용리스 월 납입금과 초기 비용을 상담 전에 비교하고 이해할 수 있도록 돕는 견적 서비스입니다.",
   path: "/about",
 });
 
@@ -62,7 +62,7 @@ export default function AboutPage() {
               조건부터 보이게.
             </h1>
             <p className="mt-5 max-w-[560px] break-keep text-[15px] font-medium leading-[1.75] text-text-body md:text-[17px]">
-              아임딜러는 장기렌트·리스 견적을 상담 뒤에 숨기지 않습니다. 고객이 먼저 차량을 탐색하고 월 납입 구조를 이해한 뒤 결정할 수 있도록 만듭니다.
+              아임딜러는 장기렌트·운용리스 견적을 상담 뒤에 숨기지 않습니다. 고객이 먼저 차량을 탐색하고 월 납입 구조를 이해한 뒤 결정할 수 있도록 만듭니다.
             </p>
             <div className="mt-8 grid grid-cols-2 gap-2.5 max-[340px]:grid-cols-1 sm:flex">
               <Link

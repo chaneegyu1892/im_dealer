@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
+import { productTypeLabel } from "@/constants/product-type";
 import { isExcelCapital } from "@/lib/scraper/excel-capitals";
 import type { CatalogProgress, CatalogScrapeSummary, ScrapeJobStatus } from "@/types/scraper";
 import CatalogScrapePanel from "./CatalogScrapePanel";
@@ -136,7 +137,7 @@ export default function CapitalCatalogManager({ financeCompanies, vehicles }: Pr
                 productType === pt ? "bg-[#6066EE] text-white" : "text-[#9BA4C0] hover:text-[#5A6080]"
               }`}
             >
-              {pt}
+              {productTypeLabel(pt)}
             </button>
           ))}
         </div>

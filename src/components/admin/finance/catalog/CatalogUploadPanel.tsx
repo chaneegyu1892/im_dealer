@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { excelUploadSupported } from "@/lib/scraper/excel-capitals";
+import { productTypeLabel } from "@/constants/product-type";
 
 interface Props {
   financeCompanyId: string;
@@ -53,7 +54,7 @@ export default function CatalogUploadPanel({ financeCompanyId, financeCompanyNam
   if (!supported) {
     return (
       <div className="bg-white rounded-2xl border border-[#E8EAF0] shadow-sm p-10 text-center text-sm text-[#9BA4C0]">
-        {financeCompanyName} {productType}은(는) 아직 엑셀 업로드를 지원하지 않습니다. (현재: 메리츠·MG캐피탈 장기렌트)
+        {financeCompanyName} {productTypeLabel(productType)}은(는) 아직 엑셀 업로드를 지원하지 않습니다. (현재: 메리츠·MG캐피탈 장기렌트)
       </div>
     );
   }

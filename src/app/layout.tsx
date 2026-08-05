@@ -47,7 +47,7 @@ export const metadata: Metadata = {
         url: absoluteSiteUrl("/images/hero-bg-v3.png"),
         width: 1716,
         height: 917,
-        alt: "아임딜러 장기렌트·리스 견적 비교 서비스",
+        alt: "아임딜러 장기렌트·운용리스 견적 비교 서비스",
       },
     ],
   },

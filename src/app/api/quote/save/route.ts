@@ -12,6 +12,7 @@ import {
 } from "@/lib/quote-calculator";
 import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
+import { productTypeLabel } from "@/constants/product-type";
 import { createAdminNotification } from "@/lib/admin-notification";
 import { buildScenarioSnapshots } from "@/lib/quote-scenario-snapshots";
 import { saveQuoteSchema } from "./request-schema";
@@ -261,7 +262,7 @@ export async function POST(request: NextRequest) {
         await createAdminNotification({
           type: "NEW_QUOTE",
           title: "별도 상담 견적 요청",
-          content: `${vehicle.name} ${trim.name} · ${input.productType} · 별도 상담 필요`,
+          content: `${vehicle.name} ${trim.name} · ${productTypeLabel(input.productType)} · 별도 상담 필요`,
           linkUrl: `/admin/quotations?id=${savedQuote.id}`,
         }).catch((notificationError) => {
           console.error("[POST /api/quote/save] consultation notification", notificationError);

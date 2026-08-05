@@ -1,4 +1,5 @@
 import type { AdminSavedQuote } from "@/types/admin";
+import { productTypeLabel } from "@/constants/product-type";
 
 function formatRateLine(quote: Pick<AdminSavedQuote, "depositRate" | "prepayRate">): string {
   if (quote.depositRate > 0) return `보증금 ${quote.depositRate}%`;
@@ -12,7 +13,7 @@ export function formatQuoteForClipboard(quote: AdminSavedQuote): string {
     .join(" · ");
 
   const conditionLine = [
-    quote.productType,
+    productTypeLabel(quote.productType),
     `${quote.contractMonths}개월`,
     `연 ${quote.annualMileage.toLocaleString("ko-KR")}km`,
     formatRateLine(quote),

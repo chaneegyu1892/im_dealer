@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, X, Check, Search, Car, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isSupabaseStorageUrl } from "@/lib/image-url";
+import { productTypeLabel } from "@/constants/product-type";
 import { TrimGroupSelect } from "./TrimGroupSelect";
 import type { VehicleListItem } from "@/types/api";
 import type { VehicleColorPublic } from "./ColorSelector";
@@ -644,7 +645,7 @@ export function VehicleConfigPanel({
                         : "border-border-subtle bg-surface text-text-body hover:border-brand/30"
                     )}
                   >
-                    {type}
+                    {productTypeLabel(type)}
                   </button>
                 ))}
               </div>

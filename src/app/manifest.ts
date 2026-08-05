@@ -9,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "아임딜러 — AI 기반 진짜견적",
     short_name: "아임딜러",
-    description: "허위견적 없는 AI 기반 장기렌트·리스 견적 서비스",
+    description: "허위견적 없는 AI 기반 장기렌트·운용리스 견적 서비스",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

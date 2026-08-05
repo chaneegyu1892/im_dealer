@@ -785,7 +785,7 @@ async function main() {
       id: "hero-main",
       type: "hero",
       title: "AI가 찾아주는 진짜견적",
-      subtitle: "허위견적 없이, 개인정보 없이, 내 조건에 맞는 장기렌트·리스 견적을 바로 확인하세요.",
+      subtitle: "허위견적 없이, 개인정보 없이, 내 조건에 맞는 장기렌트·운용리스 견적을 바로 확인하세요.",
       ctaLabel: "AI 추천 시작하기",
       ctaUrl: "/recommend",
       displayOrder: 1,

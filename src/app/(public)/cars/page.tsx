@@ -19,9 +19,9 @@ import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { createPageMetadata } from "@/lib/site-config";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "장기렌트·리스 차량 견적 비교",
+  title: "장기렌트·운용리스 차량 견적 비교",
   description:
-    "현대·기아·제네시스 등 장기렌트·리스 차량의 월 납입금과 초기 비용을 차종별로 비교해 보세요.",
+    "현대·기아·제네시스 등 장기렌트·운용리스 차량의 월 납입금과 초기 비용을 차종별로 비교해 보세요.",
   path: "/cars",
 });
 

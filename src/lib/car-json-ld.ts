@@ -22,7 +22,7 @@ export function buildCarJsonLd(v: CarJsonLdInput): Record<string, unknown>[] {
       "@context": "https://schema.org",
       "@type": "Product",
       name: `${v.brand} ${v.name}`,
-      description: v.description ?? `${v.brand} ${v.name} 장기렌트·리스 견적`,
+      description: v.description ?? `${v.brand} ${v.name} 장기렌트·운용리스 견적`,
       brand: { "@type": "Brand", name: v.brand },
       category: v.category,
       url,

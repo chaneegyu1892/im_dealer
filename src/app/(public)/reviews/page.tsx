@@ -12,9 +12,9 @@ import { getBrandSignals } from "@/lib/brand-signals";
 import { createPageMetadata } from "@/lib/site-config";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "장기렌트·리스 고객 후기",
+  title: "장기렌트·운용리스 고객 후기",
   description:
-    "아임딜러를 통해 장기렌트·리스를 이용한 실제 고객들의 후기를 확인해 보세요.",
+    "아임딜러를 통해 장기렌트·운용리스를 이용한 실제 고객들의 후기를 확인해 보세요.",
   path: "/reviews",
 });
 

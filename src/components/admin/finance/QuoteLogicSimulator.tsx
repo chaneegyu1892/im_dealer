@@ -5,6 +5,7 @@ import { Loader2, TrendingUp, Search } from "lucide-react";
 import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
 import { useBrandSignals } from "@/lib/use-brand-signals";
+import { productTypeLabel } from "@/constants/product-type";
 
 type ProductType = "장기렌트" | "리스";
 type RegistrationFilter = "all" | "registered" | "unregistered";
@@ -205,7 +206,7 @@ export default function QuoteLogicSimulator() {
       const data = await res.json();
       if (!data.success || data.data.length === 0) {
         setCalcError(
-          `이 라인업(${productType})에 대한 회수율 데이터가 등록되어 있지 않습니다. 회수율 데이터 관리 탭에서 먼저 등록해 주세요.`
+          `이 라인업(${productTypeLabel(productType)})에 대한 회수율 데이터가 등록되어 있지 않습니다. 회수율 데이터 관리 탭에서 먼저 등록해 주세요.`
         );
         return;
       }
@@ -270,7 +271,7 @@ export default function QuoteLogicSimulator() {
                 onClick={() => { setProductType(pt); setResults([]); setCalcError(""); }}
                 className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${productType === pt ? "bg-white shadow-sm text-[#6066EE]" : "text-[#9BA4C0]"}`}
               >
-                {pt}
+                {productTypeLabel(pt)}
               </button>
             ))}
           </div>
@@ -278,7 +279,7 @@ export default function QuoteLogicSimulator() {
 
         {/* 등록 상태 토글 */}
         <div className="bg-white rounded-xl border border-[#E8EAF0] p-3">
-          <p className="text-[11px] font-bold text-[#9BA4C0] ml-1 mb-1.5">등록 상태 ({productType})</p>
+          <p className="text-[11px] font-bold text-[#9BA4C0] ml-1 mb-1.5">등록 상태 ({productTypeLabel(productType)})</p>
           <div className="flex bg-[#F8F9FC] p-1 rounded-lg border border-[#E8EAF0]">
             {([
               { id: "all" as const, label: "전체", count: totalVehicles },
@@ -429,7 +430,7 @@ export default function QuoteLogicSimulator() {
                         <tr className="border-b border-[#E8EAF0] text-[#9BA4C0]">
                           <th className="py-2 px-3 text-left font-semibold">캐피탈사</th>
                           <th className="py-2 px-3 text-center font-semibold">장기렌트</th>
-                          <th className="py-2 px-3 text-center font-semibold">리스</th>
+                          <th className="py-2 px-3 text-center font-semibold">운용리스</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#F0F1FA]">
@@ -536,7 +537,7 @@ export default function QuoteLogicSimulator() {
                     <TrendingUp size={16} className="text-[#6066EE]" />
                     단계별 가산 로직 분해
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${productType === "리스" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"}`}>
-                      {productType}
+                      {productTypeLabel(productType)}
                     </span>
                   </h3>
                   <p className="text-[11px] text-[#9BA4C0]">
