@@ -4,9 +4,9 @@ export const SITE_NAME = "아임딜러";
 export const SITE_ALTERNATE_NAME = "IM DEALER";
 export const SITE_LEGAL_NAME = "주식회사 모빌페이브";
 export const CANONICAL_SITE_URL = "https://imdealer.co.kr";
-export const HOME_TITLE = "아임딜러 | 장기렌트·리스 견적 비교";
+export const HOME_TITLE = "아임딜러 | 장기렌트·운용리스 견적 비교";
 export const SITE_DESCRIPTION =
-  "장기렌트·리스 차량의 월 납입금과 초기 비용을 비교하고, AI 맞춤 차량 추천부터 견적 상담까지 확인하세요.";
+  "장기렌트·운용리스 차량의 월 납입금과 초기 비용을 비교하고, AI 맞춤 차량 추천부터 견적 상담까지 확인하세요.";
 
 const DEFAULT_SOCIAL_IMAGE_PATH = "/images/hero-bg-v3.png";
 

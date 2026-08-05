@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, Check, ChevronDown, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { productTypeLabel } from "@/constants/product-type";
 import { SelectSheet, type SelectOption } from "./SelectSheet";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
 
@@ -437,22 +438,27 @@ export function Step2ConditionV2({
 
         <div>
           <p className="text-[12px] font-bold uppercase tracking-[0.04em] text-text-muted">상품 유형</p>
-          <p className="mb-2.5 mt-0.5 text-[12.5px] text-text-body">장기렌트: 보험·세금 포함 · 리스: 소유권 이전 가능</p>
+          <p className="mb-2.5 mt-0.5 text-[12.5px] text-text-body">장기렌트: 보험·세금 포함 · 운용리스: 소유권 이전 가능</p>
           <div className="grid grid-cols-2 gap-2.5">
             {CONTRACT_CATEGORIES.map((c) => (
-              <ChipButton key={c} selected={contractCategory === c} onClick={() => onContractCategoryChange(c)} label={c} />
+              <ChipButton
+                key={c}
+                selected={contractCategory === c}
+                onClick={() => onContractCategoryChange(c)}
+                label={productTypeLabel(c)}
+              />
             ))}
           </div>
           {contractCategory === "리스" && (
             <p className="mt-2 rounded-[10px] bg-[#F8FAFC] p-2.5 text-[12px] leading-relaxed text-text-muted">
-              리스 견적은 임시 데이터 기준이에요. 실제 금융사 조건과 다를 수 있어요.
+              운용리스 견적은 임시 데이터 기준이에요. 실제 금융사 조건과 다를 수 있어요.
             </p>
           )}
           {productRequiresConsultation && (
             <div className="mt-2.5 flex items-start gap-2 rounded-[12px] bg-brand-soft p-3 text-[12.5px] leading-relaxed text-text-body">
               <AlertCircle size={15} className="mt-0.5 shrink-0 text-brand" />
               <p>
-                선택한 트림의 {contractCategory} 자동 견적은 준비중이에요. 트림·옵션·색상·계약조건은 그대로 저장해 상담에 전달합니다.
+                선택한 트림의 {productTypeLabel(contractCategory)} 자동 견적은 준비중이에요. 트림·옵션·색상·계약조건은 그대로 저장해 상담에 전달합니다.
               </p>
             </div>
           )}

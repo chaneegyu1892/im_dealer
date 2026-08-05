@@ -26,6 +26,7 @@ import { isKakaoSyncEnabled } from "@/lib/kakao/scopes";
 import { cn } from "@/lib/utils";
 import { isSupabaseStorageUrl } from "@/lib/image-url";
 import { sortLineups } from "@/lib/lineup-sort";
+import { productTypeLabel } from "@/constants/product-type";
 import { TossPrice } from "@/components/ui/TossPrice";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { QuoteResultActions } from "@/components/quote/QuoteResultActions";
@@ -876,7 +877,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       const requestSubject = [vehicleName, quoteResult.trimName].filter(Boolean).join(" ");
       const deliveryMessage =
         `[견적서 요청] ${requestSubject}\n` +
-        `${contractCategory} · ${quoteResult.contractMonths}개월 · 연 ${quoteResult.annualMileage.toLocaleString()}km\n` +
+        `${productTypeLabel(contractCategory)} · ${quoteResult.contractMonths}개월 · 연 ${quoteResult.annualMileage.toLocaleString()}km\n` +
         `견적서 보내주세요.`;
       try {
         await navigator.clipboard?.writeText(deliveryMessage);
@@ -1627,7 +1628,7 @@ function Step3ResultHeader({
             <div className="rounded-[14px] bg-surface-soft px-2.5 py-3 text-center">
               <p className="text-[12px] font-bold text-text-muted">상품</p>
               <p className="mt-1 text-[14.5px] font-extrabold leading-tight text-text-strong sm:text-[15px]">
-                {contractCategory}
+                {productTypeLabel(contractCategory)}
               </p>
             </div>
             <div className="rounded-[14px] bg-surface-soft px-2.5 py-3 text-center">
@@ -1734,7 +1735,7 @@ function Step3ResultHeader({
               )}
             </div>
             <p className="mt-3 text-[13.5px] text-[var(--color-brand-ink)]">
-              {CUSTOMER_TYPE_LABELS[customerType]} · {contractCategory}
+              {CUSTOMER_TYPE_LABELS[customerType]} · {productTypeLabel(contractCategory)}
             </p>
           </div>
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GitCompare, ChevronDown, HelpCircle, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { productTypeLabel } from "@/constants/product-type";
 import {
   VehicleConfigPanel,
   type ComparisonTrimData,
@@ -782,7 +783,7 @@ export function ComparisonSection({
               )}
             </button>
             <p className="text-[11px] text-ink-caption text-center">
-              계약 {conditions.contractMonths}개월 · 연 {(conditions.annualMileage / 10000).toFixed(0)}만km · {conditions.contractType} · {conditions.productType}
+              계약 {conditions.contractMonths}개월 · 연 {(conditions.annualMileage / 10000).toFixed(0)}만km · {conditions.contractType} · {productTypeLabel(conditions.productType)}
             </p>
           </div>
 

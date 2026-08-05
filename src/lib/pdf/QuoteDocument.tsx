@@ -3,6 +3,7 @@ import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/render
 import type { QuoteScenarioDetail, QuoteScenarioType } from "@/types/quote";
 import type { PDFQuoteData, PDFQuoteColor } from "@/lib/quote-pdf-template";
 import { parseQuoteScenarioType } from "@/lib/quote-scenario-selection";
+import { productTypeLabel } from "@/constants/product-type";
 
 // ── 보험 조건 기본값 (장기렌트 기준 고정값) ─────────────────
 // 데이터 소스가 없는 표준 약관 기준값이므로 상수로 관리한다.
@@ -305,7 +306,7 @@ export function QuoteDocument({
             ) : (
               <Text style={s.brand}>IM DEALER</Text>
             )}
-            <Text style={s.brandSub}>아임딜러 장기렌트/리스 공식 견적서</Text>
+            <Text style={s.brandSub}>아임딜러 장기렌트/운용리스 공식 견적서</Text>
           </View>
           <View style={s.quoteMeta}>
             <Text style={s.quoteNo}>견적번호: {quoteNumber}</Text>
@@ -371,7 +372,7 @@ export function QuoteDocument({
           <View style={s.table}>
             <View style={s.row}>
               <Text style={[s.th, { width: "22%" }]}>상품 유형</Text>
-              <Text style={[s.td, { width: "28%" }]}>{data.productType}</Text>
+              <Text style={[s.td, { width: "28%" }]}>{productTypeLabel(data.productType)}</Text>
               <Text style={[s.th, { width: "22%" }]}>계약 종류</Text>
               <Text style={[s.td, { width: "28%" }]}>{data.contractType}</Text>
             </View>

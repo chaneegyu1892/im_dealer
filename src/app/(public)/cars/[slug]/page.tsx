@@ -71,11 +71,11 @@ export async function generateMetadata({
 
   const lowestPrice = v.trims[0]?.price ?? v.basePrice;
   const priceManwon = Math.round(lowestPrice / 10000).toLocaleString("ko-KR");
-  const titleText = `${v.brand} ${v.name} 장기렌트·리스 견적`;
+  const titleText = `${v.brand} ${v.name} 장기렌트·운용리스 견적`;
   const descText = summarizeMetaDescription(
     v.description
       ? `${v.description} · 시작가 ${priceManwon}만원. AI 기반 진짜견적.`
-      : `${v.brand} ${v.name} 장기렌트·리스 견적을 시작가 ${priceManwon}만원부터 비교하세요. AI 기반 진짜견적.`,
+      : `${v.brand} ${v.name} 장기렌트·운용리스 견적을 시작가 ${priceManwon}만원부터 비교하세요. AI 기반 진짜견적.`,
   );
   const url = `${SITE_URL}/cars/${v.slug}`;
   const thumbnailUrl = resolvePublicThumbnailUrl(v);

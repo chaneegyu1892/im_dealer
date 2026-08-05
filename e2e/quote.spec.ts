@@ -32,7 +32,7 @@ test.describe("공개 견적 골든패스", () => {
     await page.goto(href!);
 
     // generateMetadata 동작 확인 — 차량 상세 title 은 '... | 아임딜러' 패턴이고 기본 카피와 다름
-    await expect(page).toHaveTitle(/장기렌트·리스 견적 \| 아임딜러$/);
+    await expect(page).toHaveTitle(/장기렌트·운용리스 견적 \| 아임딜러$/);
 
     // JSON-LD 구조화 데이터(Product + BreadcrumbList) 2개 삽입 확인
     const jsonLdCount = await page.locator('script[type="application/ld+json"]').count();

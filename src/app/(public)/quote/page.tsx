@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { createPageMetadata } from "@/lib/site-config";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "장기렌트·리스 견적 계산기",
+  title: "장기렌트·운용리스 견적 계산기",
   description:
-    "차량·트림·옵션을 선택하고 보증금·선납금 등 초기 비용 조건에 따른 장기렌트·리스 월 납입금을 비교하세요.",
+    "차량·트림·옵션을 선택하고 보증금·선납금 등 초기 비용 조건에 따른 장기렌트·운용리스 월 납입금을 비교하세요.",
   path: "/quote",
 });
 

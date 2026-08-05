@@ -9,6 +9,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { AdminQuoteCalculation } from "@/types/admin";
+import { productTypeLabel } from "@/constants/product-type";
 
 const PAGE_SIZE = 50;
 
@@ -230,7 +231,7 @@ export function QuoteCalculationHistory() {
                   </td>
                   <td className="px-5 py-4">
                     <p className="text-[12px] font-medium text-[#1A1A2E]">
-                      {calculation.productType} · {calculation.contractType} · {formatScenario(calculation.scenarioType)}
+                      {productTypeLabel(calculation.productType)} · {calculation.contractType} · {formatScenario(calculation.scenarioType)}
                     </p>
                     <p className="mt-1 text-[11px] text-[#9BA4C0]">
                       {calculation.contractMonths}개월 · {formatMileage(calculation.annualMileage)}

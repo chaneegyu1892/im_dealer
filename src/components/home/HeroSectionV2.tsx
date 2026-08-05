@@ -29,7 +29,7 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
           {/* 좌측: 카피 + CTA + 검색 */}
           <div className="min-w-0">
             <p className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-[12.5px] font-bold text-brand">
-              장기렌트 · 리스 견적 플랫폼
+              장기렌트 · 운용리스 견적 플랫폼
             </p>
             <h1 className="max-w-[560px] break-keep text-[34px] font-extrabold leading-[1.15] tracking-[-0.04em] text-text-strong max-[340px]:text-[30px] md:text-[52px] md:leading-[1.1]">
               차를 고르기 전에

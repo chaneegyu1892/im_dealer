@@ -30,3 +30,12 @@ describe("RepresentativeQuotePrice 정렬", () => {
     expect(screen.getByText("장기렌트").parentElement).not.toHaveClass("justify-end");
   });
 });
+
+describe("RepresentativeQuotePrice 상품 유형 표기", () => {
+  it('저장값 "리스"는 "운용리스"로 노출한다', () => {
+    render(<RepresentativeQuotePrice quotes={quotes} showCaption={false} />);
+
+    expect(screen.getByText("운용리스")).toBeInTheDocument();
+    expect(screen.queryByText("리스")).toBeNull();
+  });
+});

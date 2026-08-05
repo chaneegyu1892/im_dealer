@@ -36,7 +36,7 @@ export const metadata: Metadata = createPageMetadata({
   description: SITE_DESCRIPTION,
   path: "/",
   absoluteTitle: true,
-  imageAlt: "아임딜러 장기렌트·리스 견적 비교 서비스",
+  imageAlt: "아임딜러 장기렌트·운용리스 견적 비교 서비스",
 });
 
 const homeStructuredData = {

@@ -16,6 +16,7 @@ import { MyPageConsultationButton } from "@/components/mypage/MyPageConsultation
 import { QuoteConditionDialog } from "@/components/mypage/QuoteConditionDialog";
 import { MarketingConsentToggle } from "@/components/mypage/MarketingConsentToggle";
 import { isSupabaseStorageUrl } from "@/lib/image-url";
+import { productTypeLabel } from "@/constants/product-type";
 import { getMyPageData, type MyPageQuote, type MyPageStatusTone } from "@/lib/member-queries/mypage";
 import { requireMember } from "@/lib/require-access";
 
@@ -182,7 +183,7 @@ function ActiveQuoteSection({ quote }: { quote: MyPageQuote }) {
           </div>
           <StatusPill quote={quote} inverse />
         </div>
-        <p className="mt-2 text-[14px] font-medium text-white/80">{quote.trimName} · {quote.productType} · {quote.contractMonths}개월</p>
+        <p className="mt-2 text-[14px] font-medium text-white/80">{quote.trimName} · {productTypeLabel(quote.productType)} · {quote.contractMonths}개월</p>
       </div>
 
       <div className="p-5 md:grid md:grid-cols-[minmax(0,1fr)_minmax(260px,0.8fr)] md:gap-7 md:p-7">
@@ -273,7 +274,7 @@ function QuoteCard({ quote }: { quote: MyPageQuote }) {
         </div>
       </div>
       <div className="grid grid-cols-2 border-t border-border-subtle bg-surface-soft/70 text-[12px] font-semibold text-text-body">
-        <span className="px-4 py-3">{quote.productType} · {quote.contractMonths}개월</span>
+        <span className="px-4 py-3">{productTypeLabel(quote.productType)} · {quote.contractMonths}개월</span>
         <span className="border-l border-border-subtle px-4 py-3 text-right">{getExpiryLabel(quote.expiresAt)}</span>
       </div>
       <div className="flex items-center gap-2 border-t border-border-subtle p-3">

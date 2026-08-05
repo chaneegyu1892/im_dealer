@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronRight, CircleDollarSign, SlidersHorizontal } from "lucide-react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import type { MyPageQuote } from "@/lib/member-queries/mypage";
+import { productTypeLabel } from "@/constants/product-type";
 
 interface QuoteConditionDialogProps {
   quote: MyPageQuote;
@@ -104,7 +105,7 @@ export function QuoteConditionDialog({
                 </p>
               </div>
               <span className="rounded-pill bg-surface px-2.5 py-1.5 text-[11px] font-extrabold text-text-body shadow-card">
-                {quote.productType}
+                {productTypeLabel(quote.productType)}
               </span>
             </div>
           </section>
