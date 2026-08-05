@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { buildOfficialDeliveryImageData } from "@/lib/quote-delivery/official-image";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
+import { buildQuoteImageFilename } from "@/lib/quote-image/quote-image-filename";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -48,10 +49,11 @@ export async function GET(
   try {
     const imageBuffer = await renderQuoteImageBuffer(imageData);
 
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const vehicleNameSafe = imageData.vehicleName.replace(/[^\wㄱ-힣]/g, "_");
-    const idSuffix = quote.id.slice(0, 6);
-    const filename = `아임딜러_견적서_${vehicleNameSafe}_${today}_${idSuffix}.png`;
+    const filename = buildQuoteImageFilename({
+      vehicleName: imageData.vehicleName,
+      idSuffix: quote.id.slice(0, 6),
+      customerName: quote.customerName,
+    });
 
     const blob = new Blob([imageBuffer], { type: "image/png" });
     return new NextResponse(blob, {

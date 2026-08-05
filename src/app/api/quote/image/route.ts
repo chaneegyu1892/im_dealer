@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/lib/require-user";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
+import { buildQuoteImageFilename } from "@/lib/quote-image/quote-image-filename";
 import { strictRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { buildOfficialDeliveryImageData } from "@/lib/quote-delivery/official-image";
 
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
       breakdown: true,
       exteriorColorId: true,
       interiorColorId: true,
+      customerName: true,
     },
   });
   if (!savedQuote) {
@@ -76,9 +78,10 @@ export async function POST(req: NextRequest) {
   try {
     const imageBuffer = await renderQuoteImageBuffer(imageData);
 
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const vehicleNameSafe = imageData.vehicleName.replace(/[^\wㄱ-힣]/g, "_");
-    const filename = `아임딜러_견적서_${vehicleNameSafe}_${today}.png`;
+    const filename = buildQuoteImageFilename({
+      vehicleName: imageData.vehicleName,
+      customerName: savedQuote.customerName,
+    });
 
     const blob = new Blob([imageBuffer], { type: "image/png" });
     return new NextResponse(blob, {

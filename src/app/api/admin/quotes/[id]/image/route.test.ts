@@ -95,6 +95,23 @@ describe("GET /api/admin/quotes/[id]/image", () => {
       ...officialImageData,
       userEmail: "김진규 / 010-9366-2054 (어드민 재발급: admin@imdealer.kr)",
     });
+    // 파일명 끝에 고객 이름이 붙어야 어드민이 파일만 보고 수신 고객을 구분할 수 있다.
+    const disposition = decodeURIComponent(response.headers.get("Content-Disposition") ?? "");
+    expect(disposition).toContain("_김진규.png");
+  });
+
+  it("keeps the filename without a name segment when the quote has no customer name", async () => {
+    mocks.findSavedQuote.mockResolvedValue({
+      ...savedQuote,
+      customerName: null,
+      phone: null,
+    });
+
+    const response = await get();
+
+    expect(response.status).toBe(200);
+    const disposition = decodeURIComponent(response.headers.get("Content-Disposition") ?? "");
+    expect(disposition).toContain("_quote-.png");
   });
 
   it("rejects consultation-only quotes before building an image", async () => {
