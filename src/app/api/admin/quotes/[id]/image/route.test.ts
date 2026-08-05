@@ -1,121 +1,125 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GET } from "./route";
 
 const mocks = vi.hoisted(() => ({
-  findQuote: vi.fn(),
-  findVehicle: vi.fn(),
-  requireAdmin: vi.fn(),
-  buildScenarios: vi.fn(),
-  renderImage: vi.fn(),
+  requireRoleAtLeast: vi.fn(),
+  findSavedQuote: vi.fn(),
+  buildOfficialDeliveryImageData: vi.fn(),
+  renderQuoteImageBuffer: vi.fn(),
+}));
+
+vi.mock("@/lib/require-admin", () => ({
+  requireRoleAtLeast: mocks.requireRoleAtLeast,
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    savedQuote: { findFirst: mocks.findQuote },
-    vehicle: { findUnique: mocks.findVehicle },
+    savedQuote: { findFirst: mocks.findSavedQuote },
   },
 }));
 
-vi.mock("@/lib/require-admin", () => ({
-  requireRoleAtLeast: mocks.requireAdmin,
-}));
-
-vi.mock("@/lib/quote-scenarios", () => ({
-  buildVehicleScenarios: mocks.buildScenarios,
+vi.mock("@/lib/quote-delivery/official-image", () => ({
+  buildOfficialDeliveryImageData: mocks.buildOfficialDeliveryImageData,
 }));
 
 vi.mock("@/lib/quote-image/render-quote-image", () => ({
-  renderQuoteImageBuffer: mocks.renderImage,
+  renderQuoteImageBuffer: mocks.renderQuoteImageBuffer,
 }));
 
-function scenario(monthlyPayment: number) {
-  return {
-    monthlyPayment,
-    depositAmount: 0,
-    prepayAmount: 0,
-    contractMonths: 48,
-    annualMileage: 20_000,
-    contractType: "반납형",
-    bestFinanceCompany: "테스트캐피탈",
-    purchaseSurcharge: 0,
-    breakdown: null,
-    surcharges: null,
-    allFinanceResults: [],
-  };
-}
+import { GET } from "./route";
 
 const savedQuote = {
   id: "quote-123456",
   vehicleId: "vehicle-1",
   trimId: "trim-1",
-  contractMonths: 48,
+  contractMonths: 60,
   annualMileage: 20_000,
+  depositRate: 0,
+  prepayRate: 0,
   contractType: "반납형",
+  monthlyPayment: 812_725,
   pricingStatus: "CALCULATED",
-  breakdown: { scenarioType: "aggressive", productType: "장기렌트" },
+  breakdown: { scenarioType: "standard", productType: "장기렌트" },
   exteriorColorId: null,
   interiorColorId: null,
-  customerName: "고객",
-  phone: "010-0000-0000",
+  customerName: "김진규",
+  phone: "010-9366-2054",
 };
+
+const officialImageData = {
+  vehicleName: "New Model Y",
+  vehicleBrand: "테슬라",
+  trimName: "Premium RWD",
+  trimPrice: 49_990_000,
+  selectedOptions: [],
+  totalVehiclePrice: 51_276_000,
+  productType: "장기렌트",
+  contractMonths: 60,
+  annualMileage: 20_000,
+  contractType: "반납형",
+  scenarioType: "standard",
+  scenarios: {},
+  userEmail: null,
+  exteriorColor: null,
+  interiorColor: null,
+};
+
+function get(): Promise<Response> {
+  return GET(new NextRequest("https://example.com/api/admin/quotes/quote-123456/image"), {
+    params: Promise.resolve({ id: savedQuote.id }),
+  });
+}
 
 describe("GET /api/admin/quotes/[id]/image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireAdmin.mockResolvedValue({ admin: { id: "admin-1", email: "admin@example.com" } });
-    mocks.findQuote.mockResolvedValue(savedQuote);
-    mocks.findVehicle.mockResolvedValue({ slug: "test-car" });
-    mocks.buildScenarios.mockResolvedValue({
+    mocks.requireRoleAtLeast.mockResolvedValue({
+      admin: { id: "admin-1", email: "admin@imdealer.kr" },
+    });
+    mocks.findSavedQuote.mockResolvedValue(savedQuote);
+    mocks.buildOfficialDeliveryImageData.mockResolvedValue({
       ok: true,
-      data: {
-        vehicleName: "테스트 차량",
-        vehicleBrand: "테스트",
-        trimName: "테스트 트림",
-        trimPrice: 40_000_000,
-        selectedOptions: [],
-        totalVehiclePrice: 40_000_000,
-        scenarios: {
-          conservative: scenario(610_000),
-          standard: scenario(700_000),
-          aggressive: scenario(530_000),
-        },
-        exteriorColor: null,
-        interiorColor: null,
-      },
+      data: officialImageData,
     });
-    mocks.renderImage.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.renderQuoteImageBuffer.mockResolvedValue(new Uint8Array([1, 2, 3]));
   });
 
-  it("passes a valid saved scenario selection to image rendering", async () => {
-    // Given: a saved quote breakdown contains a valid aggressive selection
-    const request = new NextRequest("https://example.com/api/admin/quotes/quote-123456/image");
+  it("reissues through the shared official builder with an admin re-issue label", async () => {
+    const response = await get();
 
-    // When: an admin regenerates the quote image
-    const response = await GET(request, { params: Promise.resolve({ id: savedQuote.id }) });
-
-    // Then: the renderer receives the saved semantic selection
     expect(response.status).toBe(200);
-    expect(mocks.renderImage).toHaveBeenCalledWith(
-      expect.objectContaining({ scenarioType: "aggressive" })
-    );
+    expect(response.headers.get("Content-Type")).toBe("image/png");
+    // 카카오 전송 견적서와 같은 빌더를 써야 저장값(월 납입금·비교 시나리오)이 유지된다.
+    expect(mocks.buildOfficialDeliveryImageData).toHaveBeenCalledWith(savedQuote);
+    expect(mocks.renderQuoteImageBuffer).toHaveBeenCalledWith({
+      ...officialImageData,
+      userEmail: "김진규 / 010-9366-2054 (어드민 재발급: admin@imdealer.kr)",
+    });
   });
 
-  it("uses legacy PDF selection when the saved scenario is invalid", async () => {
-    // Given: a legacy breakdown contains an unsupported scenario value
-    mocks.findQuote.mockResolvedValue({
+  it("rejects consultation-only quotes before building an image", async () => {
+    mocks.findSavedQuote.mockResolvedValue({
       ...savedQuote,
-      breakdown: { scenarioType: "experimental", productType: "장기렌트" },
+      pricingStatus: "CONSULTATION_REQUIRED",
     });
-    const request = new NextRequest("https://example.com/api/admin/quotes/quote-123456/image");
 
-    // When: an admin regenerates the quote image
-    const response = await GET(request, { params: Promise.resolve({ id: savedQuote.id }) });
+    const response = await get();
 
-    // Then: the PDF renderer receives the legacy fallback signal
-    expect(response.status).toBe(200);
-    expect(mocks.renderImage).toHaveBeenCalledWith(
-      expect.objectContaining({ scenarioType: undefined })
-    );
+    expect(response.status).toBe(409);
+    expect(mocks.buildOfficialDeliveryImageData).not.toHaveBeenCalled();
+  });
+
+  it("forwards builder failures with their status", async () => {
+    mocks.buildOfficialDeliveryImageData.mockResolvedValue({
+      ok: false,
+      error: { status: 409, error: "저장된 견적을 현재 공식 견적서로 재구성할 수 없습니다." },
+    });
+
+    const response = await get();
+    const payload = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(payload.error).toBe("저장된 견적을 현재 공식 견적서로 재구성할 수 없습니다.");
+    expect(mocks.renderQuoteImageBuffer).not.toHaveBeenCalled();
   });
 });

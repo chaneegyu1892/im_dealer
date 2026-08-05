@@ -1,40 +1,14 @@
+// 어드민 견적서 재발급 — 카카오 전송 견적서와 동일한 공용 빌더로 이미지를 생성한다.
+// 빌더가 상품 유형(장기렌트/리스)별 요율을 정확히 고르고, 최종 금액과 시나리오
+// 비교 값을 저장 시점 스냅샷으로 고정하므로 "고객이 받은 견적"이 그대로 재현된다.
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
-import type { PDFQuoteData } from "@/lib/quote-pdf-template";
+import { buildOfficialDeliveryImageData } from "@/lib/quote-delivery/official-image";
 import { renderQuoteImageBuffer } from "@/lib/quote-image/render-quote-image";
-import {
-  buildVehicleScenarios,
-  type ContractTypeKor,
-  type SelectedOptionSnapshot,
-} from "@/lib/quote-scenarios";
-import { parseQuoteScenarioType } from "@/lib/quote-scenario-selection";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
-function isContractTypeKor(value: unknown): value is ContractTypeKor {
-  return value === "인수형" || value === "반납형";
-}
-
-function pickStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((v): v is string => typeof v === "string");
-}
-
-function pickSavedSelectedOptions(value: unknown): SelectedOptionSnapshot[] | null {
-  if (!Array.isArray(value)) return null;
-  const result: SelectedOptionSnapshot[] = [];
-  for (const item of value) {
-    if (!item || typeof item !== "object") continue;
-    const o = item as Record<string, unknown>;
-    if (typeof o.id !== "string") continue;
-    if (typeof o.name !== "string") continue;
-    if (typeof o.price !== "number") continue;
-    result.push({ id: o.id, name: o.name, price: o.price });
-  }
-  return result;
-}
 
 export async function GET(
   _request: NextRequest,
@@ -57,84 +31,19 @@ export async function GET(
     );
   }
 
-  const vehicle = await prisma.vehicle.findUnique({
-    where: { id: quote.vehicleId },
-    select: { slug: true },
-  });
-  if (!vehicle) {
+  const imageResult = await buildOfficialDeliveryImageData(quote);
+  if (!imageResult.ok) {
     return NextResponse.json(
-      { error: "견적에 연결된 차량을 찾을 수 없습니다." },
-      { status: 404 }
+      { error: imageResult.error.error },
+      { status: imageResult.error.status }
     );
   }
-
-  const breakdown =
-    quote.breakdown && typeof quote.breakdown === "object"
-      ? (quote.breakdown as Record<string, unknown>)
-      : {};
-  const selectedOptionIds = pickStringArray(breakdown.selectedOptionIds);
-  const savedOptions = pickSavedSelectedOptions(breakdown.selectedOptions);
-  const productType =
-    typeof breakdown.productType === "string" ? breakdown.productType : "장기렌트";
-
-  const contractType: ContractTypeKor = isContractTypeKor(quote.contractType)
-    ? quote.contractType
-    : "반납형";
-
-  const outcome = await buildVehicleScenarios({
-    vehicleSlugOrId: vehicle.slug,
-    trimId: quote.trimId,
-    selectedOptionIds,
-    contractMonths: quote.contractMonths,
-    annualMileage: quote.annualMileage,
-    contractType,
-    exteriorColorId: quote.exteriorColorId,
-    interiorColorId: quote.interiorColorId,
-  });
-
-  if (!outcome.ok) {
-    return NextResponse.json({ error: outcome.error.error }, { status: outcome.error.status });
-  }
-
-  const imageSelectedOptions = (savedOptions && savedOptions.length > 0
-    ? savedOptions
-    : outcome.data.selectedOptions
-  ).map((o) => ({ name: o.name, price: o.price }));
 
   const customerLabel = [quote.customerName, quote.phone].filter(Boolean).join(" / ");
   const userEmail = customerLabel
     ? `${customerLabel} (어드민 재발급: ${admin.email ?? admin.id})`
     : `어드민 재발급: ${admin.email ?? admin.id}`;
-
-  const imageData: PDFQuoteData = {
-    vehicleName: outcome.data.vehicleName,
-    vehicleBrand: outcome.data.vehicleBrand,
-    trimName: outcome.data.trimName,
-    trimPrice: outcome.data.trimPrice,
-    selectedOptions: imageSelectedOptions,
-    totalVehiclePrice: outcome.data.totalVehiclePrice,
-    productType,
-    contractMonths: quote.contractMonths,
-    annualMileage: quote.annualMileage,
-    contractType,
-    scenarioType: parseQuoteScenarioType(breakdown.scenarioType),
-    scenarios: outcome.data.scenarios,
-    userEmail,
-    exteriorColor: outcome.data.exteriorColor
-      ? {
-          name: outcome.data.exteriorColor.name,
-          hexCode: outcome.data.exteriorColor.hexCode,
-          priceDelta: outcome.data.exteriorColor.priceDelta,
-        }
-      : null,
-    interiorColor: outcome.data.interiorColor
-      ? {
-          name: outcome.data.interiorColor.name,
-          hexCode: outcome.data.interiorColor.hexCode,
-          priceDelta: outcome.data.interiorColor.priceDelta,
-        }
-      : null,
-  };
+  const imageData = { ...imageResult.data, userEmail };
 
   try {
     const imageBuffer = await renderQuoteImageBuffer(imageData);

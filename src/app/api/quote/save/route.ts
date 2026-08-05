@@ -11,8 +11,9 @@ import {
   type RateConfigData,
 } from "@/lib/quote-calculator";
 import type { RateSheetRaw } from "@/types/admin";
-import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
 import { createAdminNotification } from "@/lib/admin-notification";
+import { buildScenarioSnapshots } from "@/lib/quote-scenario-snapshots";
 import { saveQuoteSchema } from "./request-schema";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { resolveQuoteContact } from "@/lib/quote-contact";
@@ -23,12 +24,6 @@ import {
   VERIFICATION_CAPABILITY_MAX_AGE_SECONDS,
   verificationCapabilityCookieName,
 } from "@/lib/verification-capability";
-
-const SCENARIO_CONDITIONS = {
-  conservative: { depositRate: 20, prepayRate: 0 },
-  standard: { depositRate: 0, prepayRate: 0 },
-  aggressive: { depositRate: 0, prepayRate: 30 },
-} as const;
 
 function attachVerificationCapability<T>(
   response: NextResponse<T>,
@@ -322,6 +317,17 @@ export async function POST(request: NextRequest) {
       input.contractType === "인수형" ? Math.round(best.monthlyPayment * 0.12) : 0;
     const monthlyPayment = best.monthlyPayment + purchaseSurcharge;
 
+    // 재발급 견적서의 시나리오 비교 표까지 저장 시점 값으로 재현되도록 3종 스냅샷을 남긴다.
+    const scenarioSnapshots = buildScenarioSnapshots({
+      vehiclePrice: totalVehiclePrice,
+      contractMonths: input.contractMonths,
+      annualMileage: input.annualMileage,
+      vehicleSurchargeRate: vehicle.surchargeRate,
+      rankSurchargeRates: rankRates,
+      rateConfigs: configs,
+      contractType: input.contractType,
+    });
+
     const breakdown = JSON.parse(JSON.stringify({
       scenarioType: input.scenarioType,
       productType: input.productType,
@@ -347,6 +353,7 @@ export async function POST(request: NextRequest) {
       totalVehiclePrice,
       bestFinanceCompany: best.financeCompanyName,
       purchaseSurcharge,
+      scenarioSnapshots,
       quoteBreakdown: best.breakdown,
       surcharges: best.surcharges,
       allFinanceResults: results.map((r) => {

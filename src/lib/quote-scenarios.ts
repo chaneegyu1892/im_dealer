@@ -6,14 +6,8 @@ import {
 } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult, QuoteScenarioDetails } from "@/types/quote";
 import type { RateSheetRaw } from "@/types/admin";
-import { RANK_SURCHARGE_RATES } from "@/constants/quote-defaults";
+import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
-
-const SCENARIO_CONDITIONS = {
-  conservative: { depositRate: 20, prepayRate: 0 },
-  standard: { depositRate: 0, prepayRate: 0 },
-  aggressive: { depositRate: 0, prepayRate: 30 },
-} as const;
 
 export type ContractTypeKor = "인수형" | "반납형";
 
@@ -33,8 +27,9 @@ export interface BuildVehicleScenariosInput {
   exteriorColorId?: string | null;
   /** 내장 색상 id */
   interiorColorId?: string | null;
-  /** 금융상품별 회수율 시트를 정확히 고르기 위한 저장 견적의 상품 유형 */
-  productType?: "장기렌트" | "리스";
+  /** 금융상품별 회수율 시트를 정확히 고르기 위한 상품 유형.
+   * 필수 — 누락하면 장기렌트·리스 요율이 섞여 잘못된 최저가가 뽑힌다. */
+  productType: "장기렌트" | "리스";
 }
 
 export interface VehicleColorSnapshot {
@@ -167,7 +162,7 @@ export async function buildVehicleScenarios(
     prisma.capitalRateSheet.findMany({
       where: {
         trimId: trim.id,
-        ...(input.productType ? { productType: input.productType } : {}),
+        productType: input.productType,
         isActive: true,
         financeCompany: { isActive: true },
       },

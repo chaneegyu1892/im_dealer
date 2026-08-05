@@ -113,6 +113,59 @@ describe("official quote delivery image data", () => {
     });
   });
 
+  it("renders comparison scenarios from stored snapshots instead of recalculated rates", async () => {
+    const result = await buildOfficialDeliveryImageData({
+      ...savedQuote,
+      breakdown: {
+        ...savedQuote.breakdown,
+        scenarioSnapshots: {
+          conservative: {
+            monthlyPayment: 615_000,
+            depositAmount: 8_400_000,
+            prepayAmount: 0,
+            bestFinanceCompany: "저장 비교 금융사",
+            purchaseSurcharge: 0,
+          },
+          standard: {
+            monthlyPayment: 705_000,
+            depositAmount: 0,
+            prepayAmount: 0,
+            bestFinanceCompany: "저장 비교 금융사",
+            purchaseSurcharge: 0,
+          },
+          aggressive: {
+            monthlyPayment: 512_000,
+            depositAmount: 0,
+            prepayAmount: 12_600_000,
+            bestFinanceCompany: "저장 비교 금융사",
+            purchaseSurcharge: 0,
+          },
+        },
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        scenarios: {
+          // 비교 컬럼은 재계산값(610,000/700,000)이 아니라 저장 스냅샷 값이어야 한다.
+          conservative: expect.objectContaining({
+            monthlyPayment: 615_000,
+            depositAmount: 8_400_000,
+            bestFinanceCompany: "저장 비교 금융사",
+          }),
+          standard: expect.objectContaining({ monthlyPayment: 705_000 }),
+          // 선택 시나리오는 항상 저장된 최종 견적 값이 우선한다.
+          aggressive: expect.objectContaining({
+            monthlyPayment: 430_000,
+            prepayAmount: 12_600_000,
+            bestFinanceCompany: "저장 금융사",
+          }),
+        },
+      },
+    });
+  });
+
   it("does not create an official delivery image for a consultation-only quote", async () => {
     const result = await buildOfficialDeliveryImageData({
       ...savedQuote,
