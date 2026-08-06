@@ -68,10 +68,16 @@ export async function PATCH(
     }),
   ]);
 
-  // 계약 완료로 전환되면 쿠폰 지급 조건이 충족된다. 회원이 쿠폰함에 들어오지 않아도
-  // 어드민 지급 대기 목록에 잡히도록 이 시점에 동기화한다.
+  // CONVERTED 로 전환되면 쿠폰 지급 조건이 충족되고, CONVERTED 에서 다른 상태로
+  // 철회되면 PENDING 쿠폰을 HELD 로 되돌려야 한다(reconcileUserCoupons 가 판단).
+  // status 변경이 CONVERTED 를 어느 방향으로든 건드릴 때 동기화한다 — CONVERTED
+  // 진입만 훅을 걸면 철회 시 PENDING 이 그대로 남아 이미 끝난 계약 건을 어드민이
+  // 계속 지급 대기로 보게 된다. quote 는 트랜잭션 이전 스냅샷이라 이전 상태를 그대로 갖고 있다.
+  // 회원이 쿠폰함에 들어오지 않아도 어드민 지급 대기 목록에 잡히도록 이 시점에 동기화한다.
   // 동기화 실패가 견적 상태 변경을 되돌리면 안 되므로 트랜잭션 밖에서 처리한다.
-  if (status === "CONVERTED" && quote.userId) {
+  const touchesConverted =
+    status !== undefined && (status === "CONVERTED" || quote.status === "CONVERTED");
+  if (touchesConverted && quote.userId) {
     try {
       const member = await prisma.user.findUnique({
         where: { supabaseId: quote.userId },
