@@ -99,13 +99,21 @@ export function planCouponReconcile(input: CouponReconcileInput): CouponReconcil
 
   for (const coupon of input.coupons) {
     if (coupon.status === "HELD") {
-      if (paidQualified) {
-        qualify.push(coupon.id);
-        continue;
-      }
+      // 만료가 지급 자격보다 우선한다. 계약이 있어도 유효기간이 지났으면 만료시킨다.
+      // 지급 여부가 방문 시점에 좌우되면 안 된다 — 만료를 계약 확인보다 뒤에 두면,
+      // 3월에 유효기간이 지났지만 회원이 그동안 방문하지 않아 스윕되지 않은 쿠폰이
+      // 8월에 로그인하는 순간 계약 여부만으로 PENDING 승격돼 버린다. 같은 조건인데
+      // 4월에 마이페이지를 열었던 회원은 이미 EXPIRED 로 정리돼 못 받는 것과 형평이
+      // 어긋난다.
       const expired =
         coupon.expiresAt !== null && coupon.expiresAt.getTime() <= input.now.getTime();
-      if (expired) expire.push(coupon.id);
+      if (expired) {
+        expire.push(coupon.id);
+        continue;
+      }
+      if (paidQualified) {
+        qualify.push(coupon.id);
+      }
       continue;
     }
 

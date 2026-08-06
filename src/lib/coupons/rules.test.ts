@@ -129,6 +129,22 @@ describe("planCouponReconcile", () => {
     expect(plan.expire).toEqual(["coupon-1"]);
   });
 
+  // 지급 여부가 회원의 방문 시점에 좌우되면 안 된다(업무 결정, 확정).
+  // 계약이 있어도 유효기간이 지난 HELD 는 qualify 가 아니라 expire 로 가야 한다.
+  // 이 순서를 되돌리면(계약 확인을 만료 확인보다 앞에 두면) 이 테스트가 실패한다.
+  it("계약이 있어도 유효기간이 지난 HELD 는 EXPIRED 로 간다 (만료가 지급 자격보다 우선)", () => {
+    const plan = planCouponReconcile(
+      makeInput({
+        convertedQuoteId: "quote-1",
+        coupons: [
+          heldSignup({ expiresAt: new Date("2026-08-05T00:00:00.000Z") }),
+        ],
+      })
+    );
+    expect(plan.expire).toEqual(["coupon-1"]);
+    expect(plan.qualify).toEqual([]);
+  });
+
   it("만료일이 지나도 PENDING 은 만료시키지 않는다", () => {
     const plan = planCouponReconcile(
       makeInput({
