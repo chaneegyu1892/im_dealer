@@ -54,4 +54,21 @@ describe("payIssuedCoupon", () => {
 
     expect(result).toEqual({ ok: false, reason: "invalid_status", status: "PAID" });
   });
+
+  // 이중 지급을 실제로 막는 분기. 사전 조회 때는 PENDING 이었지만 그 사이 다른 요청이 먼저
+  // 지급해 updateMany 가 0건을 매칭하는 상황이다. makeDb 는 갱신 건수를 사전 조회 상태에
+  // 묶어두므로 이 케이스를 만들 수 없어 db 를 직접 만든다.
+  it("동시 요청에 밀려 갱신 건수가 0이면 성공으로 떨어지지 않는다", async () => {
+    const db = {
+      issuedCoupon: {
+        findUnique: vi.fn().mockResolvedValue({ status: "PENDING" }),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+
+    const result = await payIssuedCoupon("coupon-1", "admin-1", null, db as never);
+
+    expect(result).toEqual({ ok: false, reason: "invalid_status", status: "PENDING" });
+    expect(db.issuedCoupon.updateMany).toHaveBeenCalledOnce();
+  });
 });
