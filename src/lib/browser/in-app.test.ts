@@ -52,11 +52,13 @@ describe("buildEscapeUrl", () => {
 
     expect(result).toBe(
       "intent://imdealer.example/login?next=%2Fmypage" +
-        "#Intent;scheme=https;package=com.android.chrome" +
+        "#Intent;scheme=https" +
         ";S.browser_fallback_url=" +
         encodeURIComponent("https://imdealer.example/login?next=%2Fmypage") +
         ";end"
     );
+    // package 를 지정하지 않아야 크롬이 없는 기기에서도 브라우저 선택 창이 뜬다.
+    expect(result).not.toContain("package=");
   });
 
   it("keeps the hash out of the intent path but inside the fallback URL", () => {

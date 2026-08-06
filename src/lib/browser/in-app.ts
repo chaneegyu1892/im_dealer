@@ -11,7 +11,6 @@ const KAKAOTALK_UA = /KAKAOTALK/i;
 const IOS_UA = /iPhone|iPad|iPod/i;
 const ANDROID_UA = /Android/i;
 
-const ANDROID_BROWSER_PACKAGE = "com.android.chrome";
 const ALLOWED_PROTOCOLS: readonly string[] = ["http:", "https:"];
 
 /** UA 문자열이 카카오톡 인앱브라우저인지 판별한다. */
@@ -42,9 +41,12 @@ export function buildEscapeUrl(
     const path = `${url.host}${url.pathname}${url.search}`;
     const scheme = url.protocol.replace(":", "");
     const fallback = encodeURIComponent(url.href);
+    // package 를 지정하지 않는다. 특정 패키지로 고정하면 그 브라우저가 없는 기기에서
+    // Intent.parseUri 가 예외를 던지고 카카오톡은 S.browser_fallback_url(=지금 이 페이지)로
+    // 되돌아가 인앱브라우저 안에서 같은 페이지를 다시 로드할 뿐이다. 지정하지 않으면
+    // 안드로이드가 브라우저 선택 창을 띄우므로 어떤 기기에서도 실제로 탈출할 수 있다.
     return (
       `intent://${path}#Intent;scheme=${scheme}` +
-      `;package=${ANDROID_BROWSER_PACKAGE}` +
       `;S.browser_fallback_url=${fallback};end`
     );
   }

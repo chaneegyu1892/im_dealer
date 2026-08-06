@@ -78,10 +78,15 @@
 | 플랫폼 | URL |
 | --- | --- |
 | iOS | `kakaotalk://web/openExternal?url=<encoded>` |
-| Android | `intent://<host><path><search>#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=<encoded>;end` |
+| Android | `intent://<host><path><search>#Intent;scheme=https;S.browser_fallback_url=<encoded>;end` |
 
-Android는 `S.browser_fallback_url` 을 함께 넣어 크롬이 설치되지 않은 기기에서도 실패로
-끝나지 않게 한다.
+Android는 `package=` 를 지정하지 않는다. 처음에는 `package=com.android.chrome` 을 넣었으나,
+크롬이 없는 기기에서는 `Intent.parseUri` 가 `ActivityNotFoundException` 을 던지고 카카오톡이
+그 즉시 `S.browser_fallback_url`(=지금 보고 있는 페이지의 https URL)로 되돌아가 인앱브라우저
+안에서 같은 페이지를 다시 로드할 뿐이라는 문제가 있었다. 사용자 입장에서는 링크를 눌러도
+아무 일도 일어나지 않는 것처럼 보인다. `package=` 를 빼면 안드로이드가 브라우저 선택 창을
+띄우므로 크롬이 없는 기기에서도 실제로 다른 브라우저로 탈출할 수 있다. `S.browser_fallback_url`
+은 그대로 남겨, 아무 앱도 intent 를 처리하지 못하는 극단적인 경우의 안전망으로 둔다.
 
 링크 문구는 「다른 브라우저에서 열기」로 둔다. iOS의 `openExternal` 은 크롬이 아니라
 기기 기본 브라우저(대개 사파리)를 열기 때문에 「크롬에서 열기」는 부정확하다. 플랫폼별로
@@ -96,6 +101,13 @@ Android는 `S.browser_fallback_url` 을 함께 넣어 크롬이 설치되지 않
 Android intent URL 의 `scheme` 값은 하드코딩하지 않고 입력 URL 의 실제 프로토콜에서
 가져온다. 원본 URL 의 해시(`#...`)는 intent URI 의 `#Intent` 구분자와 충돌하므로
 경로에서 제외하되, `S.browser_fallback_url` 에는 해시를 포함한 전체 URL 을 넣는다.
+
+데스크톱 카카오톡의 UA(예: `... KAKAOTALK`, 버전 토큰 없음)도 `KAKAOTALK` 토큰을 포함해
+`isKakaoTalkInApp` 이 참이 되므로, PC 카카오톡 내장 브라우저에서도 자동 로그인은 그대로
+실행된다. 다만 `buildEscapeUrl` 은 데스크톱에 대응하는 탈출 스킴이 없어 `null` 을 반환하고,
+그 결과 「다른 브라우저에서 열기」 링크는 노출되지 않는다. 이는 의도된 동작이다. 무한루프
+가드 3번(서버가 콜백 실패 시 `/login?error=...` 로 되돌리는 것)이 인앱 여부·플랫폼과 무관하게
+항상 적용되므로, 데스크톱 카카오톡에서 탈출 링크가 없어도 루프에 빠지지 않는다.
 
 ## 변경 대상
 
@@ -147,7 +159,7 @@ hydration 불일치가 나지 않는다.
 
 - 카톡 iOS / 카톡 Android / 사파리 / 크롬 / 빈 문자열 UA 픽스처로 `isKakaoTalkInApp` 판별
 - iOS·Android 각각의 탈출 URL 형식 검증. Android는 `S.browser_fallback_url` 포함 확인
-- `http:`, `javascript:` 등 비-https 입력에 `null` 반환 확인
+- `javascript:`, `data:` 등 허용되지 않는 스킴 입력에 `null` 반환 확인 (`http:`, `https:` 는 허용)
 - 카톡이 아닌 UA에 `null` 반환 확인
 
 **컴포넌트** (`LoginContent.test.tsx`)
