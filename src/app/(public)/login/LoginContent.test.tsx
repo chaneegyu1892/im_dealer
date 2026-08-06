@@ -17,6 +17,18 @@ const navigation = vi.hoisted(() => ({
   searchParams: new URLSearchParams("next=%2Fquote%3Fvehicle%3Dsonata"),
 }));
 
+const ORIGINAL_UA = window.navigator.userAgent;
+
+const KAKAO_ANDROID_UA =
+  "Mozilla/5.0 (Linux; Android 14; SM-S928N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 KAKAOTALK/10.5.0";
+
+function setUserAgent(userAgent: string): void {
+  Object.defineProperty(window.navigator, "userAgent", {
+    value: userAgent,
+    configurable: true,
+  });
+}
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mocks.replace }),
   useSearchParams: () => navigation.searchParams,
@@ -54,6 +66,8 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
+  setUserAgent(ORIGINAL_UA);
+  window.sessionStorage.clear();
 });
 
 describe("LoginContent Kakao OAuth", () => {
@@ -106,5 +120,58 @@ describe("LoginContent Kakao OAuth", () => {
     render(<LoginContent />);
 
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/"));
+  });
+});
+
+describe("LoginContent KakaoTalk in-app auto login", () => {
+  it("starts Kakao login automatically inside the KakaoTalk in-app browser", async () => {
+    setUserAgent(KAKAO_ANDROID_UA);
+
+    render(<LoginContent />);
+
+    await waitFor(() => expect(mocks.signInWithOAuth).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not auto start in an ordinary browser", async () => {
+    render(<LoginContent />);
+
+    await waitFor(() => expect(mocks.getSession).toHaveBeenCalled());
+    expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
+  });
+
+  it("does not auto start when a session already exists", async () => {
+    setUserAgent(KAKAO_ANDROID_UA);
+    mocks.getSession.mockResolvedValue({
+      data: { session: { user: { id: "member-1" } } },
+    });
+
+    render(<LoginContent />);
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith("/quote?vehicle=sonata")
+    );
+    expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
+  });
+
+  it("does not auto start after a failed callback redirect", async () => {
+    setUserAgent(KAKAO_ANDROID_UA);
+    navigation.searchParams = new URLSearchParams(
+      "next=%2Fmypage&error=auth_failed"
+    );
+
+    render(<LoginContent />);
+
+    await waitFor(() => expect(mocks.getSession).toHaveBeenCalled());
+    expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
+  });
+
+  it("does not auto start twice in the same tab", async () => {
+    setUserAgent(KAKAO_ANDROID_UA);
+    window.sessionStorage.setItem("imdealer:inapp-auto-login-attempted", "1");
+
+    render(<LoginContent />);
+
+    await waitFor(() => expect(mocks.getSession).toHaveBeenCalled());
+    expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
   });
 });
