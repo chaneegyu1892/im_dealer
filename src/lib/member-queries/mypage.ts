@@ -1,5 +1,6 @@
 import { type Prisma, type QuoteStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getCouponSummary, type CouponBoxSummary } from "@/lib/member-queries/coupons";
 
 export type MyPageStatusTone = "neutral" | "info" | "warning" | "positive" | "danger";
 
@@ -72,6 +73,7 @@ export interface MyPageData {
   profile: MyPageProfile;
   quotes: MyPageQuote[];
   activeQuote: MyPageQuote | null;
+  couponSummary: CouponBoxSummary;
 }
 
 const STATUS_INFO: Record<QuoteStatus, MyPageQuoteStatus> = {
@@ -190,6 +192,8 @@ export async function getMyPageData(supabaseId: string): Promise<MyPageData> {
       where: { supabaseId },
       select: {
         id: true,
+        supabaseId: true,
+        profileCompleted: true,
         name: true,
         email: true,
         phone: true,
@@ -300,6 +304,19 @@ export async function getMyPageData(supabaseId: string): Promise<MyPageData> {
     };
   });
 
+  // getCouponSummary 내부는 이미 reconcile 실패를 삼키지만, 조회 자체의 실패까지
+  // 마이페이지 렌더를 막지 않도록 한 번 더 감싼다.
+  const couponSummary: CouponBoxSummary = member?.supabaseId
+    ? await getCouponSummary({
+        id: member.id,
+        supabaseId: member.supabaseId,
+        profileCompleted: member.profileCompleted,
+      }).catch((error: unknown) => {
+        console.error("[mypage] 쿠폰 요약 조회 실패:", error);
+        return { heldCount: 0, pendingCount: 0, totalAmount: 0 };
+      })
+    : { heldCount: 0, pendingCount: 0, totalAmount: 0 };
+
   return {
     profile: {
       name: member?.name || "고객",
@@ -312,5 +329,6 @@ export async function getMyPageData(supabaseId: string): Promise<MyPageData> {
     },
     quotes,
     activeQuote: chooseActiveQuote(quotes),
+    couponSummary,
   };
 }

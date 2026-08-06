@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ArrowRight, CarFront, ShieldCheck, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ActiveQuoteSection } from "@/components/mypage/ActiveQuoteSection";
+import { CouponSummaryCard } from "@/components/mypage/CouponSummaryCard";
 import { QuoteCard } from "@/components/mypage/QuoteCard";
 import { ProfileSummary } from "@/components/mypage/ProfileSummary";
 import { getMyPageData } from "@/lib/member-queries/mypage";
@@ -67,6 +68,8 @@ export default async function MyPage() {
             </div>
           </section>
         )}
+
+        <CouponSummaryCard summary={data.couponSummary} />
 
         <section className="mb-10 md:mb-12" aria-labelledby="my-quotes-heading">
           <div className="mb-4 flex items-end justify-between gap-4">
