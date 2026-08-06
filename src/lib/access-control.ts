@@ -37,7 +37,9 @@ export const PAGE_ACCESS = {
   "/admin/memo": ["staff", "admin", "superadmin"],
   "/admin/notifications": ["staff", "admin", "superadmin"],
   "/admin/verifications": ["staff", "admin", "superadmin"],
-  "/admin/coupons": ["admin", "superadmin"],
+  // 정책 편집(금액 변경)은 admin 이상만, 지급 처리는 영업 실무라 staff 부터 허용한다.
+  // 화면 자체는 staff 도 접근하되, 정책 탭 노출 여부는 CouponsClient 가 역할로 나눈다.
+  "/admin/coupons": ["staff", "admin", "superadmin"],
   "/admin/finance": ["admin", "superadmin"],
   "/admin/ai": ["admin", "superadmin"],
   "/admin/audit-logs": ["admin", "superadmin"],

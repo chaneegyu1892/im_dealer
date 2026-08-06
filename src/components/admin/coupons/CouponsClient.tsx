@@ -88,9 +88,25 @@ async function readError(response: Response, fallback: string): Promise<string> 
   return fallback;
 }
 
-export function CouponsClient() {
-  const [tab, setTab] = useState<"policies" | "issued">("policies");
+interface CouponsClientProps {
+  /** 정책 탭(금액 편집) 노출 여부. admin 이상만 true — staff 는 발급 현황만 본다. */
+  canManagePolicies: boolean;
+}
+
+export function CouponsClient({ canManagePolicies }: CouponsClientProps) {
+  // staff 는 정책 탭 버튼 자체가 없으므로 issued 로 시작한다. policies 로 시작시키면
+  // PolicyTab 이 마운트되어 admin 전용 정책 API 를 호출해 권한 오류 배너부터 보게 된다.
+  const [tab, setTab] = useState<"policies" | "issued">(
+    canManagePolicies ? "policies" : "issued"
+  );
   const [message, setMessage] = useState<string | null>(null);
+
+  const tabs = canManagePolicies
+    ? ([
+        { key: "policies", label: "정책" },
+        { key: "issued", label: "발급 현황" },
+      ] as const)
+    : ([{ key: "issued", label: "발급 현황" }] as const);
 
   return (
     <div className="p-6">
@@ -112,12 +128,7 @@ export function CouponsClient() {
       )}
 
       <div className="mb-5 flex gap-1 rounded-lg bg-[#F4F5F8] p-1">
-        {(
-          [
-            { key: "policies", label: "정책" },
-            { key: "issued", label: "발급 현황" },
-          ] as const
-        ).map((item) => (
+        {tabs.map((item) => (
           <button
             key={item.key}
             type="button"
@@ -134,7 +145,7 @@ export function CouponsClient() {
         ))}
       </div>
 
-      {tab === "policies" ? (
+      {canManagePolicies && tab === "policies" ? (
         <PolicyTab onError={setMessage} />
       ) : (
         <IssuedTab onError={setMessage} />
