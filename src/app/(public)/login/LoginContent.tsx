@@ -3,12 +3,38 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, CarFront, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getSafeInternalPath } from "@/lib/auth/redirect";
 import { startKakaoLogin } from "@/lib/kakao/client-auth";
+import { useKakaoTalkInApp } from "@/hooks/useKakaoTalkInApp";
+
+// 같은 탭에서 자동 로그인을 한 번만 시도하기 위한 플래그.
+// 탭을 닫으면 사라지므로 다음 방문에는 다시 한 번 시도한다.
+const AUTO_LOGIN_FLAG = "imdealer:inapp-auto-login-attempted";
+
+/** 프라이빗 모드 등에서 sessionStorage 접근이 던질 수 있다. 실패하면 시도한 것으로 취급해 건너뛴다. */
+function hasAutoLoginAttempted(): boolean {
+  try {
+    return window.sessionStorage.getItem(AUTO_LOGIN_FLAG) !== null;
+  } catch (error) {
+    if (error instanceof Error) return true;
+    throw error;
+  }
+}
+
+/** 플래그 기록에 실패하면 false 를 돌려준다. 루프 방지 수단이 없는 상태로는 자동 시작하지 않는다. */
+function markAutoLoginAttempted(): boolean {
+  try {
+    window.sessionStorage.setItem(AUTO_LOGIN_FLAG, "1");
+    return true;
+  } catch (error) {
+    if (error instanceof Error) return false;
+    throw error;
+  }
+}
 
 export default function LoginContent() {
   const router = useRouter();
@@ -16,16 +42,16 @@ export default function LoginContent() {
   const next = getSafeInternalPath(params?.get("next"));
   const [isStartingLogin, setIsStartingLogin] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const { isInApp, escapeUrl } = useKakaoTalkInApp();
+  // auth/callback 은 실패 시 /login?error=... 로 되돌린다. 실패 직후 자동 재시도를 막는다.
+  const hasAuthError = Boolean(params?.get("error"));
+  // runKakaoLogin 자체의 재진입 방지. isStartingLogin state 는 리렌더 이후에야 반영되므로
+  // 자동 시작과 수동 클릭이 거의 동시에 들어오는 순간에는 막지 못한다. ref 는 즉시 반영된다.
+  const isLoggingInRef = useRef(false);
 
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace(next);
-    });
-  }, [next, router]);
-
-  async function handleKakaoLogin() {
-    if (isStartingLogin) return;
+  const runKakaoLogin = useCallback(async () => {
+    if (isLoggingInRef.current) return;
+    isLoggingInRef.current = true;
     setIsStartingLogin(true);
     setLoginError(null);
     try {
@@ -35,7 +61,36 @@ export default function LoginContent() {
       setLoginError("카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsStartingLogin(false);
+      isLoggingInRef.current = false;
     }
+  }, [next]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      // getSession() 이 토큰 갱신 왕복으로 지연되는 동안 사용자가 다른 페이지로 이동해
+      // 언마운트될 수 있다. 그 경우 리다이렉트나 자동 로그인을 실행하지 않는다.
+      if (cancelled) return;
+      if (session) {
+        router.replace(next);
+        return;
+      }
+      // 카톡 인앱브라우저는 크롬·사파리와 쿠키 저장소가 분리돼 있어 매번 비로그인으로 보인다.
+      // 카카오 로그인은 인앱브라우저 안에서 간편로그인으로 처리되므로 자동으로 시작해준다.
+      if (!isInApp || hasAuthError) return;
+      if (hasAutoLoginAttempted()) return;
+      if (!markAutoLoginAttempted()) return;
+      void runKakaoLogin();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [next, router, isInApp, hasAuthError, runKakaoLogin]);
+
+  async function handleKakaoLogin() {
+    if (isStartingLogin) return;
+    await runKakaoLogin();
   }
 
   // 개발 전용: 카카오 OAuth(운영 도메인 리다이렉트) 없이 테스트 계정으로 로그인.
@@ -115,6 +170,15 @@ export default function LoginContent() {
                 <KakaoIcon />
                 {isStartingLogin ? "카카오 연결 중…" : "카카오 로그인"}
               </button>
+
+              {escapeUrl ? (
+                <a
+                  href={escapeUrl}
+                  className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[14px] border border-border-subtle bg-surface-soft px-4 text-[13px] font-bold text-text-body transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30"
+                >
+                  다른 브라우저에서 열기
+                </a>
+              ) : null}
 
               {isDev ? (
                 <div className="mt-3 grid gap-2 rounded-[14px] border border-dashed border-border-strong bg-surface-soft p-3">
