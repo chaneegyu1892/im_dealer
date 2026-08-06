@@ -25,7 +25,7 @@ export default async function CouponBoxPage() {
   const hasAny = available.length > 0 || past.length > 0;
 
   return (
-    <main className="pb-[calc(112px+env(safe-area-inset-bottom,0px))] lg:pb-14">
+    <>
       <section className="mb-6">
         <p className="mb-2 text-[13px] font-extrabold text-brand">MY COUPON</p>
         <h1 className="text-[28px] font-extrabold tracking-[-0.02em] text-text-strong md:text-[34px]">
@@ -38,7 +38,11 @@ export default async function CouponBoxPage() {
 
       <section className="mb-8 grid grid-cols-3 gap-2.5" aria-label="쿠폰 요약">
         <SummaryTile label="보유" value={`${summary.heldCount}장`} />
-        <SummaryTile label="지급 예정" value={`${summary.pendingCount}장`} emphasis />
+        <SummaryTile
+          label="지급 예정"
+          value={`${summary.pendingCount}장`}
+          emphasis
+        />
         <SummaryTile
           label="받을 혜택"
           value={`${moneyFormatter.format(summary.totalAmount)}원`}
@@ -49,7 +53,10 @@ export default async function CouponBoxPage() {
       {hasAny ? (
         <>
           {available.length > 0 && (
-            <section className="mb-9" aria-labelledby="available-coupons-heading">
+            <section
+              className="mb-9"
+              aria-labelledby="available-coupons-heading"
+            >
               <h2
                 id="available-coupons-heading"
                 className="mb-3 text-[17px] font-extrabold text-text-strong"
@@ -101,10 +108,12 @@ export default async function CouponBoxPage() {
         <ul className="list-disc pl-4">
           <li>쿠폰은 계약 완료 후 영업담당자 확인을 거쳐 순차 지급돼요.</li>
           <li>쿠폰별 유효기간이 지나면 자동으로 만료돼요.</li>
-          <li>쿠폰 코드는 문의 시 확인용이며 다른 계정으로 양도할 수 없어요.</li>
+          <li>
+            쿠폰 코드는 문의 시 확인용이며 다른 계정으로 양도할 수 없어요.
+          </li>
         </ul>
       </section>
-    </main>
+    </>
   );
 }
 
@@ -122,10 +131,14 @@ function SummaryTile({
   return (
     <div
       className={`rounded-card border p-3.5 ${
-        emphasis ? "border-brand/25 bg-brand-soft" : "border-border-subtle bg-surface"
+        emphasis
+          ? "border-brand/25 bg-brand-soft"
+          : "border-border-subtle bg-surface"
       }`}
     >
-      <p className={`text-[12px] font-bold ${emphasis ? "text-brand" : "text-text-muted"}`}>
+      <p
+        className={`text-[12px] font-bold ${emphasis ? "text-brand" : "text-text-muted"}`}
+      >
         {label}
       </p>
       <p
@@ -135,7 +148,9 @@ function SummaryTile({
       >
         {value}
       </p>
-      {note && <p className="mt-1 text-[11px] font-semibold text-text-muted">{note}</p>}
+      {note && (
+        <p className="mt-1 text-[11px] font-semibold text-text-muted">{note}</p>
+      )}
     </div>
   );
 }
