@@ -20,6 +20,8 @@ interface Policy {
   termsNote: string | null;
   validDays: number | null;
   isActive: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
   displayOrder: number;
 }
 
@@ -60,6 +62,8 @@ const EMPTY_FORM = {
   rewardKind: "GIFT" as RewardKind,
   termsNote: "",
   validDays: "",
+  startsAt: "",
+  endsAt: "",
   displayOrder: "0",
   isActive: true,
 };
@@ -78,6 +82,20 @@ function formatDate(value: string): string {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(
     date.getDate()
   ).padStart(2, "0")}`;
+}
+
+/** ISO datetime 문자열을 <input type="date"> 가 받는 YYYY-MM-DD 로 자른다. null 은 빈 문자열. */
+function toDateInputValue(value: string | null): string {
+  if (value === null) return "";
+  return value.slice(0, 10);
+}
+
+/** 노출 시작일·종료일 중 하나라도 있으면 목록 행에 보여줄 문구를 만든다. */
+function windowLabel(policy: Policy): string | null {
+  if (!policy.startsAt && !policy.endsAt) return null;
+  const start = policy.startsAt ? formatDate(policy.startsAt) : "제한없음";
+  const end = policy.endsAt ? formatDate(policy.endsAt) : "제한없음";
+  return `노출 ${start} ~ ${end}`;
 }
 
 async function readError(response: Response, fallback: string): Promise<string> {
@@ -200,6 +218,8 @@ function PolicyTab({ onError }: { onError: (message: string | null) => void }) {
       rewardKind: policy.rewardKind,
       termsNote: policy.termsNote ?? "",
       validDays: policy.validDays === null ? "" : String(policy.validDays),
+      startsAt: toDateInputValue(policy.startsAt),
+      endsAt: toDateInputValue(policy.endsAt),
       displayOrder: String(policy.displayOrder),
       isActive: policy.isActive,
     });
@@ -217,6 +237,8 @@ function PolicyTab({ onError }: { onError: (message: string | null) => void }) {
         rewardKind: form.rewardKind,
         termsNote: form.termsNote.trim() === "" ? null : form.termsNote,
         validDays: toNullableNumber(form.validDays),
+        startsAt: form.startsAt === "" ? null : form.startsAt,
+        endsAt: form.endsAt === "" ? null : form.endsAt,
         displayOrder: toNullableNumber(form.displayOrder) ?? 0,
         isActive: form.isActive,
         // code 와 trigger 는 수정 시 전송하지 않는다. 서버도 받지 않는다.
@@ -346,6 +368,22 @@ function PolicyTab({ onError }: { onError: (message: string | null) => void }) {
                 className="w-full rounded-lg border border-[#E8EAF0] px-3 py-2 text-sm"
               />
             </Field>
+            <Field label="노출 시작일">
+              <input
+                type="date"
+                value={form.startsAt}
+                onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
+                className="w-full rounded-lg border border-[#E8EAF0] px-3 py-2 text-sm"
+              />
+            </Field>
+            <Field label="노출 종료일">
+              <input
+                type="date"
+                value={form.endsAt}
+                onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
+                className="w-full rounded-lg border border-[#E8EAF0] px-3 py-2 text-sm"
+              />
+            </Field>
             <Field label="정렬 순서">
               <input
                 type="number"
@@ -421,6 +459,9 @@ function PolicyTab({ onError }: { onError: (message: string | null) => void }) {
               <span className="text-xs text-[#6B7399]">
                 {policy.validDays === null ? "무기한" : `${policy.validDays}일`}
               </span>
+              {windowLabel(policy) && (
+                <span className="text-xs text-[#6B7399]">{windowLabel(policy)}</span>
+              )}
               <span
                 className={cn(
                   "rounded-md px-2 py-1 text-xs font-semibold",

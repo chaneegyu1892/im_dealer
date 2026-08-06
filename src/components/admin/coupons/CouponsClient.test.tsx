@@ -14,6 +14,8 @@ const policy = {
   termsNote: null,
   validDays: 90,
   isActive: true,
+  startsAt: null,
+  endsAt: null,
   displayOrder: 10,
 };
 
