@@ -73,9 +73,12 @@ export async function reconcileUserCoupons(
     });
   }
 
+  // 계획은 스냅샷 읽기 시점의 상태로 세워진다. 그 사이 어드민이 지급 처리를 했을 수
+  // 있으므로, 쓰기마다 계획이 가정한 상태를 조건절에 명시해 다른 상태(특히 PAID)를
+  // 덮어쓰지 않게 한다.
   if (plan.qualify.length > 0) {
     await db.issuedCoupon.updateMany({
-      where: { id: { in: plan.qualify } },
+      where: { id: { in: plan.qualify }, status: "HELD" },
       data: {
         status: "PENDING",
         qualifiedQuoteId: convertedQuote?.id ?? null,
@@ -86,14 +89,14 @@ export async function reconcileUserCoupons(
 
   if (plan.unqualify.length > 0) {
     await db.issuedCoupon.updateMany({
-      where: { id: { in: plan.unqualify } },
+      where: { id: { in: plan.unqualify }, status: "PENDING" },
       data: { status: "HELD", qualifiedQuoteId: null, qualifiedAt: null },
     });
   }
 
   if (plan.expire.length > 0) {
     await db.issuedCoupon.updateMany({
-      where: { id: { in: plan.expire } },
+      where: { id: { in: plan.expire }, status: "HELD" },
       data: { status: "EXPIRED" },
     });
   }

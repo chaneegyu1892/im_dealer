@@ -92,9 +92,47 @@ describe("reconcileUserCoupons", () => {
 
     await reconcileUserCoupons(TARGET);
 
+    // 계획이 세워질 당시 HELD 였던 쿠폰만 건드린다. 그 사이 다른 상태로 바뀌었으면
+    // (예: 어드민이 PAID 처리) 이 쓰기가 손대면 안 된다.
     expect(mocks.updateManyCoupons).toHaveBeenCalledWith({
-      where: { id: { in: ["coupon-1"] } },
+      where: { id: { in: ["coupon-1"] }, status: "HELD" },
       data: { status: "PENDING", qualifiedQuoteId: "quote-9", qualifiedAt: expect.any(Date) },
+    });
+  });
+
+  it("계약이 철회되면 PENDING 을 HELD 로 되돌린다 (status: PENDING 조건 포함)", async () => {
+    mocks.findConvertedQuote.mockResolvedValue(null);
+    mocks.findCoupons.mockResolvedValue([
+      { id: "coupon-2", policyId: "policy-contract", status: "PENDING", expiresAt: null },
+    ]);
+
+    await reconcileUserCoupons(TARGET);
+
+    // reconcileUserCoupons 를 실제로 통과시켜 unqualify 쓰기가 발생하는지까지 확인한다.
+    // status 예측만 검증하면 이 쓰기 경로 자체가 한 번도 실행되지 않아도 테스트가 통과한다.
+    expect(mocks.updateManyCoupons).toHaveBeenCalledWith({
+      where: { id: { in: ["coupon-2"] }, status: "PENDING" },
+      data: { status: "HELD", qualifiedQuoteId: null, qualifiedAt: null },
+    });
+  });
+
+  it("만료일이 지난 HELD 를 EXPIRED 로 바꾼다 (status: HELD 조건 포함)", async () => {
+    mocks.findConvertedQuote.mockResolvedValue(null);
+    mocks.findCoupons.mockResolvedValue([
+      {
+        id: "coupon-3",
+        policyId: "policy-signup",
+        status: "HELD",
+        expiresAt: new Date("2000-01-01T00:00:00.000Z"),
+      },
+    ]);
+
+    await reconcileUserCoupons(TARGET);
+
+    // 위와 마찬가지로 expire 쓰기 경로가 실제로 호출되는지를 목 상태 조합으로 구동해 확인한다.
+    expect(mocks.updateManyCoupons).toHaveBeenCalledWith({
+      where: { id: { in: ["coupon-3"] }, status: "HELD" },
+      data: { status: "EXPIRED" },
     });
   });
 
