@@ -446,7 +446,10 @@ function PolicyTab({ onError }: { onError: (message: string | null) => void }) {
 function IssuedTab({ onError }: { onError: (message: string | null) => void }) {
   const [rows, setRows] = useState<IssuedCouponRow[]>([]);
   const [status, setStatus] = useState<IssuedStatus>("PENDING");
+  // query 는 입력창의 현재 값, submittedQuery 는 실제로 조회에 쓰인 값이다.
+  // 둘을 나누지 않으면 load 의 의존성이 매 타이핑마다 바뀌어 글자 하나마다 API 를 때린다.
   const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
 
@@ -454,7 +457,7 @@ function IssuedTab({ onError }: { onError: (message: string | null) => void }) {
     setLoading(true);
     try {
       const params = new URLSearchParams({ status });
-      if (query.trim() !== "") params.set("q", query.trim());
+      if (submittedQuery.trim() !== "") params.set("q", submittedQuery.trim());
       const response = await fetch(`/api/admin/coupons/issued?${params.toString()}`);
       if (!response.ok) {
         onError(await readError(response, "발급 현황을 불러오지 못했습니다."));
@@ -468,7 +471,7 @@ function IssuedTab({ onError }: { onError: (message: string | null) => void }) {
     } finally {
       setLoading(false);
     }
-  }, [onError, query, status]);
+  }, [onError, submittedQuery, status]);
 
   useEffect(() => {
     void load();
@@ -503,6 +506,7 @@ function IssuedTab({ onError }: { onError: (message: string | null) => void }) {
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value as IssuedStatus)}
+          aria-label="상태 필터"
           className="min-h-10 rounded-lg border border-[#E8EAF0] px-3 text-sm"
         >
           {STATUS_FILTERS.map((value) => (
@@ -515,14 +519,15 @@ function IssuedTab({ onError }: { onError: (message: string | null) => void }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") void load();
+            if (e.key === "Enter") setSubmittedQuery(query);
           }}
+          aria-label="쿠폰 검색"
           placeholder="회원명 · 전화 · 쿠폰코드"
           className="min-h-10 flex-1 rounded-lg border border-[#E8EAF0] px-3 text-sm"
         />
         <button
           type="button"
-          onClick={() => void load()}
+          onClick={() => setSubmittedQuery(query)}
           disabled={loading}
           className="min-h-10 rounded-lg bg-[#1A1A2E] px-4 text-sm font-semibold text-white disabled:opacity-50"
         >

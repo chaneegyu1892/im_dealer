@@ -33,7 +33,7 @@ function issued(overrides: Record<string, unknown> = {}) {
 }
 
 function mockFetch(handler: (url: string) => { ok: boolean; body: unknown }) {
-  return vi.fn((input: RequestInfo | URL) => {
+  return vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>((input) => {
     const { ok, body } = handler(String(input));
     return Promise.resolve({ ok, json: () => Promise.resolve(body) } as Response);
   });
@@ -65,6 +65,30 @@ describe("CouponsClient", () => {
 
     expect(screen.getByDisplayValue("SIGNUP_FUEL_100K")).toBeDisabled();
     expect(screen.getByRole("combobox", { name: /트리거/ })).toBeDisabled();
+  });
+
+  // 잠긴 입력만 확인하면 겉모습만 검증된다. PATCH 본문에서 실제로 빠지는지가 핵심이다 —
+  // trigger 가 서버에 도달하면 이미 발급된 쿠폰의 자격 판정이 뒤집힌다.
+  it("수정 저장 시 PATCH 본문에서 코드와 트리거를 뺀다", async () => {
+    const fetchMock = mockFetch((url) =>
+      url.includes("/policies") ? { ok: true, body: { data: [policy] } } : { ok: true, body: { data: [] } }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<CouponsClient />);
+    fireEvent.click(await screen.findByRole("button", { name: "수정" }));
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+
+    await waitFor(() => {
+      const patchCall = fetchMock.mock.calls.find(
+        ([, init]) => (init as RequestInit | undefined)?.method === "PATCH"
+      );
+      expect(patchCall).toBeDefined();
+      const body: unknown = JSON.parse(String((patchCall?.[1] as RequestInit).body));
+      expect(body).not.toHaveProperty("code");
+      expect(body).not.toHaveProperty("trigger");
+      expect(body).toHaveProperty("title");
+    });
   });
 
   it("정책 추가 모드에서는 코드와 트리거를 입력할 수 있다", async () => {
