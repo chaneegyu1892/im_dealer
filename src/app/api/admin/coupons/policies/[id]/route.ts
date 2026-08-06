@@ -43,8 +43,10 @@ export async function PATCH(
       return NextResponse.json({ error: "쿠폰 정책을 찾을 수 없습니다." }, { status: 404 });
     }
 
-    const startsAt = parsed.data.startsAt ?? before.startsAt;
-    const endsAt = parsed.data.endsAt ?? before.endsAt;
+    // null 은 "명시적으로 비움", undefined 는 "건드리지 않음"이다. ?? 로 합치면 둘을 구분하지 못해
+    // 시작일을 지우면서 더 이른 종료일을 넣는 정상 요청이 저장된 옛 시작일과 비교돼 반려된다.
+    const startsAt = parsed.data.startsAt !== undefined ? parsed.data.startsAt : before.startsAt;
+    const endsAt = parsed.data.endsAt !== undefined ? parsed.data.endsAt : before.endsAt;
     if (startsAt && endsAt && endsAt.getTime() <= startsAt.getTime()) {
       return NextResponse.json(
         { error: "종료일은 시작일보다 뒤여야 합니다." },
