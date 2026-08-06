@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { revokeReviewTokensForQuote } from "@/lib/review-token";
+import { reconcileUserCoupons } from "@/lib/coupons/reconcile";
 import { QuoteStatus } from "@prisma/client";
 
 const patchSchema = z.object({
@@ -66,6 +67,27 @@ export async function PATCH(
       },
     }),
   ]);
+
+  // 계약 완료로 전환되면 쿠폰 지급 조건이 충족된다. 회원이 쿠폰함에 들어오지 않아도
+  // 어드민 지급 대기 목록에 잡히도록 이 시점에 동기화한다.
+  // 동기화 실패가 견적 상태 변경을 되돌리면 안 되므로 트랜잭션 밖에서 처리한다.
+  if (status === "CONVERTED" && quote.userId) {
+    try {
+      const member = await prisma.user.findUnique({
+        where: { supabaseId: quote.userId },
+        select: { id: true, supabaseId: true, profileCompleted: true },
+      });
+      if (member?.supabaseId) {
+        await reconcileUserCoupons({
+          id: member.id,
+          supabaseId: member.supabaseId,
+          profileCompleted: member.profileCompleted,
+        });
+      }
+    } catch (err) {
+      console.error("[PATCH /api/admin/quotes/[id]] 쿠폰 동기화 실패:", err);
+    }
+  }
 
   return NextResponse.json({ success: true, data: updated });
 }
