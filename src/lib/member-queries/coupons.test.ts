@@ -17,7 +17,7 @@ vi.mock("@/lib/coupons/reconcile", () => ({
   reconcileUserCoupons: mocks.reconcile,
 }));
 
-import { getCouponBoxData } from "./coupons";
+import { getCouponBoxData, getCouponSummary } from "./coupons";
 
 const MEMBER = { id: "user-1", supabaseId: "sb-1", profileCompleted: true };
 
@@ -124,5 +124,60 @@ describe("getCouponBoxData", () => {
       summary: { heldCount: 0, pendingCount: 0, totalAmount: 0 },
     });
     expect(mocks.reconcile).not.toHaveBeenCalled();
+  });
+
+  it("빈 요약은 호출자가 변형할 수 없다", async () => {
+    mocks.findMember.mockResolvedValue(null);
+
+    const data = await getCouponBoxData("sb-unknown");
+
+    expect(Object.isFrozen(data.summary)).toBe(true);
+  });
+});
+
+describe("getCouponSummary", () => {
+  beforeEach(() => {
+    Object.values(mocks).forEach((mock) => mock.mockReset());
+    mocks.findCoupons.mockResolvedValue([]);
+    mocks.reconcile.mockResolvedValue(undefined);
+  });
+
+  it("조회 전에 쿠폰을 동기화한다", async () => {
+    await getCouponSummary(MEMBER);
+
+    expect(mocks.reconcile).toHaveBeenCalledWith(MEMBER);
+  });
+
+  it("본인 User.id 의 보유·지급예정 쿠폰만 집계한다", async () => {
+    mocks.findCoupons.mockResolvedValue([
+      { status: "HELD", rewardAmountSnapshot: 100_000 },
+      { status: "PENDING", rewardAmountSnapshot: 300_000 },
+    ]);
+
+    const summary = await getCouponSummary(MEMBER);
+
+    expect(mocks.findCoupons).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", status: { in: ["HELD", "PENDING"] } },
+      })
+    );
+    expect(summary).toEqual({ heldCount: 1, pendingCount: 1, totalAmount: 400_000 });
+  });
+
+  it("금액이 없는 쿠폰은 합계에서 0으로 센다", async () => {
+    mocks.findCoupons.mockResolvedValue([{ status: "HELD", rewardAmountSnapshot: null }]);
+
+    const summary = await getCouponSummary(MEMBER);
+
+    expect(summary.totalAmount).toBe(0);
+  });
+
+  it("동기화가 실패해도 집계는 계속한다", async () => {
+    mocks.reconcile.mockRejectedValue(new Error("boom"));
+    mocks.findCoupons.mockResolvedValue([{ status: "PENDING", rewardAmountSnapshot: 50_000 }]);
+
+    const summary = await getCouponSummary(MEMBER);
+
+    expect(summary).toEqual({ heldCount: 0, pendingCount: 1, totalAmount: 50_000 });
   });
 });

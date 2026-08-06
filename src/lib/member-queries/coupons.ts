@@ -32,7 +32,13 @@ export interface CouponBoxData {
   summary: CouponBoxSummary;
 }
 
-const EMPTY_SUMMARY: CouponBoxSummary = { heldCount: 0, pendingCount: 0, totalAmount: 0 };
+// 세 곳에서 참조로 반환되는 공유 상수다. 얼려두지 않으면 호출자가 한 번만 변형해도
+// 이후 모든 "쿠폰 없음" 응답이 오염된다.
+const EMPTY_SUMMARY: CouponBoxSummary = Object.freeze({
+  heldCount: 0,
+  pendingCount: 0,
+  totalAmount: 0,
+});
 
 const AVAILABLE_STATUSES: ReadonlySet<CouponStatusValue> = new Set<CouponStatusValue>([
   "PENDING",
