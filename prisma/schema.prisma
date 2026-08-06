@@ -679,6 +679,7 @@ model User {
 
   auditLogs       AdminAuditLog[]
   quoteDeliveries QuoteDelivery[]
+  coupons         IssuedCoupon[]
 
   @@index([role, isActive])
   @@index([email])
@@ -987,4 +988,76 @@ model RecommendationPopularitySnapshot {
   updatedAt DateTime @updatedAt
 
   @@index([fetchedAt])
+}
+
+enum CouponTrigger {
+  SIGNUP
+  FIRST_CONTRACT
+}
+
+enum CouponStatus {
+  HELD
+  PENDING
+  PAID
+  EXPIRED
+  REVOKED
+}
+
+// 어드민이 관리하는 쿠폰 캠페인 정의.
+model CouponPolicy {
+  id           String        @id @default(cuid())
+  code         String        @unique
+  trigger      CouponTrigger
+  title        String
+  description  String?
+  rewardLabel  String
+  rewardAmount Int?
+  rewardKind   String        @default("GIFT")
+  termsNote    String?
+  validDays    Int?
+  isActive     Boolean       @default(true)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  displayOrder Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  coupons IssuedCoupon[]
+
+  @@index([trigger, isActive])
+}
+
+// 회원이 실제로 보유한 쿠폰 한 장.
+model IssuedCoupon {
+  id       String       @id @default(cuid())
+  userId   String
+  policyId String
+  code     String       @unique
+  status   CouponStatus @default(HELD)
+
+  // 발급 시점 스냅샷. 정책이 바뀌어도 고객에게 약속한 내용은 고정된다.
+  titleSnapshot        String
+  rewardLabelSnapshot  String
+  rewardAmountSnapshot Int?
+
+  issuedAt  DateTime  @default(now())
+  expiresAt DateTime?
+
+  qualifiedQuoteId String?
+  qualifiedAt      DateTime?
+  paidAt           DateTime?
+  paidBy           String?
+  paidMemo         String?
+  revokedAt        DateTime?
+  revokeReason     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policy CouponPolicy @relation(fields: [policyId], references: [id])
+
+  @@unique([userId, policyId])
+  @@index([userId, status])
+  @@index([status, issuedAt])
 }
