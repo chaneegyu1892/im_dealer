@@ -1,3 +1,4 @@
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MyPageLayout from "./layout";
 
@@ -12,6 +13,7 @@ vi.mock("@/lib/admin-auth", () => ({
 
 vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
+  usePathname: () => "/mypage",
 }));
 
 describe("MyPageLayout", () => {
@@ -30,15 +32,17 @@ describe("MyPageLayout", () => {
     expect(mocks.redirect).toHaveBeenCalledWith("/welcome?next=%2Fmypage");
   });
 
-  it("가입 완료 회원은 마이페이지를 렌더링한다", async () => {
+  it("가입 완료 회원에게는 탭과 함께 페이지를 렌더링한다", async () => {
     mocks.getCurrentUser.mockResolvedValue({
       role: "member",
       profileCompleted: true,
     });
 
     const result = await MyPageLayout({ children: <div>마이페이지</div> });
+    render(result);
 
     expect(mocks.redirect).not.toHaveBeenCalled();
-    expect(result).toEqual(<div>마이페이지</div>);
+    expect(screen.getByText("마이페이지")).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "마이페이지 메뉴" })).toBeInTheDocument();
   });
 });

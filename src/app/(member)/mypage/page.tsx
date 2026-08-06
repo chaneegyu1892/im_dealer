@@ -32,7 +32,7 @@ export default async function MyPage() {
 
   return (
     <main className="public-app-page min-h-[100dvh] pb-[calc(112px+env(safe-area-inset-bottom,0px))] lg:pb-14">
-      <div className="page-container mx-auto max-w-[960px] py-7 md:py-10">
+      <div className="page-container mx-auto max-w-[960px] pb-7 md:pb-10">
         <section className="mb-7 md:mb-9">
           <p className="mb-2 text-[13px] font-extrabold text-brand">MY PAGE</p>
           <h1 className="text-[28px] font-extrabold tracking-[-0.02em] text-text-strong md:text-[36px]">
