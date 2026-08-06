@@ -174,7 +174,12 @@ A 는 호출 지점을 하나라도 빠뜨리면 회원이 영구히 쿠폰을 �
 
 ### 채택: B + 훅 1개
 
-`src/lib/coupons/reconcile.ts` 에 동기화 함수를 둔다.
+판정 로직과 DB 접근을 분리한다. 판정은 순수 함수라 prisma 목 없이 테스트한다.
+
+- `src/lib/coupons/rules.ts` — `planCouponReconcile(input)`. DB를 모른다. 입력은 정책·
+  보유 쿠폰·계약 여부·현재 시각, 출력은 "무엇을 발급/전이/만료할지"의 계획이다.
+- `src/lib/coupons/reconcile.ts` — `reconcileUserCoupons(target, db)`. 읽고, 계획을
+  세우고, 적용한다.
 
 ```ts
 export interface CouponReconcileTarget {
@@ -200,15 +205,23 @@ export async function reconcileUserCoupons(
 4. `expiresAt` 이 지난 `HELD` 를 `EXPIRED` 로 바꾼다. `PENDING` 은 만료시키지 않는다 —
    조건을 이미 충족한 쿠폰을 시간 때문에 뺏으면 안 된다.
 
-자격 판정 기준:
+**발급 조건과 지급 조건은 다르다.** 발급 조건은 "쿠폰함에 카드가 생기는" 기준이고,
+지급 조건은 "`PENDING` 으로 올라가는" 기준이다.
 
-| trigger | 조건 |
-| --- | --- |
-| `SIGNUP` | `user.profileCompleted === true` |
-| `FIRST_CONTRACT` | `SavedQuote` 중 `userId = supabaseId`, `status = CONVERTED`, `deletedAt = null` 인 행이 1건 이상 |
+| trigger | 발급 조건 (카드 생성) | 지급 조건 (`PENDING` 전이) |
+| --- | --- | --- |
+| `SIGNUP` | `user.profileCompleted === true` | 계약 완료 |
+| `FIRST_CONTRACT` | 계약 완료 | 계약 완료 |
 
-`SIGNUP` 을 카카오 로그인 직후가 아니라 `profileCompleted` 시점으로 잡는 이유는, 그
-전에는 이름·전화가 없어 연락이 불가능한 유령 계정일 수 있기 때문이다.
+계약 완료 = `SavedQuote` 중 `userId = supabaseId`, `status = CONVERTED`, `deletedAt = null`
+인 행이 1건 이상.
+
+지급 조건은 두 trigger 모두 계약 완료로 같다. 그래서 `SIGNUP` 쿠폰은 가입 직후 `HELD`
+로 생겨 계약을 기다리고, `FIRST_CONTRACT` 쿠폰은 발급 조건과 지급 조건이 동시에
+충족되므로 **처음부터 `PENDING` 으로 생성된다.**
+
+`SIGNUP` 발급을 카카오 로그인 직후가 아니라 `profileCompleted` 시점으로 잡는 이유는,
+그 전에는 이름·전화가 없어 연락이 불가능한 유령 계정일 수 있기 때문이다.
 
 호출 지점은 세 곳이다.
 
