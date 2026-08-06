@@ -21,35 +21,38 @@ interface StatusStyle {
 const STATUS_STYLE: Record<CouponStatusValue, StatusStyle> = {
   PENDING: {
     stub: "bg-brand text-white",
-    frame: "ring-1 ring-brand/25",
+    // Tailwind 의 비-inset ring 은 바깥쪽 box-shadow 인데, 아래 NOTCH_MASK 가
+    // mask-clip: border-box 로 적용돼 바깥 그림자를 잘라낸다. ring-inset 을 써야
+    // 실제로 보인다.
+    frame: "ring-1 ring-inset ring-brand/25",
     chip: "bg-status-warning-soft text-status-warning",
     title: "text-text-strong",
     divider: "border-brand/25",
   },
   HELD: {
     stub: "bg-brand-soft text-brand",
-    frame: "ring-1 ring-border-subtle",
+    frame: "ring-1 ring-inset ring-border-subtle",
     chip: "bg-surface-soft text-text-body",
     title: "text-text-strong",
     divider: "border-border-strong",
   },
   PAID: {
     stub: "bg-status-positive-soft text-status-positive",
-    frame: "ring-1 ring-border-subtle",
+    frame: "ring-1 ring-inset ring-border-subtle",
     chip: "bg-status-positive-soft text-status-positive",
     title: "text-text-body",
     divider: "border-border-subtle",
   },
   EXPIRED: {
     stub: "bg-surface-soft text-text-muted",
-    frame: "ring-1 ring-border-subtle",
+    frame: "ring-1 ring-inset ring-border-subtle",
     chip: "bg-surface-soft text-text-muted",
     title: "text-text-muted",
     divider: "border-border-subtle",
   },
   REVOKED: {
     stub: "bg-surface-soft text-text-muted",
-    frame: "ring-1 ring-border-subtle",
+    frame: "ring-1 ring-inset ring-border-subtle",
     chip: "bg-surface-soft text-text-muted",
     title: "text-text-muted",
     divider: "border-border-subtle",
