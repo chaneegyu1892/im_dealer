@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS "CouponPolicy" (
   "endsAt"       TIMESTAMP(3),
   "displayOrder" INTEGER NOT NULL DEFAULT 0,
   "createdAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updatedAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  -- @updatedAt 은 Prisma 쿼리 엔진이 매 쓰기마다 채운다. DB 기본값을 주면
+  -- 다음 prisma migrate 가 스키마 드리프트로 감지한다. 기존 마이그레이션과 동일하게 기본값 없음.
+  "updatedAt"    TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CouponPolicy_pkey" PRIMARY KEY ("id")
 );
 
@@ -50,7 +52,7 @@ CREATE TABLE IF NOT EXISTS "IssuedCoupon" (
   "revokedAt"            TIMESTAMP(3),
   "revokeReason"         TEXT,
   "createdAt"            TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updatedAt"            TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"            TIMESTAMP(3) NOT NULL,
   CONSTRAINT "IssuedCoupon_pkey" PRIMARY KEY ("id")
 );
 
@@ -76,13 +78,14 @@ DO $$ BEGIN
 END $$;
 
 -- 초기 정책 2건. 금액·문구는 어드민에서 수정한다.
+-- updatedAt 은 DB 기본값이 없으므로 여기서 명시적으로 채운다.
 INSERT INTO "CouponPolicy"
-  ("id", "code", "trigger", "title", "description", "rewardLabel", "rewardAmount", "rewardKind", "termsNote", "validDays", "displayOrder")
+  ("id", "code", "trigger", "title", "description", "rewardLabel", "rewardAmount", "rewardKind", "termsNote", "validDays", "displayOrder", "updatedAt")
 VALUES
   ('cpol_signup_fuel_100k', 'SIGNUP_FUEL_100K', 'SIGNUP',
    '첫가입 축하 주유권', '계약을 완료하면 지급돼요', '주유권 10만원', 100000, 'FUEL',
-   '계약 완료 후 영업담당자 확인을 거쳐 지급됩니다.', 90, 10),
+   '계약 완료 후 영업담당자 확인을 거쳐 지급됩니다.', 90, 10, CURRENT_TIMESTAMP),
   ('cpol_first_contract_cash_300k', 'FIRST_CONTRACT_CASH_300K', 'FIRST_CONTRACT',
    '첫계약 축하금', '영업담당자 확인 후 순차 지급돼요', '축하금 30만원', 300000, 'CASH',
-   '차량 인도 완료 후 지급됩니다.', NULL, 20)
+   '차량 인도 완료 후 지급됩니다.', NULL, 20, CURRENT_TIMESTAMP)
 ON CONFLICT ("code") DO NOTHING;
