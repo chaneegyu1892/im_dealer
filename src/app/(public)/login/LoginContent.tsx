@@ -42,7 +42,7 @@ export default function LoginContent() {
   const next = getSafeInternalPath(params?.get("next"));
   const [isStartingLogin, setIsStartingLogin] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const { isInApp } = useKakaoTalkInApp();
+  const { isInApp, escapeUrl } = useKakaoTalkInApp();
   // auth/callback 은 실패 시 /login?error=... 로 되돌린다. 실패 직후 자동 재시도를 막는다.
   const hasAuthError = Boolean(params?.get("error"));
 
@@ -157,6 +157,15 @@ export default function LoginContent() {
                 <KakaoIcon />
                 {isStartingLogin ? "카카오 연결 중…" : "카카오 로그인"}
               </button>
+
+              {escapeUrl ? (
+                <a
+                  href={escapeUrl}
+                  className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[14px] border border-border-subtle bg-surface-soft px-4 text-[13px] font-bold text-text-body transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30"
+                >
+                  다른 브라우저에서 열기
+                </a>
+              ) : null}
 
               {isDev ? (
                 <div className="mt-3 grid gap-2 rounded-[14px] border border-dashed border-border-strong bg-surface-soft p-3">

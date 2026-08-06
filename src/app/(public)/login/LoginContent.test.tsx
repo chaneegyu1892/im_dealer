@@ -175,3 +175,27 @@ describe("LoginContent KakaoTalk in-app auto login", () => {
     expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
   });
 });
+
+describe("LoginContent external browser escape link", () => {
+  it("offers an escape link inside the KakaoTalk in-app browser", async () => {
+    setUserAgent(KAKAO_ANDROID_UA);
+    // 자동 로그인이 이미 시도된 상태로 만들어 수동 화면을 렌더링시킨다.
+    window.sessionStorage.setItem("imdealer:inapp-auto-login-attempted", "1");
+
+    render(<LoginContent />);
+
+    const link = await screen.findByRole("link", {
+      name: "다른 브라우저에서 열기",
+    });
+    expect(link).toHaveAttribute("href", expect.stringContaining("intent://"));
+  });
+
+  it("hides the escape link in an ordinary browser", async () => {
+    render(<LoginContent />);
+
+    await waitFor(() => expect(mocks.getSession).toHaveBeenCalled());
+    expect(
+      screen.queryByRole("link", { name: "다른 브라우저에서 열기" })
+    ).toBeNull();
+  });
+});
