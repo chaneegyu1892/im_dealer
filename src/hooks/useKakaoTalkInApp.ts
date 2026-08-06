@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { buildEscapeUrl, isKakaoTalkInApp } from "@/lib/browser/in-app";
 
-interface KakaoTalkInAppState {
+export interface KakaoTalkInAppState {
   /** 카카오톡 인앱브라우저 여부. 마운트 전에는 항상 false. */
   readonly isInApp: boolean;
   /** 외부 브라우저로 빠져나가는 URL. 불가능한 조합이면 null. */

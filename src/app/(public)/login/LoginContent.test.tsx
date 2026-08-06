@@ -21,6 +21,8 @@ const ORIGINAL_UA = window.navigator.userAgent;
 
 const KAKAO_ANDROID_UA =
   "Mozilla/5.0 (Linux; Android 14; SM-S928N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 KAKAOTALK/10.5.0";
+const CHROME_ANDROID_UA =
+  "Mozilla/5.0 (Linux; Android 14; SM-S928N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
 
 function setUserAgent(userAgent: string): void {
   Object.defineProperty(window.navigator, "userAgent", {
@@ -130,9 +132,38 @@ describe("LoginContent KakaoTalk in-app auto login", () => {
     render(<LoginContent />);
 
     await waitFor(() => expect(mocks.signInWithOAuth).toHaveBeenCalledTimes(1));
+    // 루프 방지 플래그가 실제로 기록됐는지 확인한다. 이 assertion 이 없으면
+    // 플래그를 기록하는 줄이 삭제돼도 이 테스트는 계속 통과한다.
+    expect(
+      window.sessionStorage.getItem("imdealer:inapp-auto-login-attempted")
+    ).toBe("1");
+  });
+
+  it("does not start Kakao login when unmounted before getSession resolves", async () => {
+    setUserAgent(KAKAO_ANDROID_UA);
+    let resolveGetSession: (value: {
+      data: { session: null };
+    }) => void = () => {};
+    mocks.getSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveGetSession = resolve;
+        })
+    );
+
+    const { unmount } = render(<LoginContent />);
+    unmount();
+
+    resolveGetSession({ data: { session: null } });
+    // getSession() 의 then 콜백이 실행될 마이크로태스크 틱을 흘려보낸다.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
   });
 
   it("does not auto start in an ordinary browser", async () => {
+    setUserAgent(CHROME_ANDROID_UA);
+
     render(<LoginContent />);
 
     await waitFor(() => expect(mocks.getSession).toHaveBeenCalled());
@@ -191,6 +222,8 @@ describe("LoginContent external browser escape link", () => {
   });
 
   it("hides the escape link in an ordinary browser", async () => {
+    setUserAgent(CHROME_ANDROID_UA);
+
     render(<LoginContent />);
 
     await waitFor(() => expect(mocks.getSession).toHaveBeenCalled());

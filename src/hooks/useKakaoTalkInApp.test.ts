@@ -6,6 +6,8 @@ const ORIGINAL_UA = window.navigator.userAgent;
 
 const KAKAO_ANDROID_UA =
   "Mozilla/5.0 (Linux; Android 14; SM-S928N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 KAKAOTALK/10.5.0";
+const CHROME_ANDROID_UA =
+  "Mozilla/5.0 (Linux; Android 14; SM-S928N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
 
 function setUserAgent(userAgent: string): void {
   Object.defineProperty(window.navigator, "userAgent", {
@@ -29,6 +31,8 @@ describe("useKakaoTalkInApp", () => {
   });
 
   it("stays inactive in an ordinary browser", async () => {
+    setUserAgent(CHROME_ANDROID_UA);
+
     const { result } = renderHook(() => useKakaoTalkInApp());
 
     await waitFor(() => expect(result.current.isInApp).toBe(false));

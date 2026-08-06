@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, CarFront, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -45,8 +45,13 @@ export default function LoginContent() {
   const { isInApp, escapeUrl } = useKakaoTalkInApp();
   // auth/callback 은 실패 시 /login?error=... 로 되돌린다. 실패 직후 자동 재시도를 막는다.
   const hasAuthError = Boolean(params?.get("error"));
+  // runKakaoLogin 자체의 재진입 방지. isStartingLogin state 는 리렌더 이후에야 반영되므로
+  // 자동 시작과 수동 클릭이 거의 동시에 들어오는 순간에는 막지 못한다. ref 는 즉시 반영된다.
+  const isLoggingInRef = useRef(false);
 
   const runKakaoLogin = useCallback(async () => {
+    if (isLoggingInRef.current) return;
+    isLoggingInRef.current = true;
     setIsStartingLogin(true);
     setLoginError(null);
     try {
@@ -56,12 +61,17 @@ export default function LoginContent() {
       setLoginError("카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsStartingLogin(false);
+      isLoggingInRef.current = false;
     }
   }, [next]);
 
   useEffect(() => {
+    let cancelled = false;
     const supabase = createClient();
     supabase.auth.getSession().then(({ data: { session } }) => {
+      // getSession() 이 토큰 갱신 왕복으로 지연되는 동안 사용자가 다른 페이지로 이동해
+      // 언마운트될 수 있다. 그 경우 리다이렉트나 자동 로그인을 실행하지 않는다.
+      if (cancelled) return;
       if (session) {
         router.replace(next);
         return;
@@ -73,6 +83,9 @@ export default function LoginContent() {
       if (!markAutoLoginAttempted()) return;
       void runKakaoLogin();
     });
+    return () => {
+      cancelled = true;
+    };
   }, [next, router, isInApp, hasAuthError, runKakaoLogin]);
 
   async function handleKakaoLogin() {
