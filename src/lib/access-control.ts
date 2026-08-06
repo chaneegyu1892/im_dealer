@@ -37,6 +37,7 @@ export const PAGE_ACCESS = {
   "/admin/memo": ["staff", "admin", "superadmin"],
   "/admin/notifications": ["staff", "admin", "superadmin"],
   "/admin/verifications": ["staff", "admin", "superadmin"],
+  "/admin/coupons": ["admin", "superadmin"],
   "/admin/finance": ["admin", "superadmin"],
   "/admin/ai": ["admin", "superadmin"],
   "/admin/audit-logs": ["admin", "superadmin"],
