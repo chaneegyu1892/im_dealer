@@ -126,6 +126,13 @@ export async function DELETE(
   if (error) return error;
 
   try {
+    // 트랜잭션 이후 쿠폰 동기화에 쓸 삭제 전 스냅샷. updateMany 는 몇 건이 바뀌었는지만
+    // 알려주므로, CONVERTED 여부와 회원 매핑에 필요한 userId 는 미리 읽어둬야 한다.
+    const quote = await prisma.savedQuote.findFirst({
+      where: { id, deletedAt: null },
+      select: { userId: true, status: true },
+    });
+
     // 소프트 삭제: 감사용 행은 남기되 고객 연락처와 미사용 인증 capability 는 즉시 파기한다.
     const result = await prisma.$transaction(async (tx) => {
       const deleted = await tx.savedQuote.updateMany({
@@ -155,6 +162,31 @@ export async function DELETE(
     if (result.count === 0) {
       return NextResponse.json({ error: "견적을 찾을 수 없습니다." }, { status: 404 });
     }
+
+    // CONVERTED 계약 건을 소프트 삭제하면 reconcileUserCoupons 가 계약 존재를 판단하는
+    // 조건(deletedAt: null)이 깨져 더 이상 계약으로 집계되지 않는다. 그런데 삭제 자체는
+    // 쿠폰 테이블을 건드리지 않으므로, 여기서 동기화하지 않으면 회원의 PENDING 쿠폰이
+    // 그대로 남아 이미 사라진 계약 건으로 어드민 지급 대기 목록에 계속 노출되고 직원이
+    // 실수로 지급할 수 있다. PATCH 핸들러의 훅과 동일하게 트랜잭션 밖, 삭제 성공이
+    // 확정된 뒤에만 동기화하고, 실패해도 삭제 응답에는 영향을 주지 않는다.
+    if (quote?.status === "CONVERTED" && quote.userId) {
+      try {
+        const member = await prisma.user.findUnique({
+          where: { supabaseId: quote.userId },
+          select: { id: true, supabaseId: true, profileCompleted: true },
+        });
+        if (member?.supabaseId) {
+          await reconcileUserCoupons({
+            id: member.id,
+            supabaseId: member.supabaseId,
+            profileCompleted: member.profileCompleted,
+          });
+        }
+      } catch (err) {
+        console.error("[DELETE /api/admin/quotes/[id]] 쿠폰 동기화 실패:", err);
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[DELETE /api/admin/quotes/[id]]", err);
