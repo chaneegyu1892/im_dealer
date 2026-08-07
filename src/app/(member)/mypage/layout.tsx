@@ -13,7 +13,7 @@ export default async function MyPageLayout({
   }
   return (
     <main className="public-app-page min-h-[100dvh] pb-[calc(112px+env(safe-area-inset-bottom,0px))] lg:pb-14">
-      <div className="page-container mx-auto max-w-[960px] pt-7 md:pt-10">
+      <div className="page-container mx-auto max-w-[960px] pt-7 pb-7 md:pt-10 md:pb-10">
         <MyPageTabs />
         {children}
       </div>
