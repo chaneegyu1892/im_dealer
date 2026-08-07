@@ -46,7 +46,11 @@ export const PAGE_ACCESS = {
   "/admin/settings": ["admin", "superadmin"],
   "/admin/recovery-rates": ["admin", "superadmin"],
   // 회원 전용 (라우트 그룹용)
+  // (member) 그룹의 모든 라우트는 여기 정책이 있어야 한다. 정책이 없는 경로는
+  // hasAccess 가 기본 허용하므로, 이 표에 빠지면 그룹 layout 의 가드가
+  // 그 경로에서는 무력화된다(로그인 페이지로 안 보내고 그냥 통과시킴).
   "/mypage": ["member", "dealer", "staff", "admin", "superadmin"],
+  "/welcome": ["member", "dealer", "staff", "admin", "superadmin"],
 } as const satisfies Record<string, ReadonlyArray<Role>>;
 
 export type AccessPath = keyof typeof PAGE_ACCESS;
