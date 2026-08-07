@@ -15,6 +15,8 @@ interface StatusStyle {
   frame: string;
   chip: string;
   title: string;
+  // 절취선이 흰 카드 본문(bg-surface) 위에 그려지므로 저채도 색은 사실상
+  // 안 보인다. 값을 낮출 때는 실제 카드에서 눈으로 확인할 것.
   divider: string;
 }
 
@@ -27,7 +29,7 @@ const STATUS_STYLE: Record<CouponStatusValue, StatusStyle> = {
     frame: "ring-1 ring-inset ring-brand/25",
     chip: "bg-status-warning-soft text-status-warning",
     title: "text-text-strong",
-    divider: "border-brand/25",
+    divider: "border-brand/40",
   },
   HELD: {
     stub: "bg-brand-soft text-brand",
@@ -41,7 +43,7 @@ const STATUS_STYLE: Record<CouponStatusValue, StatusStyle> = {
     frame: "ring-1 ring-inset ring-border-subtle",
     chip: "bg-status-positive-soft text-status-positive",
     title: "text-text-body",
-    divider: "border-border-subtle",
+    divider: "border-border-strong",
   },
   EXPIRED: {
     stub: "bg-surface-soft text-text-muted",

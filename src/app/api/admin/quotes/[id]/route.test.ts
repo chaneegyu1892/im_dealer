@@ -115,6 +115,46 @@ describe("DELETE /api/admin/quotes/[id]", () => {
       },
     });
   });
+
+  // Fix 4: CONVERTED 계약을 소프트 삭제하면 그 순간부터 reconcileUserCoupons 가 계약으로
+  // 집계하지 않는다(deletedAt: null 조건). 동기화하지 않으면 PENDING 쿠폰이 남아
+  // 사라진 계약 건에 대해 어드민이 지급할 수 있는 유령 지급 대기가 생긴다.
+  it("CONVERTED 견적을 소프트 삭제하면 supabaseId 로 회원을 조회하고 reconcileUserCoupons 를 호출한다", async () => {
+    mocks.findFirstQuote.mockResolvedValue({
+      userId: "sb-user-1",
+      status: "CONVERTED",
+    });
+
+    const response = await DELETE(new NextRequest("https://example.com/api/admin/quotes/quote-1"), {
+      params: Promise.resolve({ id: "quote-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.findUniqueUser).toHaveBeenCalledWith({
+      where: { supabaseId: "sb-user-1" },
+      select: { id: true, supabaseId: true, profileCompleted: true },
+    });
+    expect(mocks.reconcileUserCoupons).toHaveBeenCalledWith({
+      id: "member-1",
+      supabaseId: "sb-user-1",
+      profileCompleted: true,
+    });
+  });
+
+  it("CONVERTED 가 아닌 견적을 소프트 삭제하면 훅이 호출되지 않는다", async () => {
+    mocks.findFirstQuote.mockResolvedValue({
+      userId: "sb-user-1",
+      status: "CONTACTED",
+    });
+
+    const response = await DELETE(new NextRequest("https://example.com/api/admin/quotes/quote-1"), {
+      params: Promise.resolve({ id: "quote-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.findUniqueUser).not.toHaveBeenCalled();
+    expect(mocks.reconcileUserCoupons).not.toHaveBeenCalled();
+  });
 });
 
 describe("PATCH /api/admin/quotes/[id] — 쿠폰 동기화 훅", () => {
