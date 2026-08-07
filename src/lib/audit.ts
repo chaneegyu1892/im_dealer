@@ -80,7 +80,11 @@ export type AuditAction =
   | "SCRAPE_JOB_RESUME"
   | "CATALOG_MAPPING_UPSERT"
   | "CATALOG_MAPPING_DELETE"
-  | "RATE_SHEET_APPLY_CATALOG";
+  | "RATE_SHEET_APPLY_CATALOG"
+  | "COUPON_POLICY_CREATE"
+  | "COUPON_POLICY_UPDATE"
+  | "COUPON_POLICY_DELETE"
+  | "COUPON_PAID";
 
 export type AuditActor = Pick<User, "id"> & { email: string | null };
 

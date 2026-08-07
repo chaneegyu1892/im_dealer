@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   findVehicles: vi.fn(),
   findTrims: vi.fn(),
   findDeliveries: vi.fn(),
+  findCoupons: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -15,7 +16,12 @@ vi.mock("@/lib/prisma", () => ({
     vehicle: { findMany: mocks.findVehicles },
     trim: { findMany: mocks.findTrims },
     quoteDelivery: { findMany: mocks.findDeliveries },
+    issuedCoupon: { findMany: mocks.findCoupons },
   },
+}));
+
+vi.mock("@/lib/coupons/reconcile", () => ({
+  reconcileUserCoupons: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { getMyPageData } from "./mypage";
@@ -23,6 +29,7 @@ import { getMyPageData } from "./mypage";
 describe("getMyPageData", () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset());
+    mocks.findCoupons.mockResolvedValue([]);
   });
 
   it("현재 회원의 견적만 조회해 진행 중인 견적과 최근 전송 상태를 구성한다", async () => {
@@ -147,7 +154,40 @@ describe("getMyPageData", () => {
       },
       quotes: [],
       activeQuote: null,
+      couponSummary: { heldCount: 0, pendingCount: 0, totalAmount: 0 },
     });
     expect(mocks.findDeliveries).not.toHaveBeenCalled();
+    expect(mocks.findCoupons).not.toHaveBeenCalled();
+  });
+
+  it("보유·지급예정 쿠폰을 요약해 함께 돌려준다", async () => {
+    mocks.findMember.mockResolvedValue({
+      id: "member-1",
+      supabaseId: "sb-1",
+      name: "홍길동",
+      email: null,
+      phone: null,
+      provider: "kakao",
+      channelRelation: "ADDED",
+      marketingConsent: false,
+      consentedAt: null,
+      profileCompleted: true,
+    });
+    mocks.findQuotes.mockResolvedValue([]);
+    mocks.findVehicles.mockResolvedValue([]);
+    mocks.findTrims.mockResolvedValue([]);
+    mocks.findDeliveries.mockResolvedValue([]);
+    mocks.findCoupons.mockResolvedValue([
+      { status: "HELD", rewardAmountSnapshot: 100_000 },
+      { status: "PENDING", rewardAmountSnapshot: 300_000 },
+    ]);
+
+    const data = await getMyPageData("sb-1");
+
+    expect(data.couponSummary).toEqual({
+      heldCount: 1,
+      pendingCount: 1,
+      totalAmount: 400_000,
+    });
   });
 });

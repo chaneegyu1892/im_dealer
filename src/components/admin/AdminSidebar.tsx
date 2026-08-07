@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   LogOut,
   Home,
+  Ticket,
   type LucideIcon,
 } from "lucide-react";
 
@@ -61,6 +62,7 @@ const NAV: NavGroup[] = [
     items: [
       { href: "/admin/finance", label: "견적 산출 로직 관리", icon: Building2 },
       { href: "/admin/ai", label: "AI관리", icon: Sparkles },
+      { href: "/admin/coupons", label: "쿠폰 관리", icon: Ticket },
     ],
   },
   {

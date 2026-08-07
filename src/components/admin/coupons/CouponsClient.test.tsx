@@ -1,0 +1,157 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CouponsClient } from "./CouponsClient";
+
+const policy = {
+  id: "policy-1",
+  code: "SIGNUP_FUEL_100K",
+  trigger: "SIGNUP",
+  title: "첫가입 축하 주유권",
+  description: null,
+  rewardLabel: "주유권 10만원",
+  rewardAmount: 100_000,
+  rewardKind: "FUEL",
+  termsNote: null,
+  validDays: 90,
+  isActive: true,
+  startsAt: null,
+  endsAt: null,
+  displayOrder: 10,
+};
+
+function issued(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "coupon-1",
+    code: "AD-8F3K2A",
+    status: "PENDING",
+    titleSnapshot: "첫계약 축하금",
+    rewardLabelSnapshot: "축하금 30만원",
+    issuedAt: "2026-08-01T00:00:00.000Z",
+    paidAt: null,
+    paidMemo: null,
+    user: { id: "user-1", name: "홍길동", phone: "010-1234-5678" },
+    ...overrides,
+  };
+}
+
+function mockFetch(handler: (url: string) => { ok: boolean; body: unknown }) {
+  return vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>((input) => {
+    const { ok, body } = handler(String(input));
+    return Promise.resolve({ ok, json: () => Promise.resolve(body) } as Response);
+  });
+}
+
+describe("CouponsClient", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch((url) =>
+        url.includes("/policies")
+          ? { ok: true, body: { data: [policy] } }
+          : { ok: true, body: { data: [issued()] } }
+      )
+    );
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("정책 탭을 기본으로 열고 목록을 보여준다", async () => {
+    render(<CouponsClient canManagePolicies={true} />);
+
+    expect(await screen.findByText("첫가입 축하 주유권")).toBeInTheDocument();
+  });
+
+  it("수정 모드에서는 코드와 트리거를 잠근다", async () => {
+    render(<CouponsClient canManagePolicies={true} />);
+    fireEvent.click(await screen.findByRole("button", { name: "수정" }));
+
+    expect(screen.getByDisplayValue("SIGNUP_FUEL_100K")).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: /트리거/ })).toBeDisabled();
+  });
+
+  // 잠긴 입력만 확인하면 겉모습만 검증된다. PATCH 본문에서 실제로 빠지는지가 핵심이다 —
+  // trigger 가 서버에 도달하면 이미 발급된 쿠폰의 자격 판정이 뒤집힌다.
+  it("수정 저장 시 PATCH 본문에서 코드와 트리거를 뺀다", async () => {
+    const fetchMock = mockFetch((url) =>
+      url.includes("/policies") ? { ok: true, body: { data: [policy] } } : { ok: true, body: { data: [] } }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<CouponsClient canManagePolicies={true} />);
+    fireEvent.click(await screen.findByRole("button", { name: "수정" }));
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+
+    await waitFor(() => {
+      const patchCall = fetchMock.mock.calls.find(
+        ([, init]) => (init as RequestInit | undefined)?.method === "PATCH"
+      );
+      expect(patchCall).toBeDefined();
+      const body: unknown = JSON.parse(String((patchCall?.[1] as RequestInit).body));
+      expect(body).not.toHaveProperty("code");
+      expect(body).not.toHaveProperty("trigger");
+      expect(body).toHaveProperty("title");
+    });
+  });
+
+  it("정책 추가 모드에서는 코드와 트리거를 입력할 수 있다", async () => {
+    render(<CouponsClient canManagePolicies={true} />);
+    fireEvent.click(await screen.findByRole("button", { name: "정책 추가" }));
+
+    expect(screen.getByRole("combobox", { name: /트리거/ })).not.toBeDisabled();
+  });
+
+  it("지급 예정 쿠폰에만 지급 처리 버튼을 띄운다", async () => {
+    render(<CouponsClient canManagePolicies={true} />);
+    fireEvent.click(screen.getByRole("button", { name: "발급 현황" }));
+
+    expect(await screen.findByRole("button", { name: "지급 완료 처리" })).toBeInTheDocument();
+  });
+
+  it("이미 지급된 쿠폰에는 지급 처리 버튼을 띄우지 않는다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch((url) =>
+        url.includes("/policies")
+          ? { ok: true, body: { data: [] } }
+          : { ok: true, body: { data: [issued({ status: "PAID", paidAt: "2026-08-02T00:00:00.000Z" })] } }
+      )
+    );
+    render(<CouponsClient canManagePolicies={true} />);
+    fireEvent.click(screen.getByRole("button", { name: "발급 현황" }));
+
+    expect(await screen.findByText("지급 완료")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "지급 완료 처리" })).not.toBeInTheDocument();
+  });
+
+  it("API 오류 문구를 배너로 보여준다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch(() => ({ ok: false, body: { error: "권한이 없습니다." } }))
+    );
+    render(<CouponsClient canManagePolicies={true} />);
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("권한이 없습니다."));
+  });
+
+  // staff 는 정책 편집 API 권한이 없다. 탭 버튼을 숨기는 것만으로는 부족하고
+  // PolicyTab 이 진짜로 마운트되지 않아 policies fetch 가 나가지 않아야 한다 —
+  // 그렇지 않으면 mount 직후 401/403 배너가 뜬다.
+  it("canManagePolicies=false 이면 정책 탭 없이 발급 현황만 로드한다", async () => {
+    const fetchMock = mockFetch((url) =>
+      url.includes("/policies")
+        ? { ok: true, body: { data: [policy] } }
+        : { ok: true, body: { data: [issued()] } }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<CouponsClient canManagePolicies={false} />);
+
+    expect(screen.queryByRole("button", { name: "정책" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "지급 완료 처리" })).toBeInTheDocument();
+
+    const policyFetches = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes("/policies")
+    );
+    expect(policyFetches).toHaveLength(0);
+  });
+});
