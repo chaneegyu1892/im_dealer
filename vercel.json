@@ -3,6 +3,7 @@
   "crons": [
     { "path": "/api/cron/purge-pii", "schedule": "0 3 * * *" },
     { "path": "/api/cron/purge-quote-images", "schedule": "0 4 * * *" },
+    { "path": "/api/cron/expire-coupons", "schedule": "30 3 * * *" },
     { "path": "/api/cron/refresh-popularity", "schedule": "0 6 5 * *" },
     { "path": "/api/health", "schedule": "0 0 * * 1,4" }
   ]
