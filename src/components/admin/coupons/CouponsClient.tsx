@@ -503,7 +503,8 @@ function IssuedTab({ onError }: { onError: (message: string | null) => void }) {
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [paying, setPaying] = useState(false);
+  // pay·revoke 두 mutation 이 같은 플래그를 공유한다 — 한 번에 하나의 행만 조작.
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -530,10 +531,10 @@ function IssuedTab({ onError }: { onError: (message: string | null) => void }) {
   }, [load]);
 
   const pay = async (row: IssuedCouponRow) => {
-    if (paying) return;
+    if (busy) return;
     const memo = window.prompt(`${row.user.name}님에게 "${row.titleSnapshot}" 지급 메모`, "");
     if (memo === null) return;
-    setPaying(true);
+    setBusy(true);
     try {
       const response = await fetch(`/api/admin/coupons/issued/${row.id}/pay`, {
         method: "POST",
@@ -548,7 +549,39 @@ function IssuedTab({ onError }: { onError: (message: string | null) => void }) {
     } catch {
       onError("지급 처리에 실패했습니다.");
     } finally {
-      setPaying(false);
+      setBusy(false);
+    }
+  };
+
+  // 보상 회수(지급 취소). 사유는 필수 — 감사 로그가 항상 이유를 설명해야 한다.
+  const revoke = async (row: IssuedCouponRow) => {
+    if (busy) return;
+    const reason = window.prompt(
+      `"${row.titleSnapshot}" 쿠폰을 취소합니다.\n취소 사유를 입력하세요.`,
+      ""
+    );
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (trimmed === "") {
+      onError("취소 사유를 입력해주세요.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/admin/coupons/issued/${row.id}/revoke`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: trimmed }),
+      });
+      if (!response.ok) {
+        onError(await readError(response, "지급 취소 처리에 실패했습니다."));
+        return;
+      }
+      await load();
+    } catch {
+      onError("지급 취소 처리에 실패했습니다.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -616,15 +649,27 @@ function IssuedTab({ onError }: { onError: (message: string | null) => void }) {
                 {STATUS_LABEL[row.status]}
               </span>
               <span className="text-xs text-[#6B7399]">발급 {formatDate(row.issuedAt)}</span>
-              {row.status === "PENDING" && (
-                <button
-                  type="button"
-                  onClick={() => pay(row)}
-                  disabled={paying}
-                  className="ml-auto min-h-9 rounded-lg bg-[#1A1A2E] px-3 text-xs font-semibold text-white disabled:opacity-50"
-                >
-                  지급 완료 처리
-                </button>
+              {(row.status === "PENDING" || row.status === "PAID") && (
+                <span className="ml-auto flex gap-2">
+                  {row.status === "PENDING" && (
+                    <button
+                      type="button"
+                      onClick={() => pay(row)}
+                      disabled={busy}
+                      className="min-h-9 rounded-lg bg-[#1A1A2E] px-3 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      지급 완료 처리
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => revoke(row)}
+                    disabled={busy}
+                    className="min-h-9 rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-600 disabled:opacity-50"
+                  >
+                    지급 취소
+                  </button>
+                </span>
               )}
             </li>
           ))}

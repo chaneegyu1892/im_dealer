@@ -84,7 +84,8 @@ export type AuditAction =
   | "COUPON_POLICY_CREATE"
   | "COUPON_POLICY_UPDATE"
   | "COUPON_POLICY_DELETE"
-  | "COUPON_PAID";
+  | "COUPON_PAID"
+  | "COUPON_REVOKED";
 
 export type AuditActor = Pick<User, "id"> & { email: string | null };
 
