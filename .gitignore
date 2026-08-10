@@ -20,6 +20,7 @@
 
 # local tool caches
 .omo/
+.pi/
 .pnpm-store/
 
 # debug
@@ -120,3 +121,8 @@ tsconfig.tsbuildinfo
 
 # Orphan patch / scratch artifacts (명시적으로 추적되지 않는 한)
 /*.patch
+
+# Agent capture artifacts (루트 스크린샷·캡처·임시 캐시)
+/*.png
+/.playwright-cli/
+/status-cache.json
