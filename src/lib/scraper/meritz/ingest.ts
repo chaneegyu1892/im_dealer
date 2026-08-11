@@ -45,9 +45,9 @@ export interface MeritzIngestResult {
   };
 }
 
-const norm = (s: string) => s.toLowerCase().replace(/[\s()[\]/,.-]/g, "");
+export const norm = (s: string) => s.toLowerCase().replace(/[\s()[\]/,.-]/g, "");
 /** 메리츠 트림명 → 모델 라벨(그룹핑용): 프로모션/세대접두어·괄호 제거 후 배기량/연료 토큰 앞부분. */
-function modelLabel(name: string): string {
+export function modelLabel(name: string): string {
   const s = name
     .replace(/\[[^\]]*\]/g, " ") // [Select 프로모션] 등 대괄호 제거
     .replace(/(디\s*올\s*뉴|올\s*뉴|더\s*뉴|the\s+all\s+new|all\s+new|the\s+new|신형)\s*/gi, "")

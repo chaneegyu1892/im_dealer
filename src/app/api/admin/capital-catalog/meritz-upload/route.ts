@@ -3,8 +3,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { ingestMeritzRent, type OurVehicle, type MeritzIngestResult, type MappedPriceByMdelCd } from "@/lib/scraper/meritz/ingest";
+import { ingestMeritzLease } from "@/lib/scraper/meritz/lease-ingest";
 import { ingestMgRent } from "@/lib/scraper/mg/ingest";
-import { excelCapitalKind } from "@/lib/scraper/excel-capitals";
+import { excelCapitalKind, excelUploadSupported } from "@/lib/scraper/excel-capitals";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -36,7 +37,9 @@ export async function POST(request: NextRequest) {
     // 캐피탈사 종류로 파서/계산기 디스패치
     const fc = await prisma.financeCompany.findUnique({ where: { id: financeCompanyId }, select: { name: true } });
     const kind = fc ? excelCapitalKind(fc.name) : null;
-    if (!kind) return NextResponse.json({ error: "엑셀 업로드를 지원하지 않는 캐피탈사입니다." }, { status: 400 });
+    if (!kind || !fc || !excelUploadSupported(fc.name, productType)) {
+      return NextResponse.json({ error: "이 캐피탈사·상품 유형은 엑셀 업로드를 지원하지 않습니다." }, { status: 400 });
+    }
 
     const buf = Buffer.from(await file.arrayBuffer());
 
@@ -66,7 +69,9 @@ export async function POST(request: NextRequest) {
       result =
         kind === "mg"
           ? ingestMgRent(buf, ourVehicles, mappedPrices)
-          : ingestMeritzRent(buf, ourVehicles, mappedPrices);
+          : productType === "리스"
+            ? ingestMeritzLease(buf, ourVehicles, mappedPrices)
+            : ingestMeritzRent(buf, ourVehicles, mappedPrices);
     } catch (e) {
       return NextResponse.json({ error: `엑셀 파싱 실패: ${(e as Error).message}` }, { status: 400 });
     }

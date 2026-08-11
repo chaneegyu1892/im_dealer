@@ -57,7 +57,7 @@ export default function CatalogUploadPanel({ financeCompanyId, financeCompanyNam
   if (!supported) {
     return (
       <div className="bg-white rounded-2xl border border-[#E8EAF0] shadow-sm p-10 text-center text-sm text-[#9BA4C0]">
-        {financeCompanyName} {productTypeLabel(productType)}은(는) 아직 엑셀 업로드를 지원하지 않습니다. (현재: 메리츠·MG캐피탈 장기렌트)
+        {financeCompanyName} {productTypeLabel(productType)}은(는) 아직 엑셀 업로드를 지원하지 않습니다. (현재: 메리츠 장기렌트·운용리스, MG캐피탈 장기렌트)
       </div>
     );
   }
@@ -67,8 +67,8 @@ export default function CatalogUploadPanel({ financeCompanyId, financeCompanyNam
       <div className="bg-white rounded-2xl border border-[#E8EAF0] shadow-sm p-5">
         <h3 className="text-sm font-bold text-[#3A41C8] mb-1">엑셀 견적기 업로드</h3>
         <p className="text-xs text-[#9BA4C0] mb-4">
-          {financeCompanyName}의 최신 <b>렌터카 견적시트(.xlsm)</b>를 업로드하면 트림별 잔가율을 파싱하고,
-          우리 시스템 차량 가격과 매칭해 월납입금을 산출·저장합니다.
+          {financeCompanyName}의 최신 <b>{productType === "리스" ? "신차리스" : "렌터카"} 견적시트(.xlsm)</b>를 업로드하면 트림별 잔가율을 파싱하고,
+          우리 시스템 차량 가격(확정 매핑 우선)과 매칭해 월납입금을 산출·저장합니다.
         </p>
 
         <div className="flex flex-wrap items-center gap-3">
