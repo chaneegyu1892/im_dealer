@@ -168,33 +168,16 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     });
   });
 
-  it("persists the calculated quote before routing to verification", async () => {
+  it("shows the document-review coming-soon CTA instead of apply-to-verification", async () => {
     writeCalculatedRestore();
-    const fetchMock = createFetchMock();
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("fetch", createFetchMock());
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
-    const apply = await screen.findByRole("button", { name: "심사 요청하기" });
-    fireEvent.click(apply);
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/quote/save",
-        expect.objectContaining({ method: "POST" })
-      );
-    });
-    const saveCall = fetchMock.mock.calls.find(([input]) => input.toString() === "/api/quote/save");
-    expect(String(saveCall?.[1]?.body)).toContain('"scenarioType":"conservative"');
-    expect(String(saveCall?.[1]?.body)).toContain('"customDepositRate":10');
-    expect(String(saveCall?.[1]?.body)).toContain('"quoteType":"DETAIL"');
-    const draftKey = Object.keys(window.localStorage).find((key) => key.startsWith("quote_draft_"));
-    expect(window.localStorage.getItem(draftKey ?? "")).toContain(
-      '"customRates":{"depositRate":10,"prepayRate":0}'
-    );
-    expect(navigationMock.router.push).toHaveBeenCalledWith(
-      expect.stringContaining("/login?next=")
-    );
+    expect(await screen.findByText("서류 심사는 준비 중이에요")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /1688-8479 전화 걸기/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "심사 요청하기" })).not.toBeInTheDocument();
   });
 
   it("keeps the range warning readable on narrow Korean layouts", async () => {
@@ -231,7 +214,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     const deliveryButton = await screen.findByRole("button", {
       name: "카카오톡으로 견적서 받기",
     });
-    expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
+    expect(screen.getByText("서류 심사는 준비 중이에요")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
     fireEvent.click(deliveryButton);
 
@@ -631,18 +614,15 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows an inline error and stays on the quote when persistence fails", async () => {
+  it("does not expose the removed contract-apply path on a calculated quote", async () => {
     writeCalculatedRestore();
     vi.stubGlobal("fetch", createFetchMock(500));
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "심사 요청하기" }));
-
-    const message = await screen.findByText(
-      "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요."
-    );
-    await waitFor(() => expect(message).toBeVisible());
+    await screen.findByText("서류 심사는 준비 중이에요");
+    expect(screen.queryByRole("button", { name: "심사 요청하기" })).not.toBeInTheDocument();
+    expect(screen.queryByText("견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.")).not.toBeInTheDocument();
     expect(navigationMock.router.push).not.toHaveBeenCalled();
   });
 
