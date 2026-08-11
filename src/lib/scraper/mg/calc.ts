@@ -102,8 +102,14 @@ export function residualRate(t: MgTrim, months: number, distKm: number): number 
   return rv;
 }
 
-/** 월 대여료(VAT포함) — 표준조건, 지정 (기간×거리). 잔가율 없으면 null. */
-export function computeMonthlyRent(t: MgTrim, price: number, months: number, distKm: number): number | null {
+/** 월 대여료(VAT포함) — 표준조건, 지정 (기간×거리). 잔가율 없으면 null.
+ *  보증금/선수금(견적서및입력시트 CW29·CW34·CW25 수식 재현):
+ *  BP38/39 = ROUNDUP(P×율, −3)이 PMT 원금(둘 다)·만기가치(보증금만)에서 차감되고,
+ *  선수금은 CW30에서 회차균등액이 되더해진 뒤 최종 대여료(CW25)에서 다시 차감된다. */
+export function computeMonthlyRent(
+  t: MgTrim, price: number, months: number, distKm: number,
+  opts: { depositRate?: number; prepayRate?: number } = {}
+): number | null {
   const rv = residualRate(t, months, distKm);
   if (rv <= 0) return null;
   const rate = t.rate[months];
@@ -112,10 +118,16 @@ export function computeMonthlyRent(t: MgTrim, price: number, months: number, dis
   const PV = computePV(t, price);
   const residualValue = roundDown(price * rv, -1);  // 만기인수(BM88)
   const FV = residualValue / 1.1;                    // 만기인수/1.1
-  // 공급가본체(CW15) = ROUNDUP(ROUNDUP(PMT(이율/12, n, -PV, FV),-1), -2). 선납0/보증0 → 정규화 항등.
-  const cw30 = roundUp(pmt(rate / 12, months, -PV, FV, 0), -1);
+  const deposit = opts.depositRate ? roundUp(price * opts.depositRate, -3) : 0; // BP38
+  const prepay = opts.prepayRate ? roundUp(price * opts.prepayRate, -3) : 0;    // BP39
+  const prepayMonthly = prepay > 0 ? roundDown(prepay / months, -1) : 0;        // |CW34| 선납대여료
+  // 차량분①(CW29) = ROUNDUP(PMT(이율/12, n, −(PV − 보증금 − 선수금), FV − 보증금), -1)
+  const cw29 = roundUp(pmt(rate / 12, months, -(PV - deposit - prepay), FV - deposit, 0), -1);
+  // 차량분②(CW30) = 선수금 회차균등액을 되더한 정규화값 (BM97 RATE 역산 항등). 보증/선납 0이면 CW29와 동일.
+  const cw30 = roundUp(cw29 + prepayMonthly, -1);
   const cw15 = roundUp(cw30, -2);
   // 월공급가(CW22) = ROUNDUP(본체 + 자동차세 + 보험 + 정비 + 150 + 600, -2)
   const cw22 = roundUp(cw15 + carTax(t.disp, t.fuel) + insuranceMonthly(t) + t.maintMonthly + STD.const19 + STD.const20, -2);
-  return cw22 + roundDown(cw22 * 0.1, -1); // 공급가 + 부가세 = 월 대여료
+  // 대여료(CW25) = 공급가 + 부가세 + 선납대여료(음수)
+  return cw22 + roundDown(cw22 * 0.1, -1) - prepayMonthly;
 }

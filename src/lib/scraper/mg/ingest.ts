@@ -61,12 +61,21 @@ export function ingestMgRent(
     }
 
     const baseRates: Record<string, number> = {};
+    let depositRate36_10000: number | undefined;
+    let prepayRate36_10000: number | undefined;
     if (price > 0) {
       for (const c of CELLS) {
         const v = computeMonthlyRent(t, price, c.months, c.distKm);
         if (v && v > 0) baseRates[`${c.months}_${c.distKm}`] = v;
       }
       if (Object.keys(baseRates).length > 0) priced++;
+      // 보증금10%·선납금10% 샘플 — 기준셀(36/1만) 견적이 있을 때만 (보정율 산출에 base 쌍 필요)
+      if (baseRates["36_10000"]) {
+        const dep = computeMonthlyRent(t, price, 36, 10000, { depositRate: 0.1 });
+        if (dep && dep > 0) depositRate36_10000 = dep;
+        const pre = computeMonthlyRent(t, price, 36, 10000, { prepayRate: 0.1 });
+        if (pre && pre > 0) prepayRate36_10000 = pre;
+      }
     }
     const model = modelLabel(t.name);
     entries.push({
@@ -76,7 +85,7 @@ export function ingestMgRent(
       mdelCd, trimName: displayName,
       vehiclePrice: price, baseRates,
       residualRates: Object.keys(residualRates).length > 0 ? residualRates : undefined,
-      warnings,
+      depositRate36_10000, prepayRate36_10000, warnings,
     });
   }
   return {

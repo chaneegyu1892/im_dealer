@@ -35,4 +35,12 @@ describe("meritz rent calculator", () => {
     expect(dep).toBeGreaterThan(0);
     expect(dep).toBeLessThan(base);
   });
+  // 선납: 견적조건 M48(선납금 CC21 원금 차감) + 렌트_입력시트 BR28/BR29(선납렌트료 회차균등 차감) 수식 재현
+  it("선납 10% 월렌트료는 기본 대비 최소 선납렌트료(선납금/기간)만큼 낮다", () => {
+    const base = computeMonthlyRent(SANTA, 35000000, 36, 20000, CONSTS)!;
+    const pre = computeMonthlyRent(SANTA, 35000000, 36, 20000, CONSTS, { prepayRate: 0.1 })!;
+    const prepayMonthly = Math.floor(3500000 / 36 / 10) * 10; // ROUNDDOWN(CC21/n, -1)
+    expect(pre).toBeGreaterThan(0);
+    expect(pre).toBeLessThanOrEqual(base - prepayMonthly);
+  });
 });

@@ -84,9 +84,9 @@ export async function POST(request: NextRequest) {
         // warnings 는 undefined 대신 DbNull 로 비움 — update 시 이전 경고(폴백 등) 잔존하면 apply-catalog 가 계속 차단함
         vehiclePrice: e.vehiclePrice, baseRates: e.baseRates, warnings: e.warnings.length ? e.warnings : Prisma.DbNull,
         residualRates: e.residualRates ?? Prisma.DbNull, // 잔가율 보존(검증·재계산용)
-        // 보증금10% 샘플(메리츠만 산출) — 재업로드 시 이전 값 잔존 방지 위해 null 도 명시 기록
+        // 보증금10%·선납금10% 샘플 — 재업로드 시 이전 값 잔존 방지 위해 null 도 명시 기록
         depositRate36_10000: e.depositRate36_10000 ?? null,
-        prepayRate36_10000: null, // 엑셀 선납 수식 미검증 — 미수집
+        prepayRate36_10000: e.prepayRate36_10000 ?? null,
         weekOf, scrapedAt,
       };
       await db.capitalCatalogTrim.upsert({

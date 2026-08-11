@@ -21,8 +21,10 @@ export interface MeritzCatalogEntry {
   baseRates: Record<string, number>;
   /** 기간×거리별 잔가율(0~1) — 검증·재계산용 보존. 가격 매칭과 무관하게 엑셀에서 파싱된 값. */
   residualRates?: Record<string, number>;
-  /** 36개월/1만km 보증금10% 월납입금 샘플 — 시트 보증금 할인율 산출용. MG 는 엑셀 보증금 수식 미검증으로 미산출. */
+  /** 36개월/1만km 보증금10% 월납입금 샘플 — 시트 보증금 할인율 산출용 (엑셀 원본 수식 추적으로 재현). */
   depositRate36_10000?: number;
+  /** 36개월/1만km 선납금10% 월납입금 샘플 — 시트 선납 보정율 산출용. */
+  prepayRate36_10000?: number;
   warnings: string[];
 }
 
@@ -86,16 +88,19 @@ export function ingestMeritzRent(
 
     const baseRates: Record<string, number> = {};
     let depositRate36_10000: number | undefined;
+    let prepayRate36_10000: number | undefined;
     if (price > 0) {
       for (const c of CELLS) {
         const v = computeMonthlyRent(t, price, c.months, c.distKm, constants);
         if (v && v > 0) baseRates[`${c.months}_${c.distKm}`] = v;
       }
       if (Object.keys(baseRates).length > 0) priced++;
-      // 보증금10% 샘플 — 기준셀(36/1만) 견적이 있을 때만 (할인율 산출에 base·dep 쌍 필요)
+      // 보증금10%·선납금10% 샘플 — 기준셀(36/1만) 견적이 있을 때만 (보정율 산출에 base 쌍 필요)
       if (baseRates["36_10000"]) {
         const dep = computeMonthlyRent(t, price, 36, 10000, constants, { depositRate: 0.1 });
         if (dep && dep > 0) depositRate36_10000 = dep;
+        const pre = computeMonthlyRent(t, price, 36, 10000, constants, { prepayRate: 0.1 });
+        if (pre && pre > 0) prepayRate36_10000 = pre;
       }
     }
     const model = modelLabel(t.name);
@@ -106,7 +111,7 @@ export function ingestMeritzRent(
       mdelCd, trimName: t.name,
       vehiclePrice: price, baseRates,
       residualRates: Object.keys(residualRates).length > 0 ? residualRates : undefined,
-      depositRate36_10000, warnings,
+      depositRate36_10000, prepayRate36_10000, warnings,
     });
   }
   return {
