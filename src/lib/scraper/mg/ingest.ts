@@ -3,7 +3,7 @@ import { parseMgRentWorkbook } from "./parse";
 import { computeMonthlyRent } from "./calc";
 import { matchMeritzTrim, type OurVehicle } from "../meritz/match";
 import { WARN_UNMATCHED, WARN_MODEL_FALLBACK } from "../excel-capitals";
-import type { MeritzCatalogEntry, MeritzIngestResult } from "../meritz/ingest";
+import type { MeritzCatalogEntry, MeritzIngestResult, MappedPriceByMdelCd } from "../meritz/ingest";
 
 const CELLS: { months: number; distKm: number }[] = [
   { months: 36, distKm: 10000 }, { months: 36, distKm: 20000 }, { months: 36, distKm: 30000 },
@@ -29,21 +29,30 @@ function modelLabel(name: string): string {
   return ((m ? m[1] : s).replace(/\s+/g, " ").trim()) || s;
 }
 
-/** 워크북 버퍼 + 우리 차량목록 → 카탈로그 엔트리 (메리츠와 동일 shape). */
-export function ingestMgRent(buf: Buffer | ArrayBuffer, ourVehicles: OurVehicle[]): MeritzIngestResult {
+/** 워크북 버퍼 + 우리 차량목록 → 카탈로그 엔트리 (메리츠와 동일 shape).
+ *  mappedPrices(확정 매핑)가 있으면 해당 트림은 이름 매칭 없이 그 가격을 주입(1순위). */
+export function ingestMgRent(
+  buf: Buffer | ArrayBuffer, ourVehicles: OurVehicle[], mappedPrices?: MappedPriceByMdelCd
+): MeritzIngestResult {
   const { trims } = parseMgRentWorkbook(buf);
   const entries: MeritzCatalogEntry[] = [];
-  let trimConfirmed = 0, modelFallback = 0, unmatched = 0, priced = 0;
+  let mappedConfirmed = 0, trimConfirmed = 0, modelFallback = 0, unmatched = 0, priced = 0;
+  const unmatchedNames: string[] = [], fallbackNames: string[] = [];
 
   for (const t of trims) {
     const brand = makerAlias(t.manufacturer);
     const displayName = t.name.replace(/_/g, " ").trim();
-    const match = matchMeritzTrim({ manufacturer: brand, name: displayName }, ourVehicles);
+    const mdelCd = norm(brand + "_" + displayName);
     const warnings: string[] = [];
     let price = 0;
-    if (!match) { unmatched++; warnings.push(WARN_UNMATCHED); }
-    else if (match.trimMatched) { trimConfirmed++; price = match.price; }
-    else { modelFallback++; price = match.price; warnings.push(WARN_MODEL_FALLBACK); }
+    const mapped = mappedPrices?.get(mdelCd);
+    if (mapped && mapped.price > 0) { mappedConfirmed++; price = mapped.price; }
+    else {
+      const match = matchMeritzTrim({ manufacturer: brand, name: displayName }, ourVehicles);
+      if (!match) { unmatched++; unmatchedNames.push(displayName); warnings.push(WARN_UNMATCHED); }
+      else if (match.trimMatched) { trimConfirmed++; price = match.price; }
+      else { modelFallback++; price = match.price; fallbackNames.push(displayName); warnings.push(WARN_MODEL_FALLBACK); }
+    }
 
     const baseRates: Record<string, number> = {};
     if (price > 0) {
@@ -58,9 +67,12 @@ export function ingestMgRent(buf: Buffer | ArrayBuffer, ourVehicles: OurVehicle[
       brandCd: brand, brandName: brand,
       modelCd: norm(brand + "_" + model), modelName: model,
       dtMdlCd: norm(displayName), dtMdlName: displayName,
-      mdelCd: norm(brand + "_" + displayName), trimName: displayName,
+      mdelCd, trimName: displayName,
       vehiclePrice: price, baseRates, warnings,
     });
   }
-  return { entries, summary: { total: trims.length, trimConfirmed, modelFallback, unmatched, priced } };
+  return {
+    entries,
+    summary: { total: trims.length, mappedConfirmed, trimConfirmed, modelFallback, unmatched, priced, unmatchedNames, fallbackNames },
+  };
 }

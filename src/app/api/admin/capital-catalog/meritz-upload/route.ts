@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
-import { ingestMeritzRent, type OurVehicle, type MeritzIngestResult } from "@/lib/scraper/meritz/ingest";
+import { ingestMeritzRent, type OurVehicle, type MeritzIngestResult, type MappedPriceByMdelCd } from "@/lib/scraper/meritz/ingest";
 import { ingestMgRent } from "@/lib/scraper/mg/ingest";
 import { excelCapitalKind } from "@/lib/scraper/excel-capitals";
 
@@ -48,9 +49,24 @@ export async function POST(request: NextRequest) {
       trims: v.trims.map((t) => ({ id: t.id, name: t.name, price: t.price, lineupName: t.lineup?.name ?? null })),
     }));
 
+    // 확정 매핑(관리자 검수) → 엑셀 트림코드별 우리 트림 가격. 이름 매칭보다 우선 주입.
+    // updatedAt asc 순회 후 덮어쓰기 — 같은 카탈로그 트림에 복수 매핑 시 최신 매핑이 이김.
+    const confirmedMappings = await prisma.capitalTrimMapping.findMany({
+      where: { financeCompanyId, productType },
+      orderBy: { updatedAt: "asc" },
+      select: { catalogTrim: { select: { mdelCd: true } }, trimId: true, trim: { select: { price: true } } },
+    });
+    const mappedPrices: MappedPriceByMdelCd = new Map();
+    for (const m of confirmedMappings) {
+      mappedPrices.set(m.catalogTrim.mdelCd, { trimId: m.trimId, price: m.trim.price });
+    }
+
     let result: MeritzIngestResult;
     try {
-      result = kind === "mg" ? ingestMgRent(buf, ourVehicles) : ingestMeritzRent(buf, ourVehicles);
+      result =
+        kind === "mg"
+          ? ingestMgRent(buf, ourVehicles, mappedPrices)
+          : ingestMeritzRent(buf, ourVehicles, mappedPrices);
     } catch (e) {
       return NextResponse.json({ error: `엑셀 파싱 실패: ${(e as Error).message}` }, { status: 400 });
     }
@@ -65,7 +81,8 @@ export async function POST(request: NextRequest) {
       const data = {
         brandCd: e.brandCd, brandName: e.brandName, modelCd: e.modelCd, modelName: e.modelName,
         dtMdlCd: e.dtMdlCd, dtMdlName: e.dtMdlName ?? null, trimName: e.trimName,
-        vehiclePrice: e.vehiclePrice, baseRates: e.baseRates, warnings: e.warnings.length ? e.warnings : undefined,
+        // warnings 는 undefined 대신 DbNull 로 비움 — update 시 이전 경고(폴백 등) 잔존하면 apply-catalog 가 계속 차단함
+        vehiclePrice: e.vehiclePrice, baseRates: e.baseRates, warnings: e.warnings.length ? e.warnings : Prisma.DbNull,
         // 보증금10% 샘플(메리츠만 산출) — 재업로드 시 이전 값 잔존 방지 위해 null 도 명시 기록
         depositRate36_10000: e.depositRate36_10000 ?? null,
         prepayRate36_10000: null, // 엑셀 선납 수식 미검증 — 미수집
@@ -81,7 +98,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      summary: { ...result.summary, saved, weekOf: weekOf.toISOString() },
+      summary: {
+        ...result.summary,
+        unmatchedNames: result.summary.unmatchedNames.slice(0, 50),
+        fallbackNames: result.summary.fallbackNames.slice(0, 50),
+        saved,
+        weekOf: weekOf.toISOString(),
+      },
     });
   } catch (e) {
     console.error("[meritz-upload POST]", e);

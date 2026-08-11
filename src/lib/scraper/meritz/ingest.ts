@@ -24,9 +24,21 @@ export interface MeritzCatalogEntry {
   warnings: string[];
 }
 
+/** 확정 매핑 기반 가격 주입: 엑셀 트림코드(mdelCd) → 우리 트림 가격. 이름 매칭보다 우선. */
+export type MappedPriceByMdelCd = Map<string, { trimId: string; price: number }>;
+
 export interface MeritzIngestResult {
   entries: MeritzCatalogEntry[];
-  summary: { total: number; trimConfirmed: number; modelFallback: number; unmatched: number; priced: number };
+  summary: {
+    total: number;
+    mappedConfirmed: number; // 확정 매핑으로 가격 주입 (정확값)
+    trimConfirmed: number;   // 이름 매칭으로 트림 확정
+    modelFallback: number;
+    unmatched: number;
+    priced: number;
+    unmatchedNames: string[]; // 수동 매핑 필요 트림명
+    fallbackNames: string[];  // 트림 검토 요망 트림명
+  };
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[\s()[\]/,.-]/g, "");
@@ -41,19 +53,28 @@ function modelLabel(name: string): string {
   return ((m ? m[1] : s).replace(/\s+/g, " ").trim()) || s;
 }
 
-/** 워크북 버퍼 + 우리 차량목록 → 카탈로그 엔트리. weekOf/scrapedAt 은 라우트에서 부여. */
-export function ingestMeritzRent(buf: Buffer | ArrayBuffer, ourVehicles: OurVehicle[]): MeritzIngestResult {
+/** 워크북 버퍼 + 우리 차량목록 → 카탈로그 엔트리. weekOf/scrapedAt 은 라우트에서 부여.
+ *  mappedPrices(확정 매핑)가 있으면 해당 트림은 이름 매칭 없이 그 가격을 주입(1순위). */
+export function ingestMeritzRent(
+  buf: Buffer | ArrayBuffer, ourVehicles: OurVehicle[], mappedPrices?: MappedPriceByMdelCd
+): MeritzIngestResult {
   const { trims, constants } = parseMeritzRentWorkbook(buf);
   const entries: MeritzCatalogEntry[] = [];
-  let trimConfirmed = 0, modelFallback = 0, unmatched = 0, priced = 0;
+  let mappedConfirmed = 0, trimConfirmed = 0, modelFallback = 0, unmatched = 0, priced = 0;
+  const unmatchedNames: string[] = [], fallbackNames: string[] = [];
 
   for (const t of trims) {
-    const match = matchMeritzTrim(t, ourVehicles);
+    const mdelCd = norm(t.manufacturer + "_" + t.name);
     const warnings: string[] = [];
     let price = 0;
-    if (!match) { unmatched++; warnings.push(WARN_UNMATCHED); }
-    else if (match.trimMatched) { trimConfirmed++; price = match.price; }
-    else { modelFallback++; price = match.price; warnings.push(WARN_MODEL_FALLBACK); }
+    const mapped = mappedPrices?.get(mdelCd);
+    if (mapped && mapped.price > 0) { mappedConfirmed++; price = mapped.price; }
+    else {
+      const match = matchMeritzTrim(t, ourVehicles);
+      if (!match) { unmatched++; unmatchedNames.push(t.name); warnings.push(WARN_UNMATCHED); }
+      else if (match.trimMatched) { trimConfirmed++; price = match.price; }
+      else { modelFallback++; price = match.price; fallbackNames.push(t.name); warnings.push(WARN_MODEL_FALLBACK); }
+    }
 
     const baseRates: Record<string, number> = {};
     let depositRate36_10000: number | undefined;
@@ -74,11 +95,14 @@ export function ingestMeritzRent(buf: Buffer | ArrayBuffer, ourVehicles: OurVehi
       brandCd: t.manufacturer, brandName: t.manufacturer,
       modelCd: norm(t.manufacturer + "_" + model), modelName: model,
       dtMdlCd: norm(t.name), dtMdlName: t.name,
-      mdelCd: norm(t.manufacturer + "_" + t.name), trimName: t.name,
+      mdelCd, trimName: t.name,
       vehiclePrice: price, baseRates, depositRate36_10000, warnings,
     });
   }
-  return { entries, summary: { total: trims.length, trimConfirmed, modelFallback, unmatched, priced } };
+  return {
+    entries,
+    summary: { total: trims.length, mappedConfirmed, trimConfirmed, modelFallback, unmatched, priced, unmatchedNames, fallbackNames },
+  };
 }
 
 export type { OurVehicle, MeritzTrim };
