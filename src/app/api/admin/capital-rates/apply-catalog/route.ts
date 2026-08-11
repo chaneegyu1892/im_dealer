@@ -45,11 +45,22 @@ export async function POST(request: NextRequest) {
             modelYear: true,
             mdelCd: true,
             warnings: true,
+            weekOf: true,
+            brandCd: true,
           },
         },
       },
     });
     const byTrim = new Map(mappings.map((mapping) => [mapping.trimId, mapping] as const));
+
+    // 브랜드별 최신 수집주 — 같은 브랜드 재수집에서 빠진(단종·명칭 변경 추정) 잔존 행의 옛 요율 반영 차단용.
+    // 회사 전체 기준이 아닌 브랜드 기준: 스크래핑은 브랜드 단위 부분 수집이라 아직 재수집 안 된 브랜드를 과차단하지 않기 위함.
+    const brandMax = await db.capitalCatalogTrim.groupBy({
+      by: ["brandCd"],
+      where: { financeCompanyId: input.financeCompanyId, productType: input.productType },
+      _max: { weekOf: true },
+    });
+    const latestByBrand = new Map(brandMax.map((b) => [b.brandCd, b._max.weekOf]));
 
     const warnings: string[] = [];
     const targets: { trimId: string; sheetData: CatalogSheetData }[] = [];
@@ -70,6 +81,12 @@ export async function POST(request: NextRequest) {
       const catWarnings = Array.isArray(cat.warnings) ? (cat.warnings as string[]) : [];
       if (catWarnings.includes(WARN_MODEL_FALLBACK)) {
         warnings.push(`${m.externalLabel}: 가격이 트림 미확정 폴백값(모델만 일치) — 트림 매칭 확인 후 재업로드 필요, 건너뜀`);
+        continue;
+      }
+      // 같은 브랜드 최신 수집에 빠진 잔존 행(단종·명칭 변경 추정)의 옛 요율은 반영하지 않음
+      const brandLatest = latestByBrand.get(cat.brandCd);
+      if (brandLatest && cat.weekOf < brandLatest) {
+        warnings.push(`${m.externalLabel}: 지난 수집분(${cat.weekOf.toISOString().slice(0, 10)}) — 같은 브랜드 최신 수집에 없는 행이라 건너뜀, 매핑 재확인 필요`);
         continue;
       }
       const collected = buildCollectedRateData(
