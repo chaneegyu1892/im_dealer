@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { ingestMeritzRent, type OurVehicle, type MeritzIngestResult, type MappedPriceByMdelCd } from "@/lib/scraper/meritz/ingest";
 import { ingestMeritzLease } from "@/lib/scraper/meritz/lease-ingest";
+import { ingestMeritzImportRent } from "@/lib/scraper/meritz/import-rent-ingest";
+import { detectMeritzRentVariant } from "@/lib/scraper/meritz/import-rent-parse";
 import { ingestMgRent } from "@/lib/scraper/mg/ingest";
 import { excelCapitalKind, excelUploadSupported } from "@/lib/scraper/excel-capitals";
 
@@ -66,12 +68,16 @@ export async function POST(request: NextRequest) {
 
     let result: MeritzIngestResult;
     try {
-      result =
-        kind === "mg"
-          ? ingestMgRent(buf, ourVehicles, mappedPrices)
-          : productType === "리스"
-            ? ingestMeritzLease(buf, ourVehicles, mappedPrices)
+      if (kind === "mg") result = ingestMgRent(buf, ourVehicles, mappedPrices);
+      else if (productType === "리스") result = ingestMeritzLease(buf, ourVehicles, mappedPrices);
+      else {
+        // 메리츠 장기렌트: 국산(렌트_입력시트)/수입차(렌트_입력) 파일을 시트 구성으로 자동 판별
+        const variant = detectMeritzRentVariant(buf);
+        result =
+          variant === "import"
+            ? ingestMeritzImportRent(buf, ourVehicles, mappedPrices)
             : ingestMeritzRent(buf, ourVehicles, mappedPrices);
+      }
     } catch (e) {
       return NextResponse.json({ error: `엑셀 파싱 실패: ${(e as Error).message}` }, { status: 400 });
     }

@@ -39,6 +39,10 @@ const BRAND_ALIASES: Record<string, string[]> = {
   KG: ["KG", "케이지", "쌍용", "KGM"],
   르노: ["르노"],
   쉐보레: ["쉐보레", "GM", "지엠"],
+  // 수입차 렌트 블록(영문/한글 이형)
+  TESLA: ["테슬라", "TESLA", "Tesla"],
+  폴스타: ["폴스타", "Polestar", "polestar"],
+  BYD: ["BYD", "비야디"],
 };
 
 const brandMatches = (meritzMaker: string, ourBrand: string): boolean => {
