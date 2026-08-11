@@ -11,15 +11,30 @@ describe("HeroSectionV2", () => {
     const aiRecommendationLink = screen.getByRole("link", {
       name: "AI 추천 받기",
     });
-    const browseCarsLink = screen.getByRole("link", {
-      name: "차량 둘러보기",
+    const quoteCarsLink = screen.getByRole("link", {
+      name: "내 차량 견적내기",
     });
 
     // Then
     expect(
-      aiRecommendationLink.compareDocumentPosition(browseCarsLink),
+      aiRecommendationLink.compareDocumentPosition(quoteCarsLink),
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(aiRecommendationLink).toHaveClass("bg-brand", "text-white");
-    expect(browseCarsLink).not.toHaveClass("bg-brand", "text-white");
+    expect(quoteCarsLink).not.toHaveClass("bg-brand", "text-white");
+  });
+
+  it("renders 견적 CTA with /cars destination and brand ring", () => {
+    // Given
+    render(<HeroSectionV2 />);
+
+    // When
+    const quoteCarsLink = screen.getByRole("link", {
+      name: "내 차량 견적내기",
+    });
+
+    // Then
+    expect(quoteCarsLink).toHaveAttribute("href", "/cars");
+    expect(quoteCarsLink).toHaveClass("bg-surface-soft");
+    expect(quoteCarsLink).toHaveClass("ring-brand/30");
   });
 });

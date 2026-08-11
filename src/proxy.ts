@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { apiRateLimit, strictRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_ROLES } from "@/lib/admin-roles";
+import { REFERRAL_CODE_REGEX } from "@/lib/referral/code";
 import {
   getVehicleImageE2EAdmin,
   VEHICLE_IMAGE_E2E_ADMIN_COOKIE,
@@ -31,11 +32,40 @@ function isLocalHostname(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }
 
+const REFERRAL_COOKIE_NAME = "imdealer_ref";
+const REFERRAL_COOKIE_MAX_AGE = 30 * 86400;
+
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isAdminPage = pathname.startsWith("/admin");
   const isAdminApi = pathname.startsWith("/api/admin");
+
+  // ── 추천인 ?ref= 폴백 캡처 ─────────────────────────────────────
+  // /r/[code] 를 거치지 않은 링크(예: ?ref=A1234 쿼리)도 동일 httpOnly 쿠키를 심고
+  // ref 쿼리를 제거한 뒤 리다이렉트한다. API/어드민/정적 자산은 건드리지 않는다.
+  if (
+    request.method === "GET" &&
+    !isAdminPage &&
+    !isAdminApi &&
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/_next")
+  ) {
+    const ref = request.nextUrl.searchParams.get("ref");
+    if (ref && REFERRAL_CODE_REGEX.test(ref)) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.searchParams.delete("ref");
+      const refResponse = NextResponse.redirect(redirectUrl);
+      refResponse.cookies.set(REFERRAL_COOKIE_NAME, ref, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: REFERRAL_COOKIE_MAX_AGE,
+      });
+      return refResponse;
+    }
+  }
 
   // ── API 라우트 Rate Limit 보호 ────────────────────────────────────
   // strict: 실제로 리소스 무거운 / 어뷰징 위험 큰 경로만 (AI 추천, 이미지 생성, 파일 업로드)

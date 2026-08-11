@@ -1,5 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Phone } from "lucide-react";
+import { SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_TEL_HREF } from "@/lib/contact";
 
 const PRIMARY_LINKS = [
   { href: "/recommend", label: "AI 추천" },
@@ -58,6 +60,13 @@ export function Footer() {
               >
                 contact@metakium.co.kr
               </a>
+              <a
+                href={SUPPORT_PHONE_TEL_HREF}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-pill bg-surface-soft px-3 text-[12px] font-bold text-text-body transition-colors duration-state hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 lg:min-h-9 lg:text-[12.5px]"
+              >
+                <Phone aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                {SUPPORT_PHONE_DISPLAY}
+              </a>
               <span className="inline-flex min-h-10 items-center rounded-pill bg-surface-soft px-3 text-[12px] font-bold text-text-muted lg:min-h-9 lg:text-[12.5px]">
                 평일 08:30-17:30
               </span>
@@ -93,6 +102,16 @@ export function Footer() {
               {BUSINESS_LINES.map((line) => (
                 <p key={line}>{line}</p>
               ))}
+              <p>
+                대표전화:{" "}
+                <Link
+                  href={SUPPORT_PHONE_TEL_HREF}
+                  className="inline-flex items-center gap-1 font-bold text-text-body transition-colors duration-state hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
+                >
+                  <Phone aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                  {SUPPORT_PHONE_DISPLAY}
+                </Link>
+              </p>
             </div>
           </div>
         </div>

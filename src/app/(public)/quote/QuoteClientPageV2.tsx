@@ -716,42 +716,64 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     contractCategory,
   ]);
 
+  // ─── 견적 초안 저장 공통 로직 (로컬 초안 + 서버 저장). 실패 시 false. ────
+  const saveQuoteSnapshot = useCallback(async () => {
+    if (!quoteResult) return false;
+    const quoteDraft: QuoteDraft = {
+      schemaVersion: 1,
+      sessionId: quoteSessionId,
+      vehicleSlug: quoteResult.vehicleSlug,
+      trimId: quoteResult.trimId,
+      selectedOptionIds: Array.from(selectedOptionIds),
+      contractMonths: quoteResult.contractMonths,
+      annualMileage: quoteResult.annualMileage,
+      contractType: "반납형",
+      productType: contractCategory,
+      customerType,
+      scenarios: quoteResult.scenarios,
+      optionsTotalPrice: quoteResult.optionsTotalPrice,
+      totalVehiclePrice: quoteResult.totalVehiclePrice,
+      customRates,
+      exteriorColorId,
+      interiorColorId,
+      source: draftSource,
+    };
+    localStorage.setItem(
+      `${QUOTE_DRAFT_STORAGE_PREFIX}${quoteSessionId}`,
+      JSON.stringify(quoteDraft)
+    );
+
+    setError(null);
+    try {
+      await saveCurrentQuote();
+      return true;
+    } catch {
+      setError("견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      return false;
+    }
+  }, [
+    quoteSessionId, quoteResult, customerType, selectedOptionIds, contractCategory,
+    customRates, exteriorColorId, interiorColorId, draftSource, saveCurrentQuote,
+  ]);
+
+  // ─── 심사 요청: 견적을 저장해 전화·상담 후속에 대비하되, 준비중 섹션을 보여주기 위해 이동하지 않는다. ────
+  const handleSaveQuoteForConsult = useCallback(async () => {
+    if (!quoteResult || isApplying) return;
+    setIsApplying(true);
+    try {
+      await saveQuoteSnapshot();
+    } finally {
+      setIsApplying(false);
+    }
+  }, [quoteResult, isApplying, saveQuoteSnapshot]);
+
   // ─── 견적 초안 저장 + /verify 이동 (v1 계약 그대로) ────
   const handleContractApply = useCallback(async () => {
     if (!quoteResult || isApplying) return;
     setIsApplying(true);
     try {
-      const quoteDraft: QuoteDraft = {
-        schemaVersion: 1,
-        sessionId: quoteSessionId,
-        vehicleSlug: quoteResult.vehicleSlug,
-        trimId: quoteResult.trimId,
-        selectedOptionIds: Array.from(selectedOptionIds),
-        contractMonths: quoteResult.contractMonths,
-        annualMileage: quoteResult.annualMileage,
-        contractType: "반납형",
-        productType: contractCategory,
-        customerType,
-        scenarios: quoteResult.scenarios,
-        optionsTotalPrice: quoteResult.optionsTotalPrice,
-        totalVehiclePrice: quoteResult.totalVehiclePrice,
-        customRates,
-        exteriorColorId,
-        interiorColorId,
-        source: draftSource,
-      };
-      localStorage.setItem(
-        `${QUOTE_DRAFT_STORAGE_PREFIX}${quoteSessionId}`,
-        JSON.stringify(quoteDraft)
-      );
-
-      setError(null);
-      try {
-        await saveCurrentQuote();
-      } catch {
-        setError("견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
-        return;
-      }
+      const saved = await saveQuoteSnapshot();
+      if (!saved) return;
 
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -765,9 +787,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       setIsApplying(false);
     }
   }, [
-    router, quoteSessionId, selectedVehicle?.slug, quoteResult, customerType,
-    selectedOptionIds, contractCategory, customRates, exteriorColorId, interiorColorId, draftSource,
-    isApplying, saveCurrentQuote,
+    router, quoteSessionId, selectedVehicle?.slug, quoteResult, customerType, isApplying,
+    saveQuoteSnapshot,
   ]);
 
   // ─── 카카오톡으로 견적서 전송 ─────────────────────────────
@@ -1320,6 +1341,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               onReset={restoreBaseStandardScenario}
               onMemberLogin={handleGateLogin}
               onContractApply={handleContractApply}
+              onSaveQuoteForConsult={handleSaveQuoteForConsult}
               onConsultationRequest={handleConsultationRequest}
               onPrev={() => {
                 setQuoteResult(null);
@@ -1482,6 +1504,7 @@ function Step3ResultHeader({
   onReset,
   onMemberLogin,
   onContractApply,
+  onSaveQuoteForConsult,
   onConsultationRequest,
   onPrev,
 }: {
@@ -1518,6 +1541,7 @@ function Step3ResultHeader({
   onReset: () => void;
   onMemberLogin: () => void;
   onContractApply: () => void;
+  onSaveQuoteForConsult: () => void;
   onConsultationRequest: () => void;
   onPrev: () => void;
 }) {
@@ -1812,6 +1836,7 @@ function Step3ResultHeader({
 
           <QuoteResultActions
             onContractApply={onContractApply}
+            onSaveQuoteForConsult={onSaveQuoteForConsult}
             isApplying={isApplying}
             applyError={applyError}
             kakaoDeliveryEnabled={kakaoDeliveryEnabled}

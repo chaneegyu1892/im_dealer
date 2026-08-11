@@ -138,6 +138,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
             specs: defaultTrim.specs as Record<string, string> | null,
           }
         : null,
+      publicTrims: v.trims.map((trim) => ({ engineType: trim.engineType })),
       monthlyFrom,
       representativeQuotes,
       highlights: v.recConfigs?.highlights ?? [],

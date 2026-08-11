@@ -1,5 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
-import { CarFront } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CarFront, X } from "lucide-react";
 import { StatusPill } from "@/components/mypage/ActiveQuoteSection";
 import { QuoteConditionDialog } from "@/components/mypage/QuoteConditionDialog";
 import { MyPageConsultationButton } from "@/components/mypage/MyPageConsultationButton";
@@ -9,7 +13,32 @@ import type { MyPageQuote } from "@/lib/member-queries/mypage";
 import { getExpiryLabel, getQuoteHref, moneyFormatter } from "@/lib/member-queries/mypage-format";
 
 export function QuoteCard({ quote }: { quote: MyPageQuote }) {
+  const router = useRouter();
+  const [isDeleted, setIsDeleted] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const quoteHref = getQuoteHref(quote);
+
+  async function deleteQuote() {
+    if (!window.confirm("이 견적을 삭제할까요?")) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/quote/${quote.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        window.alert("견적을 삭제하지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
+      setIsDeleted(true);
+      router.refresh();
+    } catch (error) {
+      console.error("[QuoteCard] quote deletion failed", error);
+      window.alert("견적을 삭제하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  if (isDeleted) return null;
 
   return (
     <article className="overflow-hidden rounded-card border border-border-subtle bg-surface shadow-card transition-shadow duration-state hover:shadow-card-hover">
@@ -31,7 +60,18 @@ export function QuoteCard({ quote }: { quote: MyPageQuote }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="truncate text-[12px] font-bold text-text-muted">{quote.vehicleBrand ?? "아임딜러 견적"}</p>
-            <StatusPill quote={quote} />
+            <div className="flex items-center gap-1">
+              <StatusPill quote={quote} />
+              <button
+                type="button"
+                onClick={deleteQuote}
+                disabled={isDeleting}
+                aria-label="견적 삭제"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-soft hover:text-status-danger disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
+              >
+                <X size={16} strokeWidth={2.2} aria-hidden="true" />
+              </button>
+            </div>
           </div>
           <h3 className="mt-0.5 line-clamp-1 text-[18px] font-extrabold text-text-strong">{quote.vehicleName}</h3>
           <p className="mt-0.5 line-clamp-1 text-[12px] font-semibold text-text-body">{quote.trimName}</p>

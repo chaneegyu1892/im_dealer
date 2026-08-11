@@ -126,3 +126,4 @@ tsconfig.tsbuildinfo
 /*.png
 /.playwright-cli/
 /status-cache.json
+.senpi/

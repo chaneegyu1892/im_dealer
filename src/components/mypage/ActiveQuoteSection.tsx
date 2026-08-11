@@ -1,4 +1,8 @@
-import { Clock3, Send } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Clock3, Send, X } from "lucide-react";
 import { QuoteConditionDialog } from "@/components/mypage/QuoteConditionDialog";
 import { MyPageConsultationButton } from "@/components/mypage/MyPageConsultationButton";
 import { productTypeLabel } from "@/constants/product-type";
@@ -14,8 +18,33 @@ import {
 } from "@/lib/member-queries/mypage-format";
 
 export function ActiveQuoteSection({ quote }: { quote: MyPageQuote }) {
+  const router = useRouter();
+  const [isDeleted, setIsDeleted] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const quoteHref = getQuoteHref(quote);
   const deliveryLabel = getDeliveryLabel(quote);
+
+  async function deleteQuote() {
+    if (!window.confirm("이 견적을 삭제할까요?")) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/quote/${quote.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        window.alert("견적을 삭제하지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
+      setIsDeleted(true);
+      router.refresh();
+    } catch (error) {
+      console.error("[ActiveQuoteSection] quote deletion failed", error);
+      window.alert("견적을 삭제하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  if (isDeleted) return null;
 
   return (
     <section
@@ -30,7 +59,18 @@ export function ActiveQuoteSection({ quote }: { quote: MyPageQuote }) {
               {quote.vehicleBrand ? `${quote.vehicleBrand} ` : ""}{quote.vehicleName}
             </h2>
           </div>
-          <StatusPill quote={quote} inverse />
+          <div className="flex items-center gap-1.5">
+            <StatusPill quote={quote} inverse />
+            <button
+              type="button"
+              onClick={deleteQuote}
+              disabled={isDeleting}
+              aria-label="견적 삭제"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/15 hover:text-white disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/35"
+            >
+              <X size={17} strokeWidth={2.2} aria-hidden="true" />
+            </button>
+          </div>
         </div>
         <p className="mt-2 text-[14px] font-medium text-white/80">{quote.trimName} · {productTypeLabel(quote.productType)} · {quote.contractMonths}개월</p>
       </div>

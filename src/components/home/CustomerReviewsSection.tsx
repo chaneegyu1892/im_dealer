@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useReducedMotion } from "framer-motion";
 import { ArrowRight, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { HomeReviewCard } from "@/components/home/HomeReviewCard";
 import { HomeReviewModal } from "@/components/home/HomeReviewModal";
@@ -9,7 +10,12 @@ import type { PublicReview } from "@/types/review";
 
 const CARD_WIDTH = 320;
 const CARD_GAP = 20;
-const STEP = CARD_WIDTH + CARD_GAP;
+/** 연속 슬라이드 속도(px/초). 시간 흐름에 따라 부드럽게 흐른다. */
+const DRIFT_SPEED_PX_PER_SEC = 45;
+/** 수동 버튼 1회 이동 트윈 시간(ms). */
+const SEEK_DURATION_MS = 380;
+/** 단일 rAF 프레임당 최대 dt(ms). 탭 비활성 후 복귀 시 한 번에 크게 밀리지 않게 캡. */
+const MAX_FRAME_MS = 64;
 
 interface CustomerReviewsSectionProps {
   reviews: PublicReview[];
@@ -28,44 +34,108 @@ export function CustomerReviewsSection({
 }: CustomerReviewsSectionProps) {
   const items = reviews.slice(0, 10);
   const trackRef = useRef<HTMLDivElement>(null);
-  const positionRef = useRef(0);
+  // 현재 translateX(px). rAF 매 프레임 갱신.
+  const offsetRef = useRef(0);
+  const rafIdRef = useRef<number | null>(null);
+  const lastTsRef = useRef<number | null>(null);
+  // 수동 버튼 트윈 상태. null 이 아니면 드리프트 대신 이 트윈을 따라간다.
+  const seekRef = useRef<{ from: number; to: number; elapsed: number } | null>(null);
+  const reducedMotion = useReducedMotion();
   const [openReview, setOpenReview] = useState<PublicReview | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocusWithin, setIsFocusWithin] = useState(false);
+  const paused = isHovered || isFocusWithin || !!openReview;
 
+  /** 카드 한 칸 폭(px). DOM 측정이 불가능하면 상수 폭으로 대체. */
+  const getStep = useCallback(() => {
+    const track = trackRef.current;
+    const first = track?.children[0] as HTMLElement | undefined;
+    const second = track?.children[1] as HTMLElement | undefined;
+    const measured = first && second ? second.offsetLeft - first.offsetLeft : 0;
+    return measured > 0 ? measured : (first?.offsetWidth || CARD_WIDTH) + CARD_GAP;
+  }, []);
+
+  /** 한 세트 폭 = items 한 묶음. 카드가 두 번 복제돼 있어 이 폭만큼 빼면 이어진다. */
+  const getSetWidth = useCallback(() => items.length * getStep(), [items.length, getStep]);
+
+  /** 무한 루프: offset 을 [-setWidth, 0] 범위로 정규화. */
+  const wrapOffset = useCallback((offset: number) => {
+    const setW = getSetWidth();
+    if (setW <= 0) return offset;
+    let next = offset;
+    while (next <= -setW) next += setW;
+    while (next > 0) next -= setW;
+    return next;
+  }, [getSetWidth]);
+
+  const applyTransform = useCallback(() => {
+    if (trackRef.current) {
+      trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
+    }
+  }, []);
+
+  // 연속 드리프트 + 수동 시크 트윈을 rAF 하나로 처리. paused 면 드리프트는 멈추되
+  // 진행 중인 시크는 끝까지 완료한다(reducedMotion 이면 아예 시작하지 않는다).
   useEffect(() => {
-    const el = trackRef.current;
-    if (!el || items.length === 0) return;
-    el.style.transition = "transform 260ms cubic-bezier(0.16, 1, 0.3, 1)";
+    if (items.length < 2 || reducedMotion) return;
+    lastTsRef.current = null;
 
-    const resetPosition = () => {
-      positionRef.current = 0;
-      el.style.transform = "translate3d(0, 0, 0)";
+    const tick = (ts: number) => {
+      if (lastTsRef.current == null) lastTsRef.current = ts;
+      const dt = Math.min(MAX_FRAME_MS, ts - lastTsRef.current) / 1000;
+      lastTsRef.current = ts;
+
+      if (seekRef.current) {
+        // easeOutCubic 트윈으로 한 칸 부드럽게 이동.
+        seekRef.current.elapsed += dt * 1000;
+        const p = Math.min(1, seekRef.current.elapsed / SEEK_DURATION_MS);
+        const eased = 1 - Math.pow(1 - p, 3);
+        offsetRef.current =
+          seekRef.current.from + (seekRef.current.to - seekRef.current.from) * eased;
+        if (p >= 1) seekRef.current = null;
+      } else if (!paused) {
+        // 시간 흐름에 따른 연속 드리프트.
+        offsetRef.current = wrapOffset(offsetRef.current - DRIFT_SPEED_PX_PER_SEC * dt);
+      }
+
+      applyTransform();
+      rafIdRef.current = requestAnimationFrame(tick);
     };
 
+    rafIdRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    };
+  }, [items.length, reducedMotion, paused, wrapOffset, applyTransform]);
+
+  // 뷰포트 폭이 바뉴면 카드 폭이 달라지므로 첫 카드로 재정렬.
+  useEffect(() => {
+    const resetPosition = () => {
+      offsetRef.current = 0;
+      seekRef.current = null;
+      applyTransform();
+    };
     window.addEventListener("resize", resetPosition);
     return () => window.removeEventListener("resize", resetPosition);
-  }, [items.length]);
+  }, [applyTransform]);
+
+  /** 수동 버튼: 한 칸 부드럽게 이동. reducedMotion 이면 즉시 이동. */
+  const seekBy = useCallback(
+    (deltaCards: number) => {
+      const step = getStep() * deltaCards;
+      if (reducedMotion) {
+        offsetRef.current = wrapOffset(offsetRef.current + step);
+        applyTransform();
+        return;
+      }
+      const from = seekRef.current ? seekRef.current.to : offsetRef.current;
+      seekRef.current = { from, to: wrapOffset(from + step), elapsed: 0 };
+    },
+    [getStep, wrapOffset, applyTransform, reducedMotion],
+  );
 
   if (items.length === 0) return null;
-
-  const nudge = (delta: number) => {
-    const track = trackRef.current;
-    const firstCard = track?.children[0] as HTMLElement | undefined;
-    const secondCard = track?.children[1] as HTMLElement | undefined;
-    const measuredStep =
-      firstCard && secondCard ? secondCard.offsetLeft - firstCard.offsetLeft : 0;
-    const fallbackStep = (firstCard?.offsetWidth || CARD_WIDTH) + CARD_GAP;
-    const renderedStep = measuredStep > 0 ? measuredStep : fallbackStep;
-    const direction = Math.sign(delta) || 1;
-    const step = renderedStep * direction;
-    const setWidth = items.length * renderedStep;
-    let next = positionRef.current + step;
-    while (next <= -setWidth) next += setWidth;
-    while (next > 0) next -= setWidth;
-    positionRef.current = next;
-    if (trackRef.current) {
-      trackRef.current.style.transform = `translate3d(${next}px, 0, 0)`;
-    }
-  };
 
   return (
     <section className="mx-auto w-full max-w-[1120px] px-4 py-14 sm:px-5">
@@ -86,11 +156,21 @@ export function CustomerReviewsSection({
         </Link>
       </div>
 
-      <div className="group/reviews relative -mx-4 overflow-hidden px-4 py-4 max-[340px]:pb-[72px] sm:-mx-5 sm:px-5">
+      <div
+        className="group/reviews relative -mx-4 overflow-hidden px-4 py-4 max-[340px]:pb-[72px] sm:-mx-5 sm:px-5"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onFocus={() => setIsFocusWithin(true)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setIsFocusWithin(false);
+          }
+        }}
+      >
         <div
           ref={trackRef}
           className="flex w-max will-change-transform"
-          style={{ gap: `${CARD_GAP}px`, transform: "translate3d(0, 0, 0)" }}
+          style={{ gap: `${CARD_GAP}px`, transform: "translate3d(0px, 0, 0)" }}
         >
           {[...items, ...items].map((review, i) => (
             <HomeReviewCard
@@ -106,7 +186,7 @@ export function CustomerReviewsSection({
         <button
           type="button"
           aria-label="이전 후기"
-          onClick={() => nudge(STEP)}
+          onClick={() => seekBy(1)}
           className="absolute left-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-surface/80 text-text-strong opacity-100 shadow-card backdrop-blur-sm transition-all duration-state hover:scale-105 hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 max-[340px]:bottom-3 max-[340px]:top-auto max-[340px]:translate-y-0 sm:opacity-0 sm:group-hover/reviews:opacity-100"
         >
           <ChevronLeft size={18} />
@@ -114,7 +194,7 @@ export function CustomerReviewsSection({
         <button
           type="button"
           aria-label="다음 후기"
-          onClick={() => nudge(-STEP)}
+          onClick={() => seekBy(-1)}
           className="absolute right-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border-subtle bg-surface/80 text-text-strong opacity-100 shadow-card backdrop-blur-sm transition-all duration-state hover:scale-105 hover:bg-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 max-[340px]:bottom-3 max-[340px]:top-auto max-[340px]:translate-y-0 sm:opacity-0 sm:group-hover/reviews:opacity-100"
         >
           <ChevronRight size={18} />

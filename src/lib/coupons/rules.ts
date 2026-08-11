@@ -1,4 +1,8 @@
-export type CouponTriggerValue = "SIGNUP" | "FIRST_CONTRACT";
+export type CouponTriggerValue =
+  | "SIGNUP"
+  | "FIRST_CONTRACT"
+  | "REFERRAL_RECEIVED"
+  | "REFERRAL_GIVEN";
 export type CouponStatusValue = "HELD" | "PENDING" | "PAID" | "EXPIRED" | "REVOKED";
 
 export interface PolicyView {
@@ -63,12 +67,20 @@ function isPolicyOpen(policy: PolicyView, now: Date): boolean {
   return true;
 }
 
-/** 카드가 쿠폰함에 생기는 조건. */
+/**
+ * 카드가 쿠폰함에 생기는 조건.
+ *
+ * 추천인 보상(REFERRAL_*)은 회원 상태가 아니라 "추천 성립"이라는 사건에서 나온다.
+ * 여기서 자동 발급하면 계약이 있는 모든 회원에게 추천 쿠폰이 딸려나가므로 제외한다.
+ * 실제 발급은 추천 귀속 트랜잭션이 `IssuedCoupon.referralId` 와 함께 직접 만든다.
+ */
 function meetsIssueCondition(
   trigger: CouponTriggerValue,
   input: CouponReconcileInput
 ): boolean {
-  return trigger === "SIGNUP" ? input.profileCompleted : input.convertedQuoteId !== null;
+  if (trigger === "SIGNUP") return input.profileCompleted;
+  if (trigger === "FIRST_CONTRACT") return input.convertedQuoteId !== null;
+  return false;
 }
 
 /**

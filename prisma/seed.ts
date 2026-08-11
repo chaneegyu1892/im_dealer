@@ -10,6 +10,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { REFERRAL_COUPON_POLICIES, seedReferralCouponPolicies } from "./seed-referral-policies";
 
 const prisma = new PrismaClient();
 
@@ -1330,6 +1331,11 @@ async function main() {
   } else {
     console.log(`👤 어드민 계정 이미 존재: ${adminEmail}`);
   }
+
+  // 추천인 보상 쿠폰 정책. 금액·문구는 어드민에서 수정한다.
+  console.log("🎁 추천인 쿠폰 정책 생성...");
+  await seedReferralCouponPolicies(prisma);
+  console.log(`   ✅ 추천인·피추천인 정책 ${REFERRAL_COUPON_POLICIES.length}건\n`);
 
   console.log("🏷️  옵션 추천 배지 기본값 생성...");
   for (const [i, label] of ["추천", "인기", "베스트"].entries()) {

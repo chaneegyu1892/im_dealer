@@ -35,8 +35,13 @@ export async function reconcileUserCoupons(
         endsAt: true,
       },
     }),
+    // 추천인 보상 쿠폰(referralId != null)은 이 동기화의 관할이 아니다.
+    // 여기 계획은 "이 회원의 계약"만 보고 세워지는데, 추천인이 받은 REFERRAL_GIVEN 은
+    // 피추천인의 계약에 걸린 보상이다. 함께 읽으면 추천인 본인 계약 여부에 따라
+    // qualify/unqualify 로 잘못 승격·강등되고, 만료 스윕까지 끌려간다.
+    // 추천 쿠폰은 귀속 트랜잭션이 HELD 로 만들고 어드민이 지급을 결정한다.
     db.issuedCoupon.findMany({
-      where: { userId: target.id },
+      where: { userId: target.id, referralId: null },
       select: { id: true, policyId: true, status: true, expiresAt: true },
     }),
     db.savedQuote.findFirst({

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { CarFront, ClipboardCheck, Home, Info, MessageCircle, UserRound } from "lucide-react";
 import { isChannelTalkSuppressedPath, openChannelTalk } from "@/lib/channel-talk";
 import { cn } from "@/lib/utils";
@@ -26,8 +26,6 @@ export function Header() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [dbRole, setDbRole] = useState<string | null>(null);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -78,44 +76,15 @@ export function Header() {
 
   const isAdminUser = !!dbRole && (ADMIN_ROLES as readonly string[]).includes(dbRole as AdminRole);
 
-  // 드롭다운 외부 클릭 시 닫기
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    setUser(null);
-    setDbRole(null);
-    setDropdownOpen(false);
-    router.refresh();
-  }
-
   function isActive(href: string, exact: boolean) {
     if (exact) return pathname === href;
     return pathname === href || pathname.startsWith(href + "/");
   }
 
-  const displayName =
-    user?.user_metadata?.name ??
-    user?.user_metadata?.full_name ??
-    user?.email?.split("@")[0] ??
-    "고객";
-
-  const avatarUrl =
-    user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? null;
-
   return (
     <header className={cn(
       "sticky top-0 border-b border-border-subtle bg-surface-glass backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150",
-      dropdownOpen ? "z-[70]" : "z-50",
+      "z-50",
       isHome && "home-showroom-scope"
     )}>
       <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-5 lg:px-8">
@@ -178,69 +147,23 @@ export function Header() {
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
             <HeaderCallButton />
             {user ? (
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setDropdownOpen((open) => !open)}
-                  className="flex min-h-11 items-center gap-1.5 rounded-pill border border-transparent px-2 py-1 text-text-strong transition-colors hover:border-border-subtle hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface md:gap-2 md:px-3"
-                  aria-expanded={dropdownOpen}
-                  aria-haspopup="menu"
-                  aria-label={`${displayName} 계정 메뉴`}
-                >
-                  {avatarUrl ? (
-                    <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full md:h-7 md:w-7">
-                      <Image
-                        src={avatarUrl}
-                        alt={displayName}
-                        width={28}
-                        height={28}
-                        unoptimized
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-brand text-[12px] font-bold text-white">
-                      {displayName[0] ?? <UserRound size={15} strokeWidth={2.2} />}
-                    </div>
-                  )}
-                  <span className="hidden max-w-[8rem] truncate text-[13px] font-bold text-text-strong sm:block">
-                    {displayName}
-                  </span>
-                </button>
-
-                {dropdownOpen && (
-                  <div
-                    className="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-card border border-border-subtle bg-surface-raised py-1 shadow-mobile-float"
-                    role="menu"
+              <div className="flex items-center gap-1 sm:gap-2">
+                {isAdminUser && (
+                  <Link
+                    href="/admin"
+                    className="hidden rounded-pill border border-brand/20 px-3 text-[12px] font-bold text-brand transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface md:inline-flex md:min-h-11 md:items-center md:text-[13px]"
                   >
-                    <Link
-                      href="/mypage"
-                      onClick={() => setDropdownOpen(false)}
-                      className="block min-h-11 w-full px-4 py-3 text-left text-[13px] font-bold text-text-strong transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
-                      role="menuitem"
-                    >
-                      마이페이지
-                    </Link>
-                    {isAdminUser && (
-                      <Link
-                        href="/admin"
-                        onClick={() => setDropdownOpen(false)}
-                        className="block min-h-11 w-full px-4 py-3 text-left text-[13px] font-bold text-brand transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
-                        role="menuitem"
-                      >
-                        관리자 콘솔
-                      </Link>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="min-h-11 w-full px-4 py-3 text-left text-[13px] font-semibold text-text-body transition-colors hover:bg-surface-soft hover:text-text-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
-                      role="menuitem"
-                    >
-                      로그아웃
-                    </button>
-                  </div>
+                    관리자
+                  </Link>
                 )}
+                <Link
+                  href="/mypage"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-brand px-3 text-[13px] font-extrabold text-white transition-colors hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] md:px-4"
+                  aria-label="마이페이지"
+                >
+                  <UserRound size={16} strokeWidth={2.3} />
+                  My
+                </Link>
               </div>
             ) : (
               <Link

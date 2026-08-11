@@ -42,8 +42,10 @@ describe("reconcileUserCoupons", () => {
         where: { userId: "sb-1", status: "CONVERTED", deletedAt: null },
       })
     );
+    // 추천 보상 쿠폰(referralId != null)은 이 동기화의 관할 밖이다 — 피추천인의 계약에
+    // 걸린 보상을 추천인 본인의 계약 여부로 승격·강등하면 안 된다.
     expect(mocks.findCoupons).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { userId: "user-1" } })
+      expect.objectContaining({ where: { userId: "user-1", referralId: null } })
     );
   });
 

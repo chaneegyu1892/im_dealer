@@ -3,6 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ChannelTalk } from "@/components/layout/ChannelTalk";
+import { MyMenuFAB } from "@/components/layout/MyMenuFAB";
 
 export default function PublicLayout({
   children,
@@ -24,6 +25,7 @@ export default function PublicLayout({
       </main>
       <Footer />
       <BottomNav />
+      <MyMenuFAB />
     </div>
   );
 }

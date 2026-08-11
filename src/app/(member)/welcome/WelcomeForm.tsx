@@ -15,6 +15,7 @@ export function WelcomeForm({ defaultName, defaultPhone, next }: WelcomeFormProp
   const router = useRouter();
   const [name, setName] = useState(defaultName);
   const [phone, setPhone] = useState(defaultPhone);
+  const [referralCode, setReferralCode] = useState("");
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,13 @@ export function WelcomeForm({ defaultName, defaultPhone, next }: WelcomeFormProp
       const res = await fetch("/api/auth/complete-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), marketingConsent }),
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          marketingConsent,
+          // 추천인 코드는 선택값 — 대문자로 정규화하고 빈 값은 요청에 싣지 않는다.
+          ...(referralCode.trim() ? { referralCode: referralCode.trim().toUpperCase() } : {}),
+        }),
       });
       const json = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
@@ -86,6 +93,24 @@ export function WelcomeForm({ defaultName, defaultPhone, next }: WelcomeFormProp
                   required
                   autoComplete="tel"
                   placeholder="010-1234-5678"
+                  className="min-h-[52px] rounded-[16px] border border-border-subtle bg-surface-soft px-4 text-[16px] font-semibold text-text-strong outline-none transition-colors focus:border-brand focus:bg-surface focus-visible:ring-4 focus-visible:ring-focus-ring/20"
+                />
+              </label>
+
+              <label className="grid gap-1.5">
+                <span className="text-[13px] font-bold text-text-body">
+                  추천인 코드 <span className="font-bold text-text-muted">(선택)</span>
+                </span>
+                <input
+                  type="text"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  maxLength={5}
+                  placeholder="추천인 코드(선택)"
                   className="min-h-[52px] rounded-[16px] border border-border-subtle bg-surface-soft px-4 text-[16px] font-semibold text-text-strong outline-none transition-colors focus:border-brand focus:bg-surface focus-visible:ring-4 focus-visible:ring-focus-ring/20"
                 />
               </label>

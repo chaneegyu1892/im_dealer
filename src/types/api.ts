@@ -27,6 +27,8 @@ export interface VehicleListItem {
     fuelEfficiency: number | null;
     specs: Record<string, string> | null;
   } | null;
+  /** 전기차 필터에 사용하는 공개 트림의 엔진 종류. /cars 데이터에서 제공된다. */
+  publicTrims?: { engineType: string }[];
   /** 대표 견적가 산출의 최저 월납입(정렬·요약용). 견적 없으면 0. */
   monthlyFrom: number;
   /** 60개월·무보증·2만km 기준 productType(장기렌트/리스)별 대표 견적가. */

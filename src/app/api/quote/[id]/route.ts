@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getActiveUser } from "@/lib/require-user";
 
 // ── GET /api/quote/[id] ─────────────────────────────────
 // 저장된 견적 조회 (공유 URL용)
@@ -54,5 +55,58 @@ export async function GET(
       { error: "견적 조회 중 오류가 발생했습니다." },
       { status: 500 }
     );
+  }
+}
+
+// ── DELETE /api/quote/[id] ──────────────────────────────
+// 본인 견적만 감사 로그와 함께 소프트 삭제한다.
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getActiveUser();
+    if (!user) {
+      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const quote = await prisma.savedQuote.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, userId: true },
+    });
+
+    if (!quote) {
+      return NextResponse.json({ error: "견적을 찾을 수 없습니다." }, { status: 404 });
+    }
+    if (!user.supabaseId || quote.userId !== user.supabaseId) {
+      return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
+    }
+
+    const deleted = await prisma.$transaction(async (tx) => {
+      const result = await tx.savedQuote.updateMany({
+        where: { id, userId: user.supabaseId, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
+      if (result.count === 0) return false;
+
+      await tx.quoteActivityLog.create({
+        data: {
+          quoteId: id,
+          actorId: user.id,
+          action: "DELETED",
+        },
+      });
+      return true;
+    });
+
+    if (!deleted) {
+      return NextResponse.json({ error: "견적을 찾을 수 없습니다." }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[DELETE /api/quote/[id]]", error);
+    return NextResponse.json({ error: "견적 삭제 중 오류가 발생했습니다." }, { status: 500 });
   }
 }

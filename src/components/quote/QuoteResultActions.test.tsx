@@ -4,6 +4,7 @@ import { QuoteResultActions } from "./QuoteResultActions";
 
 const props = {
   onContractApply: () => undefined,
+  onSaveQuoteForConsult: () => undefined,
   isApplying: false,
   applyError: null,
   kakaoDeliveryEnabled: true,
@@ -24,14 +25,14 @@ describe("QuoteResultActions", () => {
   });
 
   describe("Given a completed quote result", () => {
-    it("When rendered Then it exposes the three exact actions", () => {
+    it("When rendered Then it exposes the delivery and review actions", () => {
       render(<QuoteResultActions {...props} />);
 
       expect(
         screen.getByRole("button", { name: "카카오톡으로 견적서 받기" })
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "상담하기" })).not.toBeInTheDocument();
     });
 
     it("When Kakao delivery is selected Then it calls the supplied callback", () => {
@@ -63,7 +64,7 @@ describe("QuoteResultActions", () => {
         screen.queryByRole("button", { name: "카카오톡으로 견적서 받기" })
       ).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "상담하기" })).not.toBeInTheDocument();
     });
 
     it("When Kakao delivery is pending Then it exposes the busy state", () => {
@@ -196,21 +197,45 @@ describe("QuoteResultActions", () => {
   });
 
   describe("Given apply state supplied by the quote page", () => {
-    it("When the review action is selected Then it calls the supplied callback", () => {
-      const onContractApply = vi.fn<() => void>();
-      render(<QuoteResultActions {...props} onContractApply={onContractApply} />);
+    it("When the review action is selected Then it saves the quote and opens the preparation contacts", () => {
+      const onSaveQuoteForConsult = vi.fn<() => void>();
+      render(
+        <QuoteResultActions
+          {...props}
+          onSaveQuoteForConsult={onSaveQuoteForConsult}
+        />
+      );
 
       fireEvent.click(screen.getByRole("button", { name: "심사 요청하기" }));
 
-      expect(onContractApply).toHaveBeenCalledTimes(1);
+      // 견적을 저장(전화·상담 후속용)하고, 준비중(전화+상담하기) 섹션을 연다.
+      expect(onSaveQuoteForConsult).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("준비중입니다")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "1688-8479" })).toHaveAttribute(
+        "href",
+        "tel:16888479"
+      );
+      expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
     });
 
-    it("When applying Then it preserves the loading label and busy state", () => {
-      render(<QuoteResultActions {...props} isApplying />);
+    it("When the review action is selected again Then it closes the preparation contacts but still re-saves", () => {
+      const onSaveQuoteForConsult = vi.fn<() => void>();
+      render(
+        <QuoteResultActions
+          {...props}
+          onSaveQuoteForConsult={onSaveQuoteForConsult}
+        />
+      );
 
-      const applyButton = screen.getByRole("button", { name: "견적 저장 중…" });
-      expect(applyButton).toBeDisabled();
-      expect(applyButton).toHaveAttribute("aria-busy", "true");
+      const applyButton = screen.getByRole("button", { name: "심사 요청하기" });
+      fireEvent.click(applyButton);
+      expect(screen.getByText("준비중입니다")).toBeInTheDocument();
+      expect(onSaveQuoteForConsult).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(applyButton);
+      expect(screen.queryByText("준비중입니다")).not.toBeInTheDocument();
+      expect(applyButton).toHaveAttribute("aria-expanded", "false");
+      expect(onSaveQuoteForConsult).toHaveBeenCalledTimes(2);
     });
 
     it("When apply fails Then it renders the supplied error as a visible alert", () => {
@@ -228,6 +253,7 @@ describe("QuoteResultActions", () => {
       };
       render(<QuoteResultActions {...props} />);
 
+      fireEvent.click(screen.getByRole("button", { name: "심사 요청하기" }));
       fireEvent.click(screen.getByRole("button", { name: "상담하기" }));
 
       expect(calls).toEqual([["showMessenger"]]);

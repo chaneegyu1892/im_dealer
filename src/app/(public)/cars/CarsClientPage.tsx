@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CarsFilterPanel,
+  VEHICLE_CATEGORIES,
   type CategoryFilter,
 } from "@/components/cars/CarsFilterPanel";
 import { SORT_OPTIONS, type SortOption } from "@/components/cars/CarsFilterControls";
@@ -20,14 +21,91 @@ interface CarsClientPageProps {
   readonly initialSearchQuery?: string;
 }
 
+export function isElectricEngine(engineType: string): boolean {
+  return engineType === "EV" || engineType === "전기";
+}
+
+export function isElectricOnlyVehicle(vehicle: Pick<VehicleListItem, "publicTrims">): boolean {
+  const trims = vehicle.publicTrims ?? [];
+  return trims.length > 0 && trims.every((trim) => isElectricEngine(trim.engineType));
+}
+
+// 카테고리/브랜드/정렬 필터를 세션 동안 유지하기 위한 저장 키.
+// 검색어(searchQuery)는 URL(?query=)이 단일 출처이므로 여기에 포함하지 않는다.
+const FILTERS_STORAGE_KEY = "imdealer:cars-filters";
+const SCROLL_STORAGE_KEY = "imdealer:cars-scroll";
+const SORT_OPTION_VALUES: readonly SortOption[] = ["popular", "price-asc", "price-desc"];
+
+interface StoredCarsFilters {
+  readonly category: CategoryFilter;
+  readonly brand: string;
+  readonly sort: SortOption;
+}
+
+/** 프라이빗 모드 등에서 sessionStorage 접근이 던질 수 있다. 실패하면 저장된 값이 없는 것으로 취급한다. */
+function readStoredFilters(): StoredCarsFilters | null {
+  try {
+    const raw = window.sessionStorage.getItem(FILTERS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredCarsFilters> | null;
+    if (!parsed || typeof parsed !== "object") return null;
+    const category = parsed.category;
+    const brand = parsed.brand;
+    const sort = parsed.sort;
+    if (
+      typeof category !== "string" ||
+      !(VEHICLE_CATEGORIES as readonly string[]).includes(category)
+    ) {
+      return null;
+    }
+    if (typeof brand !== "string") return null;
+    if (typeof sort !== "string" || !SORT_OPTION_VALUES.includes(sort as SortOption)) {
+      return null;
+    }
+    return { category: category as CategoryFilter, brand, sort: sort as SortOption };
+  } catch {
+    return null;
+  }
+}
+
+/** 저장 실패는 조용히 무시한다(복원 실패는 기본값으로 되돌아갈 뿐이다). */
+function writeStoredFilters(filters: StoredCarsFilters): void {
+  try {
+    window.sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+  } catch {
+    // no-op: 저장 공간이 없거나 접근이 막혀 있어도 페이지 동작에는 영향 없음.
+  }
+}
+
+function readStoredScrollY(): number | null {
+  try {
+    const raw = window.sessionStorage.getItem(SCROLL_STORAGE_KEY);
+    if (!raw) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredScrollY(value: number): void {
+  try {
+    window.sessionStorage.setItem(SCROLL_STORAGE_KEY, String(value));
+  } catch {
+    // no-op
+  }
+}
+
 export function CarsClientPage({
   vehicles,
   brandSignals,
   initialSearchQuery = "",
 }: CarsClientPageProps) {
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("전체");
-  const [brandFilter, setBrandFilter] = useState("전체");
-  const [sortBy, setSortBy] = useState<SortOption>("popular");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(
+    () => readStoredFilters()?.category ?? "전체",
+  );
+  const [brandFilter, setBrandFilter] = useState(() => readStoredFilters()?.brand ?? "전체");
+  const [sortBy, setSortBy] = useState<SortOption>(() => readStoredFilters()?.sort ?? "popular");
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [showStickyBar, setShowStickyBar] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -52,6 +130,39 @@ export function CarsClientPage({
     document.addEventListener("click", closeSort);
     return () => document.removeEventListener("click", closeSort);
   }, [sortOpen]);
+
+  // 카테고리/브랜드/정렬은 뒤로가기로 이 페이지에 돌아왔을 때 그대로 유지되어야 한다.
+  useEffect(() => {
+    writeStoredFilters({ category: categoryFilter, brand: brandFilter, sort: sortBy });
+  }, [categoryFilter, brandFilter, sortBy]);
+
+  // 상세 페이지에서 뒤로가기로 돌아왔을 때 스크롤 위치를 복원한다.
+  useEffect(() => {
+    const storedScrollY = readStoredScrollY();
+    if (storedScrollY === null) return;
+    window.scrollTo(0, storedScrollY);
+  }, []);
+
+  useEffect(() => {
+    let rafId: number | null = null;
+    const persistScroll = () => {
+      rafId = null;
+      writeStoredScrollY(window.scrollY);
+    };
+    const scheduleScrollPersist = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(persistScroll);
+    };
+    window.addEventListener("scroll", scheduleScrollPersist, { passive: true });
+    document.addEventListener("visibilitychange", persistScroll);
+    window.addEventListener("beforeunload", persistScroll);
+    return () => {
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", scheduleScrollPersist);
+      document.removeEventListener("visibilitychange", persistScroll);
+      window.removeEventListener("beforeunload", persistScroll);
+    };
+  }, []);
 
   const brandComparator = useMemo(
     () => makeBrandComparator(new Map(Object.entries(brandSignals))),
@@ -102,7 +213,11 @@ export function CarsClientPage({
         : vehicles.filter((vehicle) => !featuredIds.has(vehicle.id));
 
     if (!query && categoryFilter !== "전체") {
-      result = result.filter((vehicle) => vehicle.category === categoryFilter);
+      result = result.filter((vehicle) =>
+        categoryFilter === "전기차"
+          ? isElectricOnlyVehicle(vehicle)
+          : vehicle.category === categoryFilter,
+      );
     }
     if (!query && brandFilter !== "전체") {
       result = result.filter((vehicle) => vehicle.brand === brandFilter);

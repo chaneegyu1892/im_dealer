@@ -42,6 +42,7 @@ describe("Header 대표전화", () => {
 
     const trigger = screen.getByRole("button", { name: "대표전화 보기" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveClass("bg-brand-soft");
     expect(screen.queryByText("1688-8479")).not.toBeInTheDocument();
 
     fireEvent.click(trigger);

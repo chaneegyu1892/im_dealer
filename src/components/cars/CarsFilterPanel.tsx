@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, LayoutGrid, Truck, X } from "lucide-react";
+import { ChevronDown, LayoutGrid, X, Zap } from "lucide-react";
 import { CarsSearchControl, SortMenu, type SortOption } from "@/components/cars/CarsFilterControls";
 import { cn } from "@/lib/utils";
 
-export const VEHICLE_CATEGORIES = ["전체", "세단", "SUV", "밴", "트럭"] as const;
+export const VEHICLE_CATEGORIES = ["전체", "세단", "SUV", "밴", "전기차"] as const;
 
 export type CategoryFilter = (typeof VEHICLE_CATEGORIES)[number];
 
@@ -25,29 +25,34 @@ const BRAND_LOGO_MAP: Record<string, string> = {
 
 function CategoryIcon({ category }: { category: CategoryFilter }) {
   if (category === "전체") return <LayoutGrid size={16} strokeWidth={1.9} />;
-  if (category === "트럭") return <Truck size={16} strokeWidth={1.9} />;
+  if (category === "전기차") return <Zap size={16} strokeWidth={1.9} />;
 
   return (
-    <svg viewBox="0 0 32 14" className="h-[11px] w-[22px]" fill="currentColor">
-      {category === "밴" ? (
+    <svg viewBox="0 0 32 16" className="h-[12px] w-[24px]" fill="currentColor">
+      {category === "세단" && (
         <>
-          <rect x="1" y="3" width="19" height="9" rx="1.5" />
-          <rect x="20" y="5.5" width="11" height="6.5" rx="1" />
-        </>
-      ) : (
-        <>
-          <path d="M2 9.5h28V11a.8.8 0 0 1-.8.8H2.8A.8.8 0 0 1 2 11V9.5z" />
-          <path
-            d={
-              category === "SUV"
-                ? "M3 9.5 4.5 3.5C5 2.6 6 2 7 2h18c1 0 2 .6 2.5 1.5L29 9.5"
-                : "M3.5 10 6.5 5c.4-.8 1.3-1.4 2.1-1.4H23.4c.8 0 1.7.6 2.1 1.4L28.5 10"
-            }
-          />
+          <path d="M2 10.5h28v2.2c0 .7-.6 1.3-1.3 1.3H3.3c-.7 0-1.3-.6-1.3-1.3v-2.2Z" />
+          <path d="M5 10.5 9.2 6.8c.7-.6 1.6-.9 2.5-.9h8.6c.9 0 1.8.3 2.5.9l4.2 3.7H5Z" />
+          <circle cx="9" cy="14" r="2" />
+          <circle cx="23" cy="14" r="2" />
         </>
       )}
-      <circle cx="9.5" cy="12.5" r="1.8" />
-      <circle cx="22.5" cy="12.5" r="1.8" />
+      {category === "SUV" && (
+        <>
+          <path d="M2 11h28v2.2c0 .7-.6 1.3-1.3 1.3H3.3c-.7 0-1.3-.6-1.3-1.3V11Z" />
+          <path d="M4.2 11 6.4 4.8c.3-.8 1-1.3 1.9-1.3h15.4c.9 0 1.7.5 2 1.3l2.1 6.2H4.2Z" />
+          <circle cx="9" cy="14.5" r="2" />
+          <circle cx="23" cy="14.5" r="2" />
+        </>
+      )}
+      {category === "밴" && (
+        <>
+          <path d="M2 4.2C2 3.5 2.5 3 3.2 3h16.2c.8 0 1.5.3 2 .9l7.2 7.1c.3.3.4.7.4 1.1v1.1c0 .7-.6 1.3-1.3 1.3H3.3c-.7 0-1.3-.6-1.3-1.3V4.2Z" />
+          <path d="M22.3 5.2h2.2l4.1 4.1h-6.3V5.2Z" fill="currentColor" className="text-surface" />
+          <circle cx="8.5" cy="14.5" r="2" />
+          <circle cx="23.5" cy="14.5" r="2" />
+        </>
+      )}
     </svg>
   );
 }

@@ -168,7 +168,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     });
   });
 
-  it("persists the calculated quote before routing to verification", async () => {
+  it("saves the quote then opens the preparing section when 심사 요청하기 is clicked", async () => {
     writeCalculatedRestore();
     const fetchMock = createFetchMock();
     vi.stubGlobal("fetch", fetchMock);
@@ -178,23 +178,20 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     const apply = await screen.findByRole("button", { name: "심사 요청하기" });
     fireEvent.click(apply);
 
+    // 전화·상담 후속에 대비해 견적을 반드시 저장한다.
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/quote/save",
-        expect.objectContaining({ method: "POST" })
-      );
+      expect(
+        fetchMock.mock.calls.some(([input]) => input.toString() === "/api/quote/save")
+      ).toBe(true);
     });
-    const saveCall = fetchMock.mock.calls.find(([input]) => input.toString() === "/api/quote/save");
-    expect(String(saveCall?.[1]?.body)).toContain('"scenarioType":"conservative"');
-    expect(String(saveCall?.[1]?.body)).toContain('"customDepositRate":10');
-    expect(String(saveCall?.[1]?.body)).toContain('"quoteType":"DETAIL"');
-    const draftKey = Object.keys(window.localStorage).find((key) => key.startsWith("quote_draft_"));
-    expect(window.localStorage.getItem(draftKey ?? "")).toContain(
-      '"customRates":{"depositRate":10,"prepayRate":0}'
+    // 이동은 하지 않고 준비중(전화 + 상담하기) 섹션을 그대로 보여준다.
+    await screen.findByText("준비중입니다");
+    expect(screen.getByRole("link", { name: "1688-8479" })).toHaveAttribute(
+      "href",
+      "tel:16888479"
     );
-    expect(navigationMock.router.push).toHaveBeenCalledWith(
-      expect.stringContaining("/login?next=")
-    );
+    expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+    expect(navigationMock.router.push).not.toHaveBeenCalled();
   });
 
   it("keeps the range warning readable on narrow Korean layouts", async () => {
@@ -231,8 +228,11 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     const deliveryButton = await screen.findByRole("button", {
       name: "카카오톡으로 견적서 받기",
     });
-    expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+    const applyButton = screen.getByRole("button", { name: "심사 요청하기" });
+    expect(applyButton).toBeInTheDocument();
+    // 상담하기 버튼은 "심사 요청하기" 클릭으로 열리는 준비중 섹션 안에 있다.
+    fireEvent.click(applyButton);
+    expect(await screen.findByRole("button", { name: "상담하기" })).toBeInTheDocument();
     fireEvent.click(deliveryButton);
 
     // Then: anonymous users enter Kakao consent before any delivery request
@@ -631,18 +631,21 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows an inline error and stays on the quote when persistence fails", async () => {
+  it("attempts to save when 심사 요청하기 is clicked, still opens preparing but never navigates even if saving fails", async () => {
     writeCalculatedRestore();
-    vi.stubGlobal("fetch", createFetchMock(500));
+    const fetchMock = createFetchMock(500);
+    vi.stubGlobal("fetch", fetchMock);
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
     fireEvent.click(await screen.findByRole("button", { name: "심사 요청하기" }));
 
-    const message = await screen.findByText(
-      "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요."
-    );
-    await waitFor(() => expect(message).toBeVisible());
+    // 저장을 시도하되 실패하면 실패 안내만 남기고, 준비중 섹션을 열고 이동하지 않는다.
+    expect(
+      fetchMock.mock.calls.some(([input]) => input.toString() === "/api/quote/save")
+    ).toBe(true);
+    await screen.findByText("견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    expect(screen.getByText("준비중입니다")).toBeInTheDocument();
     expect(navigationMock.router.push).not.toHaveBeenCalled();
   });
 
