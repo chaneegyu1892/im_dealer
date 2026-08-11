@@ -937,6 +937,7 @@ model CapitalCatalogTrim {
   modelYear           String? // ORIX MDEL_YEAR
   vehiclePrice        Int // ORIX MDEL_PRICE
   baseRates           Json // RATE_KEYS 9칸 월납입금(원), 0=미산출
+  residualRates       Json? // 기간×거리별 잔가율(0~1, `${months}_${distKm}` 키) — 엑셀 수집분 검증·재계산용. null=미수집(스크래핑 등)
   depositRate36_10000 Int? // 36개월/1만km 보증금10% 월납입금(원), null=미수집
   prepayRate36_10000  Int? // 36개월/1만km 선납금10% 월납입금(원), null=미수집
   warnings            Json?

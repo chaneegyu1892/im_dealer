@@ -1,6 +1,6 @@
 // MG 렌터카 .xlsm → CapitalCatalogTrim 엔트리 (파싱 + 우리DB 가격매칭 + 월 대여료 산출).
 import { parseMgRentWorkbook } from "./parse";
-import { computeMonthlyRent } from "./calc";
+import { computeMonthlyRent, residualRate } from "./calc";
 import { matchMeritzTrim, type OurVehicle } from "../meritz/match";
 import { WARN_UNMATCHED, WARN_MODEL_FALLBACK } from "../excel-capitals";
 import type { MeritzCatalogEntry, MeritzIngestResult, MappedPriceByMdelCd } from "../meritz/ingest";
@@ -54,6 +54,12 @@ export function ingestMgRent(
       else { modelFallback++; price = match.price; fallbackNames.push(displayName); warnings.push(WARN_MODEL_FALLBACK); }
     }
 
+    const residualRates: Record<string, number> = {};
+    for (const c of CELLS) {
+      const r = residualRate(t, c.months, c.distKm);
+      if (r > 0) residualRates[`${c.months}_${c.distKm}`] = r;
+    }
+
     const baseRates: Record<string, number> = {};
     if (price > 0) {
       for (const c of CELLS) {
@@ -68,7 +74,9 @@ export function ingestMgRent(
       modelCd: norm(brand + "_" + model), modelName: model,
       dtMdlCd: norm(displayName), dtMdlName: displayName,
       mdelCd, trimName: displayName,
-      vehiclePrice: price, baseRates, warnings,
+      vehiclePrice: price, baseRates,
+      residualRates: Object.keys(residualRates).length > 0 ? residualRates : undefined,
+      warnings,
     });
   }
   return {

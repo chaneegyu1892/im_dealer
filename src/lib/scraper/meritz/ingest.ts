@@ -19,6 +19,8 @@ export interface MeritzCatalogEntry {
   mdelCd: string; trimName: string;
   vehiclePrice: number;
   baseRates: Record<string, number>;
+  /** 기간×거리별 잔가율(0~1) — 검증·재계산용 보존. 가격 매칭과 무관하게 엑셀에서 파싱된 값. */
+  residualRates?: Record<string, number>;
   /** 36개월/1만km 보증금10% 월납입금 샘플 — 시트 보증금 할인율 산출용. MG 는 엑셀 보증금 수식 미검증으로 미산출. */
   depositRate36_10000?: number;
   warnings: string[];
@@ -76,6 +78,12 @@ export function ingestMeritzRent(
       else { modelFallback++; price = match.price; fallbackNames.push(t.name); warnings.push(WARN_MODEL_FALLBACK); }
     }
 
+    const residualRates: Record<string, number> = {};
+    for (const c of CELLS) {
+      const r = t.residual[`${c.months}_${c.distKm}`];
+      if (r && r > 0) residualRates[`${c.months}_${c.distKm}`] = r;
+    }
+
     const baseRates: Record<string, number> = {};
     let depositRate36_10000: number | undefined;
     if (price > 0) {
@@ -96,7 +104,9 @@ export function ingestMeritzRent(
       modelCd: norm(t.manufacturer + "_" + model), modelName: model,
       dtMdlCd: norm(t.name), dtMdlName: t.name,
       mdelCd, trimName: t.name,
-      vehiclePrice: price, baseRates, depositRate36_10000, warnings,
+      vehiclePrice: price, baseRates,
+      residualRates: Object.keys(residualRates).length > 0 ? residualRates : undefined,
+      depositRate36_10000, warnings,
     });
   }
   return {
