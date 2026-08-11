@@ -1,7 +1,16 @@
 "use client";
 
-import { CheckCircle2, ExternalLink, Phone, TriangleAlert } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  CheckCircle2,
+  ClipboardCheck,
+  ExternalLink,
+  Phone,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
+import { openChannelTalk } from "@/lib/channel-talk";
 import {
   SUPPORT_PHONE_DISPLAY,
   SUPPORT_PHONE_TEL_HREF,
@@ -34,6 +43,8 @@ export function QuoteResultActions({
   deliveryConfirmedBySender,
 }: QuoteResultActionsProps) {
   const showQuoteDelivery = kakaoDeliveryEnabled || channelTalkDelivery;
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+
   return (
     <section aria-label="견적 결과 actions" className="space-y-3">
       {showQuoteDelivery ? (
@@ -133,12 +144,117 @@ export function QuoteResultActions({
         </>
       ) : null}
 
-      <div className="rounded-[14px] border border-border-subtle bg-surface-soft/80 p-3.5">
-        <p className="text-[13px] font-extrabold text-text-strong">서류 심사는 준비 중이에요</p>
-        <p className="mt-1 text-[12px] font-semibold leading-5 text-text-body">
-          지금은 대표전화 또는 상담으로 바로 도와드릴게요.
-        </p>
-        <div className="mt-3 grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => setReviewModalOpen(true)}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-btn bg-brand px-3 text-[14px] font-extrabold text-white transition-colors duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
+        >
+          <ClipboardCheck aria-hidden="true" size={17} />
+          심사 요청하기
+        </button>
+
+        <ChannelTalkButton
+          label="상담하기"
+          className="min-h-12 rounded-btn px-3 text-[14px]"
+        />
+      </div>
+
+      {reviewModalOpen ? (
+        <DocumentReviewComingSoonModal onClose={() => setReviewModalOpen(false)} />
+      ) : null}
+    </section>
+  );
+}
+
+function DocumentReviewComingSoonModal({ onClose }: { readonly onClose: () => void }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const focusableSelector = [
+      "a[href]",
+      "button:not([disabled])",
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(",");
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
+      ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.setTimeout(() => {
+      dialogRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus();
+    }, 0);
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = original;
+      restoreFocusRef.current?.focus();
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-text-strong/65 p-4 backdrop-blur-sm"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="doc-review-coming-soon-title"
+        className="relative w-full max-w-[400px] overflow-hidden rounded-card-lg border border-border-subtle bg-surface p-5 shadow-modal sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          aria-label="닫기"
+          onClick={onClose}
+          className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-soft hover:text-text-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40"
+        >
+          <X size={16} strokeWidth={2.3} />
+        </button>
+
+        <div className="pr-8">
+          <p className="text-[12px] font-extrabold uppercase tracking-[0.06em] text-brand">
+            COMING SOON
+          </p>
+          <h2
+            id="doc-review-coming-soon-title"
+            className="mt-1.5 text-[18px] font-extrabold tracking-[-0.02em] text-text-strong sm:text-[20px]"
+          >
+            서류 심사 서비스는 준비 중이에요
+          </h2>
+          <p className="mt-2 text-[14px] font-medium leading-6 text-text-body">
+            곧 온라인으로 바로 이어질 예정이에요. 지금은 대표전화 또는 상담으로 도와드릴게요.
+          </p>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2.5">
           <a
             href={SUPPORT_PHONE_TEL_HREF}
             aria-label={`${SUPPORT_PHONE_DISPLAY} 전화 걸기`}
@@ -150,13 +266,17 @@ export function QuoteResultActions({
           <ChannelTalkButton
             label="상담하기"
             className="min-h-12 rounded-btn px-3 text-[14px]"
+            onClick={() => {
+              openChannelTalk();
+              onClose();
+            }}
           />
         </div>
-        <p className="mt-2 text-center text-[11.5px] font-bold tabular-nums text-text-muted">
+        <p className="mt-3 text-center text-[12px] font-bold tabular-nums text-text-muted">
           {SUPPORT_PHONE_DISPLAY}
         </p>
       </div>
-    </section>
+    </div>
   );
 }
 

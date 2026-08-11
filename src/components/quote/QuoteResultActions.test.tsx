@@ -21,16 +21,27 @@ describe("QuoteResultActions", () => {
   });
 
   describe("Given a completed quote result", () => {
-    it("When rendered Then it exposes delivery and coming-soon review actions", () => {
+    it("When rendered Then it exposes delivery and review-request actions", () => {
       render(<QuoteResultActions {...props} />);
 
       expect(
         screen.getByRole("button", { name: "카카오톡으로 견적서 받기" })
       ).toBeInTheDocument();
-      expect(screen.getByText("서류 심사는 준비 중이에요")).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: /1688-8479 전화 걸기/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "심사 요청하기" })).not.toBeInTheDocument();
+      expect(screen.queryByText("서류 심사 서비스는 준비 중이에요")).not.toBeInTheDocument();
+    });
+
+    it("When review request is selected Then it opens the coming-soon modal with contact CTAs", () => {
+      render(<QuoteResultActions {...props} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "심사 요청하기" }));
+
+      expect(
+        screen.getByRole("dialog", { name: "서류 심사 서비스는 준비 중이에요" })
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /1688-8479 전화 걸기/ })).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "상담하기" }).length).toBeGreaterThanOrEqual(1);
     });
 
     it("When Kakao delivery is selected Then it calls the supplied callback", () => {
@@ -61,7 +72,7 @@ describe("QuoteResultActions", () => {
       expect(
         screen.queryByRole("button", { name: "카카오톡으로 견적서 받기" })
       ).not.toBeInTheDocument();
-      expect(screen.getByText("서류 심사는 준비 중이에요")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
     });
 
@@ -134,7 +145,6 @@ describe("QuoteResultActions", () => {
     it("When the chat opens Then it states the request is not sent yet", () => {
       render(<QuoteResultActions {...stopgapProps} deliverySuccess />);
 
-      // 붙여넣기 전에는 상담사에게 아무것도 가지 않는다 — 완료로 읽히면 안 된다.
       const status = screen.getByRole("status");
       expect(status).toHaveTextContent("아직 보내지 않았어요");
       expect(status).not.toHaveTextContent("요청 메시지를 복사했어요");
@@ -164,7 +174,6 @@ describe("QuoteResultActions", () => {
       expect(status).toHaveTextContent("상담사가 확인 후");
       expect(status).not.toHaveTextContent("아직 보내지 않았어요");
       expect(screen.queryByRole("button", { name: "보냈어요" })).not.toBeInTheDocument();
-      // 착각해서 눌렀거나 전송이 안 됐을 수도 있으니 돌아갈 길은 남긴다.
       expect(
         screen.getByRole("button", { name: "대화창 다시 열기" })
       ).toBeInTheDocument();

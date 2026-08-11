@@ -168,16 +168,20 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     });
   });
 
-  it("shows the document-review coming-soon CTA instead of apply-to-verification", async () => {
+  it("keeps the review-request button and opens a coming-soon contact modal", async () => {
     writeCalculatedRestore();
     vi.stubGlobal("fetch", createFetchMock());
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
-    expect(await screen.findByText("서류 심사는 준비 중이에요")).toBeInTheDocument();
+    const apply = await screen.findByRole("button", { name: "심사 요청하기" });
+    fireEvent.click(apply);
+
+    expect(
+      screen.getByRole("dialog", { name: "서류 심사 서비스는 준비 중이에요" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /1688-8479 전화 걸기/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "심사 요청하기" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "상담하기" }).length).toBeGreaterThanOrEqual(1);
   });
 
   it("keeps the range warning readable on narrow Korean layouts", async () => {
@@ -214,7 +218,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     const deliveryButton = await screen.findByRole("button", {
       name: "카카오톡으로 견적서 받기",
     });
-    expect(screen.getByText("서류 심사는 준비 중이에요")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
     fireEvent.click(deliveryButton);
 
@@ -614,15 +618,16 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not expose the removed contract-apply path on a calculated quote", async () => {
+  it("does not route to verification when the review-request coming-soon modal is opened", async () => {
     writeCalculatedRestore();
     vi.stubGlobal("fetch", createFetchMock(500));
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
-    await screen.findByText("서류 심사는 준비 중이에요");
-    expect(screen.queryByRole("button", { name: "심사 요청하기" })).not.toBeInTheDocument();
-    expect(screen.queryByText("견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "심사 요청하기" }));
+    expect(
+      screen.getByRole("dialog", { name: "서류 심사 서비스는 준비 중이에요" }),
+    ).toBeInTheDocument();
     expect(navigationMock.router.push).not.toHaveBeenCalled();
   });
 
