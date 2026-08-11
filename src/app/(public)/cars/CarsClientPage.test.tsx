@@ -4,18 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VehicleListItem } from "@/types/api";
 import { CarsClientPage } from "./CarsClientPage";
 
-const routerMocks = vi.hoisted(() => ({
-  replace: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    replace: routerMocks.replace,
-    push: vi.fn(),
-    refresh: vi.fn(),
-  }),
-}));
-
 type FilterPanelMockProps = {
   readonly searchQuery: string;
   readonly onSearchChange: (value: string) => void;
@@ -105,7 +93,6 @@ const vehicle: VehicleListItem = {
 };
 
 beforeEach(() => {
-  routerMocks.replace.mockReset();
   class IntersectionObserverMock {
     observe() {}
 
@@ -114,10 +101,12 @@ beforeEach(() => {
 
   vi.stubGlobal("IntersectionObserver", IntersectionObserverMock);
   vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 500 })));
+  vi.spyOn(window.history, "replaceState").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("CarsClientPage 주목할 차량 노출", () => {
@@ -146,5 +135,29 @@ describe("CarsClientPage 주목할 차량 노출", () => {
     expect(screen.queryByRole("heading", { name: "지금 가장 많이 비교하는 모델" })).not.toBeInTheDocument();
     expect(screen.getByText("검색 결과 모드")).toBeInTheDocument();
     expect(screen.getByText("결과 차량: 테스트 SUV")).toBeInTheDocument();
+  });
+
+  it("검색어를 연속 입력해도 입력값이 유지되고 history.replaceState로 URL만 갱신한다", async () => {
+    vi.useFakeTimers();
+    render(<CarsClientPage vehicles={[vehicle]} brandSignals={{}} />);
+
+    const searchInput = screen.getByRole("textbox", { name: "차량 검색" }) as HTMLInputElement;
+    fireEvent.change(searchInput, { target: { value: "테" } });
+    fireEvent.change(searchInput, { target: { value: "테스" } });
+    fireEvent.change(searchInput, { target: { value: "테스트" } });
+
+    // remount 없이 같은 input 인스턴스에 값이 유지되어야 한다
+    expect(searchInput.value).toBe("테스트");
+    expect(screen.getByRole("textbox", { name: "차량 검색" })).toBe(searchInput);
+
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(window.history.replaceState).toHaveBeenCalledWith(
+      window.history.state,
+      "",
+      "/cars?query=%ED%85%8C%EC%8A%A4%ED%8A%B8",
+    );
+
+    vi.useRealTimers();
   });
 });

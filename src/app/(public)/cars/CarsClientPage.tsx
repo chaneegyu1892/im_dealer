@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CarsFilterPanel,
@@ -36,7 +35,6 @@ export function CarsClientPage({
   brandSignals,
   initialBrowseState = DEFAULT_CARS_BROWSE_STATE,
 }: CarsClientPageProps) {
-  const router = useRouter();
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(
     initialBrowseState.category,
   );
@@ -200,6 +198,8 @@ export function CarsClientPage({
   }, []);
 
   // 필터·검색 상태를 URL + sessionStorage 에 동기화해 상세 복귀 시 복원한다.
+  // router.replace 는 App Router soft navigation + RSC 재요청을 유발해
+  // 입력 중 검색창 포커스가 끊길 수 있으므로 history.replaceState 를 쓴다.
   useEffect(() => {
     const nextState: CarsBrowseState = {
       query: searchQuery,
@@ -216,13 +216,13 @@ export function CarsClientPage({
         window.location.pathname +
         (window.location.search || "");
       if (current === href || (href === "/cars" && current === "/cars")) return;
-      router.replace(href, { scroll: false });
+      window.history.replaceState(window.history.state, "", href);
     }, 220);
 
     return () => {
       if (searchSyncTimer.current) clearTimeout(searchSyncTimer.current);
     };
-  }, [searchQuery, categoryFilter, brandFilter, sortBy, router]);
+  }, [searchQuery, categoryFilter, brandFilter, sortBy]);
 
   useEffect(() => {
     if (!isBrowsing) return;

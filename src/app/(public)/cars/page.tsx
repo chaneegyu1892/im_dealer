@@ -17,10 +17,7 @@ import {
 } from "@/lib/vehicle-images/public";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { createPageMetadata } from "@/lib/site-config";
-import {
-  parseCarsBrowseState,
-  serializeCarsBrowseState,
-} from "@/lib/cars-browse-state";
+import { parseCarsBrowseState } from "@/lib/cars-browse-state";
 import { trimLooksHybrid } from "@/lib/vehicle-quick-filters";
 
 export const metadata: Metadata = createPageMetadata({
@@ -166,9 +163,10 @@ export default async function CarsPage({ searchParams }: CarsPageProps) {
   const [vehicles, signalsMap] = await Promise.all([getVehicles(), getBrandSignals()]);
   // Map은 직렬화 안 되므로 plain object로 변환해 클라이언트 컴포넌트에 전달
   const brandSignals: Record<string, BrandSignal> = Object.fromEntries(signalsMap);
+  // key에 browse state를 넣지 않는다.
+  // 검색/필터 URL 동기화마다 remount되면 검색창 포커스가 끊긴다.
   return (
     <CarsClientPage
-      key={serializeCarsBrowseState(initialBrowseState)}
       vehicles={vehicles}
       brandSignals={brandSignals}
       initialBrowseState={initialBrowseState}
