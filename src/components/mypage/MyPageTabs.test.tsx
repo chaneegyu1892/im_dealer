@@ -16,6 +16,9 @@ describe("MyPageTabs", () => {
 
     expect(screen.getByRole("link", { name: "쿠폰함" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "홈" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "추천인" })).toHaveAttribute("href", "/mypage/referral");
+    expect(screen.getByRole("link", { name: "내 견적" })).toHaveAttribute("href", "/mypage/quotes");
+    expect(screen.getByRole("link", { name: "내 정보" })).toHaveAttribute("href", "/mypage/profile");
   });
 
   it("마이페이지 루트에서는 홈 탭이 활성이다", () => {
@@ -25,3 +28,4 @@ describe("MyPageTabs", () => {
     expect(screen.getByRole("link", { name: "홈" })).toHaveAttribute("aria-current", "page");
   });
 });
+

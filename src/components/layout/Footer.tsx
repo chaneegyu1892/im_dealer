@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_TEL_HREF } from "@/lib/contact";
 
 const PRIMARY_LINKS = [
   { href: "/recommend", label: "AI 추천" },
@@ -52,6 +53,13 @@ export function Footer() {
               <span className="whitespace-nowrap">견적 서비스</span>
             </p>
             <div className="mt-4 flex flex-wrap gap-2 lg:mt-5">
+              <a
+                href={SUPPORT_PHONE_TEL_HREF}
+                aria-label={`${SUPPORT_PHONE_DISPLAY} 전화 걸기`}
+                className="inline-flex min-h-10 items-center rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand transition-colors duration-state hover:bg-brand/15 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 lg:min-h-9 lg:text-[12.5px]"
+              >
+                대표전화 {SUPPORT_PHONE_DISPLAY}
+              </a>
               <a
                 href="mailto:contact@metakium.co.kr"
                 className="inline-flex min-h-10 items-center rounded-pill bg-surface-soft px-3 text-[12px] font-bold text-text-body transition-colors duration-state hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 lg:min-h-9 lg:text-[12.5px]"

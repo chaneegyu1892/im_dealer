@@ -1,12 +1,13 @@
 "use client";
 
-import { CheckCircle2, ClipboardCheck, ExternalLink, TriangleAlert } from "lucide-react";
+import { CheckCircle2, ExternalLink, Phone, TriangleAlert } from "lucide-react";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
+import {
+  SUPPORT_PHONE_DISPLAY,
+  SUPPORT_PHONE_TEL_HREF,
+} from "@/lib/contact";
 
 interface QuoteResultActionsProps {
-  readonly onContractApply: () => void;
-  readonly isApplying: boolean;
-  readonly applyError: string | null;
   readonly kakaoDeliveryEnabled: boolean;
   readonly channelTalkDelivery: boolean;
   readonly isDelivering: boolean;
@@ -22,9 +23,6 @@ interface QuoteResultActionsProps {
 }
 
 export function QuoteResultActions({
-  onContractApply,
-  isApplying,
-  applyError,
   kakaoDeliveryEnabled,
   channelTalkDelivery,
   isDelivering,
@@ -135,29 +133,29 @@ export function QuoteResultActions({
         </>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={onContractApply}
-          disabled={isApplying}
-          aria-busy={isApplying}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-btn bg-brand px-3 text-[14px] font-extrabold text-[var(--color-brand-ink)] transition-colors duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <ClipboardCheck aria-hidden="true" size={17} />
-          {isApplying ? "견적 저장 중…" : "심사 요청하기"}
-        </button>
-
-        <ChannelTalkButton
-          label="상담하기"
-          className="min-h-12 rounded-btn px-3 text-[14px]"
-        />
-      </div>
-
-      {applyError ? (
-        <p role="alert" className="text-[13px] font-semibold text-status-danger">
-          {applyError}
+      <div className="rounded-[14px] border border-border-subtle bg-surface-soft/80 p-3.5">
+        <p className="text-[13px] font-extrabold text-text-strong">서류 심사는 준비 중이에요</p>
+        <p className="mt-1 text-[12px] font-semibold leading-5 text-text-body">
+          지금은 대표전화 또는 상담으로 바로 도와드릴게요.
         </p>
-      ) : null}
+        <div className="mt-3 grid grid-cols-2 gap-2.5">
+          <a
+            href={SUPPORT_PHONE_TEL_HREF}
+            aria-label={`${SUPPORT_PHONE_DISPLAY} 전화 걸기`}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-btn bg-brand px-3 text-[14px] font-extrabold text-white transition-colors duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
+          >
+            <Phone aria-hidden="true" size={17} strokeWidth={2.3} />
+            대표전화
+          </a>
+          <ChannelTalkButton
+            label="상담하기"
+            className="min-h-12 rounded-btn px-3 text-[14px]"
+          />
+        </div>
+        <p className="mt-2 text-center text-[11.5px] font-bold tabular-nums text-text-muted">
+          {SUPPORT_PHONE_DISPLAY}
+        </p>
+      </div>
     </section>
   );
 }

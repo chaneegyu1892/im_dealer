@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CarsFilterPanel,
@@ -10,6 +11,16 @@ import { SORT_OPTIONS, type SortOption } from "@/components/cars/CarsFilterContr
 import { CarsResultsSection } from "@/components/cars/CarsResultsSection";
 import { CarsStickyFilterBar } from "@/components/cars/CarsStickyFilterBar";
 import { makeBrandComparator, type BrandSignal } from "@/lib/brand-sort";
+import {
+  DEFAULT_CARS_BROWSE_STATE,
+  rememberCarsBrowseUrl,
+  serializeCarsBrowseState,
+  type CarsBrowseState,
+} from "@/lib/cars-browse-state";
+import {
+  BODY_CATEGORY_MAP,
+  vehicleLooksHybrid,
+} from "@/lib/vehicle-quick-filters";
 import type { VehicleListItem } from "@/types/api";
 import { compareWithQuoteLast, type QuoteResponse, type QuoteSnapshot } from "./carsBrowseData";
 import { CarsPageHero, FeaturedVehiclesSection } from "./CarsPageSections";
@@ -17,23 +28,27 @@ import { CarsPageHero, FeaturedVehiclesSection } from "./CarsPageSections";
 interface CarsClientPageProps {
   readonly vehicles: VehicleListItem[];
   readonly brandSignals: Record<string, BrandSignal>;
-  readonly initialSearchQuery?: string;
+  readonly initialBrowseState?: CarsBrowseState;
 }
 
 export function CarsClientPage({
   vehicles,
   brandSignals,
-  initialSearchQuery = "",
+  initialBrowseState = DEFAULT_CARS_BROWSE_STATE,
 }: CarsClientPageProps) {
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("전체");
-  const [brandFilter, setBrandFilter] = useState("전체");
-  const [sortBy, setSortBy] = useState<SortOption>("popular");
-  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
+  const router = useRouter();
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(
+    initialBrowseState.category,
+  );
+  const [brandFilter, setBrandFilter] = useState(initialBrowseState.brand);
+  const [sortBy, setSortBy] = useState<SortOption>(initialBrowseState.sort);
+  const [searchQuery, setSearchQuery] = useState(initialBrowseState.query);
   const [showStickyBar, setShowStickyBar] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [quoteCache, setQuoteCache] = useState<Record<string, QuoteSnapshot>>({});
   const [quoteLoadFailed, setQuoteLoadFailed] = useState(false);
   const filterPanelRef = useRef<HTMLDivElement>(null);
+  const searchSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const element = filterPanelRef.current;
@@ -102,7 +117,19 @@ export function CarsClientPage({
         : vehicles.filter((vehicle) => !featuredIds.has(vehicle.id));
 
     if (!query && categoryFilter !== "전체") {
-      result = result.filter((vehicle) => vehicle.category === categoryFilter);
+      if (categoryFilter === "EV") {
+        result = result.filter(
+          (vehicle) =>
+            vehicle.hasEv === true || vehicle.defaultTrim?.engineType === "EV",
+        );
+      } else if (categoryFilter === "HEV") {
+        result = result.filter((vehicle) => vehicleLooksHybrid(vehicle));
+      } else {
+        const bodyCategory = BODY_CATEGORY_MAP[categoryFilter];
+        if (bodyCategory) {
+          result = result.filter((vehicle) => vehicle.category === bodyCategory);
+        }
+      }
     }
     if (!query && brandFilter !== "전체") {
       result = result.filter((vehicle) => vehicle.brand === brandFilter);
@@ -171,6 +198,31 @@ export function CarsClientPage({
     setSortBy(sort);
     setSortOpen(false);
   }, []);
+
+  // 필터·검색 상태를 URL + sessionStorage 에 동기화해 상세 복귀 시 복원한다.
+  useEffect(() => {
+    const nextState: CarsBrowseState = {
+      query: searchQuery,
+      category: categoryFilter,
+      brand: brandFilter,
+      sort: sortBy,
+    };
+    const href = serializeCarsBrowseState(nextState);
+    rememberCarsBrowseUrl(href);
+
+    if (searchSyncTimer.current) clearTimeout(searchSyncTimer.current);
+    searchSyncTimer.current = setTimeout(() => {
+      const current =
+        window.location.pathname +
+        (window.location.search || "");
+      if (current === href || (href === "/cars" && current === "/cars")) return;
+      router.replace(href, { scroll: false });
+    }, 220);
+
+    return () => {
+      if (searchSyncTimer.current) clearTimeout(searchSyncTimer.current);
+    };
+  }, [searchQuery, categoryFilter, brandFilter, sortBy, router]);
 
   useEffect(() => {
     if (!isBrowsing) return;

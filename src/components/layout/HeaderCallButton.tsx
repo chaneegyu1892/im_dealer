@@ -50,7 +50,7 @@ export function HeaderCallButton() {
         type="button"
         ref={triggerRef}
         onClick={() => setOpen((current) => !current)}
-        className="flex min-h-11 min-w-11 items-center justify-center rounded-pill text-brand transition-colors hover:bg-brand-soft focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        className="flex min-h-11 min-w-11 items-center justify-center rounded-pill border border-brand/30 bg-brand-soft text-brand shadow-[inset_0_0_0_1px_rgba(39,54,138,0.06)] transition-colors hover:border-brand/50 hover:bg-brand/15 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         aria-label="대표전화 보기"
         aria-controls="header-call-panel"
         aria-expanded={open}

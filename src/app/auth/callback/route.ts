@@ -7,6 +7,12 @@ import { fetchKakaoAccount, fetchAgreedTermTags } from "@/lib/kakao/account";
 import { getChannelRelation } from "@/lib/kakao/channel";
 import { isKakaoSyncEnabled } from "@/lib/kakao/scopes";
 import { storeKakaoRefreshToken } from "@/lib/kakao/token";
+import { allocateUniqueReferralCode } from "@/lib/referral/ensure-code";
+import {
+  REFERRAL_COOKIE_MAX_AGE_SEC,
+  REFERRAL_COOKIE_NAME,
+} from "@/lib/referral/attribution";
+import { normalizeReferralCode } from "@/lib/referral/code";
 
 const metadataSchema = z.record(z.unknown());
 
@@ -117,8 +123,12 @@ export async function GET(request: Request) {
   // 카카오 API 의 프로필 닉네임을 우선하고, 없으면 Supabase 메타에서 받은 값을 쓴다.
   const kakaoNickname = account?.nickname ?? metaNickname;
 
+  // 로그인 URL 의 ?ref= 도 쿠키에 심어 가입 완료 시 추천 인정에 쓴다.
+  const refFromQuery = normalizeReferralCode(searchParams.get("ref"));
+
   let dbUser: { role: string; profileCompleted: boolean } | null = null;
   try {
+    const newReferralCode = await allocateUniqueReferralCode(prisma);
     dbUser = await prisma.user.upsert({
       where: { supabaseId: user.id },
       update: {
@@ -148,6 +158,7 @@ export async function GET(request: Request) {
         consentedAt: useSync ? new Date() : null,
         isActive: true,
         lastLoginAt: new Date(),
+        referralCode: newReferralCode,
       },
       select: { role: true, profileCompleted: true },
     });
@@ -164,13 +175,22 @@ export async function GET(request: Request) {
 
   // 간편가입 미완료 회원(이름·전화 미수집)은 가입완료 폼으로 유도한다.
   // 어드민 계열/이미 완료한 회원은 원래 목적지(next)로 바로 이동.
-  if (dbUser && dbUser.role === "member" && !dbUser.profileCompleted) {
-    return NextResponse.redirect(
-      `${redirectOrigin}/welcome?next=${encodeURIComponent(next)}`
-    );
-  }
+  const redirectUrl =
+    dbUser && dbUser.role === "member" && !dbUser.profileCompleted
+      ? `${redirectOrigin}/welcome?next=${encodeURIComponent(next)}`
+      : `${redirectOrigin}${next}`;
 
-  return NextResponse.redirect(`${redirectOrigin}${next}`);
+  const response = NextResponse.redirect(redirectUrl);
+  if (refFromQuery) {
+    response.cookies.set(REFERRAL_COOKIE_NAME, refFromQuery, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: REFERRAL_COOKIE_MAX_AGE_SEC,
+    });
+  }
+  return response;
 }
 
 /** 메타데이터에서 첫 번째로 값이 있는 키를 고른다. */

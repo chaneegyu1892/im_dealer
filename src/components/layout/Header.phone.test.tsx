@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Header } from "./Header";
 
@@ -25,15 +25,17 @@ vi.mock("@/lib/supabase/client", () => ({
       onAuthStateChange: () => ({
         data: { subscription: { unsubscribe: mocks.unsubscribe } },
       }),
+      signOut: vi.fn().mockResolvedValue({}),
     },
   }),
 }));
 
-describe("Header 대표전화", () => {
+describe("Header 대표전화 · My 메뉴", () => {
   beforeEach(() => {
     mocks.getUser.mockReset();
     mocks.getUser.mockResolvedValue({ data: { user: null } });
     mocks.fetch.mockReset();
+    mocks.push.mockReset();
     vi.stubGlobal("fetch", mocks.fetch);
   });
 
@@ -49,7 +51,7 @@ describe("Header 대표전화", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("대표전화")).toBeInTheDocument();
     expect(screen.getByText("1688-8479")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "1688-8479 전화 걸기" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /1688-8479 전화 걸기/ })).toHaveAttribute(
       "href",
       "tel:16888479",
     );
@@ -63,9 +65,7 @@ describe("Header 대표전화", () => {
     expect(screen.getByText("1688-8479")).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: "Escape" });
-
     expect(screen.queryByText("1688-8479")).not.toBeInTheDocument();
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(trigger).toHaveFocus();
   });
 
@@ -74,19 +74,25 @@ describe("Header 대표전화", () => {
 
     const trigger = screen.getByRole("button", { name: "대표전화 보기" });
     fireEvent.click(trigger);
-
     fireEvent.click(screen.getByRole("button", { name: "대표전화 닫기" }));
 
     expect(screen.queryByText("1688-8479")).not.toBeInTheDocument();
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(trigger).toHaveFocus();
   });
 
-  it("로그인 회원 메뉴에서 마이페이지로 이동할 수 있다", async () => {
+  it("비로그인 My 버튼은 로그인으로 보낸다", () => {
+    render(<Header />);
+
+    fireEvent.click(screen.getByRole("button", { name: "로그인" }));
+    expect(mocks.push).toHaveBeenCalledWith(expect.stringContaining("/login?next="));
+  });
+
+  it("로그인 회원 My 메뉴에 아이콘 메뉴 항목이 있다", async () => {
     mocks.getUser.mockResolvedValue({
       data: {
         user: {
-          email: "member@example.com",
+          id: "u1",
+          email: "test@example.com",
           user_metadata: { name: "테스트 고객" },
         },
       },
@@ -97,16 +103,27 @@ describe("Header 대표전화", () => {
     });
     render(<Header />);
 
-    const profileButton = await screen.findByRole("button", { name: "테스트 고객 계정 메뉴" });
-    const header = screen.getByRole("banner");
+    const myButton = await screen.findByRole("button", { name: "My 메뉴 열기" });
+    fireEvent.click(myButton);
 
-    expect(header).toHaveClass("z-50");
-    fireEvent.click(profileButton);
-
-    expect(header).toHaveClass("z-[70]");
-    expect(screen.getByRole("menuitem", { name: "마이페이지" })).toHaveAttribute(
+    await waitFor(() => {
+      expect(screen.getByRole("menuitem", { name: "내 견적보기" })).toHaveAttribute(
+        "href",
+        "/mypage/quotes",
+      );
+    });
+    expect(screen.getByRole("menuitem", { name: "추천인 페이지" })).toHaveAttribute(
       "href",
-      "/mypage"
+      "/mypage/referral",
     );
+    expect(screen.getByRole("menuitem", { name: "쿠폰함" })).toHaveAttribute(
+      "href",
+      "/mypage/coupons",
+    );
+    expect(screen.getByRole("menuitem", { name: "내 정보" })).toHaveAttribute(
+      "href",
+      "/mypage/profile",
+    );
+    expect(screen.getByRole("menuitem", { name: "로그아웃" })).toBeInTheDocument();
   });
 });

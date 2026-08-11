@@ -17,6 +17,11 @@ import {
 } from "@/lib/vehicle-images/public";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { createPageMetadata } from "@/lib/site-config";
+import {
+  parseCarsBrowseState,
+  serializeCarsBrowseState,
+} from "@/lib/cars-browse-state";
+import { trimLooksHybrid } from "@/lib/vehicle-quick-filters";
 
 export const metadata: Metadata = createPageMetadata({
   title: "장기렌트·운용리스 차량 견적 비교",
@@ -28,14 +33,6 @@ export const metadata: Metadata = createPageMetadata({
 type CarsPageProps = {
   readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
-
-function parseInitialSearchQuery(
-  searchParams: Record<string, string | string[] | undefined>,
-): string {
-  const value = searchParams.query;
-  const rawValue = Array.isArray(value) ? value[0] : value;
-  return (rawValue ?? "").trim().slice(0, 80);
-}
 
 async function getVehicles(): Promise<VehicleListItem[]> {
   const vehicles = await prisma.vehicle.findMany({
@@ -123,6 +120,8 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       brand: v.brand,
       category: v.category as VehicleListItem["category"],
       basePrice: v.basePrice,
+      hasEv: v.trims.some((trim) => trim.engineType === "EV"),
+      hasHev: v.trims.some((trim) => trimLooksHybrid(trim)),
       evSubsidyRange: subsidyRangeFromTrims(v.trims),
       thumbnailUrl: resolvePublicListThumbnailUrl(v),
       isPopular: v.isPopular,
@@ -163,16 +162,16 @@ async function getVehicles(): Promise<VehicleListItem[]> {
 
 export default async function CarsPage({ searchParams }: CarsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const initialSearchQuery = parseInitialSearchQuery(resolvedSearchParams);
+  const initialBrowseState = parseCarsBrowseState(resolvedSearchParams);
   const [vehicles, signalsMap] = await Promise.all([getVehicles(), getBrandSignals()]);
   // Map은 직렬화 안 되므로 plain object로 변환해 클라이언트 컴포넌트에 전달
   const brandSignals: Record<string, BrandSignal> = Object.fromEntries(signalsMap);
   return (
     <CarsClientPage
-      key={initialSearchQuery}
+      key={serializeCarsBrowseState(initialBrowseState)}
       vehicles={vehicles}
       brandSignals={brandSignals}
-      initialSearchQuery={initialSearchQuery}
+      initialBrowseState={initialBrowseState}
     />
   );
 }

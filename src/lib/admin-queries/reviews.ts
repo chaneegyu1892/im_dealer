@@ -1,6 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
-import { maskAuthorName, formatReviewDate, maskPhone } from "../review-utils";
+import {
+  maskAuthorName,
+  formatReviewDate,
+  formatReviewVehicleLabel,
+  maskPhone,
+} from "../review-utils";
 import { makeBrandComparator } from "../brand-sort";
 import { getBrandSignals } from "../brand-signals";
 import type {
@@ -25,7 +30,9 @@ function toPublicReview(r: ReviewRow): PublicReview {
     rating: r.rating,
     content: r.content,
     vehicleId: r.vehicleId,
-    vehicleName: r.vehicle ? `${r.vehicle.brand} ${r.vehicle.name}` : null,
+    vehicleName: r.vehicle
+      ? formatReviewVehicleLabel(r.vehicle.brand, r.vehicle.name)
+      : null,
     vehicleBrand: r.vehicle?.brand ?? null,
     reviewDate: formatReviewDate(r.reviewDate),
     imageUrls: r.imageUrls,

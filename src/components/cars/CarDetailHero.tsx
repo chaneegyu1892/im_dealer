@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -8,6 +9,7 @@ import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 import { hasRepresentativeQuote, type RepresentativeQuote } from "@/lib/representative-quote";
 import { isSupabaseStorageUrl } from "@/lib/image-url";
+import { readRememberedCarsBrowseUrl } from "@/lib/cars-browse-state";
 import type { VehicleDetail } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
 
@@ -36,6 +38,11 @@ export function CarDetailHero({
   representativeQuotes: RepresentativeQuote[];
 }) {
   const hasQuote = hasRepresentativeQuote(representativeQuotes);
+  const [carsListHref, setCarsListHref] = useState("/cars");
+
+  useEffect(() => {
+    setCarsListHref(readRememberedCarsBrowseUrl());
+  }, []);
 
   return (
     <section className="relative min-h-[520px] overflow-hidden md:min-h-[620px]">
@@ -62,7 +69,7 @@ export function CarDetailHero({
           transition={{ duration: 0.25 }}
         >
           <Link
-            href="/cars"
+            href={carsListHref}
             className="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-white/10 px-3 text-[12px] font-bold text-white/70 backdrop-blur-sm transition-colors hover:bg-white/15 hover:text-white"
           >
             <ArrowLeft size={13} />

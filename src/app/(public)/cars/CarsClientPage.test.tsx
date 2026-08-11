@@ -4,10 +4,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VehicleListItem } from "@/types/api";
 import { CarsClientPage } from "./CarsClientPage";
 
+const routerMocks = vi.hoisted(() => ({
+  replace: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: routerMocks.replace,
+    push: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
+
 type FilterPanelMockProps = {
   readonly searchQuery: string;
   readonly onSearchChange: (value: string) => void;
-  readonly onCategoryChange: (category: "SUV") => void;
+  readonly onCategoryChange: (category: "RV") => void;
 };
 
 type ResultsSectionMockProps = {
@@ -43,8 +55,8 @@ vi.mock("@/components/cars/CarsFilterPanel", () => ({
         value={searchQuery}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onSearchChange(event.target.value)}
       />
-      <button type="button" onClick={() => onCategoryChange("SUV")}>
-        SUV 필터
+      <button type="button" onClick={() => onCategoryChange("RV")}>
+        RV 필터
       </button>
     </>
   ),
@@ -93,6 +105,7 @@ const vehicle: VehicleListItem = {
 };
 
 beforeEach(() => {
+  routerMocks.replace.mockReset();
   class IntersectionObserverMock {
     observe() {}
 
@@ -128,7 +141,7 @@ describe("CarsClientPage 주목할 차량 노출", () => {
   it("필터로 결과를 탐색할 때도 주목할 차량을 접는다", () => {
     render(<CarsClientPage vehicles={[vehicle]} brandSignals={{}} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "SUV 필터" }));
+    fireEvent.click(screen.getByRole("button", { name: "RV 필터" }));
 
     expect(screen.queryByRole("heading", { name: "지금 가장 많이 비교하는 모델" })).not.toBeInTheDocument();
     expect(screen.getByText("검색 결과 모드")).toBeInTheDocument();

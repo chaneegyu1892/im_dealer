@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, MessageSquareText } from "lucide-react";
 import { BestReviewSection } from "@/components/reviews/BestReviewSection";
 import { ReviewCard } from "@/components/reviews/ReviewCard";
+import { ReviewDetailModal } from "@/components/reviews/ReviewDetailModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { InlineAlert } from "@/components/ui/InlineAlert";
 import {
@@ -99,6 +100,7 @@ export function ReviewsGalleryClient({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openReview, setOpenReview] = useState<PublicReview | null>(null);
 
   const isInitialFilter = useRef(true);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -225,27 +227,29 @@ export function ReviewsGalleryClient({
             description="차량, 브랜드, 별점 필터를 줄이면 더 많은 후기를 볼 수 있어요."
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((review) => (
-              <ReviewCard key={review.id} review={review} />
+              <ReviewCard key={review.id} review={review} onOpen={setOpenReview} />
             ))}
           </div>
         )}
 
-        <div ref={sentinelRef} className="h-12 flex items-center justify-center">
+        <div ref={sentinelRef} className="flex h-12 items-center justify-center">
           {loadingMore && (
             <span className="inline-flex items-center text-[12px] font-bold text-g2">
-              <Loader2 className="animate-spin mr-1.5" size={14} /> 더
+              <Loader2 className="mr-1.5 animate-spin" size={14} /> 더
               불러오는 중
             </span>
           )}
           {!nextCursor && items.length > 0 && !loading && (
-            <span className="text-[12px] text-g2">
-              마지막 후기입니다.
-            </span>
+            <span className="text-[12px] text-g2">마지막 후기입니다.</span>
           )}
         </div>
       </section>
+
+      {openReview ? (
+        <ReviewDetailModal review={openReview} onClose={() => setOpenReview(null)} />
+      ) : null}
     </div>
   );
 }

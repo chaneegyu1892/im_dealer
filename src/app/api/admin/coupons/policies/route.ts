@@ -6,7 +6,7 @@ import { logAdminAction } from "@/lib/audit";
 
 const policyBodySchema = z.object({
   code: z.string().regex(/^[A-Z0-9_]{3,40}$/, "코드는 대문자·숫자·밑줄 3~40자여야 합니다."),
-  trigger: z.enum(["SIGNUP", "FIRST_CONTRACT"]),
+  trigger: z.enum(["SIGNUP", "FIRST_CONTRACT", "REFERRAL_RECEIVED", "REFERRAL_GIVEN"]),
   title: z.string().min(1).max(60),
   description: z.string().max(120).nullable().optional(),
   rewardLabel: z.string().min(1).max(40),

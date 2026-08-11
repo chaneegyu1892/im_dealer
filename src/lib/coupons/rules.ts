@@ -1,4 +1,8 @@
-export type CouponTriggerValue = "SIGNUP" | "FIRST_CONTRACT";
+export type CouponTriggerValue =
+  | "SIGNUP"
+  | "FIRST_CONTRACT"
+  | "REFERRAL_RECEIVED"
+  | "REFERRAL_GIVEN";
 export type CouponStatusValue = "HELD" | "PENDING" | "PAID" | "EXPIRED" | "REVOKED";
 
 export interface PolicyView {
@@ -63,12 +67,15 @@ function isPolicyOpen(policy: PolicyView, now: Date): boolean {
   return true;
 }
 
-/** 카드가 쿠폰함에 생기는 조건. */
+/** 카드가 쿠폰함에 생기는 조건. 추천 쿠폰은 별도 attribution 경로에서만 발급. */
 function meetsIssueCondition(
   trigger: CouponTriggerValue,
   input: CouponReconcileInput
 ): boolean {
-  return trigger === "SIGNUP" ? input.profileCompleted : input.convertedQuoteId !== null;
+  if (trigger === "SIGNUP") return input.profileCompleted;
+  if (trigger === "FIRST_CONTRACT") return input.convertedQuoteId !== null;
+  // REFERRAL_* 는 applyReferralOnProfileComplete 전용
+  return false;
 }
 
 /**

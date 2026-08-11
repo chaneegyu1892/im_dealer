@@ -77,14 +77,14 @@ export function CarsResultsSection({
 
             <button
               type="button"
-              onClick={() => onCategorySelect("SUV")}
+              onClick={() => onCategorySelect("RV")}
               className="group flex min-h-[120px] flex-col items-start justify-between rounded-[16px] bg-white p-4 text-left ring-[1.5px] ring-transparent transition-all duration-200 hover:ring-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/30"
             >
               <span className="grid h-10 w-10 place-items-center rounded-[12px] bg-brand-soft text-brand">
                 <CarFront size={18} strokeWidth={2.2} />
               </span>
               <span>
-                <span className="block text-[15px] font-extrabold text-text-strong">SUV부터 보기</span>
+                <span className="block text-[15px] font-extrabold text-text-strong">RV부터 보기</span>
                 <span className="mt-1 block text-[12.5px] font-medium leading-relaxed text-text-muted">
                   패밀리·업무용으로 많이 찾는 차종
                 </span>

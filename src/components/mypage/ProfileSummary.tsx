@@ -29,7 +29,10 @@ export function ProfileSummary({
   const showChannelAdd = channelRelation !== "ADDED" && channelRelation !== "BLOCKED" && Boolean(channelAddUrl);
 
   return (
-    <section className="rounded-card border border-border-subtle bg-surface p-5 shadow-card md:p-6">
+    <section
+      id="profile"
+      className="scroll-mt-24 rounded-card border border-border-subtle bg-surface p-5 shadow-card md:p-6"
+    >
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-card bg-brand-soft text-brand">
           <UserRound size={20} strokeWidth={2} />

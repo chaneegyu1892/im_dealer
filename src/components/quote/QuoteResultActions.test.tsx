@@ -3,9 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { QuoteResultActions } from "./QuoteResultActions";
 
 const props = {
-  onContractApply: () => undefined,
-  isApplying: false,
-  applyError: null,
   kakaoDeliveryEnabled: true,
   channelTalkDelivery: false,
   isDelivering: false,
@@ -24,14 +21,16 @@ describe("QuoteResultActions", () => {
   });
 
   describe("Given a completed quote result", () => {
-    it("When rendered Then it exposes the three exact actions", () => {
+    it("When rendered Then it exposes delivery and coming-soon review actions", () => {
       render(<QuoteResultActions {...props} />);
 
       expect(
         screen.getByRole("button", { name: "카카오톡으로 견적서 받기" })
       ).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
+      expect(screen.getByText("서류 심사는 준비 중이에요")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /1688-8479 전화 걸기/ })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "심사 요청하기" })).not.toBeInTheDocument();
     });
 
     it("When Kakao delivery is selected Then it calls the supplied callback", () => {
@@ -62,7 +61,7 @@ describe("QuoteResultActions", () => {
       expect(
         screen.queryByRole("button", { name: "카카오톡으로 견적서 받기" })
       ).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
+      expect(screen.getByText("서류 심사는 준비 중이에요")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
     });
 
@@ -192,31 +191,6 @@ describe("QuoteResultActions", () => {
       expect(
         screen.queryByRole("button", { name: "대화창 다시 열기" })
       ).not.toBeInTheDocument();
-    });
-  });
-
-  describe("Given apply state supplied by the quote page", () => {
-    it("When the review action is selected Then it calls the supplied callback", () => {
-      const onContractApply = vi.fn<() => void>();
-      render(<QuoteResultActions {...props} onContractApply={onContractApply} />);
-
-      fireEvent.click(screen.getByRole("button", { name: "심사 요청하기" }));
-
-      expect(onContractApply).toHaveBeenCalledTimes(1);
-    });
-
-    it("When applying Then it preserves the loading label and busy state", () => {
-      render(<QuoteResultActions {...props} isApplying />);
-
-      const applyButton = screen.getByRole("button", { name: "견적 저장 중…" });
-      expect(applyButton).toBeDisabled();
-      expect(applyButton).toHaveAttribute("aria-busy", "true");
-    });
-
-    it("When apply fails Then it renders the supplied error as a visible alert", () => {
-      render(<QuoteResultActions {...props} applyError="견적 저장에 실패했어요." />);
-
-      expect(screen.getByRole("alert")).toHaveTextContent("견적 저장에 실패했어요.");
     });
   });
 

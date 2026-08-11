@@ -3,6 +3,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/admin-auth";
 import { toDomesticKR } from "@/lib/phone";
+import { REFERRAL_COOKIE_NAME } from "@/lib/referral/attribution";
+import { applyReferralOnProfileComplete } from "@/lib/referral/apply";
+import { ensureUserReferralCode } from "@/lib/referral/ensure-code";
+import { reconcileUserCoupons } from "@/lib/coupons/reconcile";
 
 // 간편가입 완료: 로그인 회원의 이름·전화(필수)와 마케팅 동의(선택)를 저장하고
 // profileCompleted 를 true 로 표시한다. /welcome 폼에서 호출한다.
@@ -35,6 +39,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const wasProfileCompleted = user.profileCompleted;
+  const referralFromCookie = request.cookies.get(REFERRAL_COOKIE_NAME)?.value ?? null;
+
   try {
     await prisma.user.update({
       where: { id: user.id },
@@ -45,10 +52,49 @@ export async function POST(request: NextRequest) {
         profileCompleted: true,
       },
     });
+
+    // 본인 추천 코드 확보 (추천인 페이지·공유용)
+    await ensureUserReferralCode(user.id, prisma);
+
+    // 기존 SIGNUP 쿠폰 등 동기화
+    if (user.supabaseId) {
+      await reconcileUserCoupons({
+        id: user.id,
+        supabaseId: user.supabaseId,
+        profileCompleted: true,
+      });
+    }
+
+    // 최초 가입 완료 시에만 추천 인정
+    if (!wasProfileCompleted && referralFromCookie) {
+      const result = await applyReferralOnProfileComplete(
+        {
+          inviteeUserId: user.id,
+          rawCode: referralFromCookie,
+          isFirstProfileComplete: true,
+          inviteeKakaoId: user.kakaoId ?? null,
+        },
+        prisma,
+      );
+      if (!result.applied) {
+        console.info("[complete-profile] referral not applied:", result.reason);
+      }
+    }
   } catch (err) {
     console.error("[POST /api/auth/complete-profile]", err);
     return NextResponse.json({ error: "저장 중 오류가 발생했습니다." }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  const response = NextResponse.json({ success: true });
+  // 소비된 추천 쿠키 제거
+  if (referralFromCookie) {
+    response.cookies.set(REFERRAL_COOKIE_NAME, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
+  }
+  return response;
 }

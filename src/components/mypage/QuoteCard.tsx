@@ -1,5 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
-import { CarFront } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CarFront, X } from "lucide-react";
 import { StatusPill } from "@/components/mypage/ActiveQuoteSection";
 import { QuoteConditionDialog } from "@/components/mypage/QuoteConditionDialog";
 import { MyPageConsultationButton } from "@/components/mypage/MyPageConsultationButton";
@@ -9,10 +13,47 @@ import type { MyPageQuote } from "@/lib/member-queries/mypage";
 import { getExpiryLabel, getQuoteHref, moneyFormatter } from "@/lib/member-queries/mypage-format";
 
 export function QuoteCard({ quote }: { quote: MyPageQuote }) {
+  const router = useRouter();
   const quoteHref = getQuoteHref(quote);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    if (deleting) return;
+    const confirmed = window.confirm("이 견적을 목록에서 삭제할까요?");
+    if (!confirmed) return;
+
+    setError(null);
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/me/quotes/${encodeURIComponent(quote.id)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setError(body?.error ?? "삭제에 실패했습니다. 다시 시도해 주세요.");
+        setDeleting(false);
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("네트워크 오류가 발생했습니다.");
+      setDeleting(false);
+    }
+  }
 
   return (
-    <article className="overflow-hidden rounded-card border border-border-subtle bg-surface shadow-card transition-shadow duration-state hover:shadow-card-hover">
+    <article className="relative overflow-hidden rounded-card border border-border-subtle bg-surface shadow-card transition-shadow duration-state hover:shadow-card-hover">
+      <button
+        type="button"
+        onClick={() => void handleDelete()}
+        disabled={deleting}
+        aria-label={`${quote.vehicleName} 견적 삭제`}
+        className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border-subtle bg-surface/95 text-text-muted shadow-sm transition-colors hover:border-status-danger/30 hover:bg-status-danger-soft hover:text-status-danger focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 disabled:cursor-wait disabled:opacity-50"
+      >
+        <X size={15} strokeWidth={2.4} />
+      </button>
+
       <div className="flex gap-3 p-4 md:p-5">
         <div className="relative flex h-[76px] w-[96px] shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-surface-soft">
           {quote.thumbnailUrl ? (
@@ -28,7 +69,7 @@ export function QuoteCard({ quote }: { quote: MyPageQuote }) {
             <CarFront size={26} strokeWidth={1.6} className="text-text-muted" aria-hidden="true" />
           )}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pr-8">
           <div className="flex items-start justify-between gap-2">
             <p className="truncate text-[12px] font-bold text-text-muted">{quote.vehicleBrand ?? "아임딜러 견적"}</p>
             <StatusPill quote={quote} />
@@ -66,6 +107,11 @@ export function QuoteCard({ quote }: { quote: MyPageQuote }) {
           className="min-h-10 !w-auto px-3"
         />
       </div>
+      {error ? (
+        <p role="alert" className="border-t border-status-danger/20 bg-status-danger-soft px-4 py-2 text-[12px] font-semibold text-status-danger">
+          {error}
+        </p>
+      ) : null}
     </article>
   );
 }

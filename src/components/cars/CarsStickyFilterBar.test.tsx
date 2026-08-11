@@ -7,7 +7,7 @@ describe("CarsStickyFilterBar 모바일 너비", () => {
     render(
       <CarsStickyFilterBar
         brandFilter="현대"
-        categoryFilter="SUV"
+        categoryFilter="RV"
         activeFilterCount={2}
         currentSortLabel="가격 높은순"
         searchQuery="투싼"
@@ -24,7 +24,7 @@ describe("CarsStickyFilterBar 모바일 너비", () => {
 
     expect(screen.getByRole("button", { name: /필터/ })).toHaveTextContent("2");
     expect(screen.getByRole("button", { name: "현대" })).toHaveClass("max-[430px]:hidden");
-    expect(screen.getByRole("button", { name: "SUV" })).toHaveClass("max-[430px]:hidden");
+    expect(screen.getByRole("button", { name: "RV" })).toHaveClass("max-[430px]:hidden");
     expect(screen.getByPlaceholderText("검색").parentElement).toHaveClass(
       "max-[430px]:min-w-0",
     );

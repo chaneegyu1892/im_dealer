@@ -52,9 +52,9 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
               </Link>
               <Link
                 href="/cars"
-                className="flex h-[56px] w-[180px] items-center justify-center gap-2 rounded-[14px] bg-[#F8FAFC] px-3 text-[16px] font-bold text-text-strong ring-[1.5px] ring-transparent transition-all hover:ring-[#E5E8EB] active:scale-[0.99] max-[340px]:w-full md:text-[17px]"
+                className="flex h-[56px] w-[180px] items-center justify-center gap-2 rounded-[14px] bg-[#EEF1F6] px-3 text-[16px] font-bold text-text-strong ring-[1.5px] ring-brand/35 transition-all hover:bg-[#E5E9F2] hover:ring-brand/55 active:scale-[0.99] max-[340px]:w-full md:text-[17px]"
               >
-                차량 둘러보기
+                내 차량 견적내기
               </Link>
             </div>
 

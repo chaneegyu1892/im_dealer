@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, Ticket, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Trigger = "SIGNUP" | "FIRST_CONTRACT";
+type Trigger = "SIGNUP" | "FIRST_CONTRACT" | "REFERRAL_RECEIVED" | "REFERRAL_GIVEN";
 type RewardKind = "FUEL" | "CASH" | "GIFT";
 type IssuedStatus = "ALL" | "HELD" | "PENDING" | "PAID" | "EXPIRED" | "REVOKED";
 
@@ -40,6 +40,8 @@ interface IssuedCouponRow {
 const TRIGGER_LABEL: Record<Trigger, string> = {
   SIGNUP: "첫가입",
   FIRST_CONTRACT: "첫계약",
+  REFERRAL_RECEIVED: "추천 가입(피추천인)",
+  REFERRAL_GIVEN: "추천 성공(추천인)",
 };
 
 const STATUS_LABEL: Record<Exclude<IssuedStatus, "ALL">, string> = {
@@ -324,6 +326,8 @@ function PolicyTab({ onError }: { onError: (message: string | null) => void }) {
               >
                 <option value="SIGNUP">첫가입</option>
                 <option value="FIRST_CONTRACT">첫계약</option>
+                <option value="REFERRAL_RECEIVED">추천 가입(피추천인)</option>
+                <option value="REFERRAL_GIVEN">추천 성공(추천인)</option>
               </select>
             </Field>
             <Field label="제목">

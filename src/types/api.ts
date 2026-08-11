@@ -12,6 +12,10 @@ export interface VehicleListItem {
   brand: string;
   category: VehicleCategory;
   basePrice: number;
+  /** 노출 트림 중 EV가 1개 이상이면 true. 빠른 탐색 EV 필터용. */
+  hasEv?: boolean;
+  /** 노출 트림 중 하이브리드(HEV/PHEV)가 1개 이상이면 true. */
+  hasHev?: boolean;
   /** 노출 트림들의 전기차 보조금(안내용, 견적 미반영) 최소~최대 범위. null = 보조금 없음 */
   evSubsidyRange: SubsidyRange | null;
   thumbnailUrl: string;

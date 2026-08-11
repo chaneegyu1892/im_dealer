@@ -2,13 +2,15 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, LayoutGrid, Truck, X } from "lucide-react";
+import { ChevronDown, LayoutGrid, Leaf, X, Zap } from "lucide-react";
 import { CarsSearchControl, SortMenu, type SortOption } from "@/components/cars/CarsFilterControls";
+import {
+  VEHICLE_CATEGORIES,
+  type CategoryFilter,
+} from "@/lib/vehicle-quick-filters";
 import { cn } from "@/lib/utils";
 
-export const VEHICLE_CATEGORIES = ["전체", "세단", "SUV", "밴", "트럭"] as const;
-
-export type CategoryFilter = (typeof VEHICLE_CATEGORIES)[number];
+export { VEHICLE_CATEGORIES, type CategoryFilter };
 
 const BRAND_LOGO_MAP: Record<string, string> = {
   현대: "/images/vehicles/logos/hyundai.svg",
@@ -23,31 +25,63 @@ const BRAND_LOGO_MAP: Record<string, string> = {
   테슬라: "/images/vehicles/logos/tesla.svg",
 };
 
+/** 참고 UI: 승용 · RV · 승합 · 화물 · EV · HEV 실루엣 */
 function CategoryIcon({ category }: { category: CategoryFilter }) {
   if (category === "전체") return <LayoutGrid size={16} strokeWidth={1.9} />;
-  if (category === "트럭") return <Truck size={16} strokeWidth={1.9} />;
+  if (category === "EV") return <Zap size={15} strokeWidth={2.3} className="text-emerald-500" />;
+  if (category === "HEV") {
+    return <Leaf size={15} strokeWidth={2.2} className="text-emerald-600" />;
+  }
 
+  // 화물: 캡 + 적재함
+  if (category === "화물") {
+    return (
+      <svg viewBox="0 0 36 16" className="h-[12px] w-[24px]" fill="currentColor" aria-hidden>
+        <path d="M2.5 5.2h10.2c.5 0 1 .3 1.2.8L15.5 10H32c.7 0 1.3.6 1.3 1.3v1.1H2.2V6a.8.8 0 0 1 .8-.8z" />
+        <rect x="16.5" y="4" width="15.5" height="6.5" rx="1.2" opacity="0.95" />
+        <rect x="4" y="6.2" width="5.5" height="2.6" rx="0.5" opacity="0.25" />
+        <circle cx="9" cy="13.3" r="1.85" />
+        <circle cx="26.5" cy="13.3" r="1.85" />
+      </svg>
+    );
+  }
+
+  // 승합: 박스형 원박스 밴
+  if (category === "승합") {
+    return (
+      <svg viewBox="0 0 36 16" className="h-[12px] w-[24px]" fill="currentColor" aria-hidden>
+        <path d="M3 4h22.5c.6 0 1.1.3 1.4.8L30 10.2h2.2c.7 0 1.3.5 1.3 1.2v1H2.5V4.9A.9.9 0 0 1 3.4 4H3z" />
+        <rect x="5" y="5.4" width="6" height="3.2" rx="0.5" opacity="0.22" />
+        <rect x="12.5" y="5.4" width="8" height="3.2" rx="0.5" opacity="0.22" />
+        <circle cx="10" cy="13.3" r="1.85" />
+        <circle cx="26" cy="13.3" r="1.85" />
+      </svg>
+    );
+  }
+
+  // RV: 높은 차고 SUV
+  if (category === "RV") {
+    return (
+      <svg viewBox="0 0 36 16" className="h-[12px] w-[24px]" fill="currentColor" aria-hidden>
+        <path d="M3 10.2 5.2 4.6C5.6 3.6 6.6 3 7.7 3h18.5c1.1 0 2.1.7 2.5 1.7L31.5 10.2H3z" />
+        <path d="M2.2 10.2h31.6v1.6c0 .5-.4.9-.9.9H3.1a.9.9 0 0 1-.9-.9v-1.6z" />
+        <path d="M8 4.2h8.5v4.2H8z" opacity="0.22" />
+        <path d="M18 4.2h7.2v4.2H18z" opacity="0.22" />
+        <circle cx="10" cy="13.5" r="2" />
+        <circle cx="26.5" cy="13.5" r="2" />
+      </svg>
+    );
+  }
+
+  // 승용: 세단 실루엣
   return (
-    <svg viewBox="0 0 32 14" className="h-[11px] w-[22px]" fill="currentColor">
-      {category === "밴" ? (
-        <>
-          <rect x="1" y="3" width="19" height="9" rx="1.5" />
-          <rect x="20" y="5.5" width="11" height="6.5" rx="1" />
-        </>
-      ) : (
-        <>
-          <path d="M2 9.5h28V11a.8.8 0 0 1-.8.8H2.8A.8.8 0 0 1 2 11V9.5z" />
-          <path
-            d={
-              category === "SUV"
-                ? "M3 9.5 4.5 3.5C5 2.6 6 2 7 2h18c1 0 2 .6 2.5 1.5L29 9.5"
-                : "M3.5 10 6.5 5c.4-.8 1.3-1.4 2.1-1.4H23.4c.8 0 1.7.6 2.1 1.4L28.5 10"
-            }
-          />
-        </>
-      )}
-      <circle cx="9.5" cy="12.5" r="1.8" />
-      <circle cx="22.5" cy="12.5" r="1.8" />
+    <svg viewBox="0 0 36 16" className="h-[12px] w-[24px]" fill="currentColor" aria-hidden>
+      <path d="M3.2 10.4 6.4 5.6C6.9 4.8 7.8 4.3 8.8 4.3h12.2c.9 0 1.7.4 2.2 1.1l2.4 3.2H30c1.1 0 2 .8 2 1.8v0H3.2z" />
+      <path d="M2.4 10.4h31.2v1.5c0 .45-.36.8-.8.8H3.2a.8.8 0 0 1-.8-.8v-1.5z" />
+      <path d="M9 5.1h10.5l1.6 3.5H7.8L9 5.1z" opacity="0.22" />
+      <path d="M24.2 8.2 25.6 6.4h3.2l1.1 1.8H24.2z" opacity="0.22" />
+      <circle cx="10.5" cy="13.4" r="1.85" />
+      <circle cx="26.5" cy="13.4" r="1.85" />
     </svg>
   );
 }
@@ -249,7 +283,7 @@ export function CarsFilterPanel({
                 type="button"
                 onClick={() => onCategoryChange(category)}
                 className={cn(
-                  "inline-flex h-12 min-w-[88px] shrink-0 items-center justify-center gap-2 rounded-pill border px-4 text-[14px] font-extrabold transition-all duration-state",
+                  "inline-flex h-12 min-w-[76px] shrink-0 items-center justify-center gap-1.5 rounded-pill border px-3 text-[13px] font-extrabold transition-all duration-state sm:min-w-[88px] sm:gap-2 sm:px-4 sm:text-[14px]",
                   isActive
                     ? "border-transparent bg-brand text-white"
                     : "border-transparent bg-surface-soft text-text-body hover:border-brand/15 hover:bg-brand-soft hover:text-brand",

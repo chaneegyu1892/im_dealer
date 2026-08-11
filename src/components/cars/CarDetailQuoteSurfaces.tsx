@@ -7,6 +7,7 @@ import { Calculator, Check, ChevronRight } from "lucide-react";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { hasRepresentativeQuote, type RepresentativeQuote } from "@/lib/representative-quote";
+import { readRememberedCarsBrowseUrl } from "@/lib/cars-browse-state";
 
 const TRUST_ITEMS = [
   "허위·낚시 견적 없음",
@@ -184,6 +185,11 @@ export function CarDetailSidebar({
   quotes: RepresentativeQuote[];
 }) {
   const hasQuote = hasRepresentativeQuote(quotes);
+  const [carsListHref, setCarsListHref] = useState("/cars");
+
+  useEffect(() => {
+    setCarsListHref(readRememberedCarsBrowseUrl());
+  }, []);
 
   return (
     <div className="hidden lg:col-span-1 lg:block">
@@ -249,7 +255,7 @@ export function CarDetailSidebar({
         </div>
 
         <Link
-          href="/cars"
+          href={carsListHref}
           className="group flex w-full items-center justify-between text-[13px] font-bold text-ink-label transition-colors duration-150 hover:text-ink"
         >
           <span>다른 차량 탐색하기</span>

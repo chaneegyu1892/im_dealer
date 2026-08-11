@@ -1298,8 +1298,6 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               customRates={customRates}
               costMode={costMode}
               isRecalculating={isRecalculating}
-              isApplying={isApplying}
-              applyError={error}
               isConsultationSubmitting={isConsultationSubmitting}
               consultationError={consultationError}
               kakaoDeliveryEnabled={kakaoDeliveryEnabled}
@@ -1319,7 +1317,6 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               onCostModeChange={setCostMode}
               onReset={restoreBaseStandardScenario}
               onMemberLogin={handleGateLogin}
-              onContractApply={handleContractApply}
               onConsultationRequest={handleConsultationRequest}
               onPrev={() => {
                 setQuoteResult(null);
@@ -1464,8 +1461,6 @@ function Step3ResultHeader({
   customRates,
   costMode,
   isRecalculating,
-  isApplying,
-  applyError,
   isConsultationSubmitting,
   consultationError,
   kakaoDeliveryEnabled,
@@ -1481,7 +1476,6 @@ function Step3ResultHeader({
   onCostModeChange,
   onReset,
   onMemberLogin,
-  onContractApply,
   onConsultationRequest,
   onPrev,
 }: {
@@ -1500,8 +1494,6 @@ function Step3ResultHeader({
   customRates: { depositRate: number; prepayRate: number };
   costMode: CostMode;
   isRecalculating: boolean;
-  isApplying: boolean;
-  applyError: string | null;
   isConsultationSubmitting: boolean;
   consultationError: string | null;
   kakaoDeliveryEnabled: boolean;
@@ -1517,7 +1509,6 @@ function Step3ResultHeader({
   onCostModeChange: (mode: CostMode) => void;
   onReset: () => void;
   onMemberLogin: () => void;
-  onContractApply: () => void;
   onConsultationRequest: () => void;
   onPrev: () => void;
 }) {
@@ -1811,9 +1802,6 @@ function Step3ResultHeader({
           </div>
 
           <QuoteResultActions
-            onContractApply={onContractApply}
-            isApplying={isApplying}
-            applyError={applyError}
             kakaoDeliveryEnabled={kakaoDeliveryEnabled}
             channelTalkDelivery={channelTalkDelivery}
             isDelivering={isDelivering}
