@@ -2,6 +2,7 @@
 // 검증: 더뉴_그랜저_2.5 30,000,000 / 36개월·20,000km → 493,570 (엑셀 CW25 원단위 일치).
 // 구조는 메리츠와 유사(PMT + PV개소세 + 잔가율 + 이율 + 수수료 + VAT). 상세 MG-NOTES.md.
 // 가격(P)은 엑셀에 없어 외부(우리 DB)에서 주입. 표준조건 고정.
+// 국산=특판·수입=비제휴 표준 규칙은 ../standard-conditions.ts 참조 (배포 엑셀은 국산용 기본 상태 기준).
 
 const f = (d: number) => Math.pow(10, d);
 export const roundUp = (v: number, d: number) => Math.ceil(v * f(d) - 1e-9) / f(d);
