@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
         brandCd: e.brandCd, brandName: e.brandName, modelCd: e.modelCd, modelName: e.modelName,
         dtMdlCd: e.dtMdlCd, dtMdlName: e.dtMdlName ?? null, trimName: e.trimName,
         vehiclePrice: e.vehiclePrice, baseRates: e.baseRates, warnings: e.warnings.length ? e.warnings : undefined,
+        // 보증금10% 샘플(메리츠만 산출) — 재업로드 시 이전 값 잔존 방지 위해 null 도 명시 기록
+        depositRate36_10000: e.depositRate36_10000 ?? null,
+        prepayRate36_10000: null, // 엑셀 선납 수식 미검증 — 미수집
         weekOf, scrapedAt,
       };
       await db.capitalCatalogTrim.upsert({

@@ -29,4 +29,10 @@ describe("meritz rent calculator", () => {
   it("잔가율 없는 셀은 null", () => {
     expect(computeMonthlyRent(SANTA, 35000000, 36, 30000, CONSTS)).toBeNull();
   });
+  it("보증금 10% 월납입금은 기본보다 낮다 (카탈로그 보증금 샘플의 할인 부호 전제)", () => {
+    const base = computeMonthlyRent(SANTA, 35000000, 36, 20000, CONSTS)!;
+    const dep = computeMonthlyRent(SANTA, 35000000, 36, 20000, CONSTS, { depositRate: 0.1 })!;
+    expect(dep).toBeGreaterThan(0);
+    expect(dep).toBeLessThan(base);
+  });
 });

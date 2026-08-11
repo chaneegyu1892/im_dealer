@@ -19,6 +19,8 @@ export interface MeritzCatalogEntry {
   mdelCd: string; trimName: string;
   vehiclePrice: number;
   baseRates: Record<string, number>;
+  /** 36개월/1만km 보증금10% 월납입금 샘플 — 시트 보증금 할인율 산출용. MG 는 엑셀 보증금 수식 미검증으로 미산출. */
+  depositRate36_10000?: number;
   warnings: string[];
 }
 
@@ -54,12 +56,18 @@ export function ingestMeritzRent(buf: Buffer | ArrayBuffer, ourVehicles: OurVehi
     else { modelFallback++; price = match.price; warnings.push(WARN_MODEL_FALLBACK); }
 
     const baseRates: Record<string, number> = {};
+    let depositRate36_10000: number | undefined;
     if (price > 0) {
       for (const c of CELLS) {
         const v = computeMonthlyRent(t, price, c.months, c.distKm, constants);
         if (v && v > 0) baseRates[`${c.months}_${c.distKm}`] = v;
       }
       if (Object.keys(baseRates).length > 0) priced++;
+      // 보증금10% 샘플 — 기준셀(36/1만) 견적이 있을 때만 (할인율 산출에 base·dep 쌍 필요)
+      if (baseRates["36_10000"]) {
+        const dep = computeMonthlyRent(t, price, 36, 10000, constants, { depositRate: 0.1 });
+        if (dep && dep > 0) depositRate36_10000 = dep;
+      }
     }
     const model = modelLabel(t.name);
     entries.push({
@@ -67,7 +75,7 @@ export function ingestMeritzRent(buf: Buffer | ArrayBuffer, ourVehicles: OurVehi
       modelCd: norm(t.manufacturer + "_" + model), modelName: model,
       dtMdlCd: norm(t.name), dtMdlName: t.name,
       mdelCd: norm(t.manufacturer + "_" + t.name), trimName: t.name,
-      vehiclePrice: price, baseRates, warnings,
+      vehiclePrice: price, baseRates, depositRate36_10000, warnings,
     });
   }
   return { entries, summary: { total: trims.length, trimConfirmed, modelFallback, unmatched, priced } };
