@@ -2,6 +2,7 @@
 import { parseMgRentWorkbook } from "./parse";
 import { computeMonthlyRent } from "./calc";
 import { matchMeritzTrim, type OurVehicle } from "../meritz/match";
+import { WARN_UNMATCHED, WARN_MODEL_FALLBACK } from "../excel-capitals";
 import type { MeritzCatalogEntry, MeritzIngestResult } from "../meritz/ingest";
 
 const CELLS: { months: number; distKm: number }[] = [
@@ -40,9 +41,9 @@ export function ingestMgRent(buf: Buffer | ArrayBuffer, ourVehicles: OurVehicle[
     const match = matchMeritzTrim({ manufacturer: brand, name: displayName }, ourVehicles);
     const warnings: string[] = [];
     let price = 0;
-    if (!match) { unmatched++; warnings.push("우리 DB 미매칭 — 수동 매핑 필요"); }
+    if (!match) { unmatched++; warnings.push(WARN_UNMATCHED); }
     else if (match.trimMatched) { trimConfirmed++; price = match.price; }
-    else { modelFallback++; price = match.price; warnings.push("모델만 일치(base 트림 가격) — 트림 검토 요망"); }
+    else { modelFallback++; price = match.price; warnings.push(WARN_MODEL_FALLBACK); }
 
     const baseRates: Record<string, number> = {};
     if (price > 0) {

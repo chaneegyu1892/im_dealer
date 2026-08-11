@@ -8,6 +8,7 @@ import { revalidatePublicVehicleSurfaces } from "@/lib/revalidate";
 import { applyCatalogSchema } from "@/lib/validations/admin";
 import { calcRateMatrix, RATE_KEYS } from "@/lib/quote-calculator";
 import { buildCollectedRateData } from "@/lib/scraper/rate-matrices";
+import { WARN_MODEL_FALLBACK } from "@/lib/scraper/excel-capitals";
 import type { RateSheetRaw } from "@/types/admin";
 
 type CatalogSheetData = Omit<
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
             trimName: true,
             modelYear: true,
             mdelCd: true,
+            warnings: true,
           },
         },
       },
@@ -62,6 +64,12 @@ export async function POST(request: NextRequest) {
       const hasAny = RATE_KEYS.some((k) => (baseRates?.[k] ?? 0) > 0);
       if (!hasAny || !(cat.vehiclePrice > 0)) {
         warnings.push(`${m.externalLabel}: 수집값 없음(9칸 전부 0) — 건너뜀`);
+        continue;
+      }
+      // 트림 미확정 폴백 가격(base 트림 근사)으로 산출된 행은 부정확한 견적이 되므로 반영 차단
+      const catWarnings = Array.isArray(cat.warnings) ? (cat.warnings as string[]) : [];
+      if (catWarnings.includes(WARN_MODEL_FALLBACK)) {
+        warnings.push(`${m.externalLabel}: 가격이 트림 미확정 폴백값(모델만 일치) — 트림 매칭 확인 후 재업로드 필요, 건너뜀`);
         continue;
       }
       const collected = buildCollectedRateData(

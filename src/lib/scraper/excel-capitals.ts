@@ -18,3 +18,7 @@ export function isExcelCapital(name: string): boolean {
 export function excelUploadSupported(name: string, productType: string): boolean {
   return isExcelCapital(name) && productType === "장기렌트";
 }
+
+// 엑셀 ingest 가 CapitalCatalogTrim.warnings 에 남기는 문구 — apply-catalog 의 반영 차단 판정과 공유.
+export const WARN_UNMATCHED = "우리 DB 미매칭 — 수동 매핑 필요";
+export const WARN_MODEL_FALLBACK = "모델만 일치(base 트림 가격) — 트림 검토 요망";
