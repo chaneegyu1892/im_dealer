@@ -654,6 +654,73 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(gateEvents).toHaveLength(0);
   });
 
+  it("keeps the same quote session across the gate login round trip", async () => {
+    vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "false");
+    vi.stubEnv("NEXT_PUBLIC_KAKAO_CHANNEL_PUBLIC_ID", "_TestCh");
+    supabaseMock.getUser.mockResolvedValue({ data: { user: null } });
+    writeCalculatedRestore();
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/logs/exploration") {
+        return Response.json({ ok: true });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+        });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    // ① 비회원 마운트 — 게이트 표시 → 카카오 로그인 클릭
+    const first = render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "카카오톡으로 견적서 받기" })
+    );
+    await screen.findByRole("dialog", { name: "로그인이 필요해요" });
+    fireEvent.click(screen.getByRole("button", { name: "카카오 로그인" }));
+    await waitFor(() => expect(supabaseMock.signInWithOAuth).toHaveBeenCalled());
+
+    const loginClickCall = fetchMock.mock.calls.find(
+      (call) =>
+        call[0] === "/api/logs/exploration" &&
+        JSON.parse(String(call[1]?.body)).eventType === "delivery_gate_login_click"
+    );
+    const gateSessionId = JSON.parse(String(loginClickCall?.[1]?.body)).sessionId;
+    // 왕복 복귀에서 이어받을 세션이 보관된다.
+    expect(window.localStorage.getItem("imd_delivery_gate_session")).toBe(gateSessionId);
+    first.unmount();
+
+    // ② 로그인 완료 후 deliver=1 로 복귀 — 같은 세션으로 이어져야 한다.
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&restore=1&deliver=1"
+    );
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    // 자동 재개가 견적 저장까지 도달하고, 그 세션이 게이트 시점과 같다.
+    await screen.findByRole("dialog", { name: "견적 요청 메시지를 복사했어요" });
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/save",
+        expect.objectContaining({ method: "POST" })
+      )
+    );
+    const saveCall = fetchMock.mock.calls.find((call) => call[0] === "/api/quote/save");
+    expect(JSON.parse(String(saveCall?.[1]?.body)).sessionId).toBe(gateSessionId);
+    // 세션 키는 소비되어 남아 있지 않는다.
+    expect(window.localStorage.getItem("imd_delivery_gate_session")).toBeNull();
+  });
+
   it("does not route to verification when the review-request coming-soon modal is opened", async () => {
     writeCalculatedRestore();
     vi.stubGlobal("fetch", createFetchMock(500));
