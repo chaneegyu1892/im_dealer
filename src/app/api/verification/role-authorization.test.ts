@@ -27,6 +27,9 @@ function mockRole(role: "dealer" | "staff") {
   vi.doMock("@/lib/require-admin", () => ({
     requireRoleAtLeast: vi.fn().mockResolvedValue({ admin: error ? null : admin, error }),
   }));
+  vi.doMock("@/lib/audit", () => ({
+    logAdminAction: vi.fn().mockResolvedValue(undefined),
+  }));
 }
 
 describe("verification API staff authorization", () => {
@@ -245,6 +248,7 @@ describe("verification API staff authorization", () => {
   it("allows staff to download original verification PDFs", async () => {
     const findUnique = vi.fn().mockResolvedValue({
       id: "document-1",
+      verificationId: "verification-1",
       contentEnc: "ciphertext",
       mimeType: "application/pdf",
       fileName: "income-proof.pdf",
@@ -263,6 +267,14 @@ describe("verification API staff authorization", () => {
     expect(response.headers.get("Content-Type")).toBe("application/pdf");
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(await response.text()).toBe("pdf");
-    expect(findUnique).toHaveBeenCalledWith({ where: { id: "document-1" } });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: "document-1" },
+      select: {
+        verificationId: true,
+        contentEnc: true,
+        mimeType: true,
+        fileName: true,
+      },
+    });
   });
 });

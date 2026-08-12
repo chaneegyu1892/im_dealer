@@ -29,7 +29,7 @@ beforeEach(() => {
     verificationId: "verification-1",
     contentEnc: { ciphertext: "raw-encrypted-pdf-content" },
     mimeType: "application/pdf",
-    fileName: "홍길동-주민등록등본.pdf",
+    fileName: "rrn-900101-1234567.pdf",
   });
   mocks.decrypt.mockReturnValue(Buffer.from("sensitive PDF bytes").toString("base64"));
   mocks.audit.mockResolvedValue(undefined);
@@ -58,7 +58,7 @@ describe("GET /api/verification/documents/[docId]", () => {
 
     const auditPayload = JSON.stringify(mocks.audit.mock.calls[0]?.[0]);
     expect(auditPayload).not.toMatch(
-      /contentEnc|ciphertext|PDF bytes|fileName|홍길동|주민등록|phone|rrn|codef/i
+      /contentEnc|ciphertext|PDF bytes|fileName|900101|phone|rrn|codef/i
     );
   });
 
