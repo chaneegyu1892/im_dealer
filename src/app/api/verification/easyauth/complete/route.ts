@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/lib/require-user";
 import { completeEasyAuth } from "@/lib/codef/easyauth";
+import { docTypesForCustomer } from "@/lib/codef/doc-types";
+import { isCustomerType } from "@/constants/customer-types";
 import { encryptPII, encryptString } from "@/lib/pii";
 import { easyAuthFieldsSchema, twoWayInfoSchema, toEasyAuthInput } from "../validation";
 
@@ -26,10 +28,16 @@ export async function POST(request: NextRequest) {
 
   const verification = await prisma.customerVerification.findFirst({
     where: { id: fields.verificationId, userId: user.supabaseId },
-    select: { id: true },
+    select: { id: true, customerType: true },
   });
   if (!verification) {
     return NextResponse.json({ error: "해당 인증 레코드를 찾을 수 없습니다." }, { status: 404 });
+  }
+  if (!isCustomerType(verification.customerType)) {
+    return NextResponse.json({ error: "지원하지 않는 고객 유형입니다." }, { status: 400 });
+  }
+  if (!docTypesForCustomer(verification.customerType).includes(fields.docType)) {
+    return NextResponse.json({ error: "해당 고객 유형에 허용되지 않은 문서입니다." }, { status: 400 });
   }
 
   const issued = await completeEasyAuth(toEasyAuthInput(fields), twoWayInfo);

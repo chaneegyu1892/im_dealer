@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
-import { isAdminLike, isSuperAdmin } from "@/lib/admin-roles";
+import {
+  canReviewVerifications,
+  isAdminLike,
+  isSuperAdmin,
+} from "@/lib/admin-roles";
 import { isAtLeast, toRole, type Role } from "@/lib/access-control";
 
 export async function requireAdmin() {
@@ -31,6 +35,18 @@ export async function requireSuperAdmin() {
   }
   if (!isSuperAdmin(admin.role)) {
     return { admin: null, error: NextResponse.json({ error: "최종관리자 권한이 필요합니다." }, { status: 403 }) };
+  }
+  return { admin, error: null };
+}
+
+// 복호화된 인증 상세 및 원본 신원 문서 열람 전용 가드.
+export async function requireVerificationReviewer() {
+  const admin = await getAdminSession();
+  if (!admin) {
+    return { admin: null, error: NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 }) };
+  }
+  if (!canReviewVerifications(admin.role)) {
+    return { admin: null, error: NextResponse.json({ error: "인증 상세 열람 권한이 없습니다." }, { status: 403 }) };
   }
   return { admin, error: null };
 }

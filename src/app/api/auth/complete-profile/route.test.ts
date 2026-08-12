@@ -3,15 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 const mocks = vi.hoisted(() => ({
-  getCurrentUser: vi.fn(),
+  requireActiveUser: vi.fn(),
   updateUser: vi.fn(),
   ensureUserReferralCode: vi.fn(),
   reconcileUserCoupons: vi.fn(),
   applyReferralOnProfileComplete: vi.fn(),
 }));
 
-vi.mock("@/lib/admin-auth", () => ({
-  getCurrentUser: mocks.getCurrentUser,
+vi.mock("@/lib/require-user", () => ({
+  requireActiveUser: mocks.requireActiveUser,
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -45,11 +45,15 @@ function request(body: unknown, cookie?: string): NextRequest {
 describe("POST /api/auth/complete-profile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getCurrentUser.mockResolvedValue({
-      id: "user-1",
-      profileCompleted: false,
-      supabaseId: "sb-1",
-      kakaoId: null,
+    mocks.requireActiveUser.mockResolvedValue({
+      user: {
+        id: "user-1",
+        profileCompleted: false,
+        supabaseId: "sb-1",
+        kakaoId: null,
+        isActive: true,
+      },
+      error: null,
     });
     mocks.updateUser.mockResolvedValue({ id: "user-1" });
     mocks.ensureUserReferralCode.mockResolvedValue("K4821");
@@ -58,9 +62,22 @@ describe("POST /api/auth/complete-profile", () => {
   });
 
   it("비로그인은 401", async () => {
-    mocks.getCurrentUser.mockResolvedValue(null);
+    mocks.requireActiveUser.mockResolvedValue({
+      user: null,
+      error: new Response(JSON.stringify({ error: "로그인이 필요합니다." }), { status: 401 }),
+    });
     const res = await POST(request({ name: "홍길동", phone: "010-1234-5678" }));
     expect(res.status).toBe(401);
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("비활성화된 계정은 403", async () => {
+    mocks.requireActiveUser.mockResolvedValue({
+      user: null,
+      error: new Response(JSON.stringify({ error: "비활성화된 계정입니다." }), { status: 403 }),
+    });
+    const res = await POST(request({ name: "홍길동", phone: "010-1234-5678" }));
+    expect(res.status).toBe(403);
     expect(mocks.updateUser).not.toHaveBeenCalled();
   });
 

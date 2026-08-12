@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireRoleAtLeast } from "@/lib/require-admin";
-import { decryptVerificationRow } from "@/lib/pii";
+import { requireVerificationReviewer } from "@/lib/require-admin";
+import {
+  toVerificationDetailView,
+  verificationDetailWithDocumentsSelect,
+} from "@/lib/verification-view";
+import { logAdminAction } from "@/lib/audit";
 
 // ─── GET /api/verification/session/[sessionId] ───────────
 // 관리자용: 견적 소유자와 결속된 sessionId의 가장 최근 인증 결과 조회
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
-  const { error: authError } = await requireRoleAtLeast("staff");
+  const { admin, error: authError } = await requireVerificationReviewer();
   if (authError) return authError;
 
   try {
@@ -29,21 +33,7 @@ export async function GET(
     const record = await prisma.customerVerification.findFirst({
       where: { sessionId, userId: quote.userId },
       orderBy: { createdAt: "desc" },
-      include: {
-        // 원본(contentEnc)·문서확인번호는 목록에 포함하지 않는다(다운로드 시점에만 복호화).
-        documents: {
-          select: {
-            id: true,
-            docType: true,
-            status: true,
-            fileName: true,
-            failReason: true,
-            issuedAt: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: "asc" },
-        },
-      },
+      select: verificationDetailWithDocumentsSelect,
     });
 
     if (!record) {
@@ -53,7 +43,23 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, data: decryptVerificationRow(record) });
+    const data = toVerificationDetailView(record);
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "VERIFICATION_DETAIL_VIEW",
+      resource: "CustomerVerification",
+      targetId: record.id,
+      meta: {
+        verificationId: record.id,
+        sessionId,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data,
+    });
   } catch (error) {
     console.error("[GET /api/verification/session/[sessionId]]", error);
     return NextResponse.json(

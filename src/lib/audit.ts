@@ -15,6 +15,11 @@ export const VEHICLE_IMAGE_AUDIT_ACTIONS = [
   "VEHICLE_IMAGE_PURGE",
 ] as const;
 
+export const VERIFICATION_AUDIT_ACTIONS = [
+  "VERIFICATION_DETAIL_VIEW",
+  "VERIFICATION_DOCUMENT_DOWNLOAD",
+] as const;
+
 export type AuditAction =
   | "LOGIN"
   | "LOGOUT"
@@ -24,6 +29,7 @@ export type AuditAction =
   | "VEHICLE_DELETE"
   | "VEHICLE_REORDER"
   | (typeof VEHICLE_IMAGE_AUDIT_ACTIONS)[number]
+  | (typeof VERIFICATION_AUDIT_ACTIONS)[number]
   | "TRIM_CREATE"
   | "TRIM_UPDATE"
   | "TRIM_DELETE"

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/admin-auth";
+import { requireActiveUser } from "@/lib/require-user";
 import { toDomesticKR } from "@/lib/phone";
 import { REFERRAL_COOKIE_NAME } from "@/lib/referral/attribution";
 import { applyReferralOnProfileComplete } from "@/lib/referral/apply";
@@ -17,10 +17,8 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-  }
+  const { user, error: authError } = await requireActiveUser();
+  if (authError) return authError;
 
   const body = await request.json().catch(() => null);
   const parsed = schema.safeParse(body);
