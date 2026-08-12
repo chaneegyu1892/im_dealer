@@ -5,14 +5,15 @@ import {
   toVerificationDetailView,
   verificationDetailWithDocumentsSelect,
 } from "@/lib/verification-view";
+import { logAdminAction } from "@/lib/audit";
 
 // ─── GET /api/verification/session/[sessionId] ───────────
 // 관리자용: 견적 소유자와 결속된 sessionId의 가장 최근 인증 결과 조회
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
-  const { error: authError } = await requireRoleAtLeast("staff");
+  const { admin, error: authError } = await requireRoleAtLeast("staff");
   if (authError) return authError;
 
   try {
@@ -42,9 +43,22 @@ export async function GET(
       );
     }
 
+    const data = toVerificationDetailView(record);
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "VERIFICATION_DETAIL_VIEW",
+      resource: "CustomerVerification",
+      targetId: record.id,
+      meta: {
+        verificationId: record.id,
+        sessionId,
+      },
+    });
+
     return NextResponse.json({
       success: true,
-      data: toVerificationDetailView(record),
+      data,
     });
   } catch (error) {
     console.error("[GET /api/verification/session/[sessionId]]", error);

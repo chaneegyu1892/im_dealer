@@ -89,6 +89,12 @@ A compromised staff session, browser extension, XSS, support recording, or accid
 
 ### H-02 — Sensitive-document access is broad, unassigned, and not audited
 
+**Step 1 status (implemented)**
+
+- Successful authorized reads through both verification detail routes and the identity-document download route now create audit records with the actor, action, relevant verification/session/document IDs, request IP (when available through the existing trusted-proxy handling), user agent, and server timestamp.
+- Audit metadata is identifier-only; document bytes, encrypted content, provider JSON, RRN, phone, filenames, and other raw PII are not included. The frequently polled verification list remains unaudited to avoid noisy low-value events.
+- Remaining gaps: narrow access to a dedicated reviewer/assigned case or break-glass flow, require MFA/step-up authentication, and add volume/anomaly alerting.
+
 **Evidence**
 
 - Any `staff` or higher role can access verification results: `src/app/api/verification/[id]/route.ts:12`, `src/app/api/verification/session/[sessionId]/route.ts:12`, and `src/app/api/admin/verifications/route.ts:7`.

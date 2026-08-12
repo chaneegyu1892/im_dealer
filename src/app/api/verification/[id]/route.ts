@@ -5,14 +5,15 @@ import {
   toVerificationDetailView,
   verificationDetailSelect,
 } from "@/lib/verification-view";
+import { logAdminAction } from "@/lib/audit";
 
 // ─── GET /api/verification/[id] ──────────────────────────
 // 관리자용: verificationId로 UI에 필요한 최소 인증 결과 조회
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error: authError } = await requireRoleAtLeast("staff");
+  const { admin, error: authError } = await requireRoleAtLeast("staff");
   if (authError) return authError;
 
   try {
@@ -30,9 +31,19 @@ export async function GET(
       );
     }
 
+    const data = toVerificationDetailView(record);
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "VERIFICATION_DETAIL_VIEW",
+      resource: "CustomerVerification",
+      targetId: id,
+      meta: { verificationId: id },
+    });
+
     return NextResponse.json({
       success: true,
-      data: toVerificationDetailView(record),
+      data,
     });
   } catch (error) {
     console.error("[GET /api/verification/[id]]", error);

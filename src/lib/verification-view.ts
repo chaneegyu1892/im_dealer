@@ -16,6 +16,7 @@ const verificationStatusSelect = {
 export const verificationDetailSelect = verificationStatusSelect;
 
 export const verificationDetailWithDocumentsSelect = {
+  id: true,
   ...verificationStatusSelect,
   documents: {
     select: {

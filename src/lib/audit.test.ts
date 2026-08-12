@@ -1,5 +1,31 @@
-import { describe, expect, it } from "vitest";
-import { VEHICLE_IMAGE_AUDIT_ACTIONS } from "./audit";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  create: vi.fn(),
+  captureException: vi.fn(),
+}));
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: { adminAuditLog: { create: mocks.create } },
+}));
+vi.mock("@sentry/nextjs", () => ({
+  captureException: mocks.captureException,
+}));
+
+import {
+  logAdminAction,
+  VEHICLE_IMAGE_AUDIT_ACTIONS,
+  VERIFICATION_AUDIT_ACTIONS,
+} from "./audit";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.create.mockResolvedValue({});
+});
+
+afterEach(() => {
+  delete process.env.TRUST_PROXY;
+});
 
 describe("vehicle image audit actions", () => {
   it("publishes the eight exact mutation actions", () => {
@@ -13,5 +39,46 @@ describe("vehicle image audit actions", () => {
       "VEHICLE_IMAGE_RESTORE",
       "VEHICLE_IMAGE_PURGE",
     ]);
+  });
+});
+
+describe("verification audit actions", () => {
+  it("publishes detail-view and document-download actions", () => {
+    expect(VERIFICATION_AUDIT_ACTIONS).toEqual([
+      "VERIFICATION_DETAIL_VIEW",
+      "VERIFICATION_DOCUMENT_DOWNLOAD",
+    ]);
+  });
+
+  it("stores actor, action, identifiers, and trusted request IP", async () => {
+    process.env.TRUST_PROXY = "true";
+    const request = new Request("https://example.com/api/verification/verification-1", {
+      headers: {
+        "x-forwarded-for": "203.0.113.10, 10.0.0.1",
+        "user-agent": "audit-test",
+      },
+    });
+
+    await logAdminAction({
+      request,
+      actor: { id: "staff-1", email: "staff@example.com" },
+      action: "VERIFICATION_DETAIL_VIEW",
+      resource: "CustomerVerification",
+      targetId: "verification-1",
+      meta: { verificationId: "verification-1" },
+    });
+
+    expect(mocks.create).toHaveBeenCalledWith({
+      data: {
+        actorId: "staff-1",
+        actorEmail: "staff@example.com",
+        action: "VERIFICATION_DETAIL_VIEW",
+        resource: "CustomerVerification",
+        targetId: "verification-1",
+        diff: { meta: { verificationId: "verification-1" } },
+        ip: "203.0.113.10",
+        userAgent: "audit-test",
+      },
+    });
   });
 });

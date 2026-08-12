@@ -2,18 +2,27 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { decryptDocumentContent } from "@/lib/pii";
+import { logAdminAction } from "@/lib/audit";
 
 // ─── GET /api/verification/documents/[docId] ─────────────
 // 관리자 전용: 저장된 공문서(PDF)를 복호화해 다운로드로 스트리밍.
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ docId: string }> }
 ) {
-  const { error: authError } = await requireRoleAtLeast("staff");
+  const { admin, error: authError } = await requireRoleAtLeast("staff");
   if (authError) return authError;
 
   const { docId } = await params;
-  const doc = await prisma.verificationDocument.findUnique({ where: { id: docId } });
+  const doc = await prisma.verificationDocument.findUnique({
+    where: { id: docId },
+    select: {
+      verificationId: true,
+      contentEnc: true,
+      mimeType: true,
+      fileName: true,
+    },
+  });
 
   if (!doc || !doc.contentEnc) {
     return NextResponse.json({ error: "문서를 찾을 수 없습니다." }, { status: 404 });
@@ -30,6 +39,18 @@ export async function GET(
   }
 
   const buf = new Uint8Array(Buffer.from(base64, "base64"));
+  await logAdminAction({
+    request,
+    actor: admin,
+    action: "VERIFICATION_DOCUMENT_DOWNLOAD",
+    resource: "VerificationDocument",
+    targetId: docId,
+    meta: {
+      verificationId: doc.verificationId,
+      docId,
+    },
+  });
+
   return new NextResponse(buf, {
     status: 200,
     headers: {
