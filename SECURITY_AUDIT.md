@@ -42,6 +42,12 @@ This is a source review, not a penetration test or legal opinion. Supabase proje
 - No RLS/grant controls were found for `User`, `SavedQuote`, `CustomerVerification`, `VerificationDocument`, `AdminAuditLog`, or other application tables.
 - Sensitive models include plaintext user/contact fields (`prisma/schema.prisma:657-680`) and encrypted verification/document fields (`prisma/schema.prisma:761-807`).
 
+**Live verification (production, 2026-08-12)**
+
+- `anon` and `authenticated` had no table grants, and a direct REST request was denied with PostgreSQL error `42501`.
+- RLS is now enabled on `public."VerificationDocument"` with no permissive policies.
+- `EXECUTE` on `public.rls_auto_enable()` was revoked from `anon`, `authenticated`, and `PUBLIC`.
+
 **Risk**
 
 Supabase exposes configured schemas through PostgREST. RLS is the security boundary when browser clients can reach tables through the Data API. If `anon` or `authenticated` has table privileges in production, missing RLS can permit direct reads or writes that completely bypass Next.js authentication and role checks. Encryption reduces the impact for four verification fields and document bodies, but names, phones, emails, quote contacts, metadata, and ciphertext remain exposed. Unauthorized writes could also corrupt identity decisions.
