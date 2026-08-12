@@ -25,7 +25,7 @@ vi.mock("@/lib/verification-view", () => ({
 
 import { GET } from "./route";
 
-const actor = { id: "admin-1", email: "admin@example.com" };
+const actor = { id: "staff-1", email: "staff@example.com" };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -40,7 +40,7 @@ beforeEach(() => {
 });
 
 describe("GET /api/verification/session/[sessionId]", () => {
-  it("audits an authorized detail view with verification and session IDs", async () => {
+  it("audits an authorized staff detail view with verification and session IDs", async () => {
     const request = new Request("https://example.com/api/verification/session/session-1");
 
     const response = await GET(request, {
@@ -67,7 +67,7 @@ describe("GET /api/verification/session/[sessionId]", () => {
   it("does not audit when authorization fails", async () => {
     mocks.requireVerificationReviewer.mockResolvedValue({
       admin: null,
-      error: new Response(null, { status: 401 }),
+      error: new Response(null, { status: 403 }),
     });
 
     const response = await GET(
@@ -75,7 +75,7 @@ describe("GET /api/verification/session/[sessionId]", () => {
       { params: Promise.resolve({ sessionId: "session-1" }) }
     );
 
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(403);
     expect(mocks.findQuote).not.toHaveBeenCalled();
     expect(mocks.findVerification).not.toHaveBeenCalled();
     expect(mocks.audit).not.toHaveBeenCalled();

@@ -50,9 +50,9 @@ describe("verification API reviewer authorization", () => {
     expect(getRecentVerifications).toHaveBeenCalledWith(50);
   });
 
-  it("blocks staff from decrypted verification detail before querying", async () => {
+  it("blocks dealers from decrypted verification detail before querying", async () => {
     const findUnique = vi.fn().mockResolvedValue({ id: "verification-1" });
-    mockRole("staff");
+    mockRole("dealer");
     vi.doMock("@/lib/prisma", () => ({ prisma: { customerVerification: { findUnique } } }));
 
     const { GET } = await import("@/app/api/verification/[id]/route");
@@ -65,7 +65,7 @@ describe("verification API reviewer authorization", () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it("returns only allowlisted verification detail fields to admins", async () => {
+  it("returns only allowlisted verification detail fields to staff", async () => {
     const consentedAt = new Date("2026-08-01T01:00:00.000Z");
     const verifiedAt = new Date("2026-08-01T01:05:00.000Z");
     const findUnique = vi.fn().mockResolvedValue({
@@ -88,7 +88,7 @@ describe("verification API reviewer authorization", () => {
       connectedId: "must-not-leak",
       userId: "must-not-leak",
     });
-    mockRole("admin");
+    mockRole("staff");
     vi.doMock("@/lib/prisma", () => ({ prisma: { customerVerification: { findUnique } } }));
 
     const { GET } = await import("@/app/api/verification/[id]/route");
@@ -120,10 +120,10 @@ describe("verification API reviewer authorization", () => {
     });
   });
 
-  it("blocks staff from session verification data before querying", async () => {
+  it("blocks dealers from session verification data before querying", async () => {
     const findFirst = vi.fn().mockResolvedValue({ id: "verification-1" });
     const findQuote = vi.fn().mockResolvedValue({ userId: "member-1" });
-    mockRole("staff");
+    mockRole("dealer");
     vi.doMock("@/lib/prisma", () => ({
       prisma: {
         customerVerification: { findFirst },
@@ -142,7 +142,7 @@ describe("verification API reviewer authorization", () => {
     expect(findQuote).not.toHaveBeenCalled();
   });
 
-  it("returns only UI fields and safe document metadata to superadmins", async () => {
+  it("returns only UI fields and safe document metadata to staff", async () => {
     const consentedAt = new Date("2026-08-01T01:00:00.000Z");
     const findFirst = vi.fn().mockResolvedValue({
       customerType: "self_employed",
@@ -172,7 +172,7 @@ describe("verification API reviewer authorization", () => {
       ],
     });
     const findQuote = vi.fn().mockResolvedValue({ userId: "member-1" });
-    mockRole("superadmin");
+    mockRole("staff");
     vi.doMock("@/lib/prisma", () => ({
       prisma: {
         customerVerification: { findFirst },
@@ -241,9 +241,9 @@ describe("verification API reviewer authorization", () => {
     expect(findFirst).not.toHaveBeenCalled();
   });
 
-  it("blocks staff from original verification PDFs before querying", async () => {
+  it("blocks dealers from original verification PDFs before querying", async () => {
     const findUnique = vi.fn().mockResolvedValue({ id: "document-1", contentEnc: "ciphertext" });
-    mockRole("staff");
+    mockRole("dealer");
     vi.doMock("@/lib/prisma", () => ({ prisma: { verificationDocument: { findUnique } } }));
     vi.doMock("@/lib/pii", () => ({ decryptDocumentContent: vi.fn() }));
 
@@ -257,7 +257,7 @@ describe("verification API reviewer authorization", () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it("allows admins to download original verification PDFs", async () => {
+  it("allows staff to download original verification PDFs", async () => {
     const findUnique = vi.fn().mockResolvedValue({
       id: "document-1",
       verificationId: "verification-1",
@@ -266,7 +266,7 @@ describe("verification API reviewer authorization", () => {
       fileName: "income-proof.pdf",
     });
     const decryptDocumentContent = vi.fn().mockReturnValue("cGRm");
-    mockRole("admin");
+    mockRole("staff");
     vi.doMock("@/lib/prisma", () => ({ prisma: { verificationDocument: { findUnique } } }));
     vi.doMock("@/lib/pii", () => ({ decryptDocumentContent }));
 

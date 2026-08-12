@@ -16,9 +16,9 @@ export function isAdminLike(role: string | null | undefined): boolean {
 }
 
 // 복호화된 인증 상세 및 원본 서류를 열람할 수 있는 최소 권한.
-// 전용 역할을 추가하기 전까지 admin/superadmin 에만 명시적으로 부여한다.
+// 영업상 필요한 staff와 상위 관리자에게 명시적으로 부여한다.
 export function canReviewVerifications(role: string | null | undefined): boolean {
-  return isAdminLike(role);
+  return role === "staff" || isAdminLike(role);
 }
 
 // superadmin 전용 권한 (다른 어드민 계정 관리, 감사 로그 등 민감 작업에 사용 가능)

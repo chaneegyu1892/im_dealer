@@ -264,7 +264,7 @@ export function VerificationResult({ sessionId }: Props) {
           <div className="flex items-center gap-2.5 py-3 text-[#6B7399]">
             <AlertCircle size={14} />
             <p className="text-[12px]">
-              인증 상세 및 원본 서류는 관리자만 열람할 수 있습니다.
+              인증 상세 및 원본 서류는 운영자 이상만 열람할 수 있습니다.
             </p>
           </div>
         )}

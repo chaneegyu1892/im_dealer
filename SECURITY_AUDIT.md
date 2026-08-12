@@ -93,31 +93,31 @@ A compromised staff session, browser extension, XSS, support recording, or accid
 
 - Successful authorized reads through both verification detail routes and the identity-document download route now create audit records with the actor, action, relevant verification/session/document IDs, request IP (when available through the existing trusted-proxy handling), user agent, and server timestamp.
 - Audit metadata is identifier-only; document bytes, encrypted content, provider JSON, RRN, phone, filenames, and other raw PII are not included. The frequently polled verification list remains unaudited to avoid noisy low-value events.
-- Remaining gaps after step 1 were role narrowing, MFA/step-up authentication, and volume/anomaly alerting.
+- Remaining gaps after step 1 were confirming the intended reviewer role floor, MFA/step-up authentication, and volume/anomaly alerting.
 
-**Step 2 status (implemented)**
+**Step 2 product decision (implemented)**
 
-- The explicit verification-review capability is now limited to `admin` and `superadmin`. `staff` receives `403` before any query, decryption, or successful-view/download audit event on both detail routes and the document download route.
-- `staff` retains access to the metadata-only recent-verifications queue so operations can monitor submission status without decrypted detail. The admin UI disables detail selection and hides download affordances for roles without the capability.
-- MFA/step-up authentication is intentionally not implemented in this step and remains tracked under H-03. Case assignment and anomaly alerting remain future hardening opportunities.
+- Staff users perform dealer/sales work and therefore retain the verification-review capability along with `admin` and `superadmin`. This includes allowlisted verification details and original identity-document PDF downloads. The admin UI exposes detail and download affordances to those authorized roles.
+- Lower roles remain outside the reviewer floor. A `dealer` receives `403` before any query, decryption, or successful-view/download audit event; `member` and unauthenticated users remain excluded by the existing admin-session boundary.
+- The accepted mitigations for staff access are H-01 response minimization and H-02 step-1 success audit logging. MFA/step-up remains optional future hardening tracked under H-03; case assignment and anomaly alerting are also future opportunities.
 
 **Evidence**
 
-- `canReviewVerifications` grants sensitive access only to `admin` and `superadmin`, and `requireVerificationReviewer` enforces that policy before protected route work (`src/lib/admin-roles.ts`; `src/lib/require-admin.ts`).
+- `canReviewVerifications` grants sensitive access to `staff`, `admin`, and `superadmin`, and `requireVerificationReviewer` enforces that policy before protected route work (`src/lib/admin-roles.ts`; `src/lib/require-admin.ts`).
 - Both verification detail routes and the original-document download route use the dedicated reviewer guard (`src/app/api/verification/[id]/route.ts`, `src/app/api/verification/session/[sessionId]/route.ts`, and `src/app/api/verification/documents/[docId]/route.ts`).
 - The list route remains guarded at `staff` but its query selects metadata only (`src/app/api/admin/verifications/route.ts`; `src/lib/admin-queries/verifications.ts`).
 - Successful sensitive reads and downloads retain the step 1 audit events; authorization failures return before data access, decryption, or success audit logging.
 
 **Risk**
 
-Organization-wide document access is now restricted to admin-level accounts and creates a forensic record, reducing exposure from routine staff sessions. Admin session compromise remains high impact until H-03 adds MFA/step-up authentication; access is also not yet scoped by case assignment or monitored for anomalous volume.
+Organization-wide document access by staff is an intentional sales requirement. H-01 limits browser-visible detail responses to allowlisted fields, while H-02 audit events provide a forensic record for successful detail views and downloads. A compromised staff session remains high impact because access is not scoped by case assignment or monitored for anomalous volume; optional MFA/step-up is tracked in H-03.
 
 **Remediation**
 
-1. Create a dedicated least-privilege permission such as `verification_reviewer`; do not infer it solely from the broad staff hierarchy.
-2. Enforce quote/case assignment or an approved break-glass reason server-side.
-3. Require Supabase MFA with an appropriate AAL and recent reauthentication before decrypted detail or download access.
-4. Log actor, document/verification ID, case ID, action, timestamp, IP, and declared purpose. Never put document content or raw PII into the audit diff.
+1. Keep the `staff` reviewer floor explicit and cover the complete role matrix with authorization tests.
+2. Consider quote/case assignment or an approved break-glass reason if sales workflows can support it.
+3. Evaluate optional Supabase MFA/step-up under H-03.
+4. Retain identifier-only success audit events; never put document content or raw PII into audit metadata.
 5. Alert on unusual volume and repeated access across unrelated customers.
 
 ### H-03 — Admin access to PII has no MFA/step-up enforcement

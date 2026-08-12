@@ -20,7 +20,7 @@ vi.mock("@/lib/audit", () => ({ logAdminAction: mocks.audit }));
 
 import { GET } from "./route";
 
-const actor = { id: "admin-1", email: "admin@example.com" };
+const actor = { id: "staff-1", email: "staff@example.com" };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 describe("GET /api/verification/documents/[docId]", () => {
-  it("audits an authorized download without document content or PII", async () => {
+  it("audits an authorized staff download without document content or PII", async () => {
     const request = new Request("https://example.com/api/verification/documents/document-1");
 
     const response = await GET(request, {

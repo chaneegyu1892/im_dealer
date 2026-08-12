@@ -76,7 +76,7 @@ export default function VerificationsPage() {
         {!canReview && (
           <div className="flex items-center gap-2 px-6 py-2.5 border-b border-amber-200 bg-amber-50 text-[12px] text-amber-800">
             <LockKeyhole size={13} />
-            운영자는 제출 현황만 볼 수 있습니다. 인증 상세와 원본 서류는 관리자 권한이 필요합니다.
+            인증 상세와 원본 서류는 운영자 이상 권한이 필요합니다.
           </div>
         )}
 
@@ -114,7 +114,7 @@ export default function VerificationsPage() {
                   if (canReview) setSelected(isSelected ? null : row);
                 }}
                 disabled={!canReview}
-                title={canReview ? "인증 상세 보기" : "관리자 권한이 필요합니다."}
+                title={canReview ? "인증 상세 보기" : "운영자 이상 권한이 필요합니다."}
                 className={cn(
                   "w-full grid grid-cols-[2fr_1fr_1fr_1fr_1fr_24px] gap-3 px-6 py-3.5 border-b border-[#F0F2F8]",
                   "text-left transition-colors",

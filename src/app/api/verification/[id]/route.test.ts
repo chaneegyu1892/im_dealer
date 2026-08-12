@@ -23,7 +23,7 @@ vi.mock("@/lib/verification-view", () => ({
 
 import { GET } from "./route";
 
-const actor = { id: "admin-1", email: "admin@example.com" };
+const actor = { id: "staff-1", email: "staff@example.com" };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 describe("GET /api/verification/[id]", () => {
-  it("audits an authorized detail view with identifiers only", async () => {
+  it("audits an authorized staff detail view with identifiers only", async () => {
     const request = new Request("https://example.com/api/verification/verification-1", {
       headers: { "x-forwarded-for": "203.0.113.10" },
     });
