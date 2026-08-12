@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { Prisma } from "@prisma/client";
 import {
   _resetKeyCacheForTesting,
   encryptPII,
@@ -18,17 +19,17 @@ describe("toVerificationDetailView", () => {
       licenseVerified: true,
       insuranceVerified: true,
       bizVerified: true,
-      licenseData: encryptPII({
+      licenseData: encrypted({
         resLicenseStatus: "정상",
         resUserNm: "홍길동",
         resLicenseNo: "11-22-333333-44",
       }),
-      insuranceData: encryptPII({
+      insuranceData: encrypted({
         resWorkplaceName: "표시할 직장",
         resRegistrationNo: "900101-1234567",
         resHistory: [{ employer: "과거 직장" }],
       }),
-      bizData: encryptPII({
+      bizData: encrypted({
         resBizStatus: "계속사업자",
         resCompanyNm: "민감한 상호",
         resBusinessNo: "123-45-67890",
@@ -67,3 +68,7 @@ describe("toVerificationDetailView", () => {
     }
   });
 });
+
+function encrypted(value: unknown): Prisma.JsonValue {
+  return encryptPII(value) as unknown as Prisma.JsonValue;
+}
