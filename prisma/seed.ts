@@ -662,10 +662,11 @@ async function main() {
     for (const fcId of Object.values(fcIds)) {
       await db.capitalRateSheet.upsert({
         where: {
-          financeCompanyId_trimId_weekOf: {
+          financeCompanyId_trimId_weekOf_productType: {
             financeCompanyId: fcId,
             trimId: trim.id,
             weekOf: WEEK_OF,
+            productType: "장기렌트",
           },
         },
         update: {},
