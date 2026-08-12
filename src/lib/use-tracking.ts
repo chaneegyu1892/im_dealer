@@ -24,11 +24,15 @@ type EventType =
   | "quote_complete"
   | "chat_click"
   | "recommend_start"
-  | "recommend_complete";
+  | "recommend_complete"
+  | "delivery_gate_shown"
+  | "delivery_gate_login_click";
 
 interface TrackEventOptions {
   vehicleId?: string;
   metadata?: Record<string, unknown>;
+  /** 기본은 브라우저 세션(imd_session_id). 견적 퍼널처럼 QuoteCalcLog 와 조인할 때는 견적 세션 ID 를 넘긴다. */
+  sessionId?: string;
 }
 
 /**
@@ -57,7 +61,7 @@ export function useTracking() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            sessionId: getSessionId(),
+            sessionId: options.sessionId ?? getSessionId(),
             eventType,
             path: typeof window !== "undefined" ? window.location.pathname : undefined,
             vehicleId: options.vehicleId,

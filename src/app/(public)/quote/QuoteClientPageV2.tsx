@@ -74,12 +74,18 @@ import {
   DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
   PUBLIC_CARD_QUOTE_CONDITION,
 } from "@/constants/quote-defaults";
+import { useTracking } from "@/lib/use-tracking";
 
 // ─── 상수 ────────────────────────────────────────────────
 const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
 
 // 견적서 받기 로그인 게이트 → 로그인 후 복귀 시 요청 흐름을 이어가기 위한 URL 표식.
 const DELIVERY_RESUME_PARAM = "deliver";
+
+// 게이트 로그인 왕복 동안 견적 세션 ID 를 보관하는 localStorage 키.
+// 복귀 마운트에서 같은 세션을 이어받아야 계산 로그(QuoteCalcLog) → 게이트 이벤트
+// (ExplorationLog) → 전환(clickedApply)이 한 세션 기준으로 조인된다.
+const DELIVERY_GATE_SESSION_KEY = "imd_delivery_gate_session";
 
 const apiErrorSchema = z.object({
   error: z.string().optional(),
@@ -193,9 +199,21 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     : PUBLIC_CARD_QUOTE_CONDITION.annualMileage;
   const draftSource = searchParams?.get("source") === "AI" ? "AI" : "DETAIL" as const;
 
-  const [quoteSessionId] = useState(() =>
-    typeof crypto !== "undefined" ? crypto.randomUUID() : `quote-${Date.now()}`
-  );
+  const [quoteSessionId] = useState(() => {
+    // 게이트 로그인 복귀(deliver=1)면 직전 견적 세션을 이어받는다.
+    // 매 마운트마다 새 UUID 를 만들면 OAuth 왕복을 기준으로 퍼널이 끊긴다.
+    if (isDeliveryResumeReturn && typeof window !== "undefined") {
+      const pending = window.localStorage.getItem(DELIVERY_GATE_SESSION_KEY);
+      if (pending) {
+        window.localStorage.removeItem(DELIVERY_GATE_SESSION_KEY);
+        return pending;
+      }
+    }
+    return typeof crypto !== "undefined" ? crypto.randomUUID() : `quote-${Date.now()}`;
+  });
+  const { track } = useTracking();
+  // 게이트 표시 이벤트는 마운트당 1회만 — 모달을 닫았다 다시 여는 반복이 카운트를 부풀리지 않게.
+  const deliveryGateShownTracked = useRef(false);
 
   const restoreRef = useRef<QuoteImageRestoreState | null>(null);
 
@@ -849,6 +867,15 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       setDeliveryError(null);
       setDeliverSuccess(false);
       setDeliveryLoginGateOpen(true);
+      // 게이트 정책 재검토용 퍼널: 견적 세션 ID 로 기록해 QuoteCalcLog 와 조인 가능하게 한다.
+      if (!deliveryGateShownTracked.current) {
+        deliveryGateShownTracked.current = true;
+        void track("delivery_gate_shown", {
+          sessionId: quoteSessionId,
+          vehicleId: selectedVehicle?.id,
+          metadata: { vehicleSlug: selectedVehicle?.slug },
+        });
+      }
       return;
     }
     setIsDelivering(true);
@@ -913,6 +940,14 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
 
   // 로그인 게이트 CTA — 견적 상태를 보관하고, 복귀 후 이어갈 표식과 함께 카카오 로그인으로.
   async function handleDeliveryLoginGateConfirm() {
+    // 클릭 자체가 의도 신호 — 로그인 시작 성공 여부와 무관하게 기록한다.
+    void track("delivery_gate_login_click", {
+      sessionId: quoteSessionId,
+      vehicleId: selectedVehicle?.id,
+      metadata: { vehicleSlug: selectedVehicle?.slug },
+    });
+    // OAuth 왕복 뒤에도 같은 견적 세션으로 이어지도록 보관해 둔다.
+    window.localStorage.setItem(DELIVERY_GATE_SESSION_KEY, quoteSessionId);
     const state = buildRestoreState();
     if (state) {
       restoreRef.current = state;

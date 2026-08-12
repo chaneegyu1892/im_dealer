@@ -22,6 +22,7 @@ export type {
   ColorPopularityItem,
   DashboardData,
   DashboardStats,
+  DeliveryGateFunnel,
   VehicleQuoteStats,
 } from "./admin-analytics";
 export type {

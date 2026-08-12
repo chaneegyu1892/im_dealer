@@ -2,9 +2,9 @@
 
 import { motion } from "framer-motion";
 import {
-  TrendingUp, BarChart2, FileText, ArrowUpRight, Users, Calculator, type LucideIcon,
+  TrendingUp, BarChart2, FileText, ArrowUpRight, Users, Calculator, LogIn, type LucideIcon,
 } from "lucide-react";
-import type { AnalyticsData, CategoryCount } from "@/types/admin";
+import type { AnalyticsData, CategoryCount, DeliveryGateFunnel } from "@/types/admin";
 import { formatKRWCount } from "@/lib/format";
 
 const COLORS = ["#000666", "#2A2A72", "#4B4B99", "#6C6CBF", "#8E8EE6"];
@@ -31,6 +31,7 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
     calcConditionDistribution,
     topExteriorColors,
     topInteriorColors,
+    deliveryGateFunnel,
   } = data;
   const totalCalcs = calcPopularVehicles.reduce((s, v) => s + v.count, 0);
 
@@ -129,6 +130,9 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
             <CalcConditionGrid distribution={calcConditionDistribution} />
           </div>
         </div>
+
+        {/* 견적서 받기 로그인 게이트 퍼널 */}
+        <DeliveryGateFunnelSection funnel={deliveryGateFunnel} />
 
         {/* 메인 차트 + 사이드 패널 */}
         <div className="flex flex-col lg:flex-row gap-4 md:gap-5 min-h-[520px]">
@@ -286,6 +290,86 @@ export function AnalyticsDashboard({ data }: AnalyticsDashboardProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+const FUNNEL_BAR_COLORS = ["#000666", "#4B4B99", "#D97706", "#059669"];
+
+function DeliveryGateFunnelSection({ funnel }: { readonly funnel: DeliveryGateFunnel }) {
+  const stages = [
+    { label: "견적 산출", count: funnel.calculated, note: "회원·비회원 전체" },
+    { label: "로그인 게이트 표시", count: funnel.gateShown, note: "비회원이 견적서 받기 클릭" },
+    { label: "카카오 로그인 시도", count: funnel.loginClicked, note: "게이트에서 로그인 클릭" },
+    { label: "견적서 요청 완료", count: funnel.converted, note: "게이트 표시 세션 기준" },
+  ];
+  const max = Math.max(funnel.calculated, 1);
+  // 정책 재검토 핵심 지표: 게이트를 본 비회원이 로그인을 시도하는 비율
+  const gateLoginRate =
+    funnel.gateShown > 0
+      ? ((funnel.loginClicked / funnel.gateShown) * 100).toFixed(1)
+      : null;
+
+  return (
+    <section className="shrink-0 bg-white rounded-[10px] border border-[#E8EAF0] p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-[#FFFBEB] rounded-[6px] text-[#D97706]">
+            <LogIn size={14} />
+          </div>
+          <h2 className="text-[14px] font-bold text-[#1A1A2E]">견적서 받기 퍼널</h2>
+          <span className="text-[11px] text-[#6B7399] ml-1">(최근 30일 · 세션 기준)</span>
+        </div>
+        {gateLoginRate !== null && (
+          <div className="text-right">
+            <p className="text-[10px] font-medium text-[#6B7399]">게이트 → 로그인 시도율</p>
+            <p className="text-[18px] font-bold text-[#D97706] tabular-nums">{gateLoginRate}%</p>
+          </div>
+        )}
+      </div>
+
+      {funnel.calculated === 0 ? (
+        <p className="text-[12px] text-[#9BA4C0]">데이터가 아직 부족합니다</p>
+      ) : (
+        <div className="space-y-3">
+          {stages.map((stage, idx) => {
+            const prev = idx > 0 ? stages[idx - 1].count : null;
+            const stepRate =
+              prev !== null && prev > 0
+                ? Math.round((stage.count / prev) * 100)
+                : null;
+            return (
+              <div key={stage.label} className="flex flex-col gap-1.5">
+                <div className="flex items-baseline justify-between text-[12px]">
+                  <span className="font-bold text-[#1A1A2E] flex items-center gap-2">
+                    {stage.label}
+                    <span className="text-[10px] font-medium text-[#9BA4C0]">{stage.note}</span>
+                  </span>
+                  <span className="flex items-baseline gap-2">
+                    {stepRate !== null && (
+                      <span className="text-[10px] font-bold text-[#6B7399] tabular-nums">
+                        ↳ {stepRate}%
+                      </span>
+                    )}
+                    <span className="font-bold text-[#000666] tabular-nums">
+                      {stage.count.toLocaleString()}
+                    </span>
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-[#F0F2F8] rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.max((stage.count / max) * 100, stage.count > 0 ? 2 : 0)}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut", delay: idx * 0.1 }}
+                    className="h-full rounded-full"
+                    style={{ backgroundColor: FUNNEL_BAR_COLORS[idx] }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

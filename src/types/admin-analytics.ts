@@ -37,6 +37,18 @@ export interface ColorPopularityItem {
   count: number;
 }
 
+/** 견적서 받기 로그인 게이트 퍼널 (세션 단위, 30일) */
+export interface DeliveryGateFunnel {
+  /** 견적 산출 세션 수 (QuoteCalcLog 기준) */
+  calculated: number;
+  /** 비회원이 견적서 받기를 눌러 게이트가 표시된 세션 수 */
+  gateShown: number;
+  /** 게이트에서 카카오 로그인을 클릭한 세션 수 */
+  loginClicked: number;
+  /** 게이트 표시 세션 중 최종 전환(clickedApply)까지 이어진 세션 수 */
+  converted: number;
+}
+
 export interface AnalyticsData {
   totalQuoteViews: number;
   totalVisitors: number;
@@ -55,6 +67,8 @@ export interface AnalyticsData {
   topExteriorColors: ColorPopularityItem[];
   /** 인기 내장 색상 TOP 5 */
   topInteriorColors: ColorPopularityItem[];
+  /** 견적서 받기 로그인 게이트 퍼널 (30일) */
+  deliveryGateFunnel: DeliveryGateFunnel;
 }
 
 export interface VehicleQuoteStats {
