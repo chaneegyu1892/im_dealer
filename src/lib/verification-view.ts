@@ -68,12 +68,15 @@ export function toVerificationDetailView(
     insuranceVerified: row.insuranceVerified,
     bizVerified: row.bizVerified,
     licenseStatus:
+      providerString(license, "resAuthenticityDesc") ??
       providerString(license, "resLicenseStatus") ??
       providerString(license, "status"),
     insuranceWorkplace:
+      providerString(insurance, "resCompanyNm") ??
       providerString(insurance, "resWorkplaceName") ??
       providerString(insurance, "workplaceName"),
     bizStatus:
+      providerString(business, "resBusinessStatusDesc") ??
       providerString(business, "resBizStatus") ??
       providerString(business, "bizStatus") ??
       providerString(business, "status"),
