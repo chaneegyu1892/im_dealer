@@ -80,6 +80,19 @@ describe("account withdrawal", () => {
     expect(mocks.couponDeleteMany).toHaveBeenCalledWith({
       where: { userId: "local-1" },
     });
+    expect(mocks.auditUpdateMany).toHaveBeenCalledWith({
+      where: { actorId: "local-1" },
+      data: {
+        actorEmail: "withdrawn:local-1",
+        diff: expect.anything(),
+        ip: null,
+        userAgent: null,
+      },
+    });
+    expect(mocks.auditUpdateMany).toHaveBeenCalledWith({
+      where: { targetId: "local-1" },
+      data: { diff: expect.anything() },
+    });
     expect(result).toEqual({
       auditLogId: "audit-1",
       deletedVerifications: 2,
@@ -116,7 +129,8 @@ describe("account withdrawal", () => {
         unlinkedQuoteCalculations: 4,
       },
       true,
-      true
+      false,
+      "supabase-1"
     );
 
     expect(mocks.auditUpdate).toHaveBeenCalledWith({
@@ -124,7 +138,8 @@ describe("account withdrawal", () => {
       data: {
         diff: {
           kakaoUnlinked: true,
-          supabaseAuthDeleted: true,
+          supabaseAuthDeleted: false,
+          pendingSupabaseUserId: "supabase-1",
           verificationsDeleted: 2,
           quotesAnonymized: 3,
         },

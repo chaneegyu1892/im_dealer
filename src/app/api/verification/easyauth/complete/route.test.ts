@@ -108,6 +108,7 @@ describe("POST /api/verification/easyauth/complete", () => {
         data: expect.objectContaining({
           status: "failed",
           failReason: "PROVIDER_ERROR",
+          piiPurgedAt: null,
         }),
       })
     );

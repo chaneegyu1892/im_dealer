@@ -9,6 +9,7 @@ import {
   verifyBusiness,
 } from "@/lib/codef";
 import { encryptPII, encryptString } from "@/lib/pii";
+import { isVerificationComplete } from "@/lib/verification-retention";
 
 const fetchSchema = z.object({
   verificationId: z.string().min(1),
@@ -102,6 +103,13 @@ export async function POST(request: NextRequest) {
       : null;
     const bizVerified =
       bizResult?.success === true && bizRaw?.resBusinessStatus === "01";
+    const verificationSucceeded = isVerificationComplete({
+      licenseVerified,
+      insuranceVerified,
+      bizVerified,
+      needsInsurance,
+      needsBiz,
+    });
 
     // DB 업데이트 — PII 4개 컬럼은 AES-256-GCM 으로 암호화 후 저장
     await prisma.customerVerification.update({
@@ -120,7 +128,10 @@ export async function POST(request: NextRequest) {
         bizData: bizRaw
           ? (encryptPII(bizRaw) as unknown as Prisma.InputJsonValue)
           : Prisma.JsonNull,
-        verifiedAt: new Date(),
+        // 일부/실패 시도는 완료로 분류하지 않아 7일 미완료 retention을 적용한다.
+        verifiedAt: verificationSucceeded ? new Date() : null,
+        // 만료 후 같은 인증 흐름을 다시 수행하면 새 PII가 다음 purge 대상이 되어야 한다.
+        piiPurgedAt: null,
       },
     });
 

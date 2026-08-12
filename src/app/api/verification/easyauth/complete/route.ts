@@ -13,8 +13,8 @@ const SAFE_FAILURE_CATEGORIES: Readonly<Record<string, string>> = {
   "CF-03002": "AUTH_PENDING",
 };
 
-function storedFailureCategory(code: string): string {
-  return SAFE_FAILURE_CATEGORIES[code] ?? "PROVIDER_ERROR";
+function storedFailureCategory(code: string | undefined): string {
+  return (code && SAFE_FAILURE_CATEGORIES[code]) || "PROVIDER_ERROR";
 }
 
 // ─── POST /api/verification/easyauth/complete ────────────
@@ -65,6 +65,8 @@ export async function POST(request: NextRequest) {
     // 운영에는 짧은 allowlist 범주만 남기고, 상세 오류는 공급자 측 추적을 사용한다.
     failReason: issued.success ? null : storedFailureCategory(issued.code),
     issuedAt: issued.success ? new Date() : null,
+    // 과거에 purge된 행을 재시도해도 새 내용이 다음 retention 주기에 다시 선택되게 한다.
+    piiPurgedAt: null,
   };
 
   // 동일 (verificationId, docType) 재시도 시 갱신, 없으면 생성.

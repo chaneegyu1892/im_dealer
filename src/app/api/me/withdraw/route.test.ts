@@ -100,7 +100,8 @@ describe("POST /api/me/withdraw", () => {
     expect(mocks.recordOutcome).toHaveBeenCalledWith(
       expect.objectContaining({ auditLogId: "audit-1" }),
       true,
-      true
+      true,
+      "supabase-1"
     );
   });
 

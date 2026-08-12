@@ -79,6 +79,12 @@ export async function withdrawLocalMember(
         userAgent: null,
       },
     });
+    // 관리자가 이 회원을 대상으로 남긴 변경 diff에도 이름/이메일 등이 있을 수 있다.
+    // 행의 action/resource/targetId는 보존하고 자유형 payload만 제거한다.
+    await tx.adminAuditLog.updateMany({
+      where: { targetId: member.id },
+      data: { diff: Prisma.JsonNull },
+    });
 
     await tx.user.update({
       where: { id: member.id },
@@ -132,7 +138,8 @@ export async function withdrawLocalMember(
 export async function recordSupabaseDeletionOutcome(
   result: LocalWithdrawalResult,
   kakaoUnlinked: boolean,
-  deleted: boolean
+  deleted: boolean,
+  supabaseUserId: string
 ): Promise<void> {
   await prisma.adminAuditLog.update({
     where: { id: result.auditLogId },
@@ -140,6 +147,7 @@ export async function recordSupabaseDeletionOutcome(
       diff: {
         kakaoUnlinked,
         supabaseAuthDeleted: deleted,
+        ...(!deleted ? { pendingSupabaseUserId: supabaseUserId } : {}),
         verificationsDeleted: result.deletedVerifications,
         quotesAnonymized: result.anonymizedQuotes,
       },

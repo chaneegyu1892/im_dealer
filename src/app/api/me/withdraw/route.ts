@@ -18,8 +18,12 @@ function requestHasTrustedOrigin(request: NextRequest): boolean {
   if (!origin) return false;
 
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  const expected = configured ? new URL(configured).origin : new URL(request.url).origin;
-  return origin === expected;
+  try {
+    const expected = configured ? new URL(configured).origin : new URL(request.url).origin;
+    return origin === expected;
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -79,7 +83,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await recordSupabaseDeletionOutcome(localResult, kakaoUnlinked, supabaseAuthDeleted);
+    await recordSupabaseDeletionOutcome(
+      localResult,
+      kakaoUnlinked,
+      supabaseAuthDeleted,
+      user.supabaseId
+    );
   } catch (error) {
     Sentry.captureException(error, { tags: { operation: "account-withdrawal-audit" } });
   }
