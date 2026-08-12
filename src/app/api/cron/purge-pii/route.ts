@@ -49,22 +49,13 @@ async function handlePurge(request: NextRequest) {
   try {
     const result = await prisma.customerVerification.updateMany({
       where: {
+        verifiedAt: { lt: successCutoff },
         piiPurgedAt: null,
-        AND: [
-          {
-            OR: [
-              { verifiedAt: { lt: successCutoff } },
-              { verifiedAt: null, updatedAt: { lt: incompleteCutoff } },
-            ],
-          },
-          {
-            OR: [
-              { connectedId: { not: null } },
-              { licenseData: { not: Prisma.JsonNull } },
-              { insuranceData: { not: Prisma.JsonNull } },
-              { bizData: { not: Prisma.JsonNull } },
-            ],
-          },
+        OR: [
+          { connectedId: { not: null } },
+          { licenseData: { not: Prisma.JsonNull } },
+          { insuranceData: { not: Prisma.JsonNull } },
+          { bizData: { not: Prisma.JsonNull } },
         ],
       },
       data: {
@@ -76,24 +67,15 @@ async function handlePurge(request: NextRequest) {
       },
     });
 
-    // 발급 성공 문서는 90일, 실패·대기 문서는 마지막 활동 후 7일에 원본과 오류문을 파기.
+    // 발급 성공 문서의 원본과 확인번호는 기존 정책대로 90일 후 파기한다.
     const docResult = await prisma.verificationDocument.updateMany({
       where: {
+        issuedAt: { lt: successCutoff },
         piiPurgedAt: null,
-        AND: [
-          {
-            OR: [
-              { issuedAt: { lt: successCutoff } },
-              { issuedAt: null, updatedAt: { lt: incompleteCutoff } },
-            ],
-          },
-          {
-            OR: [
-              { contentEnc: { not: Prisma.JsonNull } },
-              { docVerifyNo: { not: null } },
-              { failReason: { not: null } },
-            ],
-          },
+        OR: [
+          { contentEnc: { not: Prisma.JsonNull } },
+          { docVerifyNo: { not: null } },
+          { failReason: { not: null } },
         ],
       },
       data: {
@@ -101,6 +83,21 @@ async function handlePurge(request: NextRequest) {
         docVerifyNo: null,
         failReason: null,
         piiPurgedAt: new Date(),
+      },
+    });
+
+    // 실패·대기 문서는 마지막 활동 7일 후 행 자체를 삭제해 상태/파일 메타도 남기지 않는다.
+    const incompleteDocResult = await prisma.verificationDocument.deleteMany({
+      where: { issuedAt: null, updatedAt: { lt: incompleteCutoff } },
+    });
+
+    // 완료되지 않은 인증도 7일 후 행 자체를 삭제한다. 최근 문서 활동이 있으면 부모를
+    // 보존해 진행 중인 간편인증을 끊지 않으며, 삭제 시 남은 문서는 FK cascade로 제거된다.
+    const incompleteVerificationResult = await prisma.customerVerification.deleteMany({
+      where: {
+        verifiedAt: null,
+        updatedAt: { lt: incompleteCutoff },
+        documents: { none: { updatedAt: { gte: incompleteCutoff } } },
       },
     });
 
@@ -139,6 +136,8 @@ async function handlePurge(request: NextRequest) {
       success: true,
       purged: result.count,
       purgedDocuments: docResult.count,
+      deletedIncompleteVerifications: incompleteVerificationResult.count,
+      deletedIncompleteDocuments: incompleteDocResult.count,
       purgedQuoteContacts: quoteContactResult.count,
       purgedScrapeJobCredentials: scrapeCredentialResult.count,
       successCutoff: successCutoff.toISOString(),

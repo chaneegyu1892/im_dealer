@@ -9,13 +9,13 @@ Scope: Kakao/Supabase authentication, sessions, user PII, Korean resident regist
 
 The current user flow does **not** send or store a full RRN. It accepts the first six digits and only the first digit of the back half in browser memory, derives an eight-digit birth date, clears the RRN fragments, and sends only the derived birth date. This disproves the initial plaintext-full-RRN hypothesis for the active flow.
 
-There are also meaningful safeguards: authenticated owner checks, server-side role checks, AES-256-GCM field encryption, encrypted document storage, a 90-day purge job, PKCE-based Supabase OAuth, telemetry scrubbing, and suppression of ChannelTalk on the RRN page.
+There are also meaningful safeguards: authenticated owner checks, server-side role checks, AES-256-GCM field encryption, encrypted document storage, dual-window verification retention (90 days for successful records and 7 days for incomplete attempts), PKCE-based Supabase OAuth, telemetry scrubbing, and suppression of ChannelTalk on the RRN page.
 
 However, the following issues prevent a sufficient verdict:
 
 1. The repository does not establish RLS or explicit Data API grant revocation for the PII-bearing Prisma tables in Supabase's exposed `public` schema. If Supabase's `anon` or `authenticated` roles retain grants, the public browser key can bypass the Next.js authorization layer. This must be checked against the deployed database immediately.
 2. Staff APIs decrypt and return complete Codef response objects, even though the UI uses only a few status fields. All staff can also download every retained identity document by ID, with no sensitive-read audit trail or MFA/AAL requirement.
-3. Retention and account-deletion behavior is incomplete. Failed/pending verification data is not covered by the 90-day purge predicates, and no user withdrawal/deletion flow was found despite the privacy notice promising retention until withdrawal.
+3. Retention and account deletion originally omitted failed/pending verification data and member withdrawal. H-04 is now remediated in application code; backup/vendor deletion, legal holds, and external cleanup retries remain operational requirements.
 4. The single application encryption key has no key identifier, rotation mechanism, or record/field binding, and is shared with worker credentials and Kakao refresh tokens.
 
 This is a source review, not a penetration test or legal opinion. Supabase project settings, live grants/policies, backups, Vercel controls, Codef contracts, Kakao console settings, staff procedures, and production logs were not available in the repository and require separate verification.
@@ -34,7 +34,7 @@ This is a source review, not a penetration test or legal opinion. Supabase proje
 
 ### C-01 — PII tables have no repository-managed Supabase RLS or Data API grant lockdown
 
-**Evidence**
+**Original evidence (before remediation)**
 
 - `prisma/schema.prisma:5-9` creates PostgreSQL models through Prisma without a private schema.
 - `src/lib/supabase/client.ts:3-7` puts the Supabase URL and anonymous key in the browser, as expected for Supabase clients.
@@ -68,7 +68,7 @@ The repository proves that controls are absent from migrations; it does not prov
 
 **Status (2026-08-12): Fixed.** Verification lists now select metadata only. Both staff detail APIs use explicit projections and return only status metadata, three allowlisted UI display strings, and safe document metadata; they no longer return `connectedId`, raw Codef objects, or document ciphertext.
 
-**Evidence**
+**Evidence at audit time**
 
 - `src/app/api/verification/[id]/route.ts:18-29` loads the entire verification row and returns `decryptVerificationRow(record)`.
 - `src/app/api/verification/session/[sessionId]/route.ts:29-56` excludes document bodies but still decrypts and returns all verification fields, including `connectedId` and complete Codef objects.
@@ -154,7 +154,7 @@ Abandoned, failed, and account-level PII can be retained indefinitely, contrary 
 
 The H-04 application changes implement the following policy:
 
-1. Successfully completed verification PII and encrypted document content remain subject to the existing 90-day window. Pending, failed, and abandoned verification PII, encrypted document content, document identifiers, and failure categories are purged 7 days after their last activity (`updatedAt`).
+1. Successfully completed verification PII and encrypted document content remain subject to the existing 90-day window. Pending, failed, and abandoned verification/document rows are deleted 7 days after their last activity (`updatedAt`), including consent/session metadata. A parent verification is not deleted while it has document activity inside the 7-day window.
 2. New Codef document failures persist only a short allowlisted category (`AUTH_NOT_COMPLETED`, `AUTH_PENDING`, or `PROVIDER_ERROR`), never the provider's raw message. The purge also clears legacy `failReason` values.
 3. Kakao members can withdraw from My Page. The server verifies the active authenticated member and same-origin confirmation, best-effort unlinks the Kakao app, deletes owned verification rows/documents, revokes quote review tokens, removes coupons/referrals, strips quote contact fields and user links, unlinks calculation logs, clears provider credentials/identifiers, and converts the local `User` into an inactive identifier-free tombstone. Quotes, operational delivery history, and staff activity facts remain without member/contact linkage; this preserves business records and existing FK-bound cleanup jobs. A later Kakao login creates a new `User` row.
 4. Withdrawal globally revokes the current Supabase sessions and calls the service-role Auth deletion API. Kakao/Supabase cleanup outcomes are recorded in an identifier-only `ACCOUNT_WITHDRAWN` audit event; failures are captured by Sentry. Purge failures retain the existing Sentry alert and non-2xx response.
@@ -278,7 +278,7 @@ Use immutable, versioned consent receipts with server timestamps, purpose/item/r
 
 ### M-07 — Kakao token/account lifecycle is incomplete
 
-**Evidence**
+**Evidence at audit time**
 
 - Kakao refresh tokens are encrypted and rotation responses are stored (`src/lib/kakao/token.ts:20-37,65-94`).
 - Normal logout calls Supabase `signOut()` in the browser (`src/components/layout/MyMenuButton.tsx:93-100`; `src/components/admin/AdminSidebar.tsx:97-101`) but does not delete/revoke the stored Kakao refresh token.
@@ -289,9 +289,9 @@ Use immutable, versioned consent receipts with server timestamps, purpose/item/r
 
 Provider credentials persist without a user-facing revocation path, and logout behavior is split across an effectively unrelated server endpoint and browser calls. Duplicate or changed provider identities fail safely through unique constraints but have no recovery/linking design.
 
-**Remediation**
+**Remediation/status**
 
-Define logout versus disconnect versus withdrawal semantics. Provide a disconnect/withdrawal path that revokes Kakao authorization where applicable and deletes local refresh-token ciphertext. Consolidate logout behavior, handle errors, and document safe linking/recovery rules requiring recent authentication.
+H-04 now provides a confirmed Kakao-member withdrawal flow that best-effort unlinks the Kakao app and always clears local refresh-token ciphertext and provider identifiers. Normal logout and staff deactivation still need a separately defined token-disconnect policy; failed unlink calls require operational follow-up because expired/rejected credentials are not retained after withdrawal.
 
 ### M-08 — Easy-auth completion did not repeat the document-purpose policy check
 
@@ -352,7 +352,7 @@ The fragments still exist briefly in DOM/React memory, so XSS, browser extension
 - Verification PII, document bodies, document verification numbers, and Kakao refresh tokens use AES-256-GCM with random IVs and authenticated tags. Production startup requires a 32-byte key (`src/lib/pii.ts`; `src/lib/env.ts:28-35`).
 - Raw Codef document contents are not returned to members; successful member responses contain only status (`src/app/api/verification/easyauth/complete/route.ts:62-70`; `src/app/api/verification/fetch/route.ts:127-140`).
 - Document downloads use attachment disposition and `Cache-Control: no-store` (`src/app/api/verification/documents/[docId]/route.ts:32-40`).
-- A timing-safe secret check protects the daily 90-day purge, and purge failures are surfaced to Sentry (`src/app/api/cron/purge-pii/route.ts:29-41,118-129`; `vercel.json:3-5`).
+- A timing-safe secret check protects the daily dual-window purge (90-day successful data, 7-day incomplete attempts), and purge failures are surfaced to Sentry (`src/app/api/cron/purge-pii/route.ts`; `vercel.json:3-5`).
 - Sentry has centralized before-send scrubbing across client/server/edge, and ChannelTalk is removed from the verification route (`src/lib/sentry-before-send.ts`; `src/lib/channel-talk.ts`).
 - Baseline security headers include HSTS, frame denial, MIME sniffing prevention, referrer policy, and permissions policy (`next.config.mjs:50-64`).
 - Kakao refresh tokens are encrypted and provider rotation is handled (`src/lib/kakao/token.ts:20-37,90-94`).
@@ -369,10 +369,10 @@ The fragments still exist briefly in DOM/React memory, so XSS, browser extension
 
 ### Next
 
-1. Fix retention for failed/pending/abandoned records and implement account withdrawal/deletion.
+1. Validate backup/vendor deletion and establish operational replay for failed Kakao/Supabase cleanup after withdrawal.
 2. Add PDF size/type/malware controls.
 3. Enforce CSP and expand telemetry redaction.
-4. Version consent receipts and reconcile the privacy notice with actual retention, vendors, and international processing.
+4. Version consent receipts and reconcile the privacy notice with actual vendors and international processing.
 
 ### Architectural
 
