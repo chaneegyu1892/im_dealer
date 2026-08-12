@@ -61,7 +61,7 @@ describe("verification API reviewer authorization", () => {
     });
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({ error: "권한이 없습니다." });
+    await expect(response.json()).resolves.toEqual({ error: "인증 상세 열람 권한이 없습니다." });
     expect(findUnique).not.toHaveBeenCalled();
   });
 
@@ -137,7 +137,7 @@ describe("verification API reviewer authorization", () => {
     });
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({ error: "권한이 없습니다." });
+    await expect(response.json()).resolves.toEqual({ error: "인증 상세 열람 권한이 없습니다." });
     expect(findFirst).not.toHaveBeenCalled();
     expect(findQuote).not.toHaveBeenCalled();
   });
@@ -253,7 +253,7 @@ describe("verification API reviewer authorization", () => {
     });
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({ error: "권한이 없습니다." });
+    await expect(response.json()).resolves.toEqual({ error: "인증 상세 열람 권한이 없습니다." });
     expect(findUnique).not.toHaveBeenCalled();
   });
 
