@@ -524,6 +524,9 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       if (url.endsWith("/colors") || url.endsWith("/trims")) {
         return Response.json({ success: true, data: [] });
       }
+      if (url === "/api/logs/exploration") {
+        return Response.json({ ok: true });
+      }
       return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -541,6 +544,21 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(
       screen.queryByRole("dialog", { name: "견적 요청 메시지를 복사했어요" })
     ).not.toBeInTheDocument();
+
+    // 게이트 표시가 퍼널 이벤트로 기록된다 (견적 세션 ID 로 QuoteCalcLog 와 조인).
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/logs/exploration",
+        expect.objectContaining({ method: "POST" })
+      )
+    );
+    const gateCall = fetchMock.mock.calls.find(
+      (call) => call[0] === "/api/logs/exploration"
+    );
+    const gateBody = JSON.parse(String(gateCall?.[1]?.body));
+    expect(gateBody.eventType).toBe("delivery_gate_shown");
+    expect(gateBody.sessionId).toBeTruthy();
+    expect(gateBody.vehicleId).toBe("vehicle-preparing");
   });
 
   it("starts Kakao login with a delivery resume marker from the login gate", async () => {
@@ -548,10 +566,15 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     vi.stubEnv("NEXT_PUBLIC_KAKAO_CHANNEL_PUBLIC_ID", "_TestCh");
     supabaseMock.getUser.mockResolvedValue({ data: { user: null } });
     writeCalculatedRestore();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => Response.json({ success: true, data: [] }))
-    );
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      if (input.toString() === "/api/logs/exploration") {
+        return Response.json({ ok: true });
+      }
+      return Response.json({ success: true, data: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
     fireEvent.click(
@@ -568,6 +591,13 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(next).toContain("/quote");
     expect(next).toContain("deliver=1");
     expect(next).toContain("restore=1");
+
+    // 게이트 → 로그인 클릭 전환도 같은 견적 세션으로 기록된다.
+    const eventTypes = fetchMock.mock.calls
+      .filter((call) => call[0] === "/api/logs/exploration")
+      .map((call) => JSON.parse(String(call[1]?.body)).eventType);
+    expect(eventTypes).toContain("delivery_gate_shown");
+    expect(eventTypes).toContain("delivery_gate_login_click");
   });
 
   it("resumes the delivery guide after returning from login and never auto-opens the chat", async () => {
@@ -616,6 +646,12 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(
       screen.queryByRole("dialog", { name: "로그인이 필요해요" })
     ).not.toBeInTheDocument();
+    // 로그인 상태 복귀에서는 게이트 이벤트가 기록되지 않는다.
+    const gateEvents = fetchMock.mock.calls
+      .filter((call) => call[0] === "/api/logs/exploration")
+      .map((call) => JSON.parse(String(call[1]?.body)).eventType)
+      .filter((t) => typeof t === "string" && t.startsWith("delivery_gate"));
+    expect(gateEvents).toHaveLength(0);
   });
 
   it("does not route to verification when the review-request coming-soon modal is opened", async () => {

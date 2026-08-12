@@ -15,6 +15,8 @@ const EVENT_TYPES = [
   "chat_click",         // 채널톡 버튼 클릭
   "recommend_start",    // AI 추천 플로우 진입
   "recommend_complete", // AI 추천 결과 확인
+  "delivery_gate_shown",      // 비회원이 견적서 받기를 눌러 로그인 게이트 표시
+  "delivery_gate_login_click",// 게이트에서 카카오 로그인 클릭
 ] as const;
 
 // ─── 스키마 ─────────────────────────────────────────────

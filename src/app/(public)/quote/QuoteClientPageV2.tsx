@@ -74,6 +74,7 @@ import {
   DEFAULT_PUBLIC_QUOTE_PRODUCT_TYPE,
   PUBLIC_CARD_QUOTE_CONDITION,
 } from "@/constants/quote-defaults";
+import { useTracking } from "@/lib/use-tracking";
 
 // ─── 상수 ────────────────────────────────────────────────
 const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
@@ -196,6 +197,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [quoteSessionId] = useState(() =>
     typeof crypto !== "undefined" ? crypto.randomUUID() : `quote-${Date.now()}`
   );
+  const { track } = useTracking();
+  // 게이트 표시 이벤트는 마운트당 1회만 — 모달을 닫았다 다시 여는 반복이 카운트를 부풀리지 않게.
+  const deliveryGateShownTracked = useRef(false);
 
   const restoreRef = useRef<QuoteImageRestoreState | null>(null);
 
@@ -849,6 +853,15 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       setDeliveryError(null);
       setDeliverSuccess(false);
       setDeliveryLoginGateOpen(true);
+      // 게이트 정책 재검토용 퍼널: 견적 세션 ID 로 기록해 QuoteCalcLog 와 조인 가능하게 한다.
+      if (!deliveryGateShownTracked.current) {
+        deliveryGateShownTracked.current = true;
+        void track("delivery_gate_shown", {
+          sessionId: quoteSessionId,
+          vehicleId: selectedVehicle?.id,
+          metadata: { vehicleSlug: selectedVehicle?.slug },
+        });
+      }
       return;
     }
     setIsDelivering(true);
@@ -913,6 +926,12 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
 
   // 로그인 게이트 CTA — 견적 상태를 보관하고, 복귀 후 이어갈 표식과 함께 카카오 로그인으로.
   async function handleDeliveryLoginGateConfirm() {
+    // 클릭 자체가 의도 신호 — 로그인 시작 성공 여부와 무관하게 기록한다.
+    void track("delivery_gate_login_click", {
+      sessionId: quoteSessionId,
+      vehicleId: selectedVehicle?.id,
+      metadata: { vehicleSlug: selectedVehicle?.slug },
+    });
     const state = buildRestoreState();
     if (state) {
       restoreRef.current = state;
