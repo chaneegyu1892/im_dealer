@@ -56,7 +56,7 @@ describe("POST /api/verification/easyauth/complete", () => {
       user: { id: "member-1", supabaseId: "u1", isActive: true },
       error: null,
     });
-    mocks.verificationFindFirst.mockResolvedValue({ id: "v1" });
+    mocks.verificationFindFirst.mockResolvedValue({ id: "v1", customerType: "individual" });
     mocks.documentFindFirst.mockResolvedValue(null);
     mocks.create.mockResolvedValue({});
     mocks.update.mockResolvedValue({});
@@ -87,7 +87,7 @@ describe("POST /api/verification/easyauth/complete", () => {
     const response = await POST(
       request({
         verificationId: "v1",
-        docType: "income_withholding",
+        docType: "income_proof",
         userName: "홍길동",
         phoneNo: "01012345678",
         loginTypeLevel: "1",
@@ -111,5 +111,29 @@ describe("POST /api/verification/easyauth/complete", () => {
         }),
       })
     );
+  });
+
+  it("rejects a document type that is not allowed for the verification customer type", async () => {
+    const response = await POST(
+      request({
+        verificationId: "v1",
+        docType: "financial_statements",
+        userName: "홍길동",
+        phoneNo: "01012345678",
+        loginTypeLevel: "1",
+        id: "v1",
+        birthDate: "19900101",
+        twoWayInfo: {
+          jobIndex: 0,
+          threadIndex: 0,
+          jti: "jti",
+          twoWayTimestamp: 1700000000000,
+        },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(mockedCompleteEasyAuth).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 });

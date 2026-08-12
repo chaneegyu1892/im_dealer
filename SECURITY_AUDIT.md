@@ -25,8 +25,8 @@ This is a source review, not a penetration test or legal opinion. Supabase proje
 | Severity | Count | Findings |
 | --- | ---: | --- |
 | Critical | 1 | C-01 |
-| High | 4 | H-01 through H-04 |
-| Medium | 7 | M-01 through M-07 |
+| High | 5 | H-01 through H-05 |
+| Medium | 8 | M-01 through M-08 |
 | Low | 3 | L-01 through L-03 |
 | Info | 2 | I-01 through I-02 |
 
@@ -137,6 +137,22 @@ Abandoned, failed, and account-level PII can be retained indefinitely, contrary 
 3. Implement tested account withdrawal that revokes Supabase sessions, deletes or irreversibly anonymizes local PII, handles legally required segregated records, and revokes/deletes the Kakao refresh token.
 4. Record deletion outcomes and alert on purge failures.
 5. Align the code, backup expiration, vendor deletion, and published retention schedule.
+
+### H-05 — Two account mutation APIs did not reject inactive users
+
+**Evidence**
+
+- `getCurrentUser()` deliberately returns inactive users and requires callers to enforce status (`src/lib/admin-auth.ts:11-25`).
+- The profile-completion and marketing-consent routes originally checked only whether `getCurrentUser()` returned a row, unlike the verification and quote APIs that use `requireActiveUser()`.
+- Deactivation updates the local database flag but does not revoke the user's existing Supabase session (`src/app/api/admin/settings/users/route.ts`).
+
+**Risk**
+
+After staff deactivation, a user with an existing Supabase session could still modify their profile and marketing-consent state through direct API calls.
+
+**Remediation/status**
+
+The accompanying hardening change replaces both checks with `requireActiveUser()` and adds inactive-account regression tests. Production deactivation should also revoke all Supabase sessions and, according to the chosen disconnect policy, remove the stored Kakao refresh token.
 
 ## Medium
 
@@ -253,6 +269,21 @@ Provider credentials persist without a user-facing revocation path, and logout b
 **Remediation**
 
 Define logout versus disconnect versus withdrawal semantics. Provide a disconnect/withdrawal path that revokes Kakao authorization where applicable and deletes local refresh-token ciphertext. Consolidate logout behavior, handle errors, and document safe linking/recovery rules requiring recent authentication.
+
+### M-08 — Easy-auth completion did not repeat the document-purpose policy check
+
+**Evidence**
+
+- The start endpoint validates that the requested document is allowed for the verification's customer type (`src/app/api/verification/easyauth/start/route.ts:26-36`).
+- The completion endpoint originally checked ownership only before making the paid Codef request.
+
+**Risk**
+
+An authenticated owner could bypass the UI and submit a completion request for a document outside the purpose/customer-type policy, causing out-of-policy collection and paid API usage.
+
+**Remediation/status**
+
+The accompanying hardening change now loads the verification customer type and repeats the same allowlist check before calling Codef. A regression test confirms disallowed document types do not reach the provider.
 
 ## Low
 
