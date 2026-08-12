@@ -5,6 +5,7 @@ import {
   getCalcConditionDistribution,
   getCalcPopularVehicles,
 } from "./quote-calc-stats";
+import { getDeliveryGateFunnel } from "./delivery-gate-funnel";
 
 async function getTopColors(
   kind: "EXTERIOR" | "INTERIOR",
@@ -114,11 +115,13 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
     calcConditionDistribution,
     topExteriorColors,
     topInteriorColors,
+    deliveryGateFunnel,
   ] = await Promise.all([
     getCalcPopularVehicles(thirtyDaysAgo, 10),
     getCalcConditionDistribution(thirtyDaysAgo),
     getTopColors("EXTERIOR", thirtyDaysAgo, 5),
     getTopColors("INTERIOR", thirtyDaysAgo, 5),
+    getDeliveryGateFunnel(thirtyDaysAgo),
   ]);
 
   return {
@@ -131,5 +134,6 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
     calcConditionDistribution,
     topExteriorColors,
     topInteriorColors,
+    deliveryGateFunnel,
   };
 }
