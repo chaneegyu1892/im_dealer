@@ -136,7 +136,7 @@ Kakao account compromise or theft of a script-readable Supabase browser session 
 
 Require MFA for all privileged roles, verify AAL server-side for sensitive routes, use short privileged-session lifetimes, and require step-up/recent authentication for document downloads and role changes. Review staff role enrollment and recovery procedures outside the codebase.
 
-### H-04 — Retention and withdrawal deletion are incomplete
+### H-04 — Retention and withdrawal deletion are incomplete (remediated in application code)
 
 **Evidence**
 
@@ -150,13 +150,16 @@ Require MFA for all privileged roles, verify AAL server-side for sensitive route
 
 Abandoned, failed, and account-level PII can be retained indefinitely, contrary to minimization and the application's own notice. A database or staff-account compromise therefore affects more people and more historical data than necessary.
 
-**Remediation**
+**Remediation/status**
 
-1. Base verification retention on `createdAt`/last activity as well as success timestamps, covering pending, failed, and abandoned states.
-2. Sanitize failure codes at ingestion; do not persist raw provider error text.
-3. Implement tested account withdrawal that revokes Supabase sessions, deletes or irreversibly anonymizes local PII, handles legally required segregated records, and revokes/deletes the Kakao refresh token.
-4. Record deletion outcomes and alert on purge failures.
-5. Align the code, backup expiration, vendor deletion, and published retention schedule.
+The H-04 application changes implement the following policy:
+
+1. Successfully completed verification PII and encrypted document content remain subject to the existing 90-day window. Pending, failed, and abandoned verification PII, encrypted document content, document identifiers, and failure categories are purged 7 days after their last activity (`updatedAt`).
+2. New Codef document failures persist only a short allowlisted category (`AUTH_NOT_COMPLETED`, `AUTH_PENDING`, or `PROVIDER_ERROR`), never the provider's raw message. The purge also clears legacy `failReason` values.
+3. Kakao members can withdraw from My Page. The server verifies the active authenticated member and same-origin confirmation, best-effort unlinks the Kakao app, deletes owned verification rows/documents, revokes quote review tokens, removes coupons/referrals, strips quote contact fields and user links, unlinks calculation logs, clears provider credentials/identifiers, and converts the local `User` into an inactive identifier-free tombstone. Quotes, operational delivery history, and staff activity facts remain without member/contact linkage; this preserves business records and existing FK-bound cleanup jobs. A later Kakao login creates a new `User` row.
+4. Withdrawal globally revokes the current Supabase sessions and calls the service-role Auth deletion API. Kakao/Supabase cleanup outcomes are recorded in an identifier-only `ACCOUNT_WITHDRAWN` audit event; failures are captured by Sentry. Purge failures retain the existing Sentry alert and non-2xx response.
+
+Residual operational requirements remain outside this repository: verify database backup expiration and deletion restores, confirm Codef/Kakao/Supabase vendor-side retention and deletion terms, define any legal-hold override, and monitor/retry external unlink/Auth deletion failures reported to Sentry.
 
 ### H-05 — Two account mutation APIs did not reject inactive users
 

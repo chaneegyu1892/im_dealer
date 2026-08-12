@@ -8,6 +8,15 @@ import { isCustomerType } from "@/constants/customer-types";
 import { encryptPII, encryptString } from "@/lib/pii";
 import { easyAuthFieldsSchema, twoWayInfoSchema, toEasyAuthInput } from "../validation";
 
+const SAFE_FAILURE_CATEGORIES: Readonly<Record<string, string>> = {
+  "CF-12872": "AUTH_NOT_COMPLETED",
+  "CF-03002": "AUTH_PENDING",
+};
+
+function storedFailureCategory(code: string): string {
+  return SAFE_FAILURE_CATEGORIES[code] ?? "PROVIDER_ERROR";
+}
+
 // ─── POST /api/verification/easyauth/complete ────────────
 // 사용자 간편인증 완료 후 2차 요청 → 원본 PDF 수신 → AES-256-GCM 암호화 저장.
 // 원본/PII 는 클라이언트에 노출하지 않고 처리 상태만 반환한다.
@@ -52,7 +61,9 @@ export async function POST(request: NextRequest) {
       ? (encryptPII(issued.pdfBase64) as unknown as Prisma.InputJsonValue)
       : Prisma.JsonNull,
     docVerifyNo: encryptString(issued.docVerifyNo),
-    failReason: issued.success ? null : (issued.error ?? issued.code ?? null),
+    // 공급자 메시지는 이름·식별자·응답 조각을 포함할 수 있어 저장하지 않는다.
+    // 운영에는 짧은 allowlist 범주만 남기고, 상세 오류는 공급자 측 추적을 사용한다.
+    failReason: issued.success ? null : storedFailureCategory(issued.code),
     issuedAt: issued.success ? new Date() : null,
   };
 

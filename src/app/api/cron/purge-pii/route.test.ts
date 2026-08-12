@@ -84,4 +84,86 @@ describe("POST /api/cron/purge-pii", () => {
     });
     expect(mocks.purgeScrapeCredentials).toHaveBeenCalledWith();
   });
+
+  it("purges successful verification PII after 90 days and incomplete PII after 7 days", async () => {
+    await POST(
+      new NextRequest("https://example.com/api/cron/purge-pii", {
+        method: "POST",
+        headers: { authorization: "Bearer cron-secret" },
+      })
+    );
+
+    expect(mocks.purgeVerification).toHaveBeenCalledWith({
+      where: {
+        piiPurgedAt: null,
+        AND: [
+          {
+            OR: [
+              { verifiedAt: { lt: expect.any(Date) } },
+              { verifiedAt: null, updatedAt: { lt: expect.any(Date) } },
+            ],
+          },
+          {
+            OR: [
+              { connectedId: { not: null } },
+              { licenseData: { not: expect.anything() } },
+              { insuranceData: { not: expect.anything() } },
+              { bizData: { not: expect.anything() } },
+            ],
+          },
+        ],
+      },
+      data: {
+        connectedId: null,
+        licenseData: expect.anything(),
+        insuranceData: expect.anything(),
+        bizData: expect.anything(),
+        piiPurgedAt: expect.any(Date),
+      },
+    });
+
+    const call = mocks.purgeVerification.mock.calls[0][0];
+    const successCutoff = call.where.AND[0].OR[0].verifiedAt.lt as Date;
+    const incompleteCutoff = call.where.AND[0].OR[1].updatedAt.lt as Date;
+    expect(successCutoff.getTime()).toBeLessThan(incompleteCutoff.getTime());
+    expect(incompleteCutoff.getTime() - successCutoff.getTime()).toBe(
+      83 * 24 * 60 * 60 * 1000
+    );
+  });
+
+  it("purges issued document PII after 90 days and failed or pending data after 7 days", async () => {
+    await POST(
+      new NextRequest("https://example.com/api/cron/purge-pii", {
+        method: "POST",
+        headers: { authorization: "Bearer cron-secret" },
+      })
+    );
+
+    expect(mocks.purgeDocuments).toHaveBeenCalledWith({
+      where: {
+        piiPurgedAt: null,
+        AND: [
+          {
+            OR: [
+              { issuedAt: { lt: expect.any(Date) } },
+              { issuedAt: null, updatedAt: { lt: expect.any(Date) } },
+            ],
+          },
+          {
+            OR: [
+              { contentEnc: { not: expect.anything() } },
+              { docVerifyNo: { not: null } },
+              { failReason: { not: null } },
+            ],
+          },
+        ],
+      },
+      data: {
+        contentEnc: expect.anything(),
+        docVerifyNo: null,
+        failReason: null,
+        piiPurgedAt: expect.any(Date),
+      },
+    });
+  });
 });

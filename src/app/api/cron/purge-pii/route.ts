@@ -6,11 +6,11 @@ import { timingSafeEqualString } from "@/lib/security";
 import { purgeExpiredScrapeJobCredentials } from "@/lib/scraper/credential-retention";
 
 /**
- * 90일 경과 PII 자동 만료.
+ * 인증 PII 자동 만료.
  *
  * 보호: Authorization: Bearer <CRON_SECRET> 일치 시에만 실행.
- * 동작: verifiedAt 이 90일 이상 지난 인증 PII와, 삭제됐거나 90일 넘게 만료된
- *       견적 연락처를 NULL 로 비운다. 인증 행은 piiPurgedAt 에 처리 시각을 기록한다.
+ * 동작: 성공한 인증은 완료 후 90일, 완료되지 않은 인증은 마지막 활동 후 7일이 지나면
+ *       PII를 비운다. 삭제됐거나 90일 넘게 만료된 견적 연락처도 NULL 로 비운다.
  *
  * 호출 방법:
  *   - Vercel Cron: vercel.json 의 crons 에 등록(매일 03:00). Vercel 이 GET 으로 호출하며
@@ -20,7 +20,8 @@ import { purgeExpiredScrapeJobCredentials } from "@/lib/scraper/credential-reten
  * 실패 시 Sentry 로 경보(법적 보존기간 준수 의무 — 무음 실패 방지).
  */
 
-const RETENTION_DAYS = 90;
+const SUCCESS_RETENTION_DAYS = 90;
+const INCOMPLETE_RETENTION_DAYS = 7;
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,18 +39,32 @@ async function handlePurge(request: NextRequest) {
   }
   if (!timingSafeEqualString(provided, expected)) return unauthorized();
 
-  const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  const successCutoff = new Date(
+    Date.now() - SUCCESS_RETENTION_DAYS * 24 * 60 * 60 * 1000
+  );
+  const incompleteCutoff = new Date(
+    Date.now() - INCOMPLETE_RETENTION_DAYS * 24 * 60 * 60 * 1000
+  );
 
   try {
     const result = await prisma.customerVerification.updateMany({
       where: {
-        verifiedAt: { lt: cutoff },
         piiPurgedAt: null,
-        OR: [
-          { connectedId: { not: null } },
-          { licenseData: { not: Prisma.JsonNull } },
-          { insuranceData: { not: Prisma.JsonNull } },
-          { bizData: { not: Prisma.JsonNull } },
+        AND: [
+          {
+            OR: [
+              { verifiedAt: { lt: successCutoff } },
+              { verifiedAt: null, updatedAt: { lt: incompleteCutoff } },
+            ],
+          },
+          {
+            OR: [
+              { connectedId: { not: null } },
+              { licenseData: { not: Prisma.JsonNull } },
+              { insuranceData: { not: Prisma.JsonNull } },
+              { bizData: { not: Prisma.JsonNull } },
+            ],
+          },
         ],
       },
       data: {
@@ -61,16 +76,30 @@ async function handlePurge(request: NextRequest) {
       },
     });
 
-    // 간편인증 발급 문서(원본 PDF·문서확인번호)도 동일 보존기간 후 파기.
+    // 발급 성공 문서는 90일, 실패·대기 문서는 마지막 활동 후 7일에 원본과 오류문을 파기.
     const docResult = await prisma.verificationDocument.updateMany({
       where: {
-        issuedAt: { lt: cutoff },
         piiPurgedAt: null,
-        OR: [{ contentEnc: { not: Prisma.JsonNull } }, { docVerifyNo: { not: null } }],
+        AND: [
+          {
+            OR: [
+              { issuedAt: { lt: successCutoff } },
+              { issuedAt: null, updatedAt: { lt: incompleteCutoff } },
+            ],
+          },
+          {
+            OR: [
+              { contentEnc: { not: Prisma.JsonNull } },
+              { docVerifyNo: { not: null } },
+              { failReason: { not: null } },
+            ],
+          },
+        ],
       },
       data: {
         contentEnc: Prisma.JsonNull,
         docVerifyNo: null,
+        failReason: null,
         piiPurgedAt: new Date(),
       },
     });
@@ -83,7 +112,7 @@ async function handlePurge(request: NextRequest) {
           {
             OR: [
               { deletedAt: { not: null } },
-              { expiresAt: { lt: cutoff } },
+              { expiresAt: { lt: successCutoff } },
             ],
           },
           {
@@ -112,8 +141,10 @@ async function handlePurge(request: NextRequest) {
       purgedDocuments: docResult.count,
       purgedQuoteContacts: quoteContactResult.count,
       purgedScrapeJobCredentials: scrapeCredentialResult.count,
-      cutoff: cutoff.toISOString(),
-      retentionDays: RETENTION_DAYS,
+      successCutoff: successCutoff.toISOString(),
+      incompleteCutoff: incompleteCutoff.toISOString(),
+      successRetentionDays: SUCCESS_RETENTION_DAYS,
+      incompleteRetentionDays: INCOMPLETE_RETENTION_DAYS,
     });
   } catch (error) {
     const detail = {

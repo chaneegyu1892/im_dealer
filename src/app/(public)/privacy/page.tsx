@@ -197,6 +197,14 @@ export default function PrivacyPage() {
                   <td className={TD}>광고 및 마케팅</td>
                   <td className={TD}>회원 탈퇴 또는 동의 철회 시까지</td>
                 </tr>
+                <tr>
+                  <td className={TD}>완료된 본인확인 및 발급 서류</td>
+                  <td className={TD}>인증 완료일로부터 90일</td>
+                </tr>
+                <tr>
+                  <td className={TD}>미완료·실패한 본인확인 및 발급 시도</td>
+                  <td className={TD}>마지막 처리일로부터 7일</td>
+                </tr>
               </tbody>
             </table>
           </div>
