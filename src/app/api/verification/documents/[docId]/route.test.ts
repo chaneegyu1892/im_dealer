@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  requireRoleAtLeast: vi.fn(),
+  requireVerificationReviewer: vi.fn(),
   findUnique: vi.fn(),
   decrypt: vi.fn(),
   audit: vi.fn(),
 }));
 
 vi.mock("@/lib/require-admin", () => ({
-  requireRoleAtLeast: mocks.requireRoleAtLeast,
+  requireVerificationReviewer: mocks.requireVerificationReviewer,
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -20,11 +20,11 @@ vi.mock("@/lib/audit", () => ({ logAdminAction: mocks.audit }));
 
 import { GET } from "./route";
 
-const actor = { id: "staff-1", email: "staff@example.com" };
+const actor = { id: "admin-1", email: "admin@example.com" };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.requireRoleAtLeast.mockResolvedValue({ admin: actor, error: null });
+  mocks.requireVerificationReviewer.mockResolvedValue({ admin: actor, error: null });
   mocks.findUnique.mockResolvedValue({
     verificationId: "verification-1",
     contentEnc: { ciphertext: "raw-encrypted-pdf-content" },
@@ -63,7 +63,7 @@ describe("GET /api/verification/documents/[docId]", () => {
   });
 
   it("does not audit when authorization fails", async () => {
-    mocks.requireRoleAtLeast.mockResolvedValue({
+    mocks.requireVerificationReviewer.mockResolvedValue({
       admin: null,
       error: new Response(null, { status: 403 }),
     });

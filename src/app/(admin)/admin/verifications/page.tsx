@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { ShieldCheck, CheckCircle2, XCircle, Clock, ChevronRight, RefreshCw } from "lucide-react";
+import { ShieldCheck, CheckCircle2, XCircle, Clock, ChevronRight, RefreshCw, LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VerificationResult } from "@/components/admin/VerificationResult";
+import { useAdminSession } from "@/components/admin/AdminSessionContext";
+import { canReviewVerifications } from "@/lib/admin-roles";
 import type { AdminVerification } from "@/lib/admin-queries";
 
 // ─── 고객 유형 ────────────────────────────────────────────
@@ -30,6 +32,8 @@ function fmtDateTime(d: Date | string) {
 
 // ─── 메인 ────────────────────────────────────────────────
 export default function VerificationsPage() {
+  const admin = useAdminSession();
+  const canReview = canReviewVerifications(admin.role);
   const [rows, setRows] = useState<AdminVerification[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<AdminVerification | null>(null);
@@ -69,6 +73,13 @@ export default function VerificationsPage() {
           </button>
         </div>
 
+        {!canReview && (
+          <div className="flex items-center gap-2 px-6 py-2.5 border-b border-amber-200 bg-amber-50 text-[12px] text-amber-800">
+            <LockKeyhole size={13} />
+            운영자는 제출 현황만 볼 수 있습니다. 인증 상세와 원본 서류는 관리자 권한이 필요합니다.
+          </div>
+        )}
+
         {/* 테이블 헤더 */}
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_24px] gap-3 px-6 py-2.5 bg-[#F8F9FC] border-b border-[#E8EAF0] text-[11px] font-semibold text-[#9BA4C0] uppercase tracking-wide">
           <span>세션 ID</span>
@@ -99,10 +110,15 @@ export default function VerificationsPage() {
             return (
               <button
                 key={row.id}
-                onClick={() => setSelected(isSelected ? null : row)}
+                onClick={() => {
+                  if (canReview) setSelected(isSelected ? null : row);
+                }}
+                disabled={!canReview}
+                title={canReview ? "인증 상세 보기" : "관리자 권한이 필요합니다."}
                 className={cn(
                   "w-full grid grid-cols-[2fr_1fr_1fr_1fr_1fr_24px] gap-3 px-6 py-3.5 border-b border-[#F0F2F8]",
-                  "text-left hover:bg-[#F8F9FC] transition-colors",
+                  "text-left transition-colors",
+                  canReview ? "hover:bg-[#F8F9FC]" : "cursor-not-allowed",
                   isSelected && "bg-primary/[0.04] border-l-2 border-l-[#000666]"
                 )}
               >
@@ -128,7 +144,11 @@ export default function VerificationsPage() {
                     ? <StatusDot ok={row.bizVerified} pending={isPending} />
                     : <span className="text-[11px] text-[#C0C5DC]">—</span>}
                 </span>
-                <ChevronRight size={14} className={cn("text-[#C0C5DC] self-center transition-transform", isSelected && "rotate-90")} />
+                {canReview ? (
+                  <ChevronRight size={14} className={cn("text-[#C0C5DC] self-center transition-transform", isSelected && "rotate-90")} />
+                ) : (
+                  <LockKeyhole size={12} className="text-[#C0C5DC] self-center" />
+                )}
               </button>
             );
           })}

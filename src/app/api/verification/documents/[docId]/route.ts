@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireRoleAtLeast } from "@/lib/require-admin";
+import { requireVerificationReviewer } from "@/lib/require-admin";
 import { decryptDocumentContent } from "@/lib/pii";
 import { logAdminAction } from "@/lib/audit";
 
@@ -10,7 +10,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ docId: string }> }
 ) {
-  const { admin, error: authError } = await requireRoleAtLeast("staff");
+  const { admin, error: authError } = await requireVerificationReviewer();
   if (authError) return authError;
 
   const { docId } = await params;

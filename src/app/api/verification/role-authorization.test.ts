@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextResponse } from "next/server";
-
 const dealerUser = {
   id: "dealer-1",
   supabaseId: "supabase-dealer-1",
@@ -14,33 +12,47 @@ const dealerUser = {
 };
 
 const staffUser = { ...dealerUser, id: "staff-1", email: "staff@example.com", role: "staff" };
+const adminUser = { ...dealerUser, id: "admin-1", email: "admin@example.com", role: "admin" };
+const superadminUser = {
+  ...dealerUser,
+  id: "superadmin-1",
+  email: "superadmin@example.com",
+  role: "superadmin",
+};
 
-function mockRole(role: "dealer" | "staff") {
-  const admin = role === "dealer" ? dealerUser : staffUser;
-  const error = role === "dealer"
-    ? NextResponse.json({ error: "권한이 없습니다." }, { status: 403 })
-    : null;
+function mockRole(role: "dealer" | "staff" | "admin" | "superadmin") {
+  const users = { dealer: dealerUser, staff: staffUser, admin: adminUser, superadmin: superadminUser };
 
   vi.doMock("@/lib/admin-auth", () => ({
-    getAdminSession: vi.fn().mockResolvedValue(admin),
-  }));
-  vi.doMock("@/lib/require-admin", () => ({
-    requireRoleAtLeast: vi.fn().mockResolvedValue({ admin: error ? null : admin, error }),
+    getAdminSession: vi.fn().mockResolvedValue(users[role]),
   }));
   vi.doMock("@/lib/audit", () => ({
     logAdminAction: vi.fn().mockResolvedValue(undefined),
   }));
 }
 
-describe("verification API staff authorization", () => {
+describe("verification API reviewer authorization", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
   });
 
-  it("blocks dealers from decrypted verification detail before querying", async () => {
+  it("keeps the metadata-only verification queue available to staff", async () => {
+    const getRecentVerifications = vi.fn().mockResolvedValue([]);
+    mockRole("staff");
+    vi.doMock("@/lib/admin-queries", () => ({ getRecentVerifications }));
+
+    const { GET } = await import("@/app/api/admin/verifications/route");
+    const response = await GET();
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true, data: [] });
+    expect(getRecentVerifications).toHaveBeenCalledWith(50);
+  });
+
+  it("blocks staff from decrypted verification detail before querying", async () => {
     const findUnique = vi.fn().mockResolvedValue({ id: "verification-1" });
-    mockRole("dealer");
+    mockRole("staff");
     vi.doMock("@/lib/prisma", () => ({ prisma: { customerVerification: { findUnique } } }));
 
     const { GET } = await import("@/app/api/verification/[id]/route");
@@ -53,7 +65,7 @@ describe("verification API staff authorization", () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it("returns only allowlisted verification detail fields to staff", async () => {
+  it("returns only allowlisted verification detail fields to admins", async () => {
     const consentedAt = new Date("2026-08-01T01:00:00.000Z");
     const verifiedAt = new Date("2026-08-01T01:05:00.000Z");
     const findUnique = vi.fn().mockResolvedValue({
@@ -76,7 +88,7 @@ describe("verification API staff authorization", () => {
       connectedId: "must-not-leak",
       userId: "must-not-leak",
     });
-    mockRole("staff");
+    mockRole("admin");
     vi.doMock("@/lib/prisma", () => ({ prisma: { customerVerification: { findUnique } } }));
 
     const { GET } = await import("@/app/api/verification/[id]/route");
@@ -108,10 +120,10 @@ describe("verification API staff authorization", () => {
     });
   });
 
-  it("blocks dealers from session verification data before querying", async () => {
+  it("blocks staff from session verification data before querying", async () => {
     const findFirst = vi.fn().mockResolvedValue({ id: "verification-1" });
     const findQuote = vi.fn().mockResolvedValue({ userId: "member-1" });
-    mockRole("dealer");
+    mockRole("staff");
     vi.doMock("@/lib/prisma", () => ({
       prisma: {
         customerVerification: { findFirst },
@@ -130,7 +142,7 @@ describe("verification API staff authorization", () => {
     expect(findQuote).not.toHaveBeenCalled();
   });
 
-  it("returns only UI fields and safe document metadata for a session", async () => {
+  it("returns only UI fields and safe document metadata to superadmins", async () => {
     const consentedAt = new Date("2026-08-01T01:00:00.000Z");
     const findFirst = vi.fn().mockResolvedValue({
       customerType: "self_employed",
@@ -160,7 +172,7 @@ describe("verification API staff authorization", () => {
       ],
     });
     const findQuote = vi.fn().mockResolvedValue({ userId: "member-1" });
-    mockRole("staff");
+    mockRole("superadmin");
     vi.doMock("@/lib/prisma", () => ({
       prisma: {
         customerVerification: { findFirst },
@@ -212,7 +224,7 @@ describe("verification API staff authorization", () => {
   it("does not let an ownerless legacy verification shadow a quote session", async () => {
     const findFirst = vi.fn();
     const findQuote = vi.fn().mockResolvedValue({ userId: null });
-    mockRole("staff");
+    mockRole("admin");
     vi.doMock("@/lib/prisma", () => ({
       prisma: {
         customerVerification: { findFirst },
@@ -229,9 +241,9 @@ describe("verification API staff authorization", () => {
     expect(findFirst).not.toHaveBeenCalled();
   });
 
-  it("blocks dealers from original verification PDFs before querying", async () => {
+  it("blocks staff from original verification PDFs before querying", async () => {
     const findUnique = vi.fn().mockResolvedValue({ id: "document-1", contentEnc: "ciphertext" });
-    mockRole("dealer");
+    mockRole("staff");
     vi.doMock("@/lib/prisma", () => ({ prisma: { verificationDocument: { findUnique } } }));
     vi.doMock("@/lib/pii", () => ({ decryptDocumentContent: vi.fn() }));
 
@@ -245,7 +257,7 @@ describe("verification API staff authorization", () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it("allows staff to download original verification PDFs", async () => {
+  it("allows admins to download original verification PDFs", async () => {
     const findUnique = vi.fn().mockResolvedValue({
       id: "document-1",
       verificationId: "verification-1",
@@ -254,7 +266,7 @@ describe("verification API staff authorization", () => {
       fileName: "income-proof.pdf",
     });
     const decryptDocumentContent = vi.fn().mockReturnValue("cGRm");
-    mockRole("staff");
+    mockRole("admin");
     vi.doMock("@/lib/prisma", () => ({ prisma: { verificationDocument: { findUnique } } }));
     vi.doMock("@/lib/pii", () => ({ decryptDocumentContent }));
 

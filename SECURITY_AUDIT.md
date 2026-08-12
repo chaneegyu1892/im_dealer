@@ -93,18 +93,24 @@ A compromised staff session, browser extension, XSS, support recording, or accid
 
 - Successful authorized reads through both verification detail routes and the identity-document download route now create audit records with the actor, action, relevant verification/session/document IDs, request IP (when available through the existing trusted-proxy handling), user agent, and server timestamp.
 - Audit metadata is identifier-only; document bytes, encrypted content, provider JSON, RRN, phone, filenames, and other raw PII are not included. The frequently polled verification list remains unaudited to avoid noisy low-value events.
-- Remaining gaps: narrow access to a dedicated reviewer/assigned case or break-glass flow, require MFA/step-up authentication, and add volume/anomaly alerting.
+- Remaining gaps after step 1 were role narrowing, MFA/step-up authentication, and volume/anomaly alerting.
+
+**Step 2 status (implemented)**
+
+- The explicit verification-review capability is now limited to `admin` and `superadmin`. `staff` receives `403` before any query, decryption, or successful-view/download audit event on both detail routes and the document download route.
+- `staff` retains access to the metadata-only recent-verifications queue so operations can monitor submission status without decrypted detail. The admin UI disables detail selection and hides download affordances for roles without the capability.
+- MFA/step-up authentication is intentionally not implemented in this step and remains tracked under H-03. Case assignment and anomaly alerting remain future hardening opportunities.
 
 **Evidence**
 
-- Any `staff` or higher role can access verification results: `src/app/api/verification/[id]/route.ts:12`, `src/app/api/verification/session/[sessionId]/route.ts:12`, and `src/app/api/admin/verifications/route.ts:7`.
-- Any `staff` or higher role can download any retained document when given its ID: `src/app/api/verification/documents/[docId]/route.ts:12-16`.
-- The download route correctly uses `Cache-Control: no-store` (`route.ts:33-40`) but records no read/download audit event.
-- The audit action set and call sites cover many mutations but no verification read or document download (`src/lib/audit.ts:18-88`; no `logAdminAction` call exists under `src/app/api/verification`).
+- `canReviewVerifications` grants sensitive access only to `admin` and `superadmin`, and `requireVerificationReviewer` enforces that policy before protected route work (`src/lib/admin-roles.ts`; `src/lib/require-admin.ts`).
+- Both verification detail routes and the original-document download route use the dedicated reviewer guard (`src/app/api/verification/[id]/route.ts`, `src/app/api/verification/session/[sessionId]/route.ts`, and `src/app/api/verification/documents/[docId]/route.ts`).
+- The list route remains guarded at `staff` but its query selects metadata only (`src/app/api/admin/verifications/route.ts`; `src/lib/admin-queries/verifications.ts`).
+- Successful sensitive reads and downloads retain the step 1 audit events; authorization failures return before data access, decryption, or success audit logging.
 
 **Risk**
 
-All staff accounts have organization-wide access to highly sensitive documents without case assignment, purpose checks, step-up authentication, or a forensic record. An insider or stolen staff session can browse and download documents with little detection.
+Organization-wide document access is now restricted to admin-level accounts and creates a forensic record, reducing exposure from routine staff sessions. Admin session compromise remains high impact until H-03 adds MFA/step-up authentication; access is also not yet scoped by case assignment or monitored for anomalous volume.
 
 **Remediation**
 

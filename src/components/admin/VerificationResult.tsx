@@ -5,6 +5,8 @@ import { FileSearch, CheckCircle2, XCircle, Clock, AlertCircle, Download } from 
 import { cn } from "@/lib/utils";
 import { docTypesForCustomer } from "@/lib/codef/doc-types";
 import { isCustomerType } from "@/constants/customer-types";
+import { canReviewVerifications } from "@/lib/admin-roles";
+import { useAdminSession } from "@/components/admin/AdminSessionContext";
 
 // ─── 타입 ────────────────────────────────────────────────
 interface VerificationDocumentSummary {
@@ -187,17 +189,24 @@ function formatDateTime(iso: string) {
 
 // ─── 메인 컴포넌트 ────────────────────────────────────────
 export function VerificationResult({ sessionId }: Props) {
+  const admin = useAdminSession();
+  const canReview = canReviewVerifications(admin.role);
   const [state, setState] = useState<
     | { status: "loading" }
+    | { status: "forbidden" }
     | { status: "none" }
     | { status: "error" }
     | { status: "ok"; data: VerificationRecord }
-  >({ status: "loading" });
+  >(canReview ? { status: "loading" } : { status: "forbidden" });
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchData() {
+      if (!canReview) {
+        setState({ status: "forbidden" });
+        return;
+      }
       setState({ status: "loading" });
       try {
         const res = await fetch(
@@ -230,7 +239,7 @@ export function VerificationResult({ sessionId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [canReview, sessionId]);
 
   return (
     <div className="rounded-[10px] border border-[#E8EAF0] overflow-hidden">
@@ -248,6 +257,15 @@ export function VerificationResult({ sessionId }: Props) {
           <div className="flex items-center gap-2 py-3">
             <div className="w-3 h-3 rounded-full border-2 border-[#000666] border-t-transparent animate-spin" />
             <p className="text-[12px] text-[#9BA4C0]">조회 중...</p>
+          </div>
+        )}
+
+        {state.status === "forbidden" && (
+          <div className="flex items-center gap-2.5 py-3 text-[#6B7399]">
+            <AlertCircle size={14} />
+            <p className="text-[12px]">
+              인증 상세 및 원본 서류는 관리자만 열람할 수 있습니다.
+            </p>
           </div>
         )}
 
