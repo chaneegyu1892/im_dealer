@@ -144,3 +144,24 @@ export async function revokeKakaoServiceTerms(
     throw error;
   }
 }
+
+/**
+ * 이 서비스와 카카오 계정의 앱 연결을 끊는다. 카카오 계정 자체는 삭제하지 않는다.
+ * 회원 탈퇴는 로컬 파기를 우선하므로 호출자는 실패를 best-effort 결과로 처리한다.
+ */
+export async function unlinkKakaoAccount(accessToken: string): Promise<boolean> {
+  if (!accessToken) return false;
+  try {
+    const res = await fetch("https://kapi.kakao.com/v1/user/unlink", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return res.ok;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("[kakao] unlinkKakaoAccount failed:", error);
+      return false;
+    }
+    throw error;
+  }
+}

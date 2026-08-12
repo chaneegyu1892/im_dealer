@@ -75,7 +75,7 @@ describe("POST /api/verification/easyauth/complete", () => {
     expect(mockedCompleteEasyAuth).not.toHaveBeenCalled();
   });
 
-  it("stores the Codef failure message when document issuance fails", async () => {
+  it("stores only an allowlisted failure category when document issuance fails", async () => {
     mockedCompleteEasyAuth.mockResolvedValue({
       success: false,
       pdfBase64: null,
@@ -107,8 +107,43 @@ describe("POST /api/verification/easyauth/complete", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: "failed",
-          failReason: "발급 실패 [CF-12832]: 발급 가능한 문서가 없습니다.",
+          failReason: "PROVIDER_ERROR",
+          piiPurgedAt: null,
         }),
+      })
+    );
+  });
+
+  it("maps a known provider code to a short operational category", async () => {
+    mockedCompleteEasyAuth.mockResolvedValue({
+      success: false,
+      pdfBase64: null,
+      docVerifyNo: null,
+      code: "CF-12872",
+      error: "간편인증 미완료: provider response details",
+    });
+
+    await POST(
+      request({
+        verificationId: "v1",
+        docType: "income_proof",
+        userName: "홍길동",
+        phoneNo: "01012345678",
+        loginTypeLevel: "1",
+        id: "v1",
+        birthDate: "19900101",
+        twoWayInfo: {
+          jobIndex: 0,
+          threadIndex: 0,
+          jti: "jti",
+          twoWayTimestamp: 1700000000000,
+        },
+      })
+    );
+
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ failReason: "AUTH_NOT_COMPLETED" }),
       })
     );
   });

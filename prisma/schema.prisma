@@ -773,7 +773,7 @@ model CustomerVerification {
   bizData           Json?
   consentedAt       DateTime
   verifiedAt        DateTime?
-  piiPurgedAt       DateTime? // 90일 만료 cron 이 PII 컬럼을 NULL 로 비운 시각
+  piiPurgedAt       DateTime? // 성공 인증의 90일 retention 후 cron 이 PII를 비운 시각
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -786,7 +786,7 @@ model CustomerVerification {
 }
 
 // 간편인증으로 발급받은 공문서(PDF) 원본 저장. contentEnc 는 AES-256-GCM 암호화.
-// 90일 만료 cron 이 contentEnc/docVerifyNo 를 비우고 piiPurgedAt 을 기록한다.
+// 성공 문서는 90일 후 PII를 비우며, 실패·대기 문서는 마지막 활동 7일 후 행을 삭제한다.
 model VerificationDocument {
   id             String               @id @default(cuid())
   verificationId String

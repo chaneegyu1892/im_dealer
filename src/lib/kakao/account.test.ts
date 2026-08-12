@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseKakaoAccount, parseAgreedTermTags } from "./account";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { parseKakaoAccount, parseAgreedTermTags, unlinkKakaoAccount } from "./account";
 
 describe("parseKakaoAccount", () => {
   it("동의한 항목을 모두 뽑아낸다", () => {
@@ -89,5 +89,27 @@ describe("parseAgreedTermTags", () => {
   it("tag 가 없는 항목은 건너뛴다", () => {
     const json = { service_terms: [{ agreed: true }, { tag: "marketing", agreed: true }] };
     expect(parseAgreedTermTags(json)).toEqual(["marketing"]);
+  });
+});
+
+describe("unlinkKakaoAccount", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("calls Kakao unlink with the refreshed access token", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(unlinkKakaoAccount("access-token")).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith("https://kapi.kakao.com/v1/user/unlink", {
+      method: "POST",
+      headers: { Authorization: "Bearer access-token" },
+    });
+  });
+
+  it("returns false when Kakao rejects the unlink", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+    await expect(unlinkKakaoAccount("expired-token")).resolves.toBe(false);
   });
 });

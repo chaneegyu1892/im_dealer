@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { ProfileSummary } from "@/components/mypage/ProfileSummary";
+import { WithdrawalSection } from "@/components/mypage/WithdrawalSection";
 import { getMyPageData } from "@/lib/member-queries/mypage";
 import { requireMember } from "@/lib/require-access";
 
@@ -64,6 +65,7 @@ export default async function MyProfilePage() {
           </div>
         </section>
       </div>
+      {data.profile.provider === "kakao" ? <WithdrawalSection /> : null}
     </>
   );
 }
