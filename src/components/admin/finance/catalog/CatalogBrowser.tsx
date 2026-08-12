@@ -31,6 +31,7 @@ interface TrimRow {
   baseRates: RateSheetRaw;
   depositRate36_10000: number | null;
   prepayRate36_10000: number | null;
+  weekOf: string;
   scrapedAt: string;
 }
 
@@ -51,6 +52,7 @@ export default function CatalogBrowser({ financeCompanyId, productType }: Props)
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ brand: BrandRow; model: ModelRow } | null>(null);
   const [trims, setTrims] = useState<TrimRow[]>([]);
+  const [latestWeekOf, setLatestWeekOf] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [loadingModels, setLoadingModels] = useState<string | null>(null);
@@ -101,6 +103,7 @@ export default function CatalogBrowser({ financeCompanyId, productType }: Props)
     try {
       const d = await (await fetch(`${base}&brandCd=${brand.brandCd}&modelCd=${encodeURIComponent(m.modelCd)}`)).json();
       setTrims(d.trims ?? []);
+      setLatestWeekOf(d.latestWeekOf ?? null);
     } finally {
       setLoadingTrims(false);
     }
@@ -237,9 +240,18 @@ export default function CatalogBrowser({ financeCompanyId, productType }: Props)
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleTrims.map((t) => (
-                      <tr key={t.id} className="hover:bg-[#F8F9FC] border-b border-[#F0F1FA]">
-                        <td className="px-3 py-1.5 font-medium text-[#1A1A2E] sticky left-0 bg-white border-b border-[#F0F1FA]">{t.trimName}</td>
+                    {visibleTrims.map((t) => {
+                      const isStale = !!latestWeekOf && new Date(t.weekOf) < new Date(latestWeekOf);
+                      return (
+                      <tr key={t.id} className={`hover:bg-[#F8F9FC] border-b border-[#F0F1FA] ${isStale ? "opacity-60" : ""}`}>
+                        <td className="px-3 py-1.5 font-medium text-[#1A1A2E] sticky left-0 bg-white border-b border-[#F0F1FA]">
+                          {t.trimName}
+                          {isStale && (
+                            <span className="ml-1.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
+                              지난 수집분
+                            </span>
+                          )}
+                        </td>
                         <td className="px-2 py-1.5 text-right text-[#5A6080] border-b border-[#F0F1FA]">{t.modelYear ?? "-"}</td>
                         <td className="px-2 py-1.5 text-right text-[#5A6080] border-b border-[#F0F1FA]">{t.vehiclePrice.toLocaleString()}</td>
                         {PERIODS.map((p) =>
@@ -263,7 +275,8 @@ export default function CatalogBrowser({ financeCompanyId, productType }: Props)
                         </td>
                         <td className="px-2 py-1.5 text-right text-[#9BA4C0] border-l border-b border-[#F0F1FA]">{fmtDate(t.scrapedAt)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                     {!loadingTrims && visibleTrims.length === 0 && (
                       <tr>
                         <td colSpan={RATE_KEYS.length + 6} className="px-3 py-8 text-center text-[#9BA4C0]">
@@ -275,7 +288,8 @@ export default function CatalogBrowser({ financeCompanyId, productType }: Props)
                 </table>
               </div>
               <p className="px-4 py-1.5 text-[11px] text-[#B0B8D0] border-t border-[#F0F1FA]">
-                월납입금(원) = 계약기간/연간주행거리별 · 붉은 &quot;-&quot; = 미산출 · 보증10%·선납10%는 36개월/1만km 기준(구 데이터는 미수집)
+                월납입금(원) = 계약기간/연간주행거리별 · 붉은 &quot;-&quot; = 미산출 · 보증10%·선납10%는 36개월/1만km 기준(구 데이터는 미수집) ·
+                <span className="text-amber-600"> 지난 수집분</span> = 최신 수집에 빠진 행(단종·명칭 변경 추정, 견적 반영 주의)
               </p>
             </>
           )}

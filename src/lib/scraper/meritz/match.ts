@@ -39,6 +39,10 @@ const BRAND_ALIASES: Record<string, string[]> = {
   KG: ["KG", "케이지", "쌍용", "KGM"],
   르노: ["르노"],
   쉐보레: ["쉐보레", "GM", "지엠"],
+  // 수입차 렌트 블록(영문/한글 이형)
+  TESLA: ["테슬라", "TESLA", "Tesla"],
+  폴스타: ["폴스타", "Polestar", "polestar"],
+  BYD: ["BYD", "비야디"],
 };
 
 const brandMatches = (meritzMaker: string, ourBrand: string): boolean => {
@@ -68,7 +72,9 @@ export function matchMeritzTrim(input: ExcelTrimLite, ourVehicles: OurVehicle[])
   const trimPart = stripGen(input.name).replace(new RegExp(vehicle.name.split(/\s+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "gi"), " ").trim() || input.name;
   const candidates = vehicle.trims.map((t) => ({ label: `${t.lineupName ?? ""} ${t.name}`.trim(), year: "" }));
   const m = matchTrim(trimPart, candidates);
-  const idx = m ? m.index : 0; // 트림 토큰 불충분해도 첫 트림 가격으로 폴백(모델 일치=가격대 근사)
-  const trim = vehicle.trims[idx];
+  // 트림 토큰 불충분 시 최저가(base) 트림 가격으로 폴백 — DB 조회 순서와 무관하게 결정적(모델 일치=가격대 근사)
+  const trim = m
+    ? vehicle.trims[m.index]
+    : vehicle.trims.reduce((a, b) => (b.price < a.price ? b : a));
   return { vehicleId: vehicle.id, trimId: trim.id, price: trim.price, confidence: m ? m.confidence : "fuzzy", trimMatched: !!m };
 }

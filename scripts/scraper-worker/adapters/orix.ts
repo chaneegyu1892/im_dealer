@@ -2,6 +2,7 @@ import { AuthError } from "./types";
 import type { AdapterContext, CatalogScrapeOptions, CatalogScrapeResult, SiteAdapter } from "./types";
 import type { CatalogTrimEntry, TrimScrapeResult, TrimMatchConfidence } from "../../../src/types/scraper";
 import { matchTrim, findModelIndex, type CatalogCandidate } from "../../../src/lib/scraper/trim-match";
+import { brandOrigin } from "../../../src/lib/scraper/standard-conditions";
 import { RATE_KEYS } from "../mapping";
 import { assertHttpUrl } from "../safe-url";
 
@@ -212,6 +213,10 @@ export const orixAdapter: SiteAdapter = {
     for (let bi = 0; bi < opts.brands.length; bi++) {
       const brand = opts.brands[bi];
       if (ctx.isCanceled()) break;
+      // 표준조건 가드: 특판출고(SHIPMENT)는 국산 채널 전제 — 수입/미등록 브랜드가 추가되면 조건 재확인 필요 (standard-conditions.ts)
+      if (brandOrigin(brand.name) !== "domestic") {
+        log(`[카탈로그] ${brand.name}: 국산(특판) 채널로 확인되지 않은 브랜드 — 특판출고 조건이 부적합할 수 있음 (표준조건: 수입=비제휴)`);
+      }
       const models = (await api(ctx, { txGbCd: "CAR_COMBO_1", LS_WORK_KUBUN: lsWork, BRAND_CD: brand.brandCd, PRE_ADC_YN: "N" })).LIST || [];
       log(`[카탈로그] 브랜드 ${brand.name}(${brand.brandCd}) — 모델 ${models.length}개`);
       let brandTrims = 0;

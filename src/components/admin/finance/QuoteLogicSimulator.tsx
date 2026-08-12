@@ -30,6 +30,7 @@ export default function QuoteLogicSimulator() {
   const [summary, setSummary] = useState<SummarySheet[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [selectedLineupId, setSelectedLineupId] = useState<string>("");
+  const [selectedTrimId, setSelectedTrimId] = useState<string>("");
 
   const [productType, setProductType] = useState<ProductType>("장기렌트");
   const [registrationFilter, setRegistrationFilter] = useState<RegistrationFilter>("all");
@@ -179,34 +180,48 @@ export default function QuoteLogicSimulator() {
     return Array.from(byCompany.values()).sort((a, b) => a.financeCompanyName.localeCompare(b.financeCompanyName, "ko"));
   }, [selectedLineupId, lineupRegistrationStatus]);
 
-  // 라인업 대표 가격 (할인가 우선, 라인업 내 최소 트림 기준)
-  const lineupBasePrice = useMemo(() => {
+  // 선택된 라인업의 트림 목록 (가격 오름차순)
+  const trimsOfLineup = useMemo(() => {
     const lineup = lineupsOfSelected.find((l) => l.id === selectedLineupId);
-    if (!lineup || lineup.trims.length === 0) return 0;
-    const prices = lineup.trims.map((t: any) => t.discountPrice ?? t.price);
-    return Math.min(...prices);
+    if (!lineup) return [] as any[];
+    return [...lineup.trims].sort(
+      (a: any, b: any) => (a.discountPrice ?? a.price) - (b.discountPrice ?? b.price)
+    );
   }, [lineupsOfSelected, selectedLineupId]);
+
+  // 라인업 변경 시 최저가(base) 트림 자동 선택
+  useEffect(() => {
+    if (trimsOfLineup.length === 0) {
+      setSelectedTrimId("");
+      return;
+    }
+    if (!trimsOfLineup.some((t: any) => t.id === selectedTrimId)) {
+      setSelectedTrimId(trimsOfLineup[0].id);
+    }
+  }, [trimsOfLineup, selectedTrimId]);
+
+  const selectedTrim = trimsOfLineup.find((t: any) => t.id === selectedTrimId) ?? null;
+  // 시뮬레이션 기준 차량가 (선택 트림, 할인가 우선)
+  const trimBasePrice = selectedTrim ? (selectedTrim.discountPrice ?? selectedTrim.price) : 0;
 
   const handleCalculate = async () => {
     setCalcError("");
     setResults([]);
     if (!selectedVehicle || !selectedLineupId) return;
 
-    const lineup = lineupsOfSelected.find((l) => l.id === selectedLineupId);
-    if (!lineup || lineup.trims.length === 0) {
+    if (!selectedTrim) {
       setCalcError("선택된 라인업에 트림이 없습니다.");
       return;
     }
 
     setCalculating(true);
     try {
-      // 라인업 내 대표 트림(첫 트림) 기준으로 회수율 조회 — B안에서는 라인업 내 모든 트림이 동일 시트
-      const repTrimId = lineup.trims[0].id;
-      const res = await fetch(`/api/admin/capital-rates?trimId=${repTrimId}&productType=${productType}`);
+      // 선택 트림 기준으로 회수율 조회 — 카탈로그 반영 시트는 트림별 정확값(min=max)이므로 트림 단위로 조회
+      const res = await fetch(`/api/admin/capital-rates?trimId=${selectedTrim.id}&productType=${productType}`);
       const data = await res.json();
       if (!data.success || data.data.length === 0) {
         setCalcError(
-          `이 라인업(${productTypeLabel(productType)})에 대한 회수율 데이터가 등록되어 있지 않습니다. 회수율 데이터 관리 탭에서 먼저 등록해 주세요.`
+          `이 트림(${productTypeLabel(productType)})에 대한 회수율 데이터가 등록되어 있지 않습니다. 회수율 데이터 관리 탭에서 먼저 등록해 주세요.`
         );
         return;
       }
@@ -232,7 +247,7 @@ export default function QuoteLogicSimulator() {
       }));
 
       const input: CalcInput = {
-        vehiclePrice: lineupBasePrice,
+        vehiclePrice: trimBasePrice,
         contractMonths: months,
         annualMileage: mileage,
         depositRate,
@@ -410,6 +425,23 @@ export default function QuoteLogicSimulator() {
                   })}
                 </div>
               )}
+              {trimsOfLineup.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-[11px] font-bold text-[#9BA4C0] ml-1 mb-1.5">트림 (기준 차량가)</p>
+                  <select
+                    value={selectedTrimId}
+                    onChange={(e) => { setSelectedTrimId(e.target.value); setResults([]); setCalcError(""); }}
+                    className="w-full md:w-auto md:min-w-[320px] px-3 py-2 bg-[#F8F9FC] border border-[#E8EAF0] rounded-lg text-xs focus:outline-none focus:border-[#6066EE]"
+                  >
+                    {trimsOfLineup.map((t: any) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} — {((t.discountPrice ?? t.price) / 10000).toLocaleString()}만원
+                        {t.discountPrice != null ? " (할인가)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* 등록 캐피탈사 매트릭스 */}
@@ -516,7 +548,7 @@ export default function QuoteLogicSimulator() {
                 </div>
                 <button
                   onClick={handleCalculate}
-                  disabled={!selectedLineupId || calculating}
+                  disabled={!selectedTrimId || calculating}
                   className="ml-auto px-6 py-2 bg-[#000666] text-white rounded-xl text-xs font-bold hover:bg-[#000888] transition-all disabled:opacity-50"
                 >
                   {calculating ? "계산 중..." : "시뮬레이션 실행"}
@@ -541,7 +573,7 @@ export default function QuoteLogicSimulator() {
                     </span>
                   </h3>
                   <p className="text-[11px] text-[#9BA4C0]">
-                    기준 차량가 {(lineupBasePrice / 10000).toLocaleString()}만원 · 최종 고객 표출 가격 기준 정렬
+                    {selectedTrim?.name} · 기준 차량가 {(trimBasePrice / 10000).toLocaleString()}만원 · 최종 고객 표출 가격 기준 정렬
                   </p>
                 </div>
 

@@ -1,8 +1,9 @@
 // MG 렌터카 .xlsm → CapitalCatalogTrim 엔트리 (파싱 + 우리DB 가격매칭 + 월 대여료 산출).
 import { parseMgRentWorkbook } from "./parse";
-import { computeMonthlyRent } from "./calc";
+import { computeMonthlyRent, residualRate } from "./calc";
 import { matchMeritzTrim, type OurVehicle } from "../meritz/match";
-import type { MeritzCatalogEntry, MeritzIngestResult } from "../meritz/ingest";
+import { WARN_UNMATCHED, WARN_MODEL_FALLBACK } from "../excel-capitals";
+import type { MeritzCatalogEntry, MeritzIngestResult, MappedPriceByMdelCd } from "../meritz/ingest";
 
 const CELLS: { months: number; distKm: number }[] = [
   { months: 36, distKm: 10000 }, { months: 36, distKm: 20000 }, { months: 36, distKm: 30000 },
@@ -28,38 +29,67 @@ function modelLabel(name: string): string {
   return ((m ? m[1] : s).replace(/\s+/g, " ").trim()) || s;
 }
 
-/** 워크북 버퍼 + 우리 차량목록 → 카탈로그 엔트리 (메리츠와 동일 shape). */
-export function ingestMgRent(buf: Buffer | ArrayBuffer, ourVehicles: OurVehicle[]): MeritzIngestResult {
+/** 워크북 버퍼 + 우리 차량목록 → 카탈로그 엔트리 (메리츠와 동일 shape).
+ *  mappedPrices(확정 매핑)가 있으면 해당 트림은 이름 매칭 없이 그 가격을 주입(1순위). */
+export function ingestMgRent(
+  buf: Buffer | ArrayBuffer, ourVehicles: OurVehicle[], mappedPrices?: MappedPriceByMdelCd
+): MeritzIngestResult {
   const { trims } = parseMgRentWorkbook(buf);
   const entries: MeritzCatalogEntry[] = [];
-  let trimConfirmed = 0, modelFallback = 0, unmatched = 0, priced = 0;
+  let mappedConfirmed = 0, trimConfirmed = 0, modelFallback = 0, unmatched = 0, priced = 0;
+  const unmatchedNames: string[] = [], fallbackNames: string[] = [];
 
   for (const t of trims) {
     const brand = makerAlias(t.manufacturer);
     const displayName = t.name.replace(/_/g, " ").trim();
-    const match = matchMeritzTrim({ manufacturer: brand, name: displayName }, ourVehicles);
+    const mdelCd = norm(brand + "_" + displayName);
     const warnings: string[] = [];
     let price = 0;
-    if (!match) { unmatched++; warnings.push("우리 DB 미매칭 — 수동 매핑 필요"); }
-    else if (match.trimMatched) { trimConfirmed++; price = match.price; }
-    else { modelFallback++; price = match.price; warnings.push("모델만 일치(base 트림 가격) — 트림 검토 요망"); }
+    const mapped = mappedPrices?.get(mdelCd);
+    if (mapped && mapped.price > 0) { mappedConfirmed++; price = mapped.price; }
+    else {
+      const match = matchMeritzTrim({ manufacturer: brand, name: displayName }, ourVehicles);
+      if (!match) { unmatched++; unmatchedNames.push(displayName); warnings.push(WARN_UNMATCHED); }
+      else if (match.trimMatched) { trimConfirmed++; price = match.price; }
+      else { modelFallback++; price = match.price; fallbackNames.push(displayName); warnings.push(WARN_MODEL_FALLBACK); }
+    }
+
+    const residualRates: Record<string, number> = {};
+    for (const c of CELLS) {
+      const r = residualRate(t, c.months, c.distKm);
+      if (r > 0) residualRates[`${c.months}_${c.distKm}`] = r;
+    }
 
     const baseRates: Record<string, number> = {};
+    let depositRate36_10000: number | undefined;
+    let prepayRate36_10000: number | undefined;
     if (price > 0) {
       for (const c of CELLS) {
         const v = computeMonthlyRent(t, price, c.months, c.distKm);
         if (v && v > 0) baseRates[`${c.months}_${c.distKm}`] = v;
       }
       if (Object.keys(baseRates).length > 0) priced++;
+      // 보증금10%·선납금10% 샘플 — 기준셀(36/1만) 견적이 있을 때만 (보정율 산출에 base 쌍 필요)
+      if (baseRates["36_10000"]) {
+        const dep = computeMonthlyRent(t, price, 36, 10000, { depositRate: 0.1 });
+        if (dep && dep > 0) depositRate36_10000 = dep;
+        const pre = computeMonthlyRent(t, price, 36, 10000, { prepayRate: 0.1 });
+        if (pre && pre > 0) prepayRate36_10000 = pre;
+      }
     }
     const model = modelLabel(t.name);
     entries.push({
       brandCd: brand, brandName: brand,
       modelCd: norm(brand + "_" + model), modelName: model,
       dtMdlCd: norm(displayName), dtMdlName: displayName,
-      mdelCd: norm(brand + "_" + displayName), trimName: displayName,
-      vehiclePrice: price, baseRates, warnings,
+      mdelCd, trimName: displayName,
+      vehiclePrice: price, baseRates,
+      residualRates: Object.keys(residualRates).length > 0 ? residualRates : undefined,
+      depositRate36_10000, prepayRate36_10000, warnings,
     });
   }
-  return { entries, summary: { total: trims.length, trimConfirmed, modelFallback, unmatched, priced } };
+  return {
+    entries,
+    summary: { total: trims.length, mappedConfirmed, trimConfirmed, modelFallback, unmatched, priced, unmatchedNames, fallbackNames },
+  };
 }

@@ -2,6 +2,8 @@
 // 검증: 26MY 싼타페 HEV 35,000,000 → 36/보증0=478,060 · 48/보증0=455,400 · 60/보증40%=376,750 (엑셀 원단위 일치).
 // 상세 수식·셀추적: scripts/scraper-worker/MERITZ-NOTES.md ②.
 // 가격(P)은 엑셀에 없어 외부(우리 DB)에서 주입. 표준조건은 STANDARD 로 고정.
+// 출고 방식 '특판 출고'·담당 지점 '렌터카 영업팀' 등 견적기 선택 조건은 배포 엑셀(국산용)의 기본 상태 기준.
+// 국산=특판·수입=비제휴 표준 규칙은 ../standard-conditions.ts 참조 — 수입차(테슬라/BYD)용 엑셀 지원 시 비제휴 전제로 검증할 것.
 
 /** 엑셀 반올림 함수(자릿수 d: 음수=10^|d| 단위). */
 const f = (d: number) => Math.pow(10, d);
@@ -113,6 +115,8 @@ function finRate(strategy: string): number {
 /**
  * 트림 1건의 월렌트료(VAT포함) — 표준조건, 지정 (기간×거리).
  * 보증율/선납율 옵션(카탈로그 기본 0). 견적불가(잔가율 없음)면 null.
+ * 선납(견적조건 M48 + 렌트_입력시트 BR28/BR29): 선납금 CC21=ROUNDUP(P×율,−3)이 PMT 원금에서 차감되고,
+ * 고객 실납부 월액은 (공급가+부가세) − 선납렌트료(ROUNDDOWN(선납금/기간,−1)).
  */
 export function computeMonthlyRent(
   t: MeritzTrim, price: number, months: number, distKm: number, consts: MeritzConstants,
@@ -121,15 +125,18 @@ export function computeMonthlyRent(
   const r = t.residual[key(months, distKm)];
   if (r === undefined || r <= 0) return null;
   const depositRate = opts.depositRate ?? 0;
+  const prepayRate = opts.prepayRate ?? 0;
 
   const baseRate = (consts.strategyBaseRate[t.strategy] ?? consts.strategyBaseRate["기본"] ?? 0.065)
     + (t.irrAdj[key(months, distKm)] ?? 0);
   const PV = computePV(t, price);
   const FVpv = roundE(roundUp(price * r, -3) / 1.1, 0);
   const deposit = roundUp(price * depositRate, -3);
+  const prepay = prepayRate > 0 ? roundUp(price * prepayRate, -3) : 0; // CC21
   const financed = Math.trunc((price * finRate(t.strategy)) / 1000) * 1000;
-  // EG7 ≈ {기간}48 = ROUNDUP(PMT(baseRate/12, n, −(PV − 보증금 + 재무원가), FVpv − 보증금), −1)
-  const eg7 = roundUp(pmt(baseRate / 12, months, -(PV - deposit + financed), FVpv - deposit, 0), -1);
+  // EG7 ≈ {기간}48 = ROUNDUP(PMT(baseRate/12, n, −(PV − 보증금 − 선납금 + 재무원가), FVpv − 보증금), −1)
+  const eg7 = roundUp(pmt(baseRate / 12, months, -(PV - deposit - prepay + financed), FVpv - deposit, 0), -1);
   const supply = roundUp(eg7 + feeMonthly(t, months), -2);
-  return supply + roundDown(supply * 0.1, -1); // 공급가 + 부가세
+  const total = supply + roundDown(supply * 0.1, -1); // 공급가 + 부가세
+  return prepay > 0 ? total - roundDown(prepay / months, -1) : total; // 선납렌트료 차감(BR29)
 }

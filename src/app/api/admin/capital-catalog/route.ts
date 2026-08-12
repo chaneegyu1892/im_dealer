@@ -44,17 +44,24 @@ export async function GET(request: NextRequest) {
 
     // 트림 행 전체 (브랜드+모델)
     if (brandCd && modelCd) {
-      const trims = await db.capitalCatalogTrim.findMany({
-        where: { financeCompanyId, productType, brandCd, modelCd },
-        orderBy: [{ dtMdlCd: "asc" }, { vehiclePrice: "asc" }],
-        select: {
-          id: true, dtMdlCd: true, dtMdlName: true, mdelCd: true, trimName: true,
-          modelYear: true, vehiclePrice: true, baseRates: true, warnings: true,
-          depositRate36_10000: true, prepayRate36_10000: true,
-          weekOf: true, scrapedAt: true,
-        },
-      });
-      return NextResponse.json({ success: true, trims });
+      const [trims, latest] = await Promise.all([
+        db.capitalCatalogTrim.findMany({
+          where: { financeCompanyId, productType, brandCd, modelCd },
+          orderBy: [{ dtMdlCd: "asc" }, { vehiclePrice: "asc" }],
+          select: {
+            id: true, dtMdlCd: true, dtMdlName: true, mdelCd: true, trimName: true,
+            modelYear: true, vehiclePrice: true, baseRates: true, warnings: true,
+            depositRate36_10000: true, prepayRate36_10000: true,
+            weekOf: true, scrapedAt: true,
+          },
+        }),
+        // 같은 브랜드 최신 수집주 — 이번 수집분에 빠진(단종·명칭 변경 추정) 잔존 행 식별용 (스크래핑은 브랜드 단위 부분 수집)
+        db.capitalCatalogTrim.aggregate({
+          where: { financeCompanyId, productType, brandCd },
+          _max: { weekOf: true },
+        }),
+      ]);
+      return NextResponse.json({ success: true, trims, latestWeekOf: latest._max.weekOf });
     }
 
     // 모델 목록 (브랜드 내)

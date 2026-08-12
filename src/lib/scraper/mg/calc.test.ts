@@ -20,4 +20,18 @@ describe("mg rent calculator", () => {
   it("36개월/2만km 월 대여료 = 493,570", () => {
     expect(computeMonthlyRent(GRANGER, 30000000, 36, 20000)).toBe(493570);
   });
+  // 보증금/선수금: 견적서및입력시트 CW29(원금·만기 차감)·CW34(선납대여료)·CW25 수식 재현
+  it("보증금 10% 월 대여료는 기본보다 낮다", () => {
+    const base = computeMonthlyRent(GRANGER, 30000000, 36, 20000)!;
+    const dep = computeMonthlyRent(GRANGER, 30000000, 36, 20000, { depositRate: 0.1 })!;
+    expect(dep).toBeGreaterThan(0);
+    expect(dep).toBeLessThan(base);
+  });
+  it("선수금 10% 월 대여료는 기본 대비 최소 선납대여료(선수금/기간)만큼 낮다", () => {
+    const base = computeMonthlyRent(GRANGER, 30000000, 36, 20000)!;
+    const pre = computeMonthlyRent(GRANGER, 30000000, 36, 20000, { prepayRate: 0.1 })!;
+    const prepayMonthly = Math.floor(3000000 / 36 / 10) * 10; // ROUNDDOWN(BP39/n, -1)
+    expect(pre).toBeGreaterThan(0);
+    expect(pre).toBeLessThanOrEqual(base - prepayMonthly);
+  });
 });
