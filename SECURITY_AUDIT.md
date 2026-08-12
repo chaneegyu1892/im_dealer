@@ -66,6 +66,8 @@ The repository proves that controls are absent from migrations; it does not prov
 
 ### H-01 — APIs decrypt and return much more verification data than the UI needs
 
+**Status (2026-08-12): Fixed.** Verification lists now select metadata only. Both staff detail APIs use explicit projections and return only status metadata, three allowlisted UI display strings, and safe document metadata; they no longer return `connectedId`, raw Codef objects, or document ciphertext.
+
 **Evidence**
 
 - `src/app/api/verification/[id]/route.ts:18-29` loads the entire verification row and returns `decryptVerificationRow(record)`.

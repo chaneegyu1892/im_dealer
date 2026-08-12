@@ -39,7 +39,6 @@ describe("verification API staff authorization", () => {
     const findUnique = vi.fn().mockResolvedValue({ id: "verification-1" });
     mockRole("dealer");
     vi.doMock("@/lib/prisma", () => ({ prisma: { customerVerification: { findUnique } } }));
-    vi.doMock("@/lib/pii", () => ({ decryptVerificationRow: vi.fn() }));
 
     const { GET } = await import("@/app/api/verification/[id]/route");
     const response = await GET(new Request("https://example.com"), {
@@ -51,12 +50,31 @@ describe("verification API staff authorization", () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it("allows staff to retrieve decrypted verification detail", async () => {
-    const findUnique = vi.fn().mockResolvedValue({ id: "verification-1" });
-    const decryptVerificationRow = vi.fn().mockReturnValue({ id: "verification-1", name: "홍길동" });
+  it("returns only allowlisted verification detail fields to staff", async () => {
+    const consentedAt = new Date("2026-08-01T01:00:00.000Z");
+    const verifiedAt = new Date("2026-08-01T01:05:00.000Z");
+    const findUnique = vi.fn().mockResolvedValue({
+      customerType: "individual",
+      licenseVerified: true,
+      insuranceVerified: true,
+      bizVerified: false,
+      licenseData: {
+        resLicenseStatus: "정상",
+        resUserNm: "홍길동",
+        licenseNo: "11-22-333333-44",
+      },
+      insuranceData: {
+        resWorkplaceName: "표시할 직장",
+        resRegistrationNo: "900101-1234567",
+      },
+      bizData: null,
+      consentedAt,
+      verifiedAt,
+      connectedId: "must-not-leak",
+      userId: "must-not-leak",
+    });
     mockRole("staff");
     vi.doMock("@/lib/prisma", () => ({ prisma: { customerVerification: { findUnique } } }));
-    vi.doMock("@/lib/pii", () => ({ decryptVerificationRow }));
 
     const { GET } = await import("@/app/api/verification/[id]/route");
     const response = await GET(new Request("https://example.com"), {
@@ -64,8 +82,27 @@ describe("verification API staff authorization", () => {
     });
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ success: true, data: { id: "verification-1", name: "홍길동" } });
-    expect(findUnique).toHaveBeenCalledWith({ where: { id: "verification-1" } });
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: {
+        customerType: "individual",
+        licenseVerified: true,
+        insuranceVerified: true,
+        bizVerified: false,
+        licenseStatus: "정상",
+        insuranceWorkplace: "표시할 직장",
+        bizStatus: null,
+        consentedAt: consentedAt.toISOString(),
+        verifiedAt: verifiedAt.toISOString(),
+      },
+    });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: "verification-1" },
+      select: expect.not.objectContaining({
+        connectedId: expect.anything(),
+        userId: expect.anything(),
+      }),
+    });
   });
 
   it("blocks dealers from session verification data before querying", async () => {
@@ -78,7 +115,6 @@ describe("verification API staff authorization", () => {
         savedQuote: { findUnique: findQuote },
       },
     }));
-    vi.doMock("@/lib/pii", () => ({ decryptVerificationRow: vi.fn() }));
 
     const { GET } = await import("@/app/api/verification/session/[sessionId]/route");
     const response = await GET(new Request("https://example.com"), {
@@ -91,10 +127,32 @@ describe("verification API staff authorization", () => {
     expect(findQuote).not.toHaveBeenCalled();
   });
 
-  it("allows staff to retrieve session verification data", async () => {
-    const findFirst = vi.fn().mockResolvedValue({ id: "verification-1", documents: [] });
+  it("returns only UI fields and safe document metadata for a session", async () => {
+    const consentedAt = new Date("2026-08-01T01:00:00.000Z");
+    const findFirst = vi.fn().mockResolvedValue({
+      customerType: "self_employed",
+      licenseVerified: true,
+      insuranceVerified: false,
+      bizVerified: true,
+      licenseData: { status: "정상", rawLicense: "must-not-leak" },
+      insuranceData: { workplaceName: "표시할 직장", history: ["must-not-leak"] },
+      bizData: { resBizStatus: "계속사업자", bizNo: "123-45-67890" },
+      consentedAt,
+      verifiedAt: null,
+      connectedId: "must-not-leak",
+      documents: [
+        {
+          id: "document-1",
+          docType: "biz_registration_proof",
+          status: "failed",
+          failReason: "발급 실패",
+          fileName: "secret.pdf",
+          contentEnc: { v: 1, iv: "iv", tag: "tag", ct: "ciphertext" },
+          docVerifyNo: "encrypted-document-number",
+        },
+      ],
+    });
     const findQuote = vi.fn().mockResolvedValue({ userId: "member-1" });
-    const decryptVerificationRow = vi.fn().mockReturnValue({ id: "verification-1", name: "홍길동" });
     mockRole("staff");
     vi.doMock("@/lib/prisma", () => ({
       prisma: {
@@ -102,7 +160,6 @@ describe("verification API staff authorization", () => {
         savedQuote: { findUnique: findQuote },
       },
     }));
-    vi.doMock("@/lib/pii", () => ({ decryptVerificationRow }));
 
     const { GET } = await import("@/app/api/verification/session/[sessionId]/route");
     const response = await GET(new Request("https://example.com"), {
@@ -110,13 +167,38 @@ describe("verification API staff authorization", () => {
     });
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ success: true, data: { id: "verification-1", name: "홍길동" } });
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: {
+        customerType: "self_employed",
+        licenseVerified: true,
+        insuranceVerified: false,
+        bizVerified: true,
+        licenseStatus: "정상",
+        insuranceWorkplace: "표시할 직장",
+        bizStatus: "계속사업자",
+        consentedAt: consentedAt.toISOString(),
+        verifiedAt: null,
+        documents: [
+          {
+            id: "document-1",
+            docType: "biz_registration_proof",
+            status: "failed",
+            failReason: "발급 실패",
+          },
+        ],
+      },
+    });
     expect(findQuote).toHaveBeenCalledWith({
       where: { sessionId: "session-1" },
       select: { userId: true },
     });
     expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: { sessionId: "session-1", userId: "member-1" },
+      select: expect.not.objectContaining({
+        connectedId: expect.anything(),
+        userId: expect.anything(),
+      }),
     }));
   });
 
@@ -130,7 +212,6 @@ describe("verification API staff authorization", () => {
         savedQuote: { findUnique: findQuote },
       },
     }));
-    vi.doMock("@/lib/pii", () => ({ decryptVerificationRow: vi.fn() }));
 
     const { GET } = await import("@/app/api/verification/session/[sessionId]/route");
     const response = await GET(new Request("https://example.com"), {

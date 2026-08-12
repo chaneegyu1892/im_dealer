@@ -11,26 +11,19 @@ interface VerificationDocumentSummary {
   id: string;
   docType: string;
   status: string; // pending | issued | failed
-  fileName: string | null;
   failReason: string | null;
-  issuedAt: string | null;
-  createdAt: string;
 }
 
 interface VerificationRecord {
-  id: string;
-  sessionId: string;
   customerType: string;
-  connectedId: string | null;
   licenseVerified: boolean;
   insuranceVerified: boolean;
   bizVerified: boolean;
-  licenseData: Record<string, unknown> | null;
-  insuranceData: Record<string, unknown> | null;
-  bizData: Record<string, unknown> | null;
+  licenseStatus: string | null;
+  insuranceWorkplace: string | null;
+  bizStatus: string | null;
   consentedAt: string;
   verifiedAt: string | null;
-  createdAt: string;
   documents?: VerificationDocumentSummary[];
 }
 
@@ -302,22 +295,14 @@ export function VerificationResult({ sessionId }: Props) {
                 <ResultRow
                   label="운전면허 진위확인"
                   status={state.data.licenseVerified ? "verified" : "failed"}
-                  detail={
-                    state.data.licenseData
-                      ? extractLicenseDetail(state.data.licenseData)
-                      : undefined
-                  }
+                  detail={state.data.licenseStatus ?? undefined}
                 />
                 {(state.data.customerType === "individual" ||
                   state.data.customerType === "self_employed") && (
                   <ResultRow
                     label="건강보험 자격득실"
                     status={state.data.insuranceVerified ? "verified" : "failed"}
-                    detail={
-                      state.data.insuranceData
-                        ? extractInsuranceDetail(state.data.insuranceData)
-                        : undefined
-                    }
+                    detail={state.data.insuranceWorkplace ?? undefined}
                   />
                 )}
                 {(state.data.customerType === "self_employed" ||
@@ -326,11 +311,7 @@ export function VerificationResult({ sessionId }: Props) {
                   <ResultRow
                     label="사업자등록 상태"
                     status={state.data.bizVerified ? "verified" : "failed"}
-                    detail={
-                      state.data.bizData
-                        ? extractBizDetail(state.data.bizData)
-                        : undefined
-                    }
+                    detail={state.data.bizStatus ?? undefined}
                   />
                 )}
               </div>
@@ -345,40 +326,4 @@ export function VerificationResult({ sessionId }: Props) {
       </div>
     </div>
   );
-}
-
-// ─── 데이터 추출 헬퍼 ─────────────────────────────────────
-// Codef 샌드박스 응답 구조에 맞게 필요한 필드를 안전하게 추출
-
-function extractLicenseDetail(data: Record<string, unknown>): string | undefined {
-  // Codef 운전면허 응답: data.resLicenseInfo 등
-  const status =
-    safeString(data, "resLicenseStatus") ??
-    safeString(data, "status");
-  return status ?? undefined;
-}
-
-function extractInsuranceDetail(data: Record<string, unknown>): string | undefined {
-  // Codef 건강보험 응답: 직장명, 취득일 등
-  const workplace =
-    safeString(data, "resWorkplaceName") ??
-    safeString(data, "workplaceName");
-  return workplace ?? undefined;
-}
-
-function extractBizDetail(data: Record<string, unknown>): string | undefined {
-  // Codef 사업자등록 응답: 사업자번호, 상태
-  const status =
-    safeString(data, "resBizStatus") ??
-    safeString(data, "bizStatus") ??
-    safeString(data, "status");
-  return status ?? undefined;
-}
-
-function safeString(
-  obj: Record<string, unknown>,
-  key: string
-): string | undefined {
-  const val = obj[key];
-  return typeof val === "string" && val.length > 0 ? val : undefined;
 }

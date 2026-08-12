@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
-import { decryptVerificationRow } from "@/lib/pii";
+import {
+  toVerificationDetailView,
+  verificationDetailSelect,
+} from "@/lib/verification-view";
 
 // ─── GET /api/verification/[id] ──────────────────────────
-// 관리자용: verificationId로 전체 인증 결과 조회
+// 관리자용: verificationId로 UI에 필요한 최소 인증 결과 조회
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -17,6 +20,7 @@ export async function GET(
 
     const record = await prisma.customerVerification.findUnique({
       where: { id },
+      select: verificationDetailSelect,
     });
 
     if (!record) {
@@ -26,7 +30,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, data: decryptVerificationRow(record) });
+    return NextResponse.json({
+      success: true,
+      data: toVerificationDetailView(record),
+    });
   } catch (error) {
     console.error("[GET /api/verification/[id]]", error);
     return NextResponse.json(
