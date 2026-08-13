@@ -31,7 +31,8 @@ export async function GET(
       orderBy: [{ isDefault: "desc" }, { price: "asc" }],
       include: {
         options: {
-          orderBy: [{ displayOrder: "asc" }, { isAccessory: "asc" }, { price: "asc" }],
+          // 악세사리는 displayOrder 값과 무관하게 항상 목록 맨 아래에 둔다.
+          orderBy: [{ isAccessory: "asc" }, { displayOrder: "asc" }, { price: "asc" }],
           select: {
             id: true,
             name: true,
