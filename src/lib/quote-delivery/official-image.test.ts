@@ -199,6 +199,85 @@ describe("official quote delivery image data", () => {
     });
   });
 
+  it("renders from the stored breakdown alone when the live rebuild fails", async () => {
+    mocks.buildVehicleScenarios.mockResolvedValue({
+      ok: false,
+      error: { status: 404, error: "이 차량의 견적 데이터가 아직 준비되지 않았습니다." },
+    });
+
+    const result = await buildOfficialDeliveryImageData({
+      ...savedQuote,
+      breakdown: {
+        ...savedQuote.breakdown,
+        scenarioSnapshots: {
+          conservative: {
+            monthlyPayment: 615_000,
+            depositAmount: 8_400_000,
+            prepayAmount: 0,
+            bestFinanceCompany: "저장 비교 금융사",
+            purchaseSurcharge: 0,
+          },
+          standard: {
+            monthlyPayment: 705_000,
+            depositAmount: 0,
+            prepayAmount: 0,
+            bestFinanceCompany: "저장 비교 금융사",
+            purchaseSurcharge: 0,
+          },
+          aggressive: {
+            monthlyPayment: 512_000,
+            depositAmount: 0,
+            prepayAmount: 12_600_000,
+            bestFinanceCompany: "저장 비교 금융사",
+            purchaseSurcharge: 0,
+          },
+        },
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        vehicleName: "저장된 차량명",
+        vehicleBrand: "저장된 제조사",
+        trimName: "저장된 트림",
+        trimPrice: 41_000_000,
+        totalVehiclePrice: 42_000_000,
+        comparisonFromSnapshot: true,
+        scenarios: {
+          conservative: expect.objectContaining({ monthlyPayment: 615_000 }),
+          // 선택 시나리오(선납형)는 저장된 최종 견적 값이 우선한다.
+          aggressive: expect.objectContaining({
+            monthlyPayment: 430_000,
+            prepayAmount: 12_600_000,
+            bestFinanceCompany: "저장 금융사",
+          }),
+        },
+      },
+    });
+  });
+
+  it("still fails when the rebuild fails and the stored breakdown lacks required fields", async () => {
+    mocks.buildVehicleScenarios.mockResolvedValue({
+      ok: false,
+      error: { status: 404, error: "이 차량의 견적 데이터가 아직 준비되지 않았습니다." },
+    });
+
+    const result = await buildOfficialDeliveryImageData({
+      ...savedQuote,
+      breakdown: {
+        scenarioType: "aggressive",
+        productType: "리스",
+        // vehicleName·totalVehiclePrice 없음 → 저장값만으로는 견적서를 만들 수 없다.
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { status: 409, error: "저장된 견적을 현재 공식 견적서로 재구성할 수 없습니다." },
+    });
+  });
+
   it("carries the stored issue and expiry dates so reissued documents keep their original validity", async () => {
     const result = await buildOfficialDeliveryImageData({
       ...savedQuote,

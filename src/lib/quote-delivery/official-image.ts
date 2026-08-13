@@ -132,14 +132,64 @@ export async function buildOfficialDeliveryImageData(
     interiorColorId: quote.interiorColorId,
     productType: savedProductType,
   });
-  if (!rebuilt.ok) {
-    return {
-      ok: false,
-      error: { status: 409, error: "저장된 견적을 현재 공식 견적서로 재구성할 수 없습니다." },
+
+  const emptyScenario: QuoteScenarioDetail = {
+    monthlyPayment: 0,
+    depositAmount: 0,
+    prepayAmount: 0,
+    contractMonths: quote.contractMonths,
+    annualMileage: quote.annualMileage,
+    contractType: savedContractType,
+    bestFinanceCompany: "",
+    purchaseSurcharge: 0,
+    breakdown: null,
+    surcharges: null,
+    allFinanceResults: [],
+  };
+
+  // 차량 비공개·트림 삭제·요율시트 제거로 재구성이 불가해도, 저장 breakdown 이
+  // 충분하면 저장 당시 모습 그대로 재발급한다(스냅샷 전용 폴백). 이때 비교표는
+  // 기존 규칙대로 scenarioSnapshots 3종이 완전할 때만 채워진다.
+  let source: {
+    vehicleName: string;
+    vehicleBrand: string;
+    trimName: string;
+    trimPrice: number;
+    selectedOptions: SelectedOptionSnapshot[];
+    totalVehiclePrice: number;
+    exteriorColor: PDFQuoteColor | null;
+    interiorColor: PDFQuoteColor | null;
+    scenarios: QuoteScenarioDetails;
+  };
+  if (rebuilt.ok) {
+    source = rebuilt.data;
+  } else {
+    const storedVehicleName = storedString(breakdown.vehicleName, "");
+    const storedTotalVehiclePrice = storedMoney(breakdown.totalVehiclePrice, -1);
+    if (!storedVehicleName || storedTotalVehiclePrice < 0) {
+      return {
+        ok: false,
+        error: { status: 409, error: "저장된 견적을 현재 공식 견적서로 재구성할 수 없습니다." },
+      };
+    }
+    source = {
+      vehicleName: storedVehicleName,
+      vehicleBrand: storedString(breakdown.vehicleBrand, ""),
+      trimName: storedString(breakdown.trimName, ""),
+      trimPrice: storedMoney(breakdown.trimPrice, storedTotalVehiclePrice),
+      selectedOptions: savedOptions,
+      totalVehiclePrice: storedTotalVehiclePrice,
+      exteriorColor: null,
+      interiorColor: null,
+      scenarios: {
+        conservative: emptyScenario,
+        standard: emptyScenario,
+        aggressive: emptyScenario,
+      },
     };
   }
 
-  const totalVehiclePrice = storedMoney(breakdown.totalVehiclePrice, rebuilt.data.totalVehiclePrice);
+  const totalVehiclePrice = storedMoney(breakdown.totalVehiclePrice, source.totalVehiclePrice);
   const savedQuoteBreakdown = asRecord(breakdown.quoteBreakdown);
   const calculatedDeposit = Math.round(totalVehiclePrice * quote.depositRate / 100);
   const calculatedPrepay = Math.round(totalVehiclePrice * quote.prepayRate / 100);
@@ -148,7 +198,7 @@ export async function buildOfficialDeliveryImageData(
   // 스냅샷이 없거나 불완전하면 현재 요율 재계산값을 비교 열에 넣지 않는다.
   const snapshots = parseScenarioSnapshots(breakdown.scenarioSnapshots);
   const comparisonFromSnapshot = hasCompleteScenarioSnapshots(snapshots);
-  const live = rebuilt.data.scenarios;
+  const live = source.scenarios;
   const unavailableScenario = (base: QuoteScenarioDetail): QuoteScenarioDetail => ({
     ...base,
     monthlyPayment: 0,
@@ -197,17 +247,17 @@ export async function buildOfficialDeliveryImageData(
         baseScenarios.standard
       );
 
-  const exteriorColor = color(breakdown.exteriorColor) ?? rebuilt.data.exteriorColor;
-  const interiorColor = color(breakdown.interiorColor) ?? rebuilt.data.interiorColor;
+  const exteriorColor = color(breakdown.exteriorColor) ?? source.exteriorColor;
+  const interiorColor = color(breakdown.interiorColor) ?? source.interiorColor;
 
   return {
     ok: true,
     data: {
-      vehicleName: storedString(breakdown.vehicleName, rebuilt.data.vehicleName),
-      vehicleBrand: storedString(breakdown.vehicleBrand, rebuilt.data.vehicleBrand),
-      trimName: storedString(breakdown.trimName, rebuilt.data.trimName),
-      trimPrice: storedMoney(breakdown.trimPrice, rebuilt.data.trimPrice),
-      selectedOptions: (savedOptions.length > 0 ? savedOptions : rebuilt.data.selectedOptions)
+      vehicleName: storedString(breakdown.vehicleName, source.vehicleName),
+      vehicleBrand: storedString(breakdown.vehicleBrand, source.vehicleBrand),
+      trimName: storedString(breakdown.trimName, source.trimName),
+      trimPrice: storedMoney(breakdown.trimPrice, source.trimPrice),
+      selectedOptions: (savedOptions.length > 0 ? savedOptions : source.selectedOptions)
         .map((option) => ({ name: option.name, price: option.price })),
       totalVehiclePrice,
       productType: savedProductType,
