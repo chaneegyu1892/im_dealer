@@ -6,6 +6,9 @@ const prismaMock = vi.hoisted(() => ({
   vehicle: {
     findUnique: vi.fn(),
   },
+  capitalRateSheet: {
+    findMany: vi.fn(),
+  },
   rankSurchargeConfig: {
     findMany: vi.fn(),
   },
@@ -13,6 +16,11 @@ const prismaMock = vi.hoisted(() => ({
 
 const getActiveUserMock = vi.hoisted(() => vi.fn());
 const upsertQuoteCalcLogMock = vi.hoisted(() => vi.fn());
+const calculateMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/quote-calculator", () => ({
+  calculateMultiFinanceQuote: calculateMock,
+}));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: prismaMock,
@@ -125,6 +133,60 @@ describe("POST /api/vehicles/[slug]/quote", () => {
         sessionId: "session-1",
         vehicleName: "준비중 차량",
         trimId: null,
+        resultMonthly: 0,
+        pricingStatus: "CONSULTATION_REQUIRED",
+      })
+    );
+  });
+
+  it("returns consultation guidance instead of a 0-won quote when no rate cell matches", async () => {
+    prismaMock.vehicle.findUnique.mockResolvedValue({
+      id: "vehicle-1",
+      name: "테스트 차량",
+      brand: "테스트",
+      slug: "preparing-car",
+      basePrice: 40_000_000,
+      surchargeRate: 0,
+      isVisible: true,
+      trims: [{
+        id: "trim-1",
+        name: "기본 트림",
+        isDefault: true,
+        price: 40_000_000,
+        discountPrice: null,
+        options: [],
+        rules: [],
+      }],
+      colors: [],
+    });
+    prismaMock.capitalRateSheet.findMany.mockResolvedValue([{
+      financeCompanyId: "finance-1",
+      minVehiclePrice: 30_000_000,
+      maxVehiclePrice: 50_000_000,
+      minRateMatrix: {},
+      maxRateMatrix: {},
+      depositDiscountRate: -0.000523,
+      prepayAdjustRate: 0.000073,
+      financeCompany: { name: "테스트캐피탈", surchargeRate: 0 },
+    }]);
+    prismaMock.rankSurchargeConfig.findMany.mockResolvedValue([]);
+    // 시트는 있지만 요청 조건(개월·주행)의 회수율이 전부 무효 → 엔진이 빈 배열 반환.
+    calculateMock.mockReturnValue([]);
+
+    const response = await POST(
+      quoteRequest({ sessionId: "session-1", trimId: "trim-1" }),
+      { params: Promise.resolve({ slug: "preparing-car" }) }
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data).toMatchObject({
+      requiresConsultation: true,
+      scenarios: {},
+    });
+    expect(upsertQuoteCalcLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-1",
         resultMonthly: 0,
         pricingStatus: "CONSULTATION_REQUIRED",
       })

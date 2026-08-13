@@ -61,10 +61,16 @@ export async function PATCH(
       if (!before) return NextResponse.json({ error: "없는 시트" }, { status: 404 });
 
       // 형제 시트 비활성화 + 대상 활성화를 단일 트랜잭션으로 묶어
-      // 중간 실패 시 (financeCompany, trim)에 활성 시트가 0개가 되는 것을 방지.
+      // 중간 실패 시 (financeCompany, trim, productType)에 활성 시트가 0개가 되는 것을 방지.
+      // productType까지 좁혀야 같은 트림의 장기렌트/리스 시트가 서로를 끄지 않는다.
       await prisma.$transaction([
         db.capitalRateSheet.updateMany({
-          where: { financeCompanyId: before.financeCompanyId, trimId: before.trimId, isActive: true },
+          where: {
+            financeCompanyId: before.financeCompanyId,
+            trimId: before.trimId,
+            productType: before.productType,
+            isActive: true,
+          },
           data: { isActive: false },
         }),
         db.capitalRateSheet.update({ where: { id }, data: { isActive: true } }),

@@ -183,7 +183,14 @@ function toDeliveryStatus(status: string): MyPageQuoteDelivery["status"] {
 }
 
 function chooseActiveQuote(quotes: MyPageQuote[]): MyPageQuote | null {
-  return quotes.find((quote) => quote.status !== "CONVERTED" && quote.status !== "LOST") ?? null;
+  // 만료된 견적을 '진행 중'으로 승격하면 옛 월납이 유효 견적처럼 크게 노출된다.
+  const now = Date.now();
+  return quotes.find(
+    (quote) =>
+      quote.status !== "CONVERTED" &&
+      quote.status !== "LOST" &&
+      quote.expiresAt.getTime() > now
+  ) ?? null;
 }
 
 export async function getMyPageData(supabaseId: string): Promise<MyPageData> {

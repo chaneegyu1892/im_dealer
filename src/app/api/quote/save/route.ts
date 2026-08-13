@@ -18,10 +18,13 @@ import { buildScenarioSnapshots } from "@/lib/quote-scenario-snapshots";
 import { saveQuoteSchema } from "./request-schema";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { resolveQuoteContact } from "@/lib/quote-contact";
+import { normalizeSelectedOptions } from "@/lib/option-rules";
+import { toSavedQuoteClientData } from "@/lib/saved-quote-client";
 import {
   createVerificationCapability,
   hashVerificationCapability,
   matchesVerificationCapability,
+  VERIFICATION_CAPABILITY_COOKIE_PATH,
   VERIFICATION_CAPABILITY_MAX_AGE_SECONDS,
   verificationCapabilityCookieName,
 } from "@/lib/verification-capability";
@@ -38,7 +41,7 @@ function attachVerificationCapability<T>(
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/api/verification",
+    path: VERIFICATION_CAPABILITY_COOKIE_PATH,
     maxAge: VERIFICATION_CAPABILITY_MAX_AGE_SECONDS,
   });
   return response;
@@ -56,7 +59,12 @@ export async function POST(request: NextRequest) {
       include: {
         trims: {
           where: PUBLIC_TRIM_WHERE,
-          include: { options: { select: { id: true, price: true, name: true } } },
+          include: {
+            options: { select: { id: true, price: true, name: true } },
+            rules: {
+              select: { ruleType: true, sourceOptionId: true, targetOptionId: true },
+            },
+          },
         },
         colors: {
           select: { id: true, kind: true, name: true, hexCode: true, priceDelta: true },
@@ -79,43 +87,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const selectedOptionIds = new Set(input.selectedOptionIds);
-    const selectedOptions = trim.options.filter((o) => selectedOptionIds.has(o.id));
-    const trimOptionsTotalPrice = selectedOptions.reduce((sum, o) => sum + o.price, 0);
-    const optionsTotalPrice = trimOptionsTotalPrice + input.extraOptionsPrice;
-
-    // 색상 검증 — 선택된 색상이 차량 소속인지, kind가 맞는지 확인
-    const exteriorColor = input.exteriorColorId
-      ? vehicle.colors.find((c) => c.id === input.exteriorColorId && c.kind === "EXTERIOR") ?? null
-      : null;
-    const interiorColor = input.interiorColorId
-      ? vehicle.colors.find((c) => c.id === input.interiorColorId && c.kind === "INTERIOR") ?? null
-      : null;
-    if (input.exteriorColorId && !exteriorColor) {
-      return NextResponse.json(
-        { error: "선택한 외장 색상이 차량과 일치하지 않습니다." },
-        { status: 400 }
-      );
-    }
-    if (input.interiorColorId && !interiorColor) {
-      return NextResponse.json(
-        { error: "선택한 내장 색상이 차량과 일치하지 않습니다." },
-        { status: 400 }
-      );
-    }
-    const colorDelta = (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
-
-    // 할인가: discountPrice 있으면 그것을 차량가 기준으로 사용
-    const effectiveTrimPrice = trim.discountPrice ?? trim.price;
-    const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
-    const condition = input.customDepositRate !== undefined || input.customPrepayRate !== undefined
-      ? {
-          depositRate: input.customDepositRate ?? 0,
-          prepayRate: input.customPrepayRate ?? 0,
-        }
-      : SCENARIO_CONDITIONS[input.scenarioType];
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
-
     const existing = await prisma.savedQuote.findUnique({
       where: { sessionId: input.sessionId },
       select: {
@@ -124,6 +95,11 @@ export async function POST(request: NextRequest) {
         deletedAt: true,
         status: true,
         pricingStatus: true,
+        monthlyPayment: true,
+        totalCost: true,
+        depositRate: true,
+        prepayRate: true,
+        breakdown: true,
         customerName: true,
         phone: true,
         verificationCapabilityHash: true,
@@ -156,15 +132,80 @@ export async function POST(request: NextRequest) {
 
     const quoteOwnerId = activeUserId ?? existing?.userId ?? null;
     if (existing && existing.status !== "NEW") {
-      return NextResponse.json({
+      return attachVerificationCapability(NextResponse.json({
         success: true,
-        data: {
+        data: toSavedQuoteClientData({
           id: existing.id,
           sessionId: input.sessionId,
-          requiresConsultation: existing.pricingStatus === "CONSULTATION_REQUIRED",
-        },
-      });
+          monthlyPayment: existing.monthlyPayment,
+          totalCost: existing.totalCost,
+          pricingStatus: existing.pricingStatus,
+          depositRate: existing.depositRate,
+          prepayRate: existing.prepayRate,
+          breakdown: existing.breakdown,
+        }),
+      }), input.sessionId, issuedVerificationCapability);
     }
+
+    const { normalized: selectedOptionIds, conflicts } = normalizeSelectedOptions(
+      input.selectedOptionIds,
+      trim.rules ?? [],
+    );
+    if (conflicts.length > 0) {
+      const optMap = new Map(trim.options.map((option) => [option.id, option.name]));
+      const pairs = conflicts
+        .map(
+          (conflict) =>
+            `${optMap.get(conflict.sourceOptionId) ?? conflict.sourceOptionId} ↔ ${optMap.get(conflict.targetOptionId) ?? conflict.targetOptionId}`,
+        )
+        .join(", ");
+      return NextResponse.json(
+        { error: `함께 선택할 수 없는 옵션 조합입니다: ${pairs}` },
+        { status: 400 }
+      );
+    }
+    const selectedOptions = trim.options.filter((o) => selectedOptionIds.has(o.id));
+    const trimOptionsTotalPrice = selectedOptions.reduce((sum, o) => sum + o.price, 0);
+    const optionsTotalPrice = trimOptionsTotalPrice + input.extraOptionsPrice;
+
+    // 색상 검증 — 선택된 색상이 차량 소속인지, kind가 맞는지 확인
+    const exteriorColor = input.exteriorColorId
+      ? vehicle.colors.find((c) => c.id === input.exteriorColorId && c.kind === "EXTERIOR") ?? null
+      : null;
+    const interiorColor = input.interiorColorId
+      ? vehicle.colors.find((c) => c.id === input.interiorColorId && c.kind === "INTERIOR") ?? null
+      : null;
+    if (input.exteriorColorId && !exteriorColor) {
+      return NextResponse.json(
+        { error: "선택한 외장 색상이 차량과 일치하지 않습니다." },
+        { status: 400 }
+      );
+    }
+    if (input.interiorColorId && !interiorColor) {
+      return NextResponse.json(
+        { error: "선택한 내장 색상이 차량과 일치하지 않습니다." },
+        { status: 400 }
+      );
+    }
+    const colorDelta = (exteriorColor?.priceDelta ?? 0) + (interiorColor?.priceDelta ?? 0);
+
+    // 할인가: discountPrice 있으면 그것을 차량가 기준으로 사용
+    const effectiveTrimPrice = trim.discountPrice ?? trim.price;
+    const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
+    // 커스텀 보증/선납 요율과 보증금/선납 시나리오는 회원 전용 혜택 —
+    // 표시 API(/api/vehicles/[slug]/quote)와 동일하게 비회원 입력은 무보증 기준으로 강제한다.
+    const isMember = !!user;
+    const effectiveScenarioType = isMember ? input.scenarioType : "standard";
+    const hasCustomRates =
+      isMember &&
+      (input.customDepositRate !== undefined || input.customPrepayRate !== undefined);
+    const condition = hasCustomRates
+      ? {
+          depositRate: input.customDepositRate ?? 0,
+          prepayRate: input.customPrepayRate ?? 0,
+        }
+      : SCENARIO_CONDITIONS[effectiveScenarioType];
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
 
     const contact = resolveQuoteContact({
       quoteName: existing?.customerName,
@@ -188,7 +229,7 @@ export async function POST(request: NextRequest) {
 
     if (rateSheets.length === 0) {
       const breakdown = JSON.parse(JSON.stringify({
-        scenarioType: input.scenarioType,
+        scenarioType: effectiveScenarioType,
         productType: input.productType,
         customerType: input.customerType,
         vehicleSlug: input.vehicleSlug,
@@ -196,6 +237,7 @@ export async function POST(request: NextRequest) {
         vehicleBrand: vehicle.brand,
         trimName: trim.name,
         trimPrice: trim.price,
+        discountPrice: trim.discountPrice,
         selectedOptions: selectedOptions.map((option) => ({
           id: option.id,
           name: option.name,
@@ -271,11 +313,16 @@ export async function POST(request: NextRequest) {
 
       return attachVerificationCapability(NextResponse.json({
         success: true,
-        data: {
+        data: toSavedQuoteClientData({
           id: savedQuote.id,
           sessionId: savedQuote.sessionId,
-          requiresConsultation: true,
-        },
+          monthlyPayment: 0,
+          totalCost: 0,
+          pricingStatus: "CONSULTATION_REQUIRED",
+          depositRate: condition.depositRate,
+          prepayRate: condition.prepayRate,
+          breakdown,
+        }),
       }), input.sessionId, issuedVerificationCapability);
     }
 
@@ -330,7 +377,7 @@ export async function POST(request: NextRequest) {
     });
 
     const breakdown = JSON.parse(JSON.stringify({
-      scenarioType: input.scenarioType,
+      scenarioType: effectiveScenarioType,
       productType: input.productType,
       customerType: input.customerType,
       vehicleSlug: input.vehicleSlug,
@@ -338,6 +385,7 @@ export async function POST(request: NextRequest) {
       vehicleBrand: vehicle.brand,
       trimName: trim.name,
       trimPrice: trim.price,
+      discountPrice: trim.discountPrice,
       selectedOptions: selectedOptions.map((o) => ({
         id: o.id,
         name: o.name,
@@ -411,7 +459,17 @@ export async function POST(request: NextRequest) {
 
     return attachVerificationCapability(NextResponse.json({
       success: true,
-      data: { id: savedQuote.id, sessionId: savedQuote.sessionId },
+      data: toSavedQuoteClientData({
+        id: savedQuote.id,
+        sessionId: savedQuote.sessionId,
+        monthlyPayment,
+        totalCost: monthlyPayment * input.contractMonths,
+        pricingStatus: "CALCULATED",
+        depositRate: condition.depositRate,
+        prepayRate: condition.prepayRate,
+        breakdown,
+        bestFinanceCompany: best.financeCompanyName,
+      }),
     }), input.sessionId, issuedVerificationCapability);
   } catch (error) {
     if (error instanceof z.ZodError) {

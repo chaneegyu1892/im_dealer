@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const savedQuote = await prisma.$transaction(async (tx) => {
       const existingQuote = await tx.savedQuote.findUnique({
         where: { sessionId },
-        select: { id: true, userId: true, deletedAt: true },
+        select: { id: true, userId: true, deletedAt: true, expiresAt: true },
       });
       if (!existingQuote) {
         throw new QuoteRequestError(
@@ -53,6 +53,13 @@ export async function POST(request: NextRequest) {
       }
       if (existingQuote.deletedAt) {
         throw new QuoteRequestError("삭제된 견적입니다.", 410);
+      }
+      if (existingQuote.expiresAt <= new Date()) {
+        // 만료된 금액으로 상담 알림이 나가면 옛 견적이 유효한 것처럼 유통된다.
+        throw new QuoteRequestError(
+          "유효기간이 지난 견적입니다. 견적을 다시 산출해 주세요.",
+          410
+        );
       }
       if (existingQuote.userId !== user.supabaseId) {
         throw new QuoteRequestError("접근 권한이 없습니다.", 403);

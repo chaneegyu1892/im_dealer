@@ -51,6 +51,10 @@ import type { VehicleListItem, QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
 import { deriveQuoteScenarioType } from "@/lib/quote-scenario-selection";
 import { successfulCalculatedQuoteResponseSchema } from "@/lib/quote-response-schema";
+import {
+  applySavedQuoteAmountsToDisplay,
+  savedQuoteResponseSchema,
+} from "@/lib/saved-quote-client";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
 import {
   type LineupChoice,
@@ -90,15 +94,6 @@ const DELIVERY_GATE_SESSION_KEY = "imd_delivery_gate_session";
 const apiErrorSchema = z.object({
   error: z.string().optional(),
   code: z.string().optional(),
-});
-
-const savedQuoteResponseSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
-    id: z.string().min(1),
-    sessionId: z.string().min(1),
-    requiresConsultation: z.boolean().optional(),
-  }),
 });
 
 function hasLockedQuoteScenario(quote: QuoteResponse): boolean {
@@ -244,6 +239,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [trims, setTrims] = useState<TrimData[]>([]);
   const [trimsLoading, setTrimsLoading] = useState(false);
   const [trimsLoaded, setTrimsLoaded] = useState(false);
+  const [colorsLoaded, setColorsLoaded] = useState(false);
   const [trimsError, setTrimsError] = useState(false);
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
   const [selectedTrimId, setSelectedTrimId] = useState<string | null>(null);
@@ -291,6 +287,11 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const recalculateRequestId = useRef(0);
   const lastQuotedSlug = useRef<string | null>(null);
   const pendingRatesReapply = useRef(false);
+  const pendingRecalcTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recalcInFlightRef = useRef<Promise<void> | null>(null);
+  const recalculateStandardRef = useRef<(
+    rates: { depositRate: number; prepayRate: number }
+  ) => Promise<void>>(async () => {});
 
   const hasPrefilled = useRef(false);
 
@@ -306,6 +307,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     setSelectedTrimId(null);
     setSelectedOptionIds(new Set());
     setColors([]);
+    setColorsLoaded(false);
     setExteriorColorId(null);
     setInteriorColorId(null);
 
@@ -322,6 +324,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         const restoreInt = restore ? list.find((c) => c.id === restore.interiorColorId) : undefined;
         setExteriorColorId(restoreExt?.id ?? defaultExt?.id ?? null);
         setInteriorColorId(restoreInt?.id ?? defaultInt?.id ?? null);
+        setColorsLoaded(true);
       })
       .catch(() => {});
 
@@ -560,55 +563,100 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     }
   }
 
+  // 복원 직후 트림 목록이 로드되기 전에는 state가 비어 있다 —
+  // 저장/재계산 모두 복원 스냅샷의 옵션을 써야 같은 조건으로 계산된다.
+  const getEffectiveSelectedOptionIds = useCallback((): string[] => {
+    const currentOptionIds = Array.from(selectedOptionIds);
+    const restored = restoreRef.current;
+    if (
+      trimsLoaded ||
+      !restored ||
+      restored.vehicleSlug !== quoteResult?.vehicleSlug
+    ) {
+      return currentOptionIds;
+    }
+    return [...restored.selectedOptionIds];
+  }, [quoteResult?.vehicleSlug, selectedOptionIds, trimsLoaded]);
+
+  // 색상도 같은 문제가 있다 — 색상 목록 로드 전에는 state가 null이라
+  // 복원된 색상 선택이 저장/재계산에서 빠질 수 있다.
+  const getEffectiveSelectedColorIds = useCallback((): {
+    exteriorColorId: string | null;
+    interiorColorId: string | null;
+  } => {
+    const restored = restoreRef.current;
+    if (
+      colorsLoaded ||
+      !restored ||
+      restored.vehicleSlug !== quoteResult?.vehicleSlug
+    ) {
+      return { exteriorColorId, interiorColorId };
+    }
+    return {
+      exteriorColorId: restored.exteriorColorId ?? null,
+      interiorColorId: restored.interiorColorId ?? null,
+    };
+  }, [quoteResult?.vehicleSlug, exteriorColorId, interiorColorId, colorsLoaded]);
+
   // ─── 보증금/선납 재계산 (v1 계약 그대로) ───────────────
   async function recalculateStandard(rates: { depositRate: number; prepayRate: number }) {
-    if (!selectedVehicle || !quoteResult) return;
-    const requestId = recalculateRequestId.current + 1;
-    recalculateRequestId.current = requestId;
+    const run = (async () => {
+      if (!selectedVehicle || !quoteResult) return;
+      const requestId = recalculateRequestId.current + 1;
+      recalculateRequestId.current = requestId;
 
-    if (rates.depositRate === 0 && rates.prepayRate === 0) {
-      restoreBaseStandardScenario();
-      return;
-    }
-
-    setIsRecalculating(true);
-    try {
-      const res = await fetch(`/api/vehicles/${selectedVehicle.slug}/quote`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: quoteSessionId,
-          trimId: selectedTrim?.id,
-          selectedOptionIds: Array.from(selectedOptionIds),
-          contractMonths: conditions.contractMonths,
-          annualMileage: conditions.annualMileage,
-          contractType: "반납형",
-          productType: contractCategory,
-          customDepositRate: rates.depositRate,
-          customPrepayRate: rates.prepayRate,
-          customerType,
-          exteriorColorId,
-          interiorColorId,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        console.error("[recalculateStandard]", json?.error ?? "failed");
+      if (rates.depositRate === 0 && rates.prepayRate === 0) {
+        restoreBaseStandardScenario();
         return;
       }
-      if (requestId !== recalculateRequestId.current) return;
 
-      setQuoteResult((prev) =>
-        prev
-          ? { ...prev, scenarios: { ...prev.scenarios, standard: json.data.scenarios.standard } }
-          : prev
-      );
+      setIsRecalculating(true);
+      try {
+        const res = await fetch(`/api/vehicles/${selectedVehicle.slug}/quote`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: quoteSessionId,
+            trimId: selectedTrim?.id ?? quoteResult.trimId,
+            selectedOptionIds: getEffectiveSelectedOptionIds(),
+            contractMonths: conditions.contractMonths,
+            annualMileage: conditions.annualMileage,
+            contractType: "반납형",
+            productType: contractCategory,
+            customDepositRate: rates.depositRate,
+            customPrepayRate: rates.prepayRate,
+            customerType,
+            ...getEffectiveSelectedColorIds(),
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          console.error("[recalculateStandard]", json?.error ?? "failed");
+          return;
+        }
+        if (requestId !== recalculateRequestId.current) return;
+
+        setQuoteResult((prev) =>
+          prev
+            ? { ...prev, scenarios: { ...prev.scenarios, standard: json.data.scenarios.standard } }
+            : prev
+        );
+      } finally {
+        if (requestId === recalculateRequestId.current) {
+          setIsRecalculating(false);
+        }
+      }
+    })();
+    recalcInFlightRef.current = run;
+    try {
+      await run;
     } finally {
-      if (requestId === recalculateRequestId.current) {
-        setIsRecalculating(false);
+      if (recalcInFlightRef.current === run) {
+        recalcInFlightRef.current = null;
       }
     }
   }
+  recalculateStandardRef.current = recalculateStandard;
 
   const restoreBaseStandardScenario = useCallback(() => {
     recalculateRequestId.current += 1;
@@ -624,8 +672,19 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   useEffect(() => {
     if (!quoteResult || !selectedVehicle) return;
     const rates = customRates;
-    const handle = setTimeout(() => { recalculateStandard(rates); }, 500);
-    return () => clearTimeout(handle);
+    const handle = setTimeout(() => {
+      if (pendingRecalcTimerRef.current === handle) {
+        pendingRecalcTimerRef.current = null;
+      }
+      void recalculateStandardRef.current(rates);
+    }, 500);
+    pendingRecalcTimerRef.current = handle;
+    return () => {
+      clearTimeout(handle);
+      if (pendingRecalcTimerRef.current === handle) {
+        pendingRecalcTimerRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customRates.depositRate, customRates.prepayRate]);
 
@@ -637,23 +696,26 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteResult, customRates]);
 
-  const getEffectiveSelectedOptionIds = useCallback((): string[] => {
-    const currentOptionIds = Array.from(selectedOptionIds);
-    const restored = restoreRef.current;
-    if (
-      trimsLoaded ||
-      !restored ||
-      restored.vehicleSlug !== quoteResult?.vehicleSlug
-    ) {
-      return currentOptionIds;
+  const flushPendingQuoteRecalculation = useCallback(async () => {
+    const pendingTimer = pendingRecalcTimerRef.current;
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingRecalcTimerRef.current = null;
     }
-    return [...restored.selectedOptionIds];
-  }, [quoteResult?.vehicleSlug, selectedOptionIds, trimsLoaded]);
+    if (recalcInFlightRef.current) {
+      await recalcInFlightRef.current;
+    }
+    if (pendingTimer) {
+      await recalculateStandardRef.current(customRates);
+    }
+  }, [customRates]);
 
   const saveCurrentQuote = useCallback(async () => {
     if (!quoteResult?.trimId) {
       throw new Error("상담 요청을 저장하려면 트림을 선택해 주세요.");
     }
+
+    await flushPendingQuoteRecalculation();
 
     const saveRes = await fetch("/api/quote/save", {
       method: "POST",
@@ -671,8 +733,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         scenarioType: deriveQuoteScenarioType(customRates),
         customDepositRate: customRates.depositRate,
         customPrepayRate: customRates.prepayRate,
-        exteriorColorId,
-        interiorColorId,
+        ...getEffectiveSelectedColorIds(),
         quoteType: draftSource,
       }),
     });
@@ -686,7 +747,11 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
           : "견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요."
       );
     }
-    return savedQuoteResult.data.data;
+    const savedQuote = savedQuoteResult.data.data;
+    setQuoteResult((prev) =>
+      prev ? applySavedQuoteAmountsToDisplay(prev, savedQuote) : prev
+    );
+    return savedQuote;
   }, [
     quoteResult,
     quoteSessionId,
@@ -694,9 +759,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     customerType,
     contractCategory,
     customRates,
-    exteriorColorId,
-    interiorColorId,
+    getEffectiveSelectedColorIds,
     draftSource,
+    flushPendingQuoteRecalculation,
   ]);
 
   const handleConsultationRequest = useCallback(async () => {
@@ -744,7 +809,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         sessionId: quoteSessionId,
         vehicleSlug: quoteResult.vehicleSlug,
         trimId: quoteResult.trimId,
-        selectedOptionIds: Array.from(selectedOptionIds),
+        selectedOptionIds: getEffectiveSelectedOptionIds(),
         contractMonths: quoteResult.contractMonths,
         annualMileage: quoteResult.annualMileage,
         contractType: "반납형",
@@ -754,8 +819,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         optionsTotalPrice: quoteResult.optionsTotalPrice,
         totalVehiclePrice: quoteResult.totalVehiclePrice,
         customRates,
-        exteriorColorId,
-        interiorColorId,
+        ...getEffectiveSelectedColorIds(),
         source: draftSource,
       };
       localStorage.setItem(
@@ -784,7 +848,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     }
   }, [
     router, quoteSessionId, selectedVehicle?.slug, quoteResult, customerType,
-    selectedOptionIds, contractCategory, customRates, exteriorColorId, interiorColorId, draftSource,
+    getEffectiveSelectedOptionIds, getEffectiveSelectedColorIds, contractCategory, customRates, draftSource,
     isApplying, saveCurrentQuote,
   ]);
 
@@ -1034,7 +1098,6 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       throw new Error("전송할 견적 정보를 확인할 수 없습니다.");
     }
 
-    const restored = restoreRef.current;
     const response = await fetch(
       `/api/vehicles/${selectedVehicle.slug}/quote`,
       {
@@ -1049,8 +1112,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
           contractType: "반납형",
           productType: contractCategory,
           customerType,
-          exteriorColorId: exteriorColorId ?? restored?.exteriorColorId ?? null,
-          interiorColorId: interiorColorId ?? restored?.interiorColorId ?? null,
+          ...getEffectiveSelectedColorIds(),
           ...(rates.depositRate > 0
             ? { customDepositRate: rates.depositRate }
             : {}),
@@ -1091,13 +1153,12 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         contractType: "반납형",
       },
       customRates,
-      exteriorColorId,
-      interiorColorId,
+      ...getEffectiveSelectedColorIds(),
       costMode,
       baseStandard: baseStandardScenario.current,
       quoteResult,
     };
-  }, [quoteResult, selectedVehicle, customerType, selectedLineup, selectedTrim, getEffectiveSelectedOptionIds, contractCategory, conditions, customRates, exteriorColorId, interiorColorId, costMode]);
+  }, [quoteResult, selectedVehicle, customerType, selectedLineup, selectedTrim, getEffectiveSelectedOptionIds, getEffectiveSelectedColorIds, contractCategory, conditions, customRates, costMode]);
 
   async function startKakaoConsentFlow(): Promise<void> {
     const state = buildRestoreState();

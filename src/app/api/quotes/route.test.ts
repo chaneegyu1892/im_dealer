@@ -72,6 +72,7 @@ describe("POST /api/quotes", () => {
       sessionId: "session-1",
       userId: "user-1",
       deletedAt: null,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
       customerName: null,
       phone: null,
     });
@@ -101,7 +102,7 @@ describe("POST /api/quotes", () => {
     expect(response.status).toBe(200);
     expect(mocks.findExistingQuote).toHaveBeenCalledWith({
       where: { sessionId: "session-1" },
-      select: { id: true, userId: true, deletedAt: true },
+      select: { id: true, userId: true, deletedAt: true, expiresAt: true },
     });
     expect(mocks.updateQuotes).toHaveBeenCalledWith(
       {
@@ -165,6 +166,27 @@ describe("POST /api/quotes", () => {
 
     expect(response.status).toBe(409);
     expect(mocks.createQuote).not.toHaveBeenCalled();
+  });
+
+  it("rejects consultation requests for expired quotes instead of notifying stale amounts", async () => {
+    mocks.findExistingQuote.mockResolvedValue({
+      id: "quote-1",
+      sessionId: "session-1",
+      userId: "user-1",
+      deletedAt: null,
+      expiresAt: new Date(Date.now() - 1000 * 60 * 60),
+      customerName: null,
+      phone: null,
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toEqual({
+      error: "유효기간이 지난 견적입니다. 견적을 다시 산출해 주세요.",
+    });
+    expect(mocks.updateQuotes).not.toHaveBeenCalled();
+    expect(mocks.createAdminNotification).not.toHaveBeenCalled();
   });
 
   it("does not let a member claim an unowned quote during verification enrichment", async () => {

@@ -1,7 +1,7 @@
 import React from "react";
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import type { QuoteScenarioDetail, QuoteScenarioType } from "@/types/quote";
-import type { PDFQuoteData, PDFQuoteColor } from "@/lib/quote-pdf-template";
+import { LEGACY_COMPARISON_NOTICE, type PDFQuoteData, type PDFQuoteColor } from "@/lib/quote-pdf-template";
 import { parseQuoteScenarioType } from "@/lib/quote-scenario-selection";
 import { productTypeLabel } from "@/constants/product-type";
 
@@ -26,13 +26,13 @@ function formatDate(d = new Date()): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}. ${m}. ${day}`;
 }
-function formatExpiryDate(): string {
-  const d = new Date();
+function formatExpiryDate(base = new Date()): string {
+  const d = new Date(base);
   d.setDate(d.getDate() + 5);
   return formatDate(d);
 }
-function generateQuoteNumber(): string {
-  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+function generateQuoteNumber(base = new Date()): string {
+  const dateStr = base.toISOString().slice(0, 10).replace(/-/g, "");
   const rand = Math.floor(Math.random() * 9000 + 1000);
   return `${dateStr}-${rand}`;
 }
@@ -273,9 +273,13 @@ export function QuoteDocument({
   financeLogos?: Record<string, string>;
   brandLogo?: string | null;
 }) {
-  const quoteNumber = generateQuoteNumber();
-  const today = formatDate();
-  const expiry = formatExpiryDate();
+  // 재발급 견적서가 '오늘 산출된 새 견적'처럼 보이지 않도록 저장 시점을 우선 사용한다.
+  const issuedAt = data.issuedAt ? new Date(data.issuedAt) : new Date();
+  const quoteNumber = generateQuoteNumber(issuedAt);
+  const today = formatDate(issuedAt);
+  const expiry = data.validUntil
+    ? formatDate(new Date(data.validUntil))
+    : formatExpiryDate(issuedAt);
   const mileageLabel = `연 ${(data.annualMileage / 10000).toFixed(0)}만km`;
   const explicitScenarioType = parseQuoteScenarioType(data.scenarioType);
   const selectedScenarioType = explicitScenarioType ?? "standard";
@@ -284,6 +288,7 @@ export function QuoteDocument({
   const selectedPresentation = SCENARIO_PRESENTATION[selectedScenarioType];
   const isProductRent = data.productType === "장기렌트";
   const hasColor = !!(data.exteriorColor || data.interiorColor);
+  const showComparison = data.comparisonFromSnapshot !== false;
 
   // 선택 옵션 소계 (옵션이 있을 때만 노출).
   const hasOptions = data.selectedOptions.length > 0;
@@ -293,7 +298,9 @@ export function QuoteDocument({
   const showInsurance = isProductRent;
   const nInsurance = showInsurance ? 3 : null;
   const nScenario = showInsurance ? 4 : 3;
-  const nResult = showInsurance ? 5 : 4;
+  const nResult = showComparison
+    ? (showInsurance ? 5 : 4)
+    : (showInsurance ? 4 : 3);
 
   return (
     <Document>
@@ -402,71 +409,73 @@ export function QuoteDocument({
           </View>
         )}
 
-        {/* 시나리오별 견적 비교 */}
-        <View style={s.section}>
-          <Text style={s.secTitle}>{nScenario}. 시나리오별 견적 비교</Text>
-          <View style={s.table}>
-            {/* thead */}
-            <View style={s.row}>
-              <View style={[s.scThead, { width: "20%" }]} />
-              {scenarioOrder.map((scenarioType, index) => {
-                const isSelected = index === 1;
-                const presentation = SCENARIO_PRESENTATION[scenarioType];
-                return (
-                  <View
-                    key={scenarioType}
-                    style={[
-                      s.scThead,
-                      isSelected ? s.scTheadHi : {},
-                      { width: index === 2 ? "26.68%" : "26.66%" },
-                    ]}
-                  >
-                    <Text style={[s.thLabel, isSelected ? s.thLabelHi : {}]}>
-                      {presentation.label}{isSelected ? " ★" : ""}
-                    </Text>
-                    <Text style={[s.thDesc, isSelected ? s.thDescHi : {}]}>
-                      {isSelected && explicitScenarioType
-                        ? presentation.selectedDescription
-                        : presentation.description}
-                    </Text>
+        {showComparison ? (
+          <View style={s.section}>
+            <Text style={s.secTitle}>{nScenario}. 시나리오별 견적 비교</Text>
+            <View style={s.table}>
+              <View style={s.row}>
+                <View style={[s.scThead, { width: "20%" }]} />
+                {scenarioOrder.map((scenarioType, index) => {
+                  const isSelected = index === 1;
+                  const presentation = SCENARIO_PRESENTATION[scenarioType];
+                  return (
+                    <View
+                      key={scenarioType}
+                      style={[
+                        s.scThead,
+                        isSelected ? s.scTheadHi : {},
+                        { width: index === 2 ? "26.68%" : "26.66%" },
+                      ]}
+                    >
+                      <Text style={[s.thLabel, isSelected ? s.thLabelHi : {}]}>
+                        {presentation.label}{isSelected ? " ★" : ""}
+                      </Text>
+                      <Text style={[s.thDesc, isSelected ? s.thDescHi : {}]}>
+                        {isSelected && explicitScenarioType
+                          ? presentation.selectedDescription
+                          : presentation.description}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+              <View style={s.row}>
+                <Text style={[s.th, { width: "20%" }]}>월 납입금</Text>
+                {scenarioOrder.map((scenarioType, index) => (
+                  <View key={scenarioType} style={{ width: index === 2 ? "26.68%" : "26.66%" }}>
+                    <ScenarioCell sc={data.scenarios[scenarioType]} hi={index === 1} />
                   </View>
-                );
-              })}
-            </View>
-            {/* 월 납입금 */}
-            <View style={s.row}>
-              <Text style={[s.th, { width: "20%" }]}>월 납입금</Text>
-              {scenarioOrder.map((scenarioType, index) => (
-                <View key={scenarioType} style={{ width: index === 2 ? "26.68%" : "26.66%" }}>
-                  <ScenarioCell sc={data.scenarios[scenarioType]} hi={index === 1} />
-                </View>
-              ))}
-            </View>
-            {/* 최우선 금융사 */}
-            <View style={s.row}>
-              <Text style={[s.th, { width: "20%" }]}>최우선 금융사</Text>
-              {scenarioOrder.map((scenarioType, index) => {
-                const isSelected = index === 1;
-                return (
-                  <View
-                    key={scenarioType}
-                    style={[
-                      s.td,
-                      isSelected ? s.scCellHi : {},
-                      { width: index === 2 ? "26.68%" : "26.66%" },
-                    ]}
-                  >
-                    <FinanceName
-                      name={data.scenarios[scenarioType].bestFinanceCompany}
-                      logos={financeLogos}
-                      hi={isSelected}
-                    />
-                  </View>
-                );
-              })}
+                ))}
+              </View>
+              <View style={s.row}>
+                <Text style={[s.th, { width: "20%" }]}>최우선 금융사</Text>
+                {scenarioOrder.map((scenarioType, index) => {
+                  const isSelected = index === 1;
+                  return (
+                    <View
+                      key={scenarioType}
+                      style={[
+                        s.td,
+                        isSelected ? s.scCellHi : {},
+                        { width: index === 2 ? "26.68%" : "26.66%" },
+                      ]}
+                    >
+                      <FinanceName
+                        name={data.scenarios[scenarioType].bestFinanceCompany}
+                        logos={financeLogos}
+                        hi={isSelected}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
             </View>
           </View>
-        </View>
+        ) : (
+          <View style={s.section}>
+            <Text style={s.noticeText}>{LEGACY_COMPARISON_NOTICE}</Text>
+          </View>
+        )}
 
         {/* 선택/기본 추천 견적 */}
         <View style={s.section}>

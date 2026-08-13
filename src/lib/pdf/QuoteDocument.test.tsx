@@ -2,6 +2,7 @@ import { isValidElement, type ReactNode } from "react";
 import { Text } from "@react-pdf/renderer";
 import { describe, expect, it } from "vitest";
 import type { PDFQuoteData } from "@/lib/quote-pdf-template";
+import { LEGACY_COMPARISON_NOTICE } from "@/lib/quote-pdf-template";
 import type { QuoteScenarioDetail } from "@/types/quote";
 import { QuoteDocument } from "./QuoteDocument";
 
@@ -116,5 +117,38 @@ describe("QuoteDocument scenario presentation", () => {
     expect(textElements).toContain(
       "본 견적서는 아임딜러 시스템에 의해 자동 생성되었습니다."
     );
+  });
+
+  it("hides comparison columns and explains why when snapshots are missing", () => {
+    const document = QuoteDocument({
+      data: {
+        ...legacyData,
+        scenarioType: "aggressive",
+        comparisonFromSnapshot: false,
+      },
+    });
+    const cells = collectScenarioCells(document);
+    const textElements = collectTextElements(document);
+
+    expect(cells).toEqual([]);
+    expect(textElements).toContain(LEGACY_COMPARISON_NOTICE);
+    expect(textElements).toContain("4. 선택 견적 (선납금)");
+    expect(textElements).toContain("월 533,333원");
+    expect(textElements).not.toContain("시나리오별 견적 비교");
+  });
+
+  it("prints the stored issue and expiry dates instead of today when reissuing", () => {
+    const document = QuoteDocument({
+      data: {
+        ...legacyData,
+        issuedAt: "2026-05-01T00:00:00.000Z",
+        validUntil: "2026-05-15T00:00:00.000Z",
+      },
+    });
+    const textElements = collectTextElements(document);
+
+    expect(textElements).toContain("산출일: 2026. 05. 01");
+    expect(textElements).toContain("유효기간: 2026. 05. 15 까지");
+    expect(textElements.some((text) => text.startsWith("견적번호: 20260501-"))).toBe(true);
   });
 });

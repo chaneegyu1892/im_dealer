@@ -6,6 +6,7 @@ import { requireActiveUser } from "@/lib/require-user";
 import {
   hashVerificationCapability,
   matchesVerificationCapability,
+  VERIFICATION_CAPABILITY_COOKIE_PATH,
   verificationCapabilityCookieName,
 } from "@/lib/verification-capability";
 
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
         httpOnly: true,
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
-        path: "/api/verification",
+        path: VERIFICATION_CAPABILITY_COOKIE_PATH,
         maxAge: 0,
         expires: new Date(0),
       });

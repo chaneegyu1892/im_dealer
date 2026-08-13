@@ -10,6 +10,7 @@ vi.mock("@/lib/quote-calculator", () => ({
 
 import {
   buildScenarioSnapshots,
+  hasCompleteScenarioSnapshots,
   parseScenarioSnapshots,
 } from "./quote-scenario-snapshots";
 import type { CalcInput } from "@/lib/quote-calculator";
@@ -144,5 +145,19 @@ describe("parseScenarioSnapshots", () => {
     expect(parseScenarioSnapshots(undefined)).toBeNull();
     expect(parseScenarioSnapshots("not-an-object")).toBeNull();
     expect(parseScenarioSnapshots({})).toBeNull();
+  });
+
+  it("treats a partial snapshot set as incomplete so live rates are not mixed in", () => {
+    expect(hasCompleteScenarioSnapshots(parseScenarioSnapshots({
+      conservative: validSnapshot,
+      standard: validSnapshot,
+      aggressive: null,
+    }))).toBe(false);
+    expect(hasCompleteScenarioSnapshots(parseScenarioSnapshots({
+      conservative: validSnapshot,
+      standard: validSnapshot,
+      aggressive: validSnapshot,
+    }))).toBe(true);
+    expect(hasCompleteScenarioSnapshots(null)).toBe(false);
   });
 });

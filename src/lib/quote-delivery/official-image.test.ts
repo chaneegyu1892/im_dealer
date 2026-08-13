@@ -76,7 +76,7 @@ describe("official quote delivery image data", () => {
     });
   });
 
-  it("uses persisted quote values for the selected official scenario and server calculation for comparison scenarios", async () => {
+  it("does not fill comparison columns from current rates when snapshots are missing", async () => {
     const result = await buildOfficialDeliveryImageData(savedQuote);
 
     expect(result).toMatchObject({
@@ -89,9 +89,11 @@ describe("official quote delivery image data", () => {
         totalVehiclePrice: 42_000_000,
         productType: "리스",
         scenarioType: "aggressive",
+        comparisonFromSnapshot: false,
         selectedOptions: [{ name: "저장 옵션", price: 1_000_000 }],
         scenarios: {
-          standard: expect.objectContaining({ monthlyPayment: 700_000 }),
+          conservative: expect.objectContaining({ monthlyPayment: 0 }),
+          standard: expect.objectContaining({ monthlyPayment: 0 }),
           aggressive: expect.objectContaining({
             monthlyPayment: 430_000,
             prepayAmount: 12_600_000,
@@ -162,6 +164,53 @@ describe("official quote delivery image data", () => {
             bestFinanceCompany: "저장 금융사",
           }),
         },
+        comparisonFromSnapshot: true,
+      },
+    });
+  });
+
+  it("does not mix live comparison amounts when only some scenario snapshots exist", async () => {
+    const result = await buildOfficialDeliveryImageData({
+      ...savedQuote,
+      breakdown: {
+        ...savedQuote.breakdown,
+        scenarioSnapshots: {
+          standard: {
+            monthlyPayment: 705_000,
+            depositAmount: 0,
+            prepayAmount: 0,
+            bestFinanceCompany: "저장 비교 금융사",
+            purchaseSurcharge: 0,
+          },
+        },
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        comparisonFromSnapshot: false,
+        scenarios: {
+          conservative: expect.objectContaining({ monthlyPayment: 0 }),
+          standard: expect.objectContaining({ monthlyPayment: 0 }),
+          aggressive: expect.objectContaining({ monthlyPayment: 430_000 }),
+        },
+      },
+    });
+  });
+
+  it("carries the stored issue and expiry dates so reissued documents keep their original validity", async () => {
+    const result = await buildOfficialDeliveryImageData({
+      ...savedQuote,
+      createdAt: new Date("2026-05-01T00:00:00.000Z"),
+      expiresAt: new Date("2026-05-15T00:00:00.000Z"),
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        issuedAt: "2026-05-01T00:00:00.000Z",
+        validUntil: "2026-05-15T00:00:00.000Z",
       },
     });
   });

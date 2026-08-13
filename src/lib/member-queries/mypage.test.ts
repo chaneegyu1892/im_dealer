@@ -71,7 +71,7 @@ describe("getMyPageData", () => {
         status: "CONTACTED",
         createdAt: now,
         updatedAt: now,
-        expiresAt: new Date("2026-08-07T03:00:00.000Z"),
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
       },
       {
         id: "quote-converted",
@@ -90,7 +90,7 @@ describe("getMyPageData", () => {
         status: "CONVERTED",
         createdAt: now,
         updatedAt: now,
-        expiresAt: new Date("2026-08-07T03:00:00.000Z"),
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
       },
     ]);
     mocks.findVehicles.mockResolvedValue([
@@ -132,6 +132,53 @@ describe("getMyPageData", () => {
       delivery: { status: "SENT" },
     });
     expect(result.quotes).toHaveLength(2);
+  });
+
+  it("만료된 견적은 목록에는 남기되 '진행 중' 견적으로 승격하지 않는다", async () => {
+    const past = new Date(Date.now() - 1000 * 60 * 60 * 24);
+    mocks.findMember.mockResolvedValue({
+      id: "member-1",
+      supabaseId: "sb-1",
+      name: "홍길동",
+      email: null,
+      phone: null,
+      provider: "kakao",
+      channelRelation: "ADDED",
+      marketingConsent: false,
+      consentedAt: null,
+      profileCompleted: true,
+    });
+    mocks.findQuotes.mockResolvedValue([
+      {
+        id: "quote-expired",
+        sessionId: "session-expired",
+        vehicleId: "vehicle-1",
+        trimId: "trim-1",
+        contractMonths: 48,
+        annualMileage: 20_000,
+        depositRate: 0,
+        prepayRate: 0,
+        contractType: "반납형",
+        customerType: "individual",
+        monthlyPayment: 560_000,
+        pricingStatus: "CALCULATED",
+        breakdown: {},
+        status: "NEW",
+        createdAt: past,
+        updatedAt: past,
+        expiresAt: past,
+      },
+    ]);
+    mocks.findVehicles.mockResolvedValue([
+      { id: "vehicle-1", slug: "sorento", name: "쏘렌토", brand: "기아", thumbnailUrl: null },
+    ]);
+    mocks.findTrims.mockResolvedValue([{ id: "trim-1", name: "시그니처" }]);
+    mocks.findDeliveries.mockResolvedValue([]);
+
+    const result = await getMyPageData("sb-1");
+
+    expect(result.quotes).toHaveLength(1);
+    expect(result.activeQuote).toBeNull();
   });
 
   it("회원 행이 없어도 빈 마이페이지를 안전하게 반환한다", async () => {

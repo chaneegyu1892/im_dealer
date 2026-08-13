@@ -1,6 +1,7 @@
 import { prisma } from "../prisma";
 import type { AdminSavedQuote } from "@/types/admin";
 import { resolveQuoteContact } from "@/lib/quote-contact";
+import { readSnapshotTrimPricing } from "@/lib/quote-snapshot-pricing";
 
 function readBreakdown(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -85,6 +86,7 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
     });
     const breakdown = readBreakdown(q.breakdown);
     const productType = breakdown.productType === "리스" ? "리스" : "장기렌트";
+    const snapshotPricing = readSnapshotTrimPricing(breakdown);
     return {
       id: q.id,
       sessionId: q.sessionId,
@@ -95,9 +97,13 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       vehicleName: vehicle?.name ?? "삭제된 차량",
       vehicleBrand: vehicle?.brand ?? "",
       trimId: q.trimId,
-      trimName: trim?.name ?? "삭제된 트림",
-      trimPrice: trim?.price ?? null,
-      discountPrice: trim?.discountPrice ?? null,
+      trimName: (typeof breakdown.trimName === "string" && breakdown.trimName.trim()
+        ? breakdown.trimName.trim()
+        : null) ?? trim?.name ?? "삭제된 트림",
+      trimPrice: snapshotPricing.trimPrice ?? trim?.price ?? null,
+      discountPrice: snapshotPricing.source === "none"
+        ? (trim?.discountPrice ?? null)
+        : snapshotPricing.discountPrice,
       contractMonths: q.contractMonths,
       annualMileage: q.annualMileage,
       depositRate: q.depositRate,

@@ -60,6 +60,8 @@ export async function POST(req: NextRequest) {
       exteriorColorId: true,
       interiorColorId: true,
       customerName: true,
+      createdAt: true,
+      expiresAt: true,
     },
   });
   if (!savedQuote) {

@@ -134,6 +134,23 @@ export function writeLockedCalculatedRestore(): void {
   writeRestore(false, true);
 }
 
+export function savedQuoteSuccessData(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "saved-quote",
+    sessionId: "session-1",
+    requiresConsultation: false,
+    monthlyPayment: 640_000,
+    totalCost: 38_400_000,
+    pricingStatus: "CALCULATED" as const,
+    depositRate: 10,
+    prepayRate: 0,
+    depositAmount: 4_000_000,
+    prepayAmount: 0,
+    bestFinanceCompany: "저장캐피탈",
+    ...overrides,
+  };
+}
+
 export function createFetchMock(saveStatus = 200) {
   return vi.fn<
     (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -142,10 +159,13 @@ export function createFetchMock(saveStatus = 200) {
     if (url.endsWith("/colors") || url.endsWith("/trims")) {
       return Response.json({ success: true, data: [] });
     }
+    if (url.endsWith("/quote") && url !== "/api/quote/save") {
+      return Response.json({ success: true, data: createUnlockedCalculatedQuoteResult() });
+    }
     if (url === "/api/quote/save") {
       return Response.json(
         saveStatus === 200
-          ? { success: true, data: { id: "saved-quote", sessionId: "session-1" } }
+          ? { success: true, data: savedQuoteSuccessData() }
           : { error: "save failed" },
         { status: saveStatus }
       );

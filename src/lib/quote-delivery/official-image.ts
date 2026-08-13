@@ -9,7 +9,10 @@ import {
   parseQuoteScenarioType,
   realignSelectedQuoteScenarios,
 } from "@/lib/quote-scenario-selection";
-import { parseScenarioSnapshots } from "@/lib/quote-scenario-snapshots";
+import {
+  hasCompleteScenarioSnapshots,
+  parseScenarioSnapshots,
+} from "@/lib/quote-scenario-snapshots";
 import type { QuoteScenarioDetail, QuoteScenarioDetails } from "@/types/quote";
 
 export interface OfficialDeliveryQuote {
@@ -26,6 +29,10 @@ export interface OfficialDeliveryQuote {
   breakdown: unknown;
   exteriorColorId: string | null;
   interiorColorId: string | null;
+  /** 저장 시점 — 재발급 견적서의 산출일/견적번호 기준. 없으면 렌더 시점으로 폴백. */
+  createdAt?: Date | null;
+  /** 견적 유효기간 — 재발급 시에도 원래 유효기간을 표기한다. */
+  expiresAt?: Date | null;
 }
 
 export type OfficialDeliveryImageResult =
@@ -137,16 +144,33 @@ export async function buildOfficialDeliveryImageData(
   const calculatedDeposit = Math.round(totalVehiclePrice * quote.depositRate / 100);
   const calculatedPrepay = Math.round(totalVehiclePrice * quote.prepayRate / 100);
 
-  // 저장 시점 스냅샷이 있으면 비교 시나리오도 그 값으로 고정한다.
-  // 스냅샷이 없는 과거 견적은 기존처럼 현재 요율로 재계산한 값을 쓴다.
+  // 저장 시점 스냅샷이 세 시나리오 모두 있으면 비교 표도 그 값으로 고정한다.
+  // 스냅샷이 없거나 불완전하면 현재 요율 재계산값을 비교 열에 넣지 않는다.
   const snapshots = parseScenarioSnapshots(breakdown.scenarioSnapshots);
-  const baseScenarios: QuoteScenarioDetails = snapshots
+  const comparisonFromSnapshot = hasCompleteScenarioSnapshots(snapshots);
+  const live = rebuilt.data.scenarios;
+  const unavailableScenario = (base: QuoteScenarioDetail): QuoteScenarioDetail => ({
+    ...base,
+    monthlyPayment: 0,
+    depositAmount: 0,
+    prepayAmount: 0,
+    bestFinanceCompany: "",
+    purchaseSurcharge: 0,
+    breakdown: null,
+    surcharges: null,
+    allFinanceResults: [],
+  });
+  const baseScenarios: QuoteScenarioDetails = comparisonFromSnapshot
     ? {
-        conservative: { ...rebuilt.data.scenarios.conservative, ...snapshots.conservative },
-        standard: { ...rebuilt.data.scenarios.standard, ...snapshots.standard },
-        aggressive: { ...rebuilt.data.scenarios.aggressive, ...snapshots.aggressive },
+        conservative: { ...live.conservative, ...snapshots.conservative },
+        standard: { ...live.standard, ...snapshots.standard },
+        aggressive: { ...live.aggressive, ...snapshots.aggressive },
       }
-    : rebuilt.data.scenarios;
+    : {
+        conservative: unavailableScenario(live.conservative),
+        standard: unavailableScenario(live.standard),
+        aggressive: unavailableScenario(live.aggressive),
+      };
 
   const fallbackScenario = baseScenarios[selectedScenarioType];
   const selectedScenario: QuoteScenarioDetail = {
@@ -191,10 +215,13 @@ export async function buildOfficialDeliveryImageData(
       annualMileage: quote.annualMileage,
       contractType: savedContractType,
       scenarioType: selectedScenarioType,
+      comparisonFromSnapshot,
       scenarios,
       userEmail: null,
       exteriorColor,
       interiorColor,
+      issuedAt: quote.createdAt ? quote.createdAt.toISOString() : undefined,
+      validUntil: quote.expiresAt ? quote.expiresAt.toISOString() : undefined,
     },
   };
 }

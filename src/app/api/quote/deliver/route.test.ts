@@ -200,6 +200,8 @@ describe("POST /api/quote/deliver", () => {
         breakdown: true,
         exteriorColorId: true,
         interiorColorId: true,
+        createdAt: true,
+        expiresAt: true,
       },
     });
     expect(mocks.render).not.toHaveBeenCalled();

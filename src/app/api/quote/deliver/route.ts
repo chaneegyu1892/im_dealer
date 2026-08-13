@@ -73,6 +73,8 @@ export async function POST(req: NextRequest) {
       breakdown: true,
       exteriorColorId: true,
       interiorColorId: true,
+      createdAt: true,
+      expiresAt: true,
     },
   });
   if (!savedQuote) {

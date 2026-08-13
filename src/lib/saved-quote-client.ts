@@ -1,0 +1,93 @@
+import { z } from "zod";
+import type { QuoteResponse } from "@/types/api";
+
+const moneySchema = z.number().finite().min(0).max(Number.MAX_SAFE_INTEGER);
+
+export const savedQuoteClientDataSchema = z.object({
+  id: z.string().min(1),
+  sessionId: z.string().min(1),
+  requiresConsultation: z.boolean(),
+  monthlyPayment: z.number().int().min(0),
+  totalCost: z.number().int().min(0),
+  pricingStatus: z.enum(["CALCULATED", "CONSULTATION_REQUIRED"]),
+  depositRate: z.number(),
+  prepayRate: z.number(),
+  depositAmount: moneySchema,
+  prepayAmount: moneySchema,
+  bestFinanceCompany: z.string(),
+});
+
+export type SavedQuoteClientData = z.infer<typeof savedQuoteClientDataSchema>;
+
+export const savedQuoteResponseSchema = z.object({
+  success: z.literal(true),
+  data: savedQuoteClientDataSchema,
+});
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function readMoney(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : fallback;
+}
+
+export function toSavedQuoteClientData(input: {
+  id: string;
+  sessionId: string;
+  monthlyPayment: number;
+  totalCost: number;
+  pricingStatus: "CALCULATED" | "CONSULTATION_REQUIRED";
+  depositRate: number;
+  prepayRate: number;
+  breakdown?: unknown;
+  bestFinanceCompany?: string;
+}): SavedQuoteClientData {
+  const breakdown = asRecord(input.breakdown);
+  const quoteBreakdown = asRecord(breakdown.quoteBreakdown);
+  const storedFinance = breakdown.bestFinanceCompany;
+  return {
+    id: input.id,
+    sessionId: input.sessionId,
+    requiresConsultation: input.pricingStatus === "CONSULTATION_REQUIRED",
+    monthlyPayment: input.monthlyPayment,
+    totalCost: input.totalCost,
+    pricingStatus: input.pricingStatus,
+    depositRate: input.depositRate,
+    prepayRate: input.prepayRate,
+    depositAmount: readMoney(quoteBreakdown.depositAmount),
+    prepayAmount: readMoney(quoteBreakdown.prepayAmount),
+    bestFinanceCompany: typeof storedFinance === "string" && storedFinance.trim()
+      ? storedFinance.trim()
+      : (input.bestFinanceCompany ?? ""),
+  };
+}
+
+/** 고객 화면의 큰 숫자는 항상 scenarios.standard 슬롯이다. 저장 확정 금액으로 덮는다. */
+export function applySavedQuoteAmountsToDisplay(
+  quote: QuoteResponse,
+  saved: SavedQuoteClientData,
+): QuoteResponse {
+  if (saved.requiresConsultation || !quote.scenarios.standard) {
+    return { ...quote, requiresConsultation: true };
+  }
+
+  return {
+    ...quote,
+    requiresConsultation: false,
+    scenarios: {
+      ...quote.scenarios,
+      standard: {
+        ...quote.scenarios.standard,
+        monthlyPayment: saved.monthlyPayment,
+        depositAmount: saved.depositAmount,
+        prepayAmount: saved.prepayAmount,
+        bestFinanceCompany: saved.bestFinanceCompany || quote.scenarios.standard.bestFinanceCompany,
+      },
+    },
+  };
+}

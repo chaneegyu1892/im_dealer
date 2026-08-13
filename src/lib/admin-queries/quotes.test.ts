@@ -60,7 +60,12 @@ describe("getAdminQuotes", () => {
     mocks.findVehicles.mockResolvedValue([
       { id: "vehicle-1", name: "테스트 차량", brand: "테스트" },
     ]);
-    mocks.findTrims.mockResolvedValue([{ id: "trim-1", name: "기본 트림" }]);
+    mocks.findTrims.mockResolvedValue([{
+      id: "trim-1",
+      name: "기본 트림",
+      price: 99_000_000,
+      discountPrice: 88_000_000,
+    }]);
     mocks.findMembers.mockResolvedValue([
       { supabaseId: "member-1", name: "카카오회원", phone: "010-1234-5678" },
     ]);
@@ -90,6 +95,59 @@ describe("getAdminQuotes", () => {
     expect(result.data[0]).toMatchObject({
       customerName: "본인확인 이름",
       phone: "010-9999-9999",
+    });
+  });
+
+  it("falls back to the current catalog price when the snapshot has no trim pricing", async () => {
+    const result = await getAdminQuotes();
+
+    expect(result.data[0]).toMatchObject({
+      trimPrice: 99_000_000,
+      discountPrice: 88_000_000,
+    });
+  });
+
+  it("shows saved trim prices instead of the current catalog price", async () => {
+    mocks.findQuotes.mockResolvedValue([
+      quote({
+        breakdown: {
+          productType: "장기렌트",
+          trimName: "저장 트림",
+          trimPrice: 50_000_000,
+          discountPrice: 45_000_000,
+          selectedOptions: [],
+        },
+      }),
+    ]);
+
+    const result = await getAdminQuotes();
+
+    expect(result.data[0]).toMatchObject({
+      trimName: "저장 트림",
+      trimPrice: 50_000_000,
+      discountPrice: 45_000_000,
+    });
+  });
+
+  it("derives a discounted trim price from the saved total for legacy quotes", async () => {
+    mocks.findQuotes.mockResolvedValue([
+      quote({
+        breakdown: {
+          productType: "장기렌트",
+          trimPrice: 50_000_000,
+          optionsTotalPrice: 1_000_000,
+          colorDelta: 0,
+          totalVehiclePrice: 46_000_000,
+          selectedOptions: [],
+        },
+      }),
+    ]);
+
+    const result = await getAdminQuotes();
+
+    expect(result.data[0]).toMatchObject({
+      trimPrice: 50_000_000,
+      discountPrice: 45_000_000,
     });
   });
 });

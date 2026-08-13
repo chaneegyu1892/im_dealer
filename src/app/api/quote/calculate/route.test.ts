@@ -171,4 +171,23 @@ describe("POST /api/quote/calculate log persistence", () => {
       }),
     ]);
   });
+
+  it("requires consultation instead of returning a 0-won quote when no rate cell matches", async () => {
+    // 시트는 있지만 요청 조건의 회수율이 전부 무효 → 엔진이 빈 배열 반환.
+    mocks.calculate.mockReturnValue([]);
+    mocks.upsertLogs.mockResolvedValue(undefined);
+
+    const response = await POST(request());
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.requiresConsultation).toBe(true);
+    expect(payload.data.scenarios).toEqual({});
+    expect(mocks.upsertLogs).toHaveBeenCalledWith([
+      expect.objectContaining({
+        resultMonthly: 0,
+        pricingStatus: "CONSULTATION_REQUIRED",
+      }),
+    ]);
+  });
 });

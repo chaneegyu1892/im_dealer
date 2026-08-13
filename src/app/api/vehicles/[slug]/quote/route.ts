@@ -286,9 +286,10 @@ export async function POST(
       prisma.rankSurchargeConfig.findMany({ orderBy: { rank: "asc" } }),
     ]);
 
-    if (rateSheets.length === 0) {
-      // 해당 트림(라인업)의 회수율 시트가 1건도 등록되지 않은 경우 → "별도 상담 필요" 분기.
-      // 자동 견적은 불가하지만 차량/트림 메타정보는 그대로 반환하여 프론트가 안내 카드를 렌더링할 수 있게 함.
+    // 자동 견적 불가 공통 분기 — 회수율 시트가 없거나, 시트는 있어도 요청 조건의
+    // 회수율이 전부 무효해 계산 결과가 비는 경우. 월납 0원을 정상 견적처럼
+    // 내려주지 않고 "별도 상담 필요"로 안내한다. 차량/트림 메타는 그대로 반환.
+    const respondConsultationRequired = async () => {
       if (input.sessionId) {
         try {
           await upsertQuoteCalcLog({
@@ -330,6 +331,11 @@ export async function POST(
           requiresConsultation: true,
         },
       });
+    };
+
+    if (rateSheets.length === 0) {
+      // 해당 트림(라인업)의 회수율 시트가 1건도 등록되지 않은 경우.
+      return respondConsultationRequired();
     }
 
     // 3) 데이터 매핑
@@ -354,6 +360,7 @@ export async function POST(
     // standard 시나리오에 실제 적용된 보증/선납 비율 — 계산 로그 기록에 사용.
     let stdDeposit = 0;
     let stdPrepay = 0;
+    let standardUnavailable = false;
     const scenarioKeys = ["conservative", "standard", "aggressive"] as const;
     const scenarios: Record<string, {
       monthlyPayment: number;
@@ -405,6 +412,7 @@ export async function POST(
 
       if (results.length === 0) {
         // 해당 조건에서 계산 불가 → 기본값
+        if (key === "standard") standardUnavailable = true;
         scenarios[key] = {
           monthlyPayment: 0,
           depositAmount: 0,
@@ -453,6 +461,11 @@ export async function POST(
           surcharges: r.surcharges,
         })),
       };
+    }
+
+    if (standardUnavailable) {
+      // 시트는 있어도 요청한 개월·주행 조건의 회수율이 전부 무효 → 월납 0원 노출 방지.
+      return respondConsultationRequired();
     }
 
     // 비회원: 보증금형(conservative)·선납형(aggressive)을 잠가 낮아진 금액을 응답에서 제거.

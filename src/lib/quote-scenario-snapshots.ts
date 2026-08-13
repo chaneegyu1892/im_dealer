@@ -108,3 +108,16 @@ export function parseScenarioSnapshots(
 
   return Object.keys(parsed).length > 0 ? parsed : null;
 }
+
+/** 비교 3열을 저장값으로 재현하려면 세 시나리오가 모두 있어야 한다.
+ * 하나라도 없으면 현재 요율 재계산값을 섞지 않는다. */
+export function hasCompleteScenarioSnapshots(
+  snapshots: ReturnType<typeof parseScenarioSnapshots>,
+): snapshots is Record<ScenarioSnapshotType, ScenarioSnapshot> {
+  return (
+    snapshots != null
+    && snapshots.conservative != null
+    && snapshots.standard != null
+    && snapshots.aggressive != null
+  );
+}

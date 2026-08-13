@@ -4,6 +4,7 @@ import { QuoteClientPageV2 } from "./QuoteClientPageV2";
 import {
   createUnlockedCalculatedQuoteResult,
   createFetchMock,
+  savedQuoteSuccessData,
   vehicles,
   writeCalculatedRestore,
   writeConsultationRestore,
@@ -244,7 +245,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       if (url === "/api/quote/save") {
         return Response.json({
           success: true,
-          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+          data: savedQuoteSuccessData({ id: "saved-quote-1", sessionId: "saved-session-1" }),
         });
       }
       if (url === "/api/quote/deliver") {
@@ -303,7 +304,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       if (url === "/api/quote/save") {
         return Response.json({
           success: true,
-          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+          data: savedQuoteSuccessData({ id: "saved-quote-1", sessionId: "saved-session-1" }),
         });
       }
       if (url === "/api/quote/deliver") {
@@ -363,7 +364,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       if (url === "/api/quote/save") {
         return Response.json({
           success: true,
-          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+          data: savedQuoteSuccessData({ id: "saved-quote-1", sessionId: "saved-session-1" }),
         });
       }
       if (url === "/api/quote/deliver") {
@@ -423,7 +424,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       if (url === "/api/quote/save") {
         return Response.json({
           success: true,
-          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+          data: savedQuoteSuccessData({ id: "saved-quote-1", sessionId: "saved-session-1" }),
         });
       }
       return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
@@ -624,7 +625,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       if (url === "/api/quote/save") {
         return Response.json({
           success: true,
-          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+          data: savedQuoteSuccessData({ id: "saved-quote-1", sessionId: "saved-session-1" }),
         });
       }
       return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
@@ -672,7 +673,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       if (url === "/api/quote/save") {
         return Response.json({
           success: true,
-          data: { id: "saved-quote-1", sessionId: "saved-session-1" },
+          data: savedQuoteSuccessData({ id: "saved-quote-1", sessionId: "saved-session-1" }),
         });
       }
       return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
@@ -840,11 +841,14 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       if (url === "/api/quote/save") {
         return Response.json({
           success: true,
-          data: {
+          data: savedQuoteSuccessData({
             id: "consultation-quote-1",
             sessionId: "consultation-session-1",
             requiresConsultation: true,
-          },
+            monthlyPayment: 0,
+            totalCost: 0,
+            pricingStatus: "CONSULTATION_REQUIRED",
+          }),
         });
       }
       return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
@@ -878,5 +882,145 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       })],
       ["showMessenger"],
     ]);
+  });
+
+  it("replaces the on-screen monthly payment with the amount persisted by save", async () => {
+    writeCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url.endsWith("/quote") && url !== "/api/quote/save") {
+        const flushed = createUnlockedCalculatedQuoteResult();
+        flushed.scenarios.standard = {
+          ...flushed.scenarios.standard!,
+          monthlyPayment: 650_000,
+          depositAmount: 4_000_000,
+        };
+        return Response.json({ success: true, data: flushed });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: savedQuoteSuccessData({
+            id: "saved-quote-1",
+            sessionId: "saved-session-1",
+            monthlyPayment: 640_000,
+          }),
+        });
+      }
+      if (url === "/api/quote/deliver") {
+        return Response.json({
+          success: true,
+          data: { deliveryId: "delivery-1" },
+        });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    const deliveryButton = await screen.findByRole("button", {
+      name: "카카오톡으로 견적서 받기",
+    });
+    expect(screen.getByText((_, node) => node?.textContent === "65만원")).toBeInTheDocument();
+    fireEvent.click(deliveryButton);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/deliver",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+    const quoteIndex = fetchMock.mock.calls.findIndex(
+      ([input]) => input.toString() === "/api/vehicles/preparing-car/quote"
+    );
+    const saveIndex = fetchMock.mock.calls.findIndex(
+      ([input]) => input.toString() === "/api/quote/save"
+    );
+    expect(quoteIndex).toBeGreaterThanOrEqual(0);
+    expect(saveIndex).toBeGreaterThan(quoteIndex);
+    expect(
+      await screen.findByText((_, node) => node?.textContent === "64만원")
+    ).toBeInTheDocument();
+  });
+
+  it("recalculates with the restored trim, options, and colors while vehicle details are still loading", async () => {
+    writeCalculatedRestore();
+    const storedRestore = window.localStorage.getItem("quote_image_restore");
+    if (!storedRestore) throw new Error("quote restore fixture is missing");
+    const restore = JSON.parse(storedRestore) as {
+      selectedOptionIds: string[];
+      exteriorColorId?: string | null;
+      interiorColorId?: string | null;
+    };
+    restore.selectedOptionIds = ["option-restored"];
+    restore.exteriorColorId = "color-ext-restored";
+    restore.interiorColorId = "color-int-restored";
+    window.localStorage.setItem("quote_image_restore", JSON.stringify(restore));
+
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        // 트림/색상 목록이 아직 로드되지 않은 상태를 유지한다.
+        return new Promise<Response>(() => {});
+      }
+      if (url.endsWith("/quote") && url !== "/api/quote/save") {
+        return Response.json({ success: true, data: createUnlockedCalculatedQuoteResult() });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: savedQuoteSuccessData({ id: "saved-quote-1", sessionId: "saved-session-1" }),
+        });
+      }
+      if (url === "/api/quote/deliver") {
+        return Response.json({
+          success: true,
+          data: { deliveryId: "delivery-1" },
+        });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(await screen.findByRole("button", { name: "카카오톡으로 견적서 받기" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/deliver",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+
+    const quoteCall = fetchMock.mock.calls.find(
+      ([input]) => input.toString() === "/api/vehicles/preparing-car/quote"
+    );
+    expect(quoteCall).toBeDefined();
+    const quoteBody = JSON.parse(String(quoteCall?.[1]?.body));
+    expect(quoteBody.trimId).toBe("trim-preparing");
+    expect(quoteBody.selectedOptionIds).toEqual(["option-restored"]);
+    expect(quoteBody.exteriorColorId).toBe("color-ext-restored");
+    expect(quoteBody.interiorColorId).toBe("color-int-restored");
+
+    const saveCall = fetchMock.mock.calls.find(
+      ([input]) => input.toString() === "/api/quote/save"
+    );
+    const saveBody = JSON.parse(String(saveCall?.[1]?.body));
+    expect(saveBody.selectedOptionIds).toEqual(["option-restored"]);
+    expect(saveBody.exteriorColorId).toBe("color-ext-restored");
+    expect(saveBody.interiorColorId).toBe("color-int-restored");
   });
 });
