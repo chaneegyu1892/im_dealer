@@ -18,7 +18,9 @@ test.describe("공개 견적 골든패스", () => {
     await page.goto("/");
 
     // Hero 섹션이 로드되었는지: 핵심 헤드라인 카피로 확인
-    await expect(page.getByText("차를 고르기 전에", { exact: false }).first()).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /진짜 견적/ }).first()
+    ).toBeVisible();
 
     // 인기 차량 카드 — /cars/<slug> 로 향하는 링크 (목록 /cars 자체는 제외)
     const carLinks = page.locator('a[href^="/cars/"]:not([href="/cars"])');
