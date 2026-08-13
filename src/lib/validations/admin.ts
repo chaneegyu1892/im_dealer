@@ -93,7 +93,6 @@ export const optionCreateSchema = z.object({
   isAccessory: z.boolean().default(false),
   description: z.string().nullable().optional(),
   displayOrder: z.number().int().default(0),
-  badgeId: z.string().nullable().optional(),
 });
 
 export const optionUpdateSchema = optionCreateSchema.partial();
@@ -115,6 +114,13 @@ export const optionBadgeUpdateSchema = z
     displayOrder: z.number().int().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "수정할 항목이 없습니다." });
+
+// ─── VehicleOptionBadge (차량 단위 옵션명 → 배지 지정) ──
+// badgeId: null 이면 해당 옵션명의 배지 해제
+export const vehicleOptionBadgeSetSchema = z.object({
+  optionName: z.string().min(1, "옵션명이 비어 있습니다").max(200),
+  badgeId: z.string().min(1).nullable(),
+});
 
 // ─── VehicleColor ───────────────────────────────────────
 const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;

@@ -4,6 +4,7 @@ import {
   filterLatestPublicTrims,
   PUBLIC_TRIM_WHERE,
 } from "@/lib/vehicle-visibility-policy";
+import { buildOptionBadgeLookup } from "@/lib/vehicle-option-badges";
 
 // GET /api/vehicles/:slug/trims
 // 차량의 전체 트림 + 옵션 목록 반환
@@ -41,7 +42,6 @@ export async function GET(
             description: true,
             isAccessory: true,
             isDefault: true,
-            badge: { select: { label: true } },
           },
         },
         lineup: {
@@ -68,6 +68,13 @@ export async function GET(
     // 운영자가 숨긴 라인업은 절대 복구하지 않고, 공개 라인업 중 최신 연식만 남긴다.
     const filteredTrims = filterLatestPublicTrims(trims);
 
+    // 배지는 차량 단위 "옵션명 → 배지" 매핑으로 해석한다(트림이 달라도 같은 이름이면 동일 배지).
+    const badgeMappings = await prisma.vehicleOptionBadge.findMany({
+      where: { vehicleId: vehicle.id },
+      select: { optionName: true, badge: { select: { label: true } } },
+    });
+    const badgeFor = buildOptionBadgeLookup(badgeMappings);
+
     return NextResponse.json({
       success: true,
       data: filteredTrims.map((t) => ({
@@ -80,9 +87,9 @@ export async function GET(
         fuelEfficiency: t.fuelEfficiency,
         isDefault: t.isDefault,
         specs: t.specs,
-        options: t.options.map(({ badge, ...o }) => ({
+        options: t.options.map((o) => ({
           ...o,
-          badge: badge?.label ?? null,
+          badge: badgeFor(o.name)?.label ?? null,
         })),
         rules: t.rules,
         lineupId: t.lineupId,

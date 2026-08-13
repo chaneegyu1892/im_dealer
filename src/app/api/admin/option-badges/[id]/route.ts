@@ -57,7 +57,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 // ─── DELETE /api/admin/option-badges/[id] ───────────────
-// 배지 삭제 시 이 배지를 단 옵션들의 badgeId 는 FK onDelete: SetNull 로 자동 해제된다.
+// 배지 삭제 시 이 배지를 쓰는 차량 옵션명 매핑(VehicleOptionBadge)은 FK onDelete: Cascade 로 함께 삭제된다.
 export async function DELETE(request: NextRequest, { params }: Params) {
   const { admin: session, error } = await requireRoleAtLeast("staff");
   if (error) return error;

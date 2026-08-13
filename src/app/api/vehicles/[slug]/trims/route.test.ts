@@ -5,20 +5,35 @@ import { GET } from "./route";
 const prismaMock = vi.hoisted(() => ({
   vehicle: { findUnique: vi.fn() },
   trim: { findMany: vi.fn() },
+  vehicleOptionBadge: { findMany: vi.fn() },
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
+
+function option(name: string) {
+  return {
+    id: `opt-${name}`,
+    name,
+    price: 500_000,
+    category: null,
+    description: null,
+    isAccessory: false,
+    isDefault: false,
+  };
+}
 
 function trim({
   id,
   lineupName,
   lineupVisible,
   products = [],
+  options = [],
 }: {
   id: string;
   lineupName: string;
   lineupVisible: boolean;
   products?: string[];
+  options?: ReturnType<typeof option>[];
 }) {
   return {
     id,
@@ -31,7 +46,7 @@ function trim({
     isDefault: false,
     isVisible: true,
     specs: null,
-    options: [],
+    options,
     rules: [],
     lineupId: `lineup-${id}`,
     lineup: {
@@ -47,6 +62,7 @@ describe("GET /api/vehicles/[slug]/trims", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     prismaMock.vehicle.findUnique.mockResolvedValue({ id: "vehicle-1", name: "테스트 차량" });
+    prismaMock.vehicleOptionBadge.findMany.mockResolvedValue([]);
   });
 
   it("preserves normal lineup visibility and exposes quote availability per trim", async () => {
@@ -100,5 +116,43 @@ describe("GET /api/vehicles/[slug]/trims", () => {
       id: "latest",
       lineup: { name: "2027년형 가솔린" },
     });
+  });
+
+  it("resolves badges by vehicle-level option name mapping across trims", async () => {
+    prismaMock.trim.findMany.mockResolvedValue([
+      trim({
+        id: "lower",
+        lineupName: "2026년형 가솔린",
+        lineupVisible: true,
+        options: [option("파노라마 선루프"), option("하이패스")],
+      }),
+      trim({
+        id: "upper",
+        lineupName: "2026년형 가솔린",
+        lineupVisible: true,
+        options: [option("파노라마 선루프")],
+      }),
+    ]);
+    prismaMock.vehicleOptionBadge.findMany.mockResolvedValue([
+      { optionName: "파노라마 선루프", badge: { label: "추천" } },
+    ]);
+
+    const response = await GET(
+      new NextRequest("https://example.com/api/vehicles/test-car/trims"),
+      { params: Promise.resolve({ slug: "test-car" }) }
+    );
+    const payload = await response.json();
+
+    // 같은 이름의 옵션은 어느 트림에 있든 동일한 배지가 노출된다
+    for (const trimData of payload.data) {
+      const target = trimData.options.find(
+        (o: { name: string }) => o.name === "파노라마 선루프"
+      );
+      expect(target.badge).toBe("추천");
+    }
+    const unbadged = payload.data[0].options.find(
+      (o: { name: string }) => o.name === "하이패스"
+    );
+    expect(unbadged.badge).toBeNull();
   });
 });

@@ -3,11 +3,12 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Reorder, useDragControls } from "framer-motion";
-import { Plus, Pencil, Trash2, Check, ChevronRight, GripVertical, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, ChevronRight, GripVertical, Tag, Tags } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdminVehicleDetail, AdminTrimOption, AdminOptionBadge } from "@/types/admin";
 import { OptionManager } from "../OptionManager";
 import { OptionBadgeManager } from "../OptionBadgeManager";
+import { VehicleOptionBadgePanel } from "../VehicleOptionBadgePanel";
 
 interface OptionTabProps {
   vehicle: AdminVehicleDetail;
@@ -67,6 +68,7 @@ export function OptionTab({ vehicle }: OptionTabProps) {
     target: AdminTrimOption | null;
   }>({ isOpen: false, trimId: "", target: null });
   const [badgeManagerOpen, setBadgeManagerOpen] = useState(false);
+  const [badgePanelOpen, setBadgePanelOpen] = useState(false);
 
   const handleDelete = async (optId: string) => {
     if (!confirm("이 옵션을 삭제하시겠습니까?")) return;
@@ -171,7 +173,13 @@ export function OptionTab({ vehicle }: OptionTabProps) {
                 onClick={() => setBadgeManagerOpen(true)}
                 className="flex items-center gap-1.5 bg-white text-[#000666] border border-[#000666]/30 px-3 py-2 rounded-[8px] text-[13px] font-medium hover:bg-[#F0F2F8]"
               >
-                <Tag size={15} /> 배지 관리
+                <Tag size={15} /> 배지 문구 관리
+              </button>
+              <button
+                onClick={() => setBadgePanelOpen(true)}
+                className="flex items-center gap-1.5 bg-white text-[#000666] border border-[#000666]/30 px-3 py-2 rounded-[8px] text-[13px] font-medium hover:bg-[#F0F2F8]"
+              >
+                <Tags size={15} /> 옵션 배지 일괄 지정
               </button>
               <button
                 onClick={() => setOptionModal({ isOpen: true, trimId: selectedTrimId, target: null })}
@@ -185,7 +193,7 @@ export function OptionTab({ vehicle }: OptionTabProps) {
           {reorderable && (
             <p className="text-[12px] text-[#9BA4C0] flex items-center gap-1 px-1">
               <GripVertical size={12} />
-              손잡이를 끌어 고객 화면 노출 순서를 바꾸세요. 추천 배지가 달린 옵션을 상단에 두면 더 잘 보입니다.
+              손잡이를 끌어 고객 화면 노출 순서를 바꾸세요. 배지는 &ldquo;옵션 배지 일괄 지정&rdquo;에서 옵션명 단위로 붙입니다.
             </p>
           )}
 
@@ -247,7 +255,6 @@ export function OptionTab({ vehicle }: OptionTabProps) {
         <OptionManager
           trimId={optionModal.trimId}
           target={optionModal.target}
-          badges={badges}
           nextDisplayOrder={items.length}
           onClose={() => setOptionModal({ isOpen: false, trimId: "", target: null })}
         />
@@ -258,6 +265,14 @@ export function OptionTab({ vehicle }: OptionTabProps) {
           badges={badges}
           onChange={loadBadges}
           onClose={() => setBadgeManagerOpen(false)}
+        />
+      )}
+
+      {badgePanelOpen && (
+        <VehicleOptionBadgePanel
+          vehicleId={vehicle.id}
+          badges={badges}
+          onClose={() => setBadgePanelOpen(false)}
         />
       )}
     </div>

@@ -38,6 +38,7 @@ function vehicleFixture() {
     lineups: [],
     trims: [],
     colors: [],
+    optionBadges: [],
     images: [
       {
         id: "image-cover",

@@ -1,5 +1,6 @@
 import type { AdminOptionRule, AdminVehicleDetail } from "@/types/admin";
 import { scraperRefsSchema } from "@/lib/validations/admin";
+import { buildOptionBadgeLookup } from "@/lib/vehicle-option-badges";
 import { prisma } from "../prisma";
 
 export async function getVehicleById(id: string): Promise<AdminVehicleDetail | null> {
@@ -12,10 +13,13 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
         include: {
           options: {
             orderBy: [{ displayOrder: "asc" }, { price: "asc" }],
-            include: { badge: { select: { id: true, label: true } } },
           },
           rules: true,
         },
+      },
+      // 차량 단위 "옵션명 → 배지" 매핑. 옵션 행에는 배지 FK가 없다.
+      optionBadges: {
+        select: { optionName: true, badge: { select: { id: true, label: true } } },
       },
       colors: {
         orderBy: [{ kind: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
@@ -28,6 +32,7 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
 
   if (!vehicle) return null;
   const scraperRefs = scraperRefsSchema.safeParse(vehicle.scraperRefs);
+  const badgeFor = buildOptionBadgeLookup(vehicle.optionBadges);
 
   return {
     id: vehicle.id,
@@ -99,8 +104,7 @@ export async function getVehicleById(id: string): Promise<AdminVehicleDetail | n
         isAccessory: option.isAccessory,
         description: option.description,
         displayOrder: option.displayOrder,
-        badgeId: option.badgeId,
-        badge: option.badge ? { id: option.badge.id, label: option.badge.label } : null,
+        badge: badgeFor(option.name),
       })),
       rules: trim.rules.map((rule) => ({
         id: rule.id,

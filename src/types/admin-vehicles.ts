@@ -141,8 +141,19 @@ export interface AdminTrimOption {
   isAccessory: boolean;
   description: string | null;
   displayOrder: number;
-  badgeId: string | null;
+  /** 차량 단위 "옵션명 → 배지" 매핑(VehicleOptionBadge)에서 이름으로 해석된 배지 */
   badge: { id: string; label: string } | null;
+}
+
+/** 어드민 옵션 배지 일괄 지정 화면의 행 — 차량 전체 옵션명 목록 + 현재 배지 */
+export interface AdminVehicleOptionBadgeRow {
+  /** 정규화된 옵션명(매핑 키) */
+  name: string;
+  category: string | null;
+  isAccessory: boolean;
+  /** 이 옵션명이 포함된 트림 수 */
+  trimCount: number;
+  badgeId: string | null;
 }
 
 export interface AdminOptionBadge {
