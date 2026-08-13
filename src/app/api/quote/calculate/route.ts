@@ -12,6 +12,7 @@ import {
 import type { FinanceQuoteResult } from "@/types/quote";
 import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
+import { lockQuoteScenario } from "@/lib/member-gate";
 import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { upsertQuoteCalcLogs } from "@/lib/quote-calc-log";
@@ -93,7 +94,8 @@ export async function POST(request: NextRequest) {
 
     // 할인가: discountPrice 있으면 회수율 계산용 차량가로 사용
     const effectiveTrimPrice = trim.discountPrice ?? trim.price;
-    const discountAmount = trim.discountPrice ? trim.price - trim.discountPrice : 0;
+    // 차량가(??)와 같은 기준으로 null 만 제외 — discountPrice=0 인 트림도 표기가 어긋나지 않게.
+    const discountAmount = trim.discountPrice != null ? trim.price - trim.discountPrice : 0;
     const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
 
     const userAgent = request.headers.get("user-agent") ?? undefined;
@@ -333,6 +335,16 @@ export async function POST(request: NextRequest) {
       Sentry.captureException(err, { tags: { route: "quote/calculate", op: "log" } });
     }
 
+    // 비회원: 보증금형(conservative)·선납형(aggressive)을 잠가 회원 전용 금액을
+    // 응답에서 제거한다 — 표시 API(/api/vehicles/[slug]/quote)와 동일한 정책.
+    const gatedScenarios = user
+      ? scenarios
+      : {
+          ...scenarios,
+          conservative: lockQuoteScenario(scenarios.conservative),
+          aggressive: lockQuoteScenario(scenarios.aggressive),
+        };
+
     return NextResponse.json({
       success: true,
       data: {
@@ -351,7 +363,7 @@ export async function POST(request: NextRequest) {
         annualMileage: input.annualMileage,
         contractType: input.contractType,
         customerType: input.customerType,
-        scenarios,
+        scenarios: gatedScenarios,
       },
     });
   } catch (error) {

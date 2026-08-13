@@ -9,7 +9,7 @@ import { z } from "zod";
 // rate=0(과소견적) 또는 rank=NaN 이 DB 에 들어가지 않도록 엄격히 검증한다.
 const policySchema = z.object({
   rank: z.number().int().min(1).max(10),
-  rate: z.number().min(0).max(10),
+  rate: z.number().gt(0).max(10),
 });
 
 export async function GET() {

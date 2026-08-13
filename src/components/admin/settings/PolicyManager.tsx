@@ -57,15 +57,17 @@ export default function PolicyManager() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[1, 2, 3].map((r) => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((r) => {
           const config = configs.find((c) => c.rank === r);
           const currentRate = config?.rate ?? 0;
 
           return (
             <div key={r} className="bg-white border border-[#E8EAF0] rounded-xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold text-[#6066EE] uppercase tracking-wider">{r}순위 가산</span>
+                <span className="text-[10px] font-bold text-[#6066EE] uppercase tracking-wider">
+                  {r === 4 ? "4순위 이상 가산" : `${r}순위 가산`}
+                </span>
                 <span className="text-[9px] bg-[#F0F1FA] text-[#9BA4C0] px-1.5 py-0.5 rounded">Rank {r}</span>
               </div>
               
@@ -76,6 +78,12 @@ export default function PolicyManager() {
                   defaultValue={currentRate}
                   onBlur={(e) => {
                     const val = parseFloat(e.target.value);
+                    // rate=0/NaN 이 저장되면 과소견적이 된다 — 서버(gt(0))와 같은 기준으로 선검증.
+                    if (!Number.isFinite(val) || val <= 0 || val > 10) {
+                      alert("가산율은 0보다 크고 10% 이하로 입력해 주세요.");
+                      e.target.value = String(currentRate);
+                      return;
+                    }
                     if (val !== currentRate) handleUpdate(r, val);
                   }}
                   className="w-full px-2 py-1.5 border border-[#E8EAF0] rounded-lg text-sm font-bold text-[#1A1A2E] focus:outline-none focus:border-[#6066EE] text-center"

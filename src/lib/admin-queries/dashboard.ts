@@ -31,7 +31,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       where: { createdAt: { gte: todayStart } },
     }),
     prisma.savedQuote.count({
-      where: { createdAt: { gte: monthStart } },
+      where: { createdAt: { gte: monthStart }, deletedAt: null },
     }),
     getCalcMemberAndApplyRates(monthStart),
   ]);
@@ -74,7 +74,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   }));
 
   const monthlyQuoteLogs = await prisma.savedQuote.findMany({
-    where: { createdAt: { gte: sixMonthsAgo } },
+    where: { createdAt: { gte: sixMonthsAgo }, deletedAt: null },
     select: { createdAt: true },
   });
   const monthlySavedQuotes = aggregateMonthly(monthlyQuoteLogs.map((q) => q.createdAt));

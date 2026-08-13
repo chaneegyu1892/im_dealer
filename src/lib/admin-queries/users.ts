@@ -218,6 +218,8 @@ export async function getAdminUsers(): Promise<{
 }> {
   const [quotes, authResult, dbMembers] = await Promise.all([
     prisma.savedQuote.findMany({
+      // 소프트 삭제된 견적이 상담 건수·진행/계약 항목에 섞이지 않게 한다.
+      where: { deletedAt: null },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -232,6 +234,7 @@ export async function getAdminUsers(): Promise<{
         convertedAt: true,
         createdAt: true,
         updatedAt: true,
+        expiresAt: true,
         internalMemo: true,
       },
     }),
@@ -413,12 +416,17 @@ export async function getAdminUsers(): Promise<{
 
     if (q.status !== "LOST") {
       const vehicleName = vehicleMap.get(q.vehicleId) ?? "알 수 없음";
-      user.activeItems.push({
-        quoteId: q.id,
-        vehicleName,
-        statusRaw: q.status,
-        statusLabel: mapQuoteStatusLabel(q.status),
-      });
+      // 만료된 미계약 견적은 '진행 항목'으로 승격하지 않는다.
+      // 계약 완료(CONVERTED) 건은 견적 유효기간과 무관하게 유지한다.
+      const isActiveItem = q.status === "CONVERTED" || q.expiresAt > new Date();
+      if (isActiveItem) {
+        user.activeItems.push({
+          quoteId: q.id,
+          vehicleName,
+          statusRaw: q.status,
+          statusLabel: mapQuoteStatusLabel(q.status),
+        });
+      }
 
       if (q.status === "CONVERTED") {
         const startDate = q.convertedAt ?? q.updatedAt ?? q.createdAt;

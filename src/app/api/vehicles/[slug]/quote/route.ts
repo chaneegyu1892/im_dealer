@@ -238,7 +238,8 @@ export async function POST(
 
     // 할인가: discountPrice 있으면 그것을 차량가 기준으로 사용
     const effectiveTrimPrice = trim.discountPrice ?? trim.price;
-    const discountAmount = trim.discountPrice ? trim.price - trim.discountPrice : 0;
+    // 차량가(??)와 같은 기준으로 null 만 제외 — discountPrice=0 인 트림도 표기가 어긋나지 않게.
+    const discountAmount = trim.discountPrice != null ? trim.price - trim.discountPrice : 0;
     const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
     const userAgent = request.headers.get("user-agent") ?? undefined;
     const calcLogBase = {

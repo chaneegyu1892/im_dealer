@@ -228,7 +228,8 @@ function ScenarioCell({ sc, hi }: { sc: QuoteScenarioDetail; hi: boolean }) {
       {noInitial && <Text style={s.cellSub}>초기비용 없음</Text>}
       <Text style={s.cellFinance}>{sc.bestFinanceCompany}</Text>
       {sc.purchaseSurcharge > 0 && (
-        <Text style={[s.cellSub, s.cellSubRed]}>인수형 +{fmt(sc.purchaseSurcharge)}</Text>
+        // 월납에 이미 포함된 금액이므로 '+N원'처럼 추가 가산으로 읽히지 않게 표기한다.
+        <Text style={[s.cellSub, s.cellSubRed]}>인수형 가산 {fmt(sc.purchaseSurcharge)} 포함</Text>
       )}
     </View>
   );

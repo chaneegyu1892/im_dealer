@@ -574,6 +574,9 @@ export default function QuoteLogicSimulator() {
                   </h3>
                   <p className="text-[11px] text-[#9BA4C0]">
                     {selectedTrim?.name} · 기준 차량가 {(trimBasePrice / 10000).toLocaleString()}만원 · 최종 고객 표출 가격 기준 정렬
+                    <span className="ml-1 text-[#C7514D]">
+                      ※ 옵션·색상가 및 인수형 12% 가산 미반영 — 실제 고객 견적과 다를 수 있음
+                    </span>
                   </p>
                 </div>
 
@@ -601,6 +604,14 @@ export default function QuoteLogicSimulator() {
                               <div className="flex items-center gap-1.5">
                                 <span className="w-5 h-5 rounded-full bg-[#1A1A2E] text-white text-[10px] flex items-center justify-center font-black shrink-0">{i + 1}</span>
                                 <span className="font-bold text-[#1A1A2E] whitespace-nowrap">{r.financeCompanyName}</span>
+                                {r.rangeExceeded && (
+                                  <span
+                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-500 whitespace-nowrap"
+                                    title="차량가가 회수율 시트 범위를 벗어나 가장자리 값으로 고정 계산됨"
+                                  >
+                                    범위 밖
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="px-3 md:px-6 py-3 bg-blue-50/10">

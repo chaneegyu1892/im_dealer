@@ -50,6 +50,13 @@ export async function PATCH(
           { status: 400 }
         );
       }
+      // 잘못된 값이 저장되면 이 금융사의 모든 고객 견적에 즉시 반영된다.
+      if (surchargeRate < 0 || surchargeRate > 10) {
+        return NextResponse.json(
+          { error: "가산율은 0~10% 범위로 입력해 주세요." },
+          { status: 400 }
+        );
+      }
       update.surchargeRate = surchargeRate;
     }
     if (typeof body?.isActive === "boolean") {
