@@ -28,31 +28,28 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.9fr)] lg:items-center lg:gap-16">
           {/* 좌측: 카피 + CTA + 검색 */}
           <div className="min-w-0">
-            <p className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-[12.5px] font-bold text-brand">
-              장기렌트 · 운용리스 견적 플랫폼
-            </p>
             <h1 className="max-w-[560px] break-keep text-[34px] font-extrabold leading-[1.15] tracking-[-0.04em] text-text-strong max-[340px]:text-[30px] md:text-[52px] md:leading-[1.1]">
-              차를 고르기 전에
+              진짜 견적,
               <br />
-              조건부터 분명하게
+              어떤 차를 알아볼까요?
             </h1>
             <p className="mt-5 max-w-[440px] break-keep text-[15px] font-medium leading-[1.7] text-text-body md:mt-6 md:text-[17px]">
-              월 납입금과 초기 비용을 먼저 확인하세요.
+              견적부터 계약까지 내가 직접 딜러가 되어보세요!
               <br />
               상담은 원할 때만 이어갑니다.
             </p>
 
-            <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+            <div className="mt-8 flex flex-row items-center gap-2.5">
               <Link
                 href="/recommend"
-                className="flex h-[56px] w-[180px] items-center justify-center gap-2 rounded-[14px] bg-brand px-3 text-[16px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99] max-[340px]:w-full md:text-[17px]"
+                className="flex h-[56px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-[14px] bg-brand px-3 text-[16px] font-bold text-white shadow-[0_4px_12px_rgba(39,54,138,0.18)] transition-all hover:bg-brand-pressed active:scale-[0.99] max-[340px]:text-[14px] sm:w-[180px] sm:flex-none md:text-[17px]"
               >
                 AI 추천 받기
                 <ArrowRight size={17} strokeWidth={2.4} />
               </Link>
               <Link
                 href="/cars"
-                className="flex h-[56px] w-[180px] items-center justify-center gap-2 rounded-[14px] bg-[#EEF1F6] px-3 text-[16px] font-bold text-text-strong ring-[1.5px] ring-brand/35 transition-all hover:bg-[#E5E9F2] hover:ring-brand/55 active:scale-[0.99] max-[340px]:w-full md:text-[17px]"
+                className="flex h-[56px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-[14px] bg-[#EEF1F6] px-3 text-[16px] font-bold text-text-strong ring-[1.5px] ring-brand/35 transition-all hover:bg-[#E5E9F2] hover:ring-brand/55 active:scale-[0.99] max-[340px]:text-[14px] sm:w-[180px] sm:flex-none md:text-[17px]"
               >
                 내 차량 견적내기
               </Link>
