@@ -39,8 +39,10 @@ export interface ColorPopularityItem {
 
 /** 견적서 받기 로그인 게이트 퍼널 (세션 단위, 30일) */
 export interface DeliveryGateFunnel {
-  /** 견적 산출 세션 수 (QuoteCalcLog 기준) */
-  calculated: number;
+  /** 회원 견적 산출 세션 수 — userId 있고 게이트를 보지 않은 세션 */
+  memberCalculated: number;
+  /** 비회원 견적 산출 세션 수 — userId 없거나 게이트를 본 세션 */
+  guestCalculated: number;
   /** 비회원이 견적서 받기를 눌러 게이트가 표시된 세션 수 */
   gateShown: number;
   /** 게이트에서 카카오 로그인을 클릭한 세션 수 */

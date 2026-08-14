@@ -15,11 +15,12 @@ describe("getDeliveryGateFunnel", () => {
     vi.clearAllMocks();
   });
 
-  it("maps the aggregated bigint counts to funnel numbers", async () => {
+  it("maps the aggregated bigint counts to member/guest funnel numbers", async () => {
     mocks.queryRaw.mockResolvedValue([
       {
-        calculated: BigInt(120),
-        gate_shown: BigInt(30),
+        member_calculated: BigInt(90),
+        guest_calculated: BigInt(30),
+        gate_shown: BigInt(18),
         login_clicked: BigInt(12),
         converted: BigInt(5),
       },
@@ -28,8 +29,9 @@ describe("getDeliveryGateFunnel", () => {
     const funnel = await getDeliveryGateFunnel(new Date("2026-07-13"));
 
     expect(funnel).toEqual({
-      calculated: 120,
-      gateShown: 30,
+      memberCalculated: 90,
+      guestCalculated: 30,
+      gateShown: 18,
       loginClicked: 12,
       converted: 5,
     });
@@ -42,7 +44,8 @@ describe("getDeliveryGateFunnel", () => {
     const funnel = await getDeliveryGateFunnel(new Date("2026-07-13"));
 
     expect(funnel).toEqual({
-      calculated: 0,
+      memberCalculated: 0,
+      guestCalculated: 0,
       gateShown: 0,
       loginClicked: 0,
       converted: 0,
