@@ -50,6 +50,11 @@ yarn-error.log*
 /scripts/scraper-worker/storage-state*.json
 /scripts/scraper-worker/credentials*.json
 
+# Biztalk relay secrets (BS ID/PW·발신프로필키)
+/scripts/biztalk-relay/.env*
+!/scripts/biztalk-relay/.env.example
+/scripts/biztalk-relay/*.log
+
 # vercel
 .vercel
 

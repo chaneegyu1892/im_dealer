@@ -1109,3 +1109,43 @@ model IssuedCoupon {
   @@index([status, issuedAt])
   @@index([referralId])
 }
+
+// 알림톡(비즈톡 BGMS) 발송 큐 겸 이력.
+// 견적서 외 용도(상담 접수·후기 요청)로도 쓰므로 QuoteDelivery 와 분리한다.
+//
+// 고정 IP 화이트리스트 때문에 발송은 Vercel 이 아니라 릴레이(scripts/biztalk-relay)가
+// 수행한다. 앱은 PENDING 행을 쌓고, 릴레이가 클레임해서 보낸 뒤 결과를 되돌려준다.
+// id(cuid) 를 그대로 비즈톡 msgIdx 로 쓰므로(25자 ≤ Text(40)) 리스 만료로 같은 행이
+// 재발송돼도 비즈톡이 중복(3012)으로 걸러낸다 → 고객에게 카톡이 두 번 가지 않는다.
+model AlimtalkMessage {
+  id           String  @id @default(cuid())
+  templateKey  String // 코드 내부 식별자 (QUOTE_DELIVERED 등)
+  templateCode String // 검수 승인된 tmpltCode
+  recipient    String // 암호화 저장 (src/lib/pii.ts encryptString)
+  message      String // 변수 치환이 끝난 최종 본문. 템플릿과 글자 단위로 일치해야 한다.
+  buttons      Json? // attach.button[] 원형
+
+  userId  String?
+  refType String? // "quote" | "consult" | "review"
+  refId   String?
+
+  status       String  @default("PENDING") // PENDING | SENDING | ACCEPTED | SENT | FAILED
+  responseCode String? // 접수 결과 (1000 = 접수 성공, 도달 아님)
+  resultCode   String? // 전송 결과 (1000 = 도달)
+  sendType     String? // K 카카오 | E 결과미수신
+  uid          String? // 비즈톡 메시지 ID
+  failReason   String?
+
+  attempts   Int     @default(0)
+  leaseToken String? // 릴레이 클레임 토큰 (ScrapeJob 과 동일 방식)
+
+  claimedAt DateTime?
+  sentAt    DateTime?
+  resultAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([refType, refId])
+}

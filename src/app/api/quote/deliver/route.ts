@@ -15,6 +15,12 @@ import { getKakaoAccessToken } from "@/lib/kakao/token";
 import { sendQuoteMemo } from "@/lib/kakao/memo";
 import { isKakaoSyncEnabled } from "@/lib/kakao/scopes";
 import { strictRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { enqueueAlimtalk } from "@/lib/alimtalk/enqueue";
+import {
+  buildQuoteDeliveredButtons,
+  buildQuoteDeliveredMessage,
+} from "@/lib/alimtalk/templates";
+import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -145,6 +151,17 @@ export async function POST(req: NextRequest) {
     }
 
     await markDeliverySent(delivery.id);
+
+    // 알림톡은 "나에게 보내기"의 대체가 아니라 보강이다. 회원이 카톡을 안 켜도
+    // 전화번호만 있으면 도달하므로 같은 링크를 한 번 더 밀어준다.
+    // 실패해도 견적서 전송 자체는 이미 성공했으므로 응답에 영향을 주지 않는다.
+    await enqueueQuoteAlimtalk({
+      user,
+      imageData,
+      linkUrl: quoteLinkUrl(appOrigin, delivery.id),
+      savedQuoteId: savedQuote.id,
+    });
+
     return NextResponse.json({ success: true, data: { deliveryId: delivery.id } });
   } catch (error) {
     if (!(error instanceof Error)) throw error;
@@ -173,6 +190,44 @@ function getConfiguredAppOrigin(): string | null {
 
 function quoteLinkUrl(appOrigin: string, deliveryId: string): string {
   return `${appOrigin}/quote/delivery/${encodeURIComponent(deliveryId)}`;
+}
+
+async function enqueueQuoteAlimtalk(params: {
+  user: { id: string; name: string; phone: string | null };
+  imageData: PDFQuoteData;
+  linkUrl: string;
+  savedQuoteId: string;
+}): Promise<void> {
+  const { user, imageData, linkUrl, savedQuoteId } = params;
+  const scenario = imageData.scenarios[imageData.scenarioType ?? "standard"];
+
+  try {
+    const result = await enqueueAlimtalk({
+      templateKey: "QUOTE_DELIVERED",
+      phone: user.phone,
+      message: buildQuoteDeliveredMessage({
+        고객명: user.name,
+        차량명: imageData.vehicleName,
+        트림명: imageData.trimName,
+        상품유형: imageData.productType,
+        계약기간: imageData.contractMonths,
+        약정거리: imageData.annualMileage,
+        월납입금: scenario.monthlyPayment,
+        금융사: scenario.bestFinanceCompany,
+        링크: linkUrl,
+      }),
+      buttons: buildQuoteDeliveredButtons(linkUrl),
+      userId: user.id,
+      refType: "quote",
+      refId: savedQuoteId,
+    });
+    if (!result.ok && result.reason !== "disabled") {
+      console.warn(`[quote/deliver] 알림톡 적재 건너뜀: ${result.reason}`);
+    }
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
+    console.error("[quote/deliver] 알림톡 적재 실패:", error);
+  }
 }
 
 async function markDeliverySent(deliveryId: string): Promise<void> {
