@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, Check, ChevronDown, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DOCK_BOTTOM_PADDING_CLASS } from "@/components/layout/dock";
 import { productTypeLabel } from "@/constants/product-type";
 import { SelectSheet, type SelectOption } from "./SelectSheet";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
@@ -543,7 +544,12 @@ function FixedCTA({
   onPrev?: () => void;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E5E8EB] bg-white/95 px-5 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+    <div
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-30 border-t border-[#E5E8EB] bg-white/95 px-5 pt-3 backdrop-blur-md md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none",
+        DOCK_BOTTOM_PADDING_CLASS,
+      )}
+    >
       <div className="mx-auto flex max-w-[680px] gap-2">
         {onPrev && (
           <button

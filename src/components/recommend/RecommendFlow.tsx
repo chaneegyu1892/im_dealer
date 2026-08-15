@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
+import { DOCK_BOTTOM_PADDING_CLASS } from "@/components/layout/dock";
+import { cn } from "@/lib/utils";
 import { StepIndicator, STEPS, type StepId } from "./StepIndicator";
 import { StepIndustry } from "./StepIndustry";
 import { StepPreference } from "./StepPreference";
 import { StepUsage } from "./StepUsage";
-import { ChevronLeft } from "lucide-react";
 import {
   INITIAL_RECOMMEND_FLOW_STATE,
   buildRecommendInput,
@@ -107,7 +109,7 @@ export function RecommendFlow() {
   return (
     <div
       ref={flowRef}
-      className="t-shell scroll-mt-[72px] pt-3 pb-[calc(168px+env(safe-area-inset-bottom,0px))] md:scroll-mt-[88px] md:pb-10"
+      className="t-shell scroll-mt-[72px] pt-3 pb-[calc(180px+env(safe-area-inset-bottom,0px))] md:scroll-mt-[88px] md:pb-10"
     >
       {/* 앱바: 뒤로가기 + 단계명 + n/N */}
       <div className="t-appbar justify-between">
@@ -180,7 +182,12 @@ export function RecommendFlow() {
       )}
 
       {/* 하단 고정 dock */}
-      <div className="dock fixed inset-x-0 bottom-0 z-20 md:static md:mt-8 md:border-0 md:bg-transparent md:px-0 md:pt-0">
+      <div
+        className={cn(
+          "dock fixed inset-x-0 bottom-0 z-20 md:static md:mt-8 md:border-0 md:bg-transparent md:px-0 md:pt-0",
+          DOCK_BOTTOM_PADDING_CLASS,
+        )}
+      >
         <div className="t-shell px-0">
           <div className="flex items-center gap-2.5">
             {step > 1 && (

@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 import { startKakaoLogin } from "@/lib/kakao/client-auth";
 import { isKakaoSyncEnabled } from "@/lib/kakao/scopes";
 import { cn } from "@/lib/utils";
+import { DOCK_BOTTOM_PADDING_CLASS } from "@/components/layout/dock";
 import { isSupabaseStorageUrl } from "@/lib/image-url";
 import { sortLineups } from "@/lib/lineup-sort";
 import { productTypeLabel } from "@/constants/product-type";
@@ -1283,7 +1284,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       className={
         step === 3
           ? "min-h-screen bg-app-bg"
-          : "min-h-screen bg-app-bg pb-[calc(148px+env(safe-area-inset-bottom,0px))] md:pb-0"
+          : "min-h-screen bg-app-bg pb-[calc(164px+env(safe-area-inset-bottom,0px))] md:pb-0"
       }
     >
       <header className="sticky top-14 z-40 border-b border-border-subtle bg-surface/95 backdrop-blur-md md:hidden">
@@ -1994,7 +1995,12 @@ function FixedCTA({
   onPrev?: () => void;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border-subtle bg-surface/95 px-5 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+    <div
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-30 border-t border-border-subtle bg-surface/95 px-5 pt-3 backdrop-blur-md md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none",
+        DOCK_BOTTOM_PADDING_CLASS,
+      )}
+    >
       <div className="mx-auto flex max-w-[680px] gap-2">
         {onPrev && (
           <button

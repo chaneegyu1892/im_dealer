@@ -408,7 +408,7 @@
   .cta-gho    { @apply bg-sec text-ink; }
 
   /* 하단 고정 CTA 도크 */
-  .dock { @apply sticky bottom-0 px-[18px] pt-[10px] pb-4 border-t border-line bg-surface; }
+  .dock { @apply sticky bottom-0 px-[18px] pt-[10px] pb-[calc(28px+env(safe-area-inset-bottom,0px))] border-t border-line bg-surface; }
 
   /* 화면 래퍼: 토스식 좁은 자간 */
   .toss-page { letter-spacing: -0.02em; -webkit-font-smoothing: antialiased; }
@@ -452,7 +452,7 @@
   .public-fixed-action {
     @apply fixed left-0 right-0 z-40 border-t bg-surface/95 px-4 pt-3 backdrop-blur-md md:hidden;
     bottom: 0;
-    padding-bottom: max(14px, env(safe-area-inset-bottom, 14px));
+    padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
     border-color: var(--public-border);
     box-shadow: var(--shadow-float);
   }
