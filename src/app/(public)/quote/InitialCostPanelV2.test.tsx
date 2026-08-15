@@ -74,6 +74,28 @@ describe("InitialCostPanelV2", () => {
     })).not.toBeInTheDocument();
   });
 
+  it("shows the 회원만 0원 sticker and a green perk treatment on the guest 없음 card", () => {
+    renderPanel();
+
+    const hasNone = screen.getByRole("button", { name: /보증금·선납금 없이 시작/ });
+    expect(screen.getByText("회원만 0원")).toBeInTheDocument();
+    expect(hasNone.className).toMatch(/bg-status-positive-soft/);
+    expect(hasNone.className).toMatch(/ring-status-positive/);
+
+    const hasInitial = screen.getByRole("button", { name: /초기 납부로 월납입 절감/ });
+    expect(hasInitial.className).toMatch(/ring-brand/);
+  });
+
+  it("hides the 회원만 0원 sticker and green perk from members", () => {
+    authMock.user = { id: "member-1" };
+    renderPanel();
+
+    expect(screen.queryByText("회원만 0원")).not.toBeInTheDocument();
+    const hasNone = screen.getByRole("button", { name: /보증금·선납금 없이 시작/ });
+    expect(hasNone.className).toMatch(/bg-surface-soft/);
+    expect(hasNone.className).not.toMatch(/bg-status-positive-soft/);
+  });
+
   it("opens the login callback and does not change rates when a guest picks 없음 or another rate", () => {
     const props = renderPanel();
 
