@@ -152,18 +152,27 @@ export function InitialCostPanelV2({
       <div className="grid grid-cols-2 gap-2.5">
         {COST_MODE_OPTIONS.map(({ mode, title, desc }) => {
           const isActive = costMode === mode;
+          // 게스트 한정: 없음 카드에 회원 혜택 스티커 + 그린 포인트. 회원은 기존 비활성 회색 유지.
+          const showGuestPerk = isGuest && mode === "none" && !isActive;
           return (
             <button
               key={mode}
               type="button"
               onClick={() => switchMode(mode)}
               className={cn(
-                "min-h-[78px] rounded-[16px] px-4 py-3.5 text-left transition-all duration-200",
+                "relative min-h-[78px] rounded-[16px] px-4 py-3.5 text-left transition-all duration-200",
                 isActive
                   ? "bg-brand-soft ring-[1.5px] ring-brand"
-                  : "bg-surface-soft ring-[1.5px] ring-transparent hover:ring-border-subtle"
+                  : showGuestPerk
+                    ? "bg-status-positive-soft ring-[1.5px] ring-status-positive/50 hover:ring-status-positive"
+                    : "bg-surface-soft ring-[1.5px] ring-transparent hover:ring-border-subtle"
               )}
             >
+              {showGuestPerk && (
+                <span className="absolute -top-2.5 right-2 rounded-full bg-status-warning px-2 py-0.5 text-[10px] font-extrabold leading-tight text-surface shadow-card after:absolute after:-bottom-[3px] after:right-3 after:h-1.5 after:w-1.5 after:rotate-45 after:bg-status-warning after:content-['']">
+                  회원만 0원
+                </span>
+              )}
               <span className="block text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted">
                 초기비용
               </span>
