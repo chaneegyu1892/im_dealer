@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SUPPORT_PHONE_DISPLAY, SUPPORT_PHONE_TEL_HREF } from "@/lib/contact";
+import { cn } from "@/lib/utils";
+import { FOOTER_ABOVE_DOCK_PADDING_CLASS } from "./dock";
 
 const PRIMARY_LINKS = [
   { href: "/recommend", label: "AI 추천" },
@@ -36,7 +38,12 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="home-showroom-scope border-t border-border-subtle bg-surface pb-[calc(96px+env(safe-area-inset-bottom,0px))] text-text-body lg:pb-0">
+    <footer
+      className={cn(
+        "home-showroom-scope border-t border-border-subtle bg-surface text-text-body lg:pb-0",
+        FOOTER_ABOVE_DOCK_PADDING_CLASS,
+      )}
+    >
       <div className="mx-auto w-full max-w-[1120px] px-5 py-6 sm:px-6 lg:px-8 lg:py-10">
         <div className="grid gap-7 lg:grid-cols-[1.12fr_0.88fr_0.88fr] lg:items-start">
           <div>

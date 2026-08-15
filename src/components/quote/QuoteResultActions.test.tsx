@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DOCK_BOTTOM_PADDING_CLASS } from "@/components/layout/dock";
 import { QuoteResultActions } from "./QuoteResultActions";
 
 const props = {
@@ -86,9 +87,7 @@ describe("QuoteResultActions", () => {
       expect(bar.className).toMatch(/\bfixed\b/);
       expect(bar.className).toMatch(/\bbottom-0\b/);
       expect(bar.className).toMatch(/\bpx-5\b/);
-      expect(bar.className).toMatch(
-        /pb-\[max\(28px,calc\(env\(safe-area-inset-bottom,0px\)\+16px\)\)\]/,
-      );
+      expect(bar.className.split(/\s+/)).toContain(DOCK_BOTTOM_PADDING_CLASS);
       expect(bar.className).not.toMatch(/\bborder-t\b/);
       expect(bar.className).not.toMatch(/bg-surface/);
       expect(bar.className).not.toMatch(/backdrop-blur/);

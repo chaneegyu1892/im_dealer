@@ -1,6 +1,11 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BottomNav } from "./BottomNav";
+import {
+  DOCK_BOTTOM_GAP,
+  DOCK_BOTTOM_PADDING_CLASS,
+  STACK_OFFSET_EXPANDED,
+} from "./dock";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/",
@@ -91,14 +96,13 @@ describe("BottomNav scroll collapse", () => {
 
   it("초기에는 펼쳐진 메뉴를 보여준다", () => {
     render(<BottomNav />);
-    expect(screen.getByRole("navigation", { name: "하단 메뉴" })).toHaveAttribute(
-      "data-collapsed",
-      "false",
-    );
+    const nav = screen.getByRole("navigation", { name: "하단 메뉴" });
+    expect(nav).toHaveAttribute("data-collapsed", "false");
+    expect(nav.firstElementChild?.className.split(/\s+/)).toContain(DOCK_BOTTOM_PADDING_CLASS);
     expect(screen.getByLabelText("홈")).toBeInTheDocument();
     expect(screen.getByLabelText("차량 탐색")).toBeInTheDocument();
     expect(document.documentElement.style.getPropertyValue("--bottom-nav-stack-offset")).toBe(
-      "88px",
+      STACK_OFFSET_EXPANDED,
     );
   });
 
@@ -117,7 +121,7 @@ describe("BottomNav scroll collapse", () => {
     expect(screen.getByRole("button", { name: "메뉴 열기" })).toBeInTheDocument();
     expect(screen.queryByLabelText("홈")).not.toBeInTheDocument();
     expect(document.documentElement.style.getPropertyValue("--bottom-nav-stack-offset")).toBe(
-      "16px",
+      DOCK_BOTTOM_GAP,
     );
   });
 
@@ -183,7 +187,7 @@ describe("BottomNav scroll collapse", () => {
     );
     expect(screen.getByLabelText("홈")).toBeInTheDocument();
     expect(document.documentElement.style.getPropertyValue("--bottom-nav-stack-offset")).toBe(
-      "88px",
+      STACK_OFFSET_EXPANDED,
     );
   });
 

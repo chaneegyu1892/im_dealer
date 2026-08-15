@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Calculator, Check, ChevronRight } from "lucide-react";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
+import { STACK_OFFSET_EXPANDED } from "@/components/layout/dock";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { hasRepresentativeQuote, type RepresentativeQuote } from "@/lib/representative-quote";
 import { readRememberedCarsBrowseUrl } from "@/lib/cars-browse-state";
@@ -148,7 +149,7 @@ function MobileStickyQuoteBar({
           style={{
             // 축소: 중앙 FAB과 같은 바닥선 / 펼침: 메뉴바 위로 상승
             bottom:
-              "calc(var(--bottom-nav-stack-offset, 88px) + env(safe-area-inset-bottom, 0px))",
+              `calc(var(--bottom-nav-stack-offset, ${STACK_OFFSET_EXPANDED}) + env(safe-area-inset-bottom, 0px))`,
           }}
           initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

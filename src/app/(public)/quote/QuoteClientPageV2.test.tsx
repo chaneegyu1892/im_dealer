@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DOCK_BOTTOM_PADDING_CLASS } from "@/components/layout/dock";
 import { QuoteClientPageV2 } from "./QuoteClientPageV2";
 import {
   createUnlockedCalculatedQuoteResult,
@@ -220,9 +221,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(deliveryBar.className).toMatch(/\bfixed\b/);
     expect(deliveryBar.className).toMatch(/\bbottom-0\b/);
     expect(deliveryBar.className).toMatch(/\bpx-5\b/);
-    expect(deliveryBar.className).toMatch(
-      /pb-\[max\(28px,calc\(env\(safe-area-inset-bottom,0px\)\+16px\)\)\]/,
-    );
+    expect(deliveryBar.className.split(/\s+/)).toContain(DOCK_BOTTOM_PADDING_CLASS);
     expect(deliveryBar.className).not.toMatch(/\bborder-t\b/);
     expect(deliveryBar.className).not.toMatch(/bg-surface/);
     expect(deliveryBar.className).not.toMatch(/backdrop-blur/);

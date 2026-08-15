@@ -7,6 +7,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { openChannelTalk } from "@/lib/channel-talk";
 import { cn } from "@/lib/utils";
 import { CarFront, ClipboardCheck, Home, Menu, MessageCircle, type LucideIcon } from "lucide-react";
+import {
+  DOCK_BOTTOM_PADDING_CLASS,
+  STACK_OFFSET_COLLAPSED,
+  STACK_OFFSET_EXPANDED,
+} from "./dock";
 
 interface NavItem {
   href?: string;
@@ -30,12 +35,6 @@ const NAV_ITEMS: NavItem[] = [
  *
  * 메뉴바 자체는 화면 바닥에서 DOCK_BOTTOM_GAP 만큼 띄운다.
  */
-/** 화면 바닥 ↔ 메뉴바/FAB 간격 (safe-area 별도) */
-const DOCK_BOTTOM_GAP = "16px";
-/** 메뉴바(64) + 바닥 여백(16) + CTA 간격(8) */
-const STACK_OFFSET_EXPANDED = "88px";
-/** FAB과 동일 바닥선 */
-const STACK_OFFSET_COLLAPSED = DOCK_BOTTOM_GAP;
 const CSS_VAR_STACK_OFFSET = "--bottom-nav-stack-offset";
 const CSS_VAR_NAV_COLLAPSED = "--bottom-nav-collapsed";
 
@@ -198,7 +197,7 @@ export function BottomNav() {
       aria-label="하단 메뉴"
       data-collapsed={collapsed ? "true" : "false"}
     >
-      <div className="relative pb-[calc(16px+env(safe-area-inset-bottom,0px))]">
+      <div className={cn("relative", DOCK_BOTTOM_PADDING_CLASS)}>
         <AnimatePresence initial={false} mode="popLayout">
           {!collapsed ? (
             <motion.div

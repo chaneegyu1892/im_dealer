@@ -9,12 +9,14 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
+import { DOCK_BOTTOM_PADDING_CLASS } from "@/components/layout/dock";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
 import { openChannelTalk } from "@/lib/channel-talk";
 import {
   SUPPORT_PHONE_DISPLAY,
   SUPPORT_PHONE_TEL_HREF,
 } from "@/lib/contact";
+import { cn } from "@/lib/utils";
 
 interface QuoteResultDeliveryProps {
   readonly kakaoDeliveryEnabled: boolean;
@@ -63,7 +65,10 @@ export function QuoteResultDeliveryBar({
     <div
       role="region"
       aria-label="견적서 받기"
-      className="fixed inset-x-0 bottom-0 z-30 bg-transparent px-5 pb-[max(28px,calc(env(safe-area-inset-bottom,0px)+16px))] pt-3"
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-30 bg-transparent px-5 pt-3",
+        DOCK_BOTTOM_PADDING_CLASS,
+      )}
     >
       <div className="mx-auto flex max-w-[680px] flex-col gap-3">
         {/* 채널톡 경로는 고객이 대화창에 붙여넣고 보내야 비로소 상담사에게 닿는다.
