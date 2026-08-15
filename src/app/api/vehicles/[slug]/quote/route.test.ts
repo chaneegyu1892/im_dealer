@@ -220,4 +220,118 @@ describe("POST /api/vehicles/[slug]/quote", () => {
     await expect(response.json()).resolves.toEqual({ error: "트림을 선택해 주세요." });
     expect(prismaMock.rankSurchargeConfig.findMany).not.toHaveBeenCalled();
   });
+
+  function mockPricedVehicle() {
+    prismaMock.vehicle.findUnique.mockResolvedValue({
+      id: "vehicle-1",
+      name: "테스트 차량",
+      brand: "테스트",
+      slug: "preparing-car",
+      basePrice: 40_000_000,
+      surchargeRate: 0,
+      isVisible: true,
+      trims: [{
+        id: "trim-1",
+        name: "기본 트림",
+        isDefault: true,
+        price: 40_000_000,
+        discountPrice: null,
+        options: [],
+        rules: [],
+      }],
+      colors: [],
+    });
+    prismaMock.capitalRateSheet.findMany.mockResolvedValue([{
+      financeCompanyId: "finance-1",
+      minVehiclePrice: 30_000_000,
+      maxVehiclePrice: 50_000_000,
+      minRateMatrix: {},
+      maxRateMatrix: {},
+      depositDiscountRate: -0.000523,
+      prepayAdjustRate: 0.000073,
+      financeCompany: { name: "테스트캐피탈", surchargeRate: 0 },
+    }]);
+    prismaMock.rankSurchargeConfig.findMany.mockResolvedValue([]);
+    calculateMock.mockImplementation((input: { depositRate: number; prepayRate: number }) => [{
+      financeCompanyName: "테스트캐피탈",
+      rank: 1,
+      monthlyPayment:
+        input.prepayRate === 30 ? 530_000 : input.depositRate > 0 ? 610_000 : 700_000,
+      baseMonthly: 700_000,
+      breakdown: {
+        depositAmount: input.depositRate > 0 ? 8_000_000 : 0,
+        prepayAmount: input.prepayRate > 0 ? 12_000_000 : 0,
+      },
+      surcharges: {},
+      rangeExceeded: false,
+    }]);
+  }
+
+  it("leaves aggressive amounts public and locks no-deposit/deposit scenarios for guests", async () => {
+    mockPricedVehicle();
+
+    const response = await POST(
+      quoteRequest({ trimId: "trim-1" }),
+      { params: Promise.resolve({ slug: "preparing-car" }) }
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.data.scenarios.aggressive).toMatchObject({
+      monthlyPayment: 530_000,
+      prepayAmount: 12_000_000,
+    });
+    expect(payload.data.scenarios.aggressive.locked).not.toBe(true);
+    expect(payload.data.scenarios.standard).toMatchObject({
+      monthlyPayment: 0,
+      locked: true,
+    });
+    expect(payload.data.scenarios.conservative).toMatchObject({
+      monthlyPayment: 0,
+      locked: true,
+    });
+  });
+
+  it("returns custom 0/30 amounts to guests and locks any other custom rate", async () => {
+    mockPricedVehicle();
+
+    const publicCustom = await POST(
+      quoteRequest({ trimId: "trim-1", customDepositRate: 0, customPrepayRate: 30 }),
+      { params: Promise.resolve({ slug: "preparing-car" }) }
+    );
+    const publicPayload = await publicCustom.json();
+    expect(publicPayload.data.scenarios.standard).toMatchObject({
+      monthlyPayment: 530_000,
+      prepayAmount: 12_000_000,
+    });
+    expect(publicPayload.data.scenarios.standard.locked).not.toBe(true);
+
+    const lockedCustom = await POST(
+      quoteRequest({ trimId: "trim-1", customDepositRate: 10, customPrepayRate: 0 }),
+      { params: Promise.resolve({ slug: "preparing-car" }) }
+    );
+    const lockedPayload = await lockedCustom.json();
+    expect(lockedPayload.data.scenarios.standard).toMatchObject({
+      monthlyPayment: 0,
+      locked: true,
+    });
+  });
+
+  it("lets members apply custom deposit rates", async () => {
+    mockPricedVehicle();
+    getActiveUserMock.mockResolvedValue({ id: "member-1", supabaseId: "sb-1" });
+
+    const response = await POST(
+      quoteRequest({ trimId: "trim-1", customDepositRate: 10, customPrepayRate: 0 }),
+      { params: Promise.resolve({ slug: "preparing-car" }) }
+    );
+    const payload = await response.json();
+
+    expect(payload.data.scenarios.standard).toMatchObject({
+      monthlyPayment: 610_000,
+      depositAmount: 8_000_000,
+    });
+    expect(payload.data.scenarios.standard.locked).not.toBe(true);
+    expect(payload.data.scenarios.aggressive.monthlyPayment).toBe(530_000);
+  });
 });

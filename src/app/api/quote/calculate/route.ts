@@ -9,10 +9,10 @@ import {
   type RateConfigData,
   type CalcInput,
 } from "@/lib/quote-calculator";
-import type { FinanceQuoteResult } from "@/types/quote";
+import type { FinanceQuoteResult, QuoteScenarioDetails } from "@/types/quote";
 import type { RateSheetRaw } from "@/types/admin";
 import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
-import { lockQuoteScenario } from "@/lib/member-gate";
+import { gateQuoteScenariosForGuest } from "@/lib/member-gate";
 import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { upsertQuoteCalcLogs } from "@/lib/quote-calc-log";
@@ -335,15 +335,11 @@ export async function POST(request: NextRequest) {
       Sentry.captureException(err, { tags: { route: "quote/calculate", op: "log" } });
     }
 
-    // 비회원: 보증금형(conservative)·선납형(aggressive)을 잠가 회원 전용 금액을
-    // 응답에서 제거한다 — 표시 API(/api/vehicles/[slug]/quote)와 동일한 정책.
+    // 비회원: 선납 30%(aggressive)만 금액을 남기고 무보증·보증금은 잠근다.
+    // 표시 API(/api/vehicles/[slug]/quote)와 동일한 정책. 기간·거리는 요청값 그대로.
     const gatedScenarios = user
       ? scenarios
-      : {
-          ...scenarios,
-          conservative: lockQuoteScenario(scenarios.conservative),
-          aggressive: lockQuoteScenario(scenarios.aggressive),
-        };
+      : gateQuoteScenariosForGuest(scenarios as unknown as QuoteScenarioDetails);
 
     return NextResponse.json({
       success: true,

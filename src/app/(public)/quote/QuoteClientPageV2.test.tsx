@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuoteClientPageV2 } from "./QuoteClientPageV2";
 import {
@@ -8,6 +8,7 @@ import {
   vehicles,
   writeCalculatedRestore,
   writeConsultationRestore,
+  writeFirstEntryRestore,
   writeLockedCalculatedRestore,
 } from "./QuoteClientPageV2.test-fixtures";
 
@@ -745,8 +746,9 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
     fireEvent.click(await screen.findByRole("button", {
-      name: "월 납입금을 낮추고 싶으시다면 로그인 해주세요",
+      name: /보증금·선납금 없이 시작/,
     }));
+    fireEvent.click(await screen.findByRole("button", { name: "카카오 로그인" }));
 
     expect(navigationMock.router.push).toHaveBeenCalledWith(
       expect.stringContaining("source%3DAI")
@@ -1022,5 +1024,109 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(saveBody.selectedOptionIds).toEqual(["option-restored"]);
     expect(saveBody.exteriorColorId).toBe("color-ext-restored");
     expect(saveBody.interiorColorId).toBe("color-int-restored");
+  });
+});
+
+describe("QuoteClientPageV2 result first screen", () => {
+  it("shows the prepay 30% amount with the 있음 toggle selected on first entry", async () => {
+    writeFirstEntryRestore();
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    expect(await screen.findByText((_, node) => node?.textContent === "53만원")).toBeInTheDocument();
+    expect(screen.queryByText((_, node) => node?.textContent === "70만원")).not.toBeInTheDocument();
+
+    const hasInitial = screen.getByRole("button", { name: /초기 납부로 월납입 절감/ });
+    const hasNone = screen.getByRole("button", { name: /보증금·선납금 없이 시작/ });
+    expect(hasInitial.compareDocumentPosition(hasNone) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(hasInitial.className).toMatch(/ring-brand/);
+    expect(screen.getAllByRole("button", { name: "30%" }).length).toBeGreaterThan(0);
+  });
+
+  it("opens the login modal and keeps the amount when a guest clicks 없음 or another rate", async () => {
+    writeFirstEntryRestore();
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    await screen.findByText((_, node) => node?.textContent === "53만원");
+
+    fireEvent.click(screen.getByRole("button", { name: /보증금·선납금 없이 시작/ }));
+    expect(await screen.findByRole("dialog", { name: "로그인이 필요해요" })).toBeInTheDocument();
+    expect(screen.getByText(/선납금과 초기비용 조건을 확인하려면/)).toBeInTheDocument();
+    expect(screen.getByText((_, node) => node?.textContent === "53만원")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "20%" })[0]!);
+    expect(await screen.findByRole("dialog", { name: "로그인이 필요해요" })).toBeInTheDocument();
+    expect(screen.getByText((_, node) => node?.textContent === "53만원")).toBeInTheDocument();
+  });
+
+  it("lets a member switch to no-deposit after the first prepay-30 screen", async () => {
+    writeFirstEntryRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    await screen.findByText((_, node) => node?.textContent === "53만원");
+    await waitFor(() => expect(supabaseMock.getUser).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /보증금·선납금 없이 시작/ }));
+    expect(screen.queryByRole("dialog", { name: "로그인이 필요해요" })).not.toBeInTheDocument();
+    expect(await screen.findByText((_, node) => node?.textContent === "70만원")).toBeInTheDocument();
+  });
+
+  it("defaults a fresh calculate result to prepay 30% and initial cost mode", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&trim=trim-preparing"
+    );
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url.endsWith("/trims")) {
+        return Response.json({
+          success: true,
+          data: [
+            {
+              id: "trim-preparing",
+              name: "프리미엄",
+              price: 40_000_000,
+              discountPrice: null,
+              evSubsidy: null,
+              engineType: "GASOLINE",
+              fuelEfficiency: 10,
+              isDefault: true,
+              specs: null,
+              options: [],
+              rules: [],
+              lineupId: null,
+              lineup: null,
+              availableProducts: ["장기렌트"],
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/quote")) {
+        return Response.json({ success: true, data: createUnlockedCalculatedQuoteResult() });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(await screen.findByRole("button", { name: "월 납입금 확인하기" }));
+
+    expect(await screen.findByText((_, node) => node?.textContent === "53만원")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /초기 납부로 월납입 절감/ }).className).toMatch(/ring-brand/);
+    expect(screen.getAllByRole("button", { name: "30%" }).length).toBeGreaterThan(0);
   });
 });

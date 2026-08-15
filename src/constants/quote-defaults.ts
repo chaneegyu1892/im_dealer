@@ -18,6 +18,10 @@ export const SCENARIO_CONDITIONS = {
   aggressive: { depositRate: 0, prepayRate: 30 },
 } as const;
 
+/** 견적 결과(step 3) 첫 화면·비회원 공개 초기비용.
+ * 홈/카드 대표가(PUBLIC_CARD_QUOTE_CONDITION, 무보증)와는 분리한다. */
+export const PUBLIC_RESULT_INITIAL_COST = SCENARIO_CONDITIONS.aggressive;
+
 /** 고객용 차량 카드·추천 결과에서 공통으로 사용하는 대표 견적 조건. */
 export const PUBLIC_CARD_QUOTE_CONDITION = {
   contractMonths: 60,

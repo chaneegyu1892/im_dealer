@@ -85,6 +85,29 @@ describe("applySavedQuoteAmountsToDisplay", () => {
     expect(next.requiresConsultation).toBe(false);
   });
 
+  it("also patches aggressive when the persisted rates are the public prepay 30%", () => {
+    const next = applySavedQuoteAmountsToDisplay(displayedQuote, {
+      id: "quote-1",
+      sessionId: "session-1",
+      requiresConsultation: false,
+      monthlyPayment: 520_000,
+      totalCost: 31_200_000,
+      pricingStatus: "CALCULATED",
+      depositRate: 0,
+      prepayRate: 30,
+      depositAmount: 0,
+      prepayAmount: 12_000_000,
+      bestFinanceCompany: "저장캐피탈",
+    });
+
+    expect(next.scenarios.standard.monthlyPayment).toBe(520_000);
+    expect(next.scenarios.aggressive).toMatchObject({
+      monthlyPayment: 520_000,
+      prepayAmount: 12_000_000,
+      bestFinanceCompany: "저장캐피탈",
+    });
+  });
+
   it("marks the displayed quote as consultation-only when save could not calculate", () => {
     const next = applySavedQuoteAmountsToDisplay(displayedQuote, {
       id: "quote-1",

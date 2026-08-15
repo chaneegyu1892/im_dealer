@@ -192,19 +192,21 @@ export async function POST(request: NextRequest) {
     // 할인가: discountPrice 있으면 그것을 차량가 기준으로 사용
     const effectiveTrimPrice = trim.discountPrice ?? trim.price;
     const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
-    // 커스텀 보증/선납 요율과 보증금/선납 시나리오는 회원 전용 혜택 —
-    // 표시 API(/api/vehicles/[slug]/quote)와 동일하게 비회원 입력은 무보증 기준으로 강제한다.
+    // 커스텀 보증/선납 요율은 회원 전용. 비회원 저장은 타입을 standard 로 고정하되
+    // 실제 비율은 공개 조건(선납 30%)을 담는다 — 표시 API와 같은 게스트 정책.
     const isMember = !!user;
     const effectiveScenarioType = isMember ? input.scenarioType : "standard";
     const hasCustomRates =
       isMember &&
       (input.customDepositRate !== undefined || input.customPrepayRate !== undefined);
-    const condition = hasCustomRates
-      ? {
-          depositRate: input.customDepositRate ?? 0,
-          prepayRate: input.customPrepayRate ?? 0,
-        }
-      : SCENARIO_CONDITIONS[effectiveScenarioType];
+    const condition = isMember
+      ? hasCustomRates
+        ? {
+            depositRate: input.customDepositRate ?? 0,
+            prepayRate: input.customPrepayRate ?? 0,
+          }
+        : SCENARIO_CONDITIONS[effectiveScenarioType]
+      : SCENARIO_CONDITIONS.aggressive;
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
 
     const contact = resolveQuoteContact({

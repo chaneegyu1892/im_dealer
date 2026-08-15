@@ -63,7 +63,11 @@ export function createUnlockedCalculatedQuoteResult(): QuoteResponse {
   };
 }
 
-function writeRestore(requiresConsultation: boolean, locked = false): void {
+function writeRestore(
+  requiresConsultation: boolean,
+  locked = false,
+  firstEntry = false,
+): void {
   const unlockedResult = createUnlockedCalculatedQuoteResult();
   window.localStorage.setItem(
     "quote_image_restore",
@@ -79,10 +83,12 @@ function writeRestore(requiresConsultation: boolean, locked = false): void {
         annualMileage: 20000,
         contractType: "반납형",
       },
-      customRates: {
-        depositRate: requiresConsultation || locked ? 0 : 10,
-        prepayRate: 0,
-      },
+      customRates: firstEntry
+        ? { depositRate: 0, prepayRate: 30 }
+        : {
+            depositRate: requiresConsultation || locked ? 0 : 10,
+            prepayRate: 0,
+          },
       costMode: requiresConsultation ? "none" : "initial",
       baseStandard: requiresConsultation ? null : quoteScenario(700_000, 0, 0),
       quoteResult: {
@@ -105,17 +111,23 @@ function writeRestore(requiresConsultation: boolean, locked = false): void {
                   ...quoteScenario(0, 0, 0),
                   locked: true,
                 },
-                standard: unlockedResult.scenarios.standard,
-                aggressive: {
+                standard: {
                   ...quoteScenario(0, 0, 0),
                   locked: true,
                 },
+                aggressive: unlockedResult.scenarios.aggressive,
               }
-            : {
-                conservative: quoteScenario(610_000, 8_000_000, 0),
-                standard: quoteScenario(650_000, 4_000_000, 0),
-                aggressive: quoteScenario(530_000, 0, 12_000_000),
-              },
+            : firstEntry
+              ? {
+                  conservative: quoteScenario(610_000, 8_000_000, 0),
+                  standard: quoteScenario(700_000, 0, 0),
+                  aggressive: quoteScenario(530_000, 0, 12_000_000),
+                }
+              : {
+                  conservative: quoteScenario(610_000, 8_000_000, 0),
+                  standard: quoteScenario(650_000, 4_000_000, 0),
+                  aggressive: quoteScenario(530_000, 0, 12_000_000),
+                },
         requiresConsultation,
       },
     })
@@ -132,6 +144,10 @@ export function writeCalculatedRestore(): void {
 
 export function writeLockedCalculatedRestore(): void {
   writeRestore(false, true);
+}
+
+export function writeFirstEntryRestore(): void {
+  writeRestore(false, false, true);
 }
 
 export function savedQuoteSuccessData(overrides: Record<string, unknown> = {}) {

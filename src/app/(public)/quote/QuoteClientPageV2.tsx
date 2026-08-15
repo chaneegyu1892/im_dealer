@@ -49,7 +49,12 @@ import {
 } from "@/constants/customer-types";
 import type { VehicleListItem, QuoteResponse } from "@/types/api";
 import type { QuoteScenarioDetail } from "@/types/quote";
-import { deriveQuoteScenarioType } from "@/lib/quote-scenario-selection";
+import {
+  DEFAULT_RESULT_COST_MODE,
+  DEFAULT_RESULT_CUSTOM_RATES,
+  deriveQuoteScenarioType,
+  resolveQuoteResultScenario,
+} from "@/lib/quote-scenario-selection";
 import { successfulCalculatedQuoteResponseSchema } from "@/lib/quote-response-schema";
 import {
   applySavedQuoteAmountsToDisplay,
@@ -259,9 +264,12 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [isConsultationSubmitting, setIsConsultationSubmitting] = useState(false);
   const [consultationError, setConsultationError] = useState<string | null>(null);
 
-  // ─── 보증금/선납/CTA 상태 (v1 계약 그대로) ─────────────
-  const [customRates, setCustomRates] = useState({ depositRate: 0, prepayRate: 0 });
-  const [costMode, setCostMode] = useState<CostMode>("none");
+  // ─── 보증금/선납/CTA 상태 — 결과 첫 화면은 선납 30% / 있음 ──
+  const [customRates, setCustomRates] = useState({
+    depositRate: DEFAULT_RESULT_CUSTOM_RATES.depositRate,
+    prepayRate: DEFAULT_RESULT_CUSTOM_RATES.prepayRate,
+  });
+  const [costMode, setCostMode] = useState<CostMode>(DEFAULT_RESULT_COST_MODE);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [isDelivering, setIsDelivering] = useState(false);
@@ -274,8 +282,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [deliveryConfirmedBySender, setDeliveryConfirmedBySender] = useState(false);
   const [deliveryTrackContext, setDeliveryTrackContext] =
     useState<ChannelTalkQuoteContext | null>(null);
-  // 견적서 받기 로그인 게이트 — 비회원이 눌렀을 때 노출한다.
-  const [deliveryLoginGateOpen, setDeliveryLoginGateOpen] = useState(false);
+  // 로그인 게이트 — 견적서 수령 / 초기비용 변경. 비회원이 눌렀을 때 노출한다.
+  const [loginGate, setLoginGate] = useState<"delivery" | "initialCost" | null>(null);
   // 카카오톡 '나에게 보내기' 자동발송은 카카오싱크 + 명시적 자동발송 플래그가 모두 켜졌을 때만.
   // (KAKAO_SYNC 는 간편가입 로그인용이라, 자동발송과는 분리한다.)
   const kakaoDeliveryEnabled =
@@ -409,7 +417,12 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         annualMileage: restored.conditions.annualMileage,
       });
       setCustomRates(restored.customRates);
-      setCostMode(restored.costMode ?? "none");
+      setCostMode(
+        restored.costMode ??
+          (restored.customRates.prepayRate > 0 || restored.customRates.depositRate > 0
+            ? DEFAULT_RESULT_COST_MODE
+            : "none")
+      );
       lastQuotedSlug.current = restored.vehicleSlug;
       setQuoteResult(restored.quoteResult);
       setStep(3);
@@ -543,15 +556,15 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       recalculateRequestId.current += 1;
       baseStandardScenario.current = nextResult.scenarios.standard ?? null;
 
-      // 같은 차량 재계산이면 초기비용 설정 유지, 다른 차량이면 초기화 (v1 계약)
-      const preserveRates =
-        lastQuotedSlug.current === selectedVehicle.slug &&
-        (customRates.depositRate !== 0 || customRates.prepayRate !== 0);
-      if (preserveRates) {
+      // 같은 차량 재계산이면 초기비용 설정 유지, 다른 차량·첫 계산이면 선납 30% 기본
+      if (lastQuotedSlug.current === selectedVehicle.slug) {
         pendingRatesReapply.current = true;
       } else {
-        setCustomRates({ depositRate: 0, prepayRate: 0 });
-        setCostMode("none");
+        setCustomRates({
+          depositRate: DEFAULT_RESULT_CUSTOM_RATES.depositRate,
+          prepayRate: DEFAULT_RESULT_CUSTOM_RATES.prepayRate,
+        });
+        setCostMode(DEFAULT_RESULT_COST_MODE);
       }
       lastQuotedSlug.current = selectedVehicle.slug;
       setQuoteResult(nextResult);
@@ -930,7 +943,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     if (!(await hasActiveSession())) {
       setDeliveryError(null);
       setDeliverSuccess(false);
-      setDeliveryLoginGateOpen(true);
+      setLoginGate("delivery");
       // 게이트 정책 재검토용 퍼널: 견적 세션 ID 로 기록해 QuoteCalcLog 와 조인 가능하게 한다.
       if (!deliveryGateShownTracked.current) {
         deliveryGateShownTracked.current = true;
@@ -1017,7 +1030,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       restoreRef.current = state;
       saveQuoteImageRestore(state);
     }
-    setDeliveryLoginGateOpen(false);
+    setLoginGate(null);
     const params = new URLSearchParams(window.location.search);
     params.set("restore", "1");
     params.set(DELIVERY_RESUME_PARAM, "1");
@@ -1412,7 +1425,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               onCustomRatesChange={setCustomRates}
               onCostModeChange={setCostMode}
               onReset={restoreBaseStandardScenario}
-              onMemberLogin={handleGateLogin}
+              onMemberLogin={() => setLoginGate("initialCost")}
+              onComparisonLogin={handleGateLogin}
               onConsultationRequest={handleConsultationRequest}
               onPrev={() => {
                 setQuoteResult(null);
@@ -1436,15 +1450,29 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       </main>
 
       <LoginRequiredModal
-        open={deliveryLoginGateOpen}
-        onClose={() => setDeliveryLoginGateOpen(false)}
-        onKakaoLogin={() => void handleDeliveryLoginGateConfirm()}
+        open={loginGate !== null}
+        onClose={() => setLoginGate(null)}
+        onKakaoLogin={() => {
+          if (loginGate === "delivery") {
+            void handleDeliveryLoginGateConfirm();
+            return;
+          }
+          handleGateLogin();
+        }}
         description={
-          <>
-            견적서는 회원에게만 보내드리고 있어요.
-            <br />
-            카카오톡으로 빠르게 시작해보세요.
-          </>
+          loginGate === "initialCost" ? (
+            <>
+              선납금과 초기비용 조건을 확인하려면 로그인이 필요해요.
+              <br />
+              카카오톡으로 빠르게 시작해보세요.
+            </>
+          ) : (
+            <>
+              견적서는 회원에게만 보내드리고 있어요.
+              <br />
+              카카오톡으로 빠르게 시작해보세요.
+            </>
+          )
         }
       />
 
@@ -1572,6 +1600,7 @@ function Step3ResultHeader({
   onCostModeChange,
   onReset,
   onMemberLogin,
+  onComparisonLogin,
   onConsultationRequest,
   onPrev,
 }: {
@@ -1605,10 +1634,14 @@ function Step3ResultHeader({
   onCostModeChange: (mode: CostMode) => void;
   onReset: () => void;
   onMemberLogin: () => void;
+  onComparisonLogin: () => void;
   onConsultationRequest: () => void;
   onPrev: () => void;
 }) {
-  const standardScenario: QuoteScenarioDetail | undefined = quoteResult.scenarios.standard;
+  const standardScenario: QuoteScenarioDetail | undefined = resolveQuoteResultScenario(
+    quoteResult.scenarios,
+    customRates,
+  );
   const totalVehiclePrice =
     quoteResult.totalVehiclePrice ??
     quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? 0);
@@ -1883,7 +1916,7 @@ function Step3ResultHeader({
                 productType: contractCategory,
               }}
               allVehicles={vehicles}
-              onMemberLogin={onMemberLogin}
+              onMemberLogin={onComparisonLogin}
             />
           )}
 

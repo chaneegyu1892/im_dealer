@@ -172,7 +172,7 @@ describe("POST /api/quote/calculate log persistence", () => {
     ]);
   });
 
-  it("locks member-only deposit/prepay scenario amounts for anonymous callers", async () => {
+  it("locks member-only no-deposit/deposit scenario amounts for anonymous callers", async () => {
     mocks.getActiveUser.mockResolvedValue(null);
     mocks.upsertLogs.mockResolvedValue(undefined);
 
@@ -180,16 +180,17 @@ describe("POST /api/quote/calculate log persistence", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(payload.data.scenarios.standard.monthlyPayment).toBe(650_000);
-    expect(payload.data.scenarios.conservative).toMatchObject({
+    expect(payload.data.scenarios.aggressive.monthlyPayment).toBe(650_000);
+    expect(payload.data.scenarios.aggressive.locked).not.toBe(true);
+    expect(payload.data.scenarios.standard).toMatchObject({
       monthlyPayment: 0,
       depositAmount: 0,
       bestFinanceCompany: "",
       locked: true,
     });
-    expect(payload.data.scenarios.aggressive).toMatchObject({
+    expect(payload.data.scenarios.conservative).toMatchObject({
       monthlyPayment: 0,
-      prepayAmount: 0,
+      depositAmount: 0,
       locked: true,
     });
   });

@@ -8,10 +8,13 @@ import {
   type RateConfigData,
   type CalcInput,
 } from "@/lib/quote-calculator";
-import type { FinanceQuoteResult } from "@/types/quote";
+import type { FinanceQuoteResult, QuoteScenarioDetails } from "@/types/quote";
 import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
 import { normalizeSelectedOptions } from "@/lib/option-rules";
-import { lockQuoteScenario } from "@/lib/member-gate";
+import {
+  gateQuoteScenariosForGuest,
+  isPublicQuoteResultRates,
+} from "@/lib/member-gate";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
 import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
@@ -57,9 +60,9 @@ export async function POST(
     const body = await request.json();
     const input = quoteSchema.parse(body);
 
-    // 0) 회원 여부 확인 — 보증금/선납금으로 낮아진 월납입금은 회원 전용.
-    //    비회원에게는 (1) 커스텀 보증/선납 비율을 무시하고 (2) 보증금형·선납형
-    //    시나리오를 잠가, 낮아진 금액이 응답 JSON 에 애초에 실리지 않게 한다(보안 경계).
+    // 0) 회원 여부 확인 — 견적 결과에서 비회원에게 금액을 남기는 공개 조건은
+    //    선납 30%(deposit 0 / prepay 30)뿐이다. 그 외 커스텀 비율과
+    //    무보증·보증금 시나리오는 응답 JSON 에 금액을 담지 않는다(보안 경계).
     const user = await getActiveUser();
     const isMember = !!user;
 
@@ -153,8 +156,22 @@ export async function POST(
               vehicle.basePrice + (input.extraOptionsPrice ?? 0) + colorDelta,
             contractMonths: input.contractMonths,
             annualMileage: input.annualMileage,
-            depositRate: isMember ? input.customDepositRate ?? 0 : 0,
-            prepayRate: isMember ? input.customPrepayRate ?? 0 : 0,
+            depositRate:
+              isMember ||
+              isPublicQuoteResultRates({
+                depositRate: input.customDepositRate ?? 0,
+                prepayRate: input.customPrepayRate ?? 0,
+              })
+                ? input.customDepositRate ?? 0
+                : 0,
+            prepayRate:
+              isMember ||
+              isPublicQuoteResultRates({
+                depositRate: input.customDepositRate ?? 0,
+                prepayRate: input.customPrepayRate ?? 0,
+              })
+                ? input.customPrepayRate ?? 0
+                : 0,
             contractType: input.contractType,
             productType: input.productType,
             customerType: input.customerType,
@@ -296,8 +313,22 @@ export async function POST(
           await upsertQuoteCalcLog({
             sessionId: input.sessionId,
             ...calcLogBase,
-            depositRate: isMember ? input.customDepositRate ?? 0 : 0,
-            prepayRate: isMember ? input.customPrepayRate ?? 0 : 0,
+            depositRate:
+              isMember ||
+              isPublicQuoteResultRates({
+                depositRate: input.customDepositRate ?? 0,
+                prepayRate: input.customPrepayRate ?? 0,
+              })
+                ? input.customDepositRate ?? 0
+                : 0,
+            prepayRate:
+              isMember ||
+              isPublicQuoteResultRates({
+                depositRate: input.customDepositRate ?? 0,
+                prepayRate: input.customPrepayRate ?? 0,
+              })
+                ? input.customPrepayRate ?? 0
+                : 0,
             resultMonthly: 0,
             bestFinanceCompany: "",
             scenarioType: "standard",
@@ -363,6 +394,13 @@ export async function POST(
     let stdPrepay = 0;
     let standardUnavailable = false;
     const scenarioKeys = ["conservative", "standard", "aggressive"] as const;
+    const guestCustomIsPublic =
+      !isMember &&
+      (input.customDepositRate !== undefined || input.customPrepayRate !== undefined) &&
+      isPublicQuoteResultRates({
+        depositRate: input.customDepositRate ?? 0,
+        prepayRate: input.customPrepayRate ?? 0,
+      });
     const scenarios: Record<string, {
       monthlyPayment: number;
       depositAmount: number;
@@ -387,9 +425,8 @@ export async function POST(
     for (const key of scenarioKeys) {
       let depositRate: number = SCENARIO_CONDITIONS[key].depositRate;
       let prepayRate: number  = SCENARIO_CONDITIONS[key].prepayRate;
-      // 커스텀 보증/선납 비율은 회원만 적용. 비회원이 직접 customDepositRate 등을
-      // 실어 보내도 무시해 standard 가 기본(무보증) 값으로 유지되게 한다(우회 차단).
-      if (key === "standard" && isMember) {
+      // 커스텀 보증/선납 비율: 회원은 자유. 비회원은 공개 조건(deposit 0 / prepay 30)만 적용.
+      if (key === "standard" && (isMember || guestCustomIsPublic)) {
         if (input.customDepositRate !== undefined) depositRate = input.customDepositRate;
         if (input.customPrepayRate  !== undefined) prepayRate  = input.customPrepayRate;
       }
@@ -469,15 +506,13 @@ export async function POST(
       return respondConsultationRequired();
     }
 
-    // 비회원: 보증금형(conservative)·선납형(aggressive)을 잠가 낮아진 금액을 응답에서 제거.
-    // standard(무보증)는 회원·비회원 모두 그대로 노출한다.
+    // 비회원: 선납 30%(aggressive)만 공개. 무보증·보증금은 잠근다.
+    // 커스텀 재계산이 공개 조건(0/30)이면 standard 슬롯 금액은 그대로 둔다.
     const gatedScenarios = isMember
       ? scenarios
-      : {
-          ...scenarios,
-          conservative: lockQuoteScenario(scenarios.conservative),
-          aggressive: lockQuoteScenario(scenarios.aggressive),
-        };
+      : gateQuoteScenariosForGuest(scenarios as unknown as QuoteScenarioDetails, {
+          keepStandardUnlocked: guestCustomIsPublic,
+        });
 
     // ── 로그 적재: 견적 조회(ExplorationLog) + 계산 로그(QuoteCalcLog) ──
     // sessionId 가 실린 경우(견적 페이지)만 기록. 세션×차량 기준 1건으로 dedup 하여

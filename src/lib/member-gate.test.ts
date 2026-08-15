@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { lockQuoteScenario, lockRecommendScenario } from "./member-gate";
+import {
+  gateQuoteScenariosForGuest,
+  isPublicQuoteResultRates,
+  lockQuoteScenario,
+  lockRecommendScenario,
+} from "./member-gate";
 import type { QuoteScenarioDetail } from "@/types/quote";
 import type { RecommendScenario } from "@/types/recommendation";
 
@@ -92,6 +97,43 @@ describe("member-gate", () => {
       expect(recommendBase).toEqual(snapshot);
       expect(serialized).not.toContain("421750");
       expect(serialized).not.toContain("13152000");
+    });
+  });
+
+  describe("isPublicQuoteResultRates", () => {
+    it("선납 30% · 무보증만 공개 조건으로 본다", () => {
+      expect(isPublicQuoteResultRates({ depositRate: 0, prepayRate: 30 })).toBe(true);
+      expect(isPublicQuoteResultRates({ depositRate: 0, prepayRate: 0 })).toBe(false);
+      expect(isPublicQuoteResultRates({ depositRate: 10, prepayRate: 0 })).toBe(false);
+      expect(isPublicQuoteResultRates({ depositRate: 0, prepayRate: 20 })).toBe(false);
+    });
+  });
+
+  describe("gateQuoteScenariosForGuest", () => {
+    const scenarios = {
+      conservative: { ...quoteBase, monthlyPayment: 610_000 },
+      standard: { ...quoteBase, monthlyPayment: 700_000, depositAmount: 0 },
+      aggressive: {
+        ...quoteBase,
+        monthlyPayment: 530_000,
+        depositAmount: 0,
+        prepayAmount: 12_000_000,
+      },
+    };
+
+    it("선납 30%는 금액을 남기고 무보증·보증금은 잠근다", () => {
+      const gated = gateQuoteScenariosForGuest(scenarios);
+      expect(gated.aggressive.monthlyPayment).toBe(530_000);
+      expect(gated.aggressive.locked).not.toBe(true);
+      expect(gated.standard).toMatchObject({ monthlyPayment: 0, locked: true });
+      expect(gated.conservative).toMatchObject({ monthlyPayment: 0, locked: true });
+    });
+
+    it("공개 조건 커스텀 재계산이면 standard 슬롯 금액을 유지한다", () => {
+      const gated = gateQuoteScenariosForGuest(scenarios, { keepStandardUnlocked: true });
+      expect(gated.standard.monthlyPayment).toBe(700_000);
+      expect(gated.standard.locked).not.toBe(true);
+      expect(gated.conservative.locked).toBe(true);
     });
   });
 });

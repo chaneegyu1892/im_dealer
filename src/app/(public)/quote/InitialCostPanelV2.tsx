@@ -5,7 +5,7 @@ import { TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
 import { useAuthUser } from "@/hooks/useAuthUser";
-import { MemberGate } from "@/components/auth/MemberGate";
+import { isPublicQuoteResultRates } from "@/lib/member-gate";
 import type { QuoteScenarioDetail } from "@/types/quote";
 
 // ─── 타입 ────────────────────────────────────────────────
@@ -28,6 +28,15 @@ interface InitialCostPanelV2Props {
 
 const PRESET_RATES = [10, 20, 30] as const;
 const RATE_MAX = 30;
+
+const COST_MODE_OPTIONS: {
+  mode: CostMode;
+  title: string;
+  desc: string;
+}[] = [
+  { mode: "initial", title: "있음", desc: "초기 납부로 월납입 절감" },
+  { mode: "none", title: "없음", desc: "보증금·선납금 없이 시작" },
+];
 
 const COST_TYPE_INFO = {
   deposit: {
@@ -59,33 +68,54 @@ export function InitialCostPanelV2({
     (customRates?.prepayRate ?? 0) > 0 ? "prepay" : "deposit"
   );
 
-  // 비회원에게는 초기비용 설정을 블러 처리. user 는 null 로 시작 → 로딩 중엔 잠금 기본값.
+  // 비회원은 선납 30% 결과만 볼 수 있다. user 는 null 로 시작 → 로딩 중엔 게스트 기본값.
   const { user } = useAuthUser();
-  const locked = !user;
+  const isGuest = !user;
 
   const depositRate = customRates?.depositRate ?? 0;
   const prepayRate = customRates?.prepayRate ?? 0;
   const activeRate = costType === "deposit" ? depositRate : prepayRate;
 
+  const allowOrGate = (
+    nextRates: { depositRate: number; prepayRate: number } | null,
+    apply: () => void,
+  ) => {
+    if (isGuest && (!nextRates || !isPublicQuoteResultRates(nextRates))) {
+      onMemberLogin();
+      return;
+    }
+    apply();
+  };
+
   const switchMode = (mode: CostMode) => {
     if (mode === "none") {
-      onCustomRatesChange({ depositRate: 0, prepayRate: 0 });
-      onReset();
+      allowOrGate({ depositRate: 0, prepayRate: 0 }, () => {
+        onCustomRatesChange({ depositRate: 0, prepayRate: 0 });
+        onReset();
+        onCostModeChange(mode);
+      });
+      return;
     }
     onCostModeChange(mode);
   };
 
   const switchCostType = (type: CostType) => {
+    if (isGuest && type === "deposit") {
+      onMemberLogin();
+      return;
+    }
     setCostType(type);
-    onCustomRatesChange({ depositRate: 0, prepayRate: 0 });
+    if (!isGuest) {
+      onCustomRatesChange({ depositRate: 0, prepayRate: 0 });
+    }
   };
 
   const applyRate = (rate: number) => {
-    if (costType === "deposit") {
-      onCustomRatesChange({ depositRate: rate, prepayRate: 0 });
-    } else {
-      onCustomRatesChange({ depositRate: 0, prepayRate: rate });
-    }
+    const next =
+      costType === "deposit"
+        ? { depositRate: rate, prepayRate: 0 }
+        : { depositRate: 0, prepayRate: rate };
+    allowOrGate(next, () => onCustomRatesChange(next));
   };
 
   // 절감 정보
@@ -120,10 +150,7 @@ export function InitialCostPanelV2({
     <div className="space-y-4">
       {/* ① 납입 방식 토글 */}
       <div className="grid grid-cols-2 gap-2.5">
-        {[
-          { mode: "none" as CostMode, title: "없음", desc: "보증금·선납금 없이 시작" },
-          { mode: "initial" as CostMode, title: "있음", desc: "초기 납부로 월납입 절감" },
-        ].map(({ mode, title, desc }) => {
+        {COST_MODE_OPTIONS.map(({ mode, title, desc }) => {
           const isActive = costMode === mode;
           return (
             <button
@@ -149,10 +176,9 @@ export function InitialCostPanelV2({
         })}
       </div>
 
-      {/* ② 초기비용 설정 — 비회원은 블러 + 카카오 로그인 유도 */}
+      {/* ② 초기비용 설정 — 선납 30% 결과는 비회원에게도 보여 준다 */}
       {costMode === "initial" && (
-        <MemberGate locked={locked} onLogin={onMemberLogin}>
-          <div className="space-y-4 rounded-[20px] bg-surface-soft p-5">
+        <div className="space-y-4 rounded-[20px] bg-surface-soft p-5">
             {/* 헤더 + recalculate 표시 */}
             <div className="flex items-center justify-between">
               <p className="text-[12px] font-bold uppercase tracking-[0.06em] text-text-muted">초기비용 설정</p>
@@ -292,8 +318,7 @@ export function InitialCostPanelV2({
                 </p>
               </div>
             )}
-          </div>
-        </MemberGate>
+        </div>
       )}
     </div>
   );

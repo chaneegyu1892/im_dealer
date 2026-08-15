@@ -67,7 +67,8 @@ export function toSavedQuoteClientData(input: {
   };
 }
 
-/** 고객 화면의 큰 숫자는 항상 scenarios.standard 슬롯이다. 저장 확정 금액으로 덮는다. */
+/** 고객 화면의 큰 숫자는 재계산 슬롯(standard)이다. 선납 30% 첫 페인트는 aggressive.
+ * 저장 확정 금액을 두 슬롯에 맞춰 덮어 표시가 어긋나지 않게 한다. */
 export function applySavedQuoteAmountsToDisplay(
   quote: QuoteResponse,
   saved: SavedQuoteClientData,
@@ -76,18 +77,35 @@ export function applySavedQuoteAmountsToDisplay(
     return { ...quote, requiresConsultation: true };
   }
 
+  const patchedStandard = {
+    ...quote.scenarios.standard,
+    monthlyPayment: saved.monthlyPayment,
+    depositAmount: saved.depositAmount,
+    prepayAmount: saved.prepayAmount,
+    bestFinanceCompany: saved.bestFinanceCompany || quote.scenarios.standard.bestFinanceCompany,
+  };
+  const patchAggressive =
+    saved.depositRate === 0 &&
+    saved.prepayRate === 30 &&
+    quote.scenarios.aggressive != null;
+
   return {
     ...quote,
     requiresConsultation: false,
     scenarios: {
       ...quote.scenarios,
-      standard: {
-        ...quote.scenarios.standard,
-        monthlyPayment: saved.monthlyPayment,
-        depositAmount: saved.depositAmount,
-        prepayAmount: saved.prepayAmount,
-        bestFinanceCompany: saved.bestFinanceCompany || quote.scenarios.standard.bestFinanceCompany,
-      },
+      standard: patchedStandard,
+      ...(patchAggressive
+        ? {
+            aggressive: {
+              ...quote.scenarios.aggressive,
+              monthlyPayment: saved.monthlyPayment,
+              depositAmount: saved.depositAmount,
+              prepayAmount: saved.prepayAmount,
+              bestFinanceCompany: patchedStandard.bestFinanceCompany,
+            },
+          }
+        : {}),
     },
   };
 }

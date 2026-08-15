@@ -137,7 +137,7 @@ function InitialCostControl({
 
       {/* 없음 / 있음 토글 */}
       <div className="grid grid-cols-2 gap-2">
-        {(["none", "initial"] as CostMode[]).map((mode) => {
+        {(["initial", "none"] as CostMode[]).map((mode) => {
           const isActive = costMode === mode;
           return (
             <button

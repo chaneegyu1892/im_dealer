@@ -253,22 +253,22 @@ describe("POST /api/quote/save", () => {
   });
 
   it("ignores member-only custom rates when an anonymous session saves a quote", async () => {
-    // 기본 request()는 비회원 + customDepositRate 10 — 표시 API처럼 무보증으로 강제돼야 한다.
+    // 기본 request()는 비회원 + customDepositRate 10 — 공개 조건(선납 30%)으로 강제돼야 한다.
     const response = await POST(request());
 
     expect(response.status).toBe(200);
     expect(mocks.calculate.mock.calls[0]?.[0]).toMatchObject({
       depositRate: 0,
-      prepayRate: 0,
+      prepayRate: 30,
     });
     expect(mocks.upsertSavedQuote).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ depositRate: 0, prepayRate: 0 }),
+        create: expect.objectContaining({ depositRate: 0, prepayRate: 30 }),
       })
     );
   });
 
-  it("forces anonymous deposit/prepay scenario saves back to the standard scenario", async () => {
+  it("forces anonymous deposit/prepay scenario saves back to the standard type with public prepay rates", async () => {
     const conservativeRequest = new NextRequest("https://example.com/api/quote/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -292,10 +292,11 @@ describe("POST /api/quote/save", () => {
     expect(response.status).toBe(200);
     expect(mocks.calculate.mock.calls[0]?.[0]).toMatchObject({
       depositRate: 0,
-      prepayRate: 0,
+      prepayRate: 30,
     });
     const createData = mocks.upsertSavedQuote.mock.calls[0][0].create;
     expect(createData.depositRate).toBe(0);
+    expect(createData.prepayRate).toBe(30);
     expect(createData.breakdown.scenarioType).toBe("standard");
   });
 
