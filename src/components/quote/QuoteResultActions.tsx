@@ -63,7 +63,7 @@ export function QuoteResultDeliveryBar({
     <div
       role="region"
       aria-label="견적서 받기"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border-subtle bg-surface/95 px-5 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-30 bg-transparent px-5 pb-[max(28px,calc(env(safe-area-inset-bottom,0px)+16px))] pt-3"
     >
       <div className="mx-auto flex max-w-[680px] flex-col gap-3">
         {/* 채널톡 경로는 고객이 대화창에 붙여넣고 보내야 비로소 상담사에게 닿는다.
@@ -139,7 +139,10 @@ export function QuoteResultDeliveryBar({
         ) : null}
 
         {deliveryError ? (
-          <p role="alert" className="text-[13px] font-semibold text-status-danger">
+          <p
+            role="alert"
+            className="rounded-[12px] border border-status-danger/20 bg-status-danger-soft p-3 text-[13px] font-semibold text-status-danger"
+          >
             {deliveryError}
           </p>
         ) : null}

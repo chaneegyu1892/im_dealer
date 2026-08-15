@@ -219,12 +219,22 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     const deliveryBar = await screen.findByRole("region", { name: "견적서 받기" });
     expect(deliveryBar.className).toMatch(/\bfixed\b/);
     expect(deliveryBar.className).toMatch(/\bbottom-0\b/);
+    expect(deliveryBar.className).toMatch(/\bpx-5\b/);
+    expect(deliveryBar.className).toMatch(
+      /pb-\[max\(28px,calc\(env\(safe-area-inset-bottom,0px\)\+16px\)\)\]/,
+    );
+    expect(deliveryBar.className).not.toMatch(/\bborder-t\b/);
+    expect(deliveryBar.className).not.toMatch(/bg-surface/);
+    expect(deliveryBar.className).not.toMatch(/backdrop-blur/);
     expect(
       screen.getByRole("button", { name: "카카오톡으로 견적서 받기" })
     ).toBe(deliveryBar.querySelector("button"));
     expect(screen.getByRole("button", { name: "조건 다시 설정하기" })).toBeInTheDocument();
     expect(deliveryBar).not.toHaveTextContent("조건 다시 설정하기");
     expect(deliveryBar).not.toHaveTextContent("심사 요청하기");
+    expect(deliveryBar.previousElementSibling?.className).toMatch(
+      /pb-\[calc\(16rem\+env\(safe-area-inset-bottom,0px\)\)\]/,
+    );
   });
 
   it("starts Kakao consent from the successful-result delivery action", async () => {

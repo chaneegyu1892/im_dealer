@@ -79,12 +79,19 @@ describe("QuoteResultActions", () => {
       expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
     });
 
-    it("When delivery is available Then it pins the action to a viewport-fixed bar", () => {
+    it("When delivery is available Then it pins a transparent floating action above the home indicator", () => {
       render(<QuoteResultActions {...props} />);
 
       const bar = screen.getByRole("region", { name: "견적서 받기" });
       expect(bar.className).toMatch(/\bfixed\b/);
       expect(bar.className).toMatch(/\bbottom-0\b/);
+      expect(bar.className).toMatch(/\bpx-5\b/);
+      expect(bar.className).toMatch(
+        /pb-\[max\(28px,calc\(env\(safe-area-inset-bottom,0px\)\+16px\)\)\]/,
+      );
+      expect(bar.className).not.toMatch(/\bborder-t\b/);
+      expect(bar.className).not.toMatch(/bg-surface/);
+      expect(bar.className).not.toMatch(/backdrop-blur/);
       expect(
         screen.getByRole("button", { name: "카카오톡으로 견적서 받기" })
       ).toBe(bar.querySelector("button"));
@@ -103,6 +110,10 @@ describe("QuoteResultActions", () => {
 
       const bar = screen.getByRole("region", { name: "견적서 받기" });
       expect(bar).toHaveTextContent("카카오톡으로 견적서를 보냈어요.");
+      expect(bar.className).not.toMatch(/\bborder-t\b/);
+      expect(bar.className).not.toMatch(/bg-surface/);
+      expect(bar.className).not.toMatch(/backdrop-blur/);
+      expect(screen.getByRole("status").className).toMatch(/bg-brand-soft/);
     });
 
     it("When includeDeliveryBar is false Then it keeps secondary actions only", () => {
@@ -129,6 +140,8 @@ describe("QuoteResultActions", () => {
       const alert = screen.getByRole("alert");
       expect(alert).toHaveTextContent("카카오톡 전송에 실패했습니다.");
       expect(bar).toContainElement(alert);
+      expect(bar.className).not.toMatch(/bg-surface/);
+      expect(alert.className).toMatch(/bg-status-danger-soft/);
     });
   });
 
@@ -176,6 +189,9 @@ describe("QuoteResultActions", () => {
       expect(bar).toContainElement(status);
       expect(status).toHaveTextContent("아직 보내지 않았어요");
       expect(status).not.toHaveTextContent("요청 메시지를 복사했어요");
+      expect(bar.className).not.toMatch(/\bborder-t\b/);
+      expect(bar.className).not.toMatch(/bg-surface/);
+      expect(status.parentElement?.className).toMatch(/bg-status-warning-soft/);
     });
 
     it("When the customer confirms they sent it Then it calls the supplied callback", () => {

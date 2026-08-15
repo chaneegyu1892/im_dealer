@@ -1681,7 +1681,7 @@ function Step3ResultHeader({
         transition={{ duration: 0.22 }}
         className={cn(
           "space-y-5",
-          showDeliveryBar && "pb-[calc(15rem+env(safe-area-inset-bottom,0px))]",
+          showDeliveryBar && "pb-[calc(16rem+env(safe-area-inset-bottom,0px))]",
         )}
       >
       {/* ── 1) 차량 정보 카드 ── */}
