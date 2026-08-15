@@ -112,6 +112,7 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(screen.getByText("월 납입금")).toBeInTheDocument();
     expect(screen.getByText("별도 상담 필요")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "선택 조건으로 상담 요청하기" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "견적서 받기" })).not.toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText("문제가 발생했습니다")).not.toBeInTheDocument();
     });
@@ -209,6 +210,23 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(warning).toHaveClass("break-keep");
   });
 
+  it("pins the Kakao delivery action to a viewport-fixed bar on the result step", async () => {
+    writeCalculatedRestore();
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    const deliveryBar = await screen.findByRole("region", { name: "견적서 받기" });
+    expect(deliveryBar.className).toMatch(/\bfixed\b/);
+    expect(deliveryBar.className).toMatch(/\bbottom-0\b/);
+    expect(
+      screen.getByRole("button", { name: "카카오톡으로 견적서 받기" })
+    ).toBe(deliveryBar.querySelector("button"));
+    expect(screen.getByRole("button", { name: "조건 다시 설정하기" })).toBeInTheDocument();
+    expect(deliveryBar).not.toHaveTextContent("조건 다시 설정하기");
+    expect(deliveryBar).not.toHaveTextContent("심사 요청하기");
+  });
+
   it("starts Kakao consent from the successful-result delivery action", async () => {
     // Given: a calculated quote has been restored and normal render fetches are available
     writeCalculatedRestore();
@@ -222,6 +240,10 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     });
     expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+    const deliveryBar = screen.getByRole("region", { name: "견적서 받기" });
+    expect(deliveryBar.className).toMatch(/\bfixed\b/);
+    expect(deliveryBar.className).toMatch(/\bbottom-0\b/);
+    expect(deliveryButton).toBe(deliveryBar.querySelector("button"));
     fireEvent.click(deliveryButton);
 
     // Then: anonymous users enter Kakao consent before any delivery request

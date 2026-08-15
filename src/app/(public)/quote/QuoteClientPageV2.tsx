@@ -29,7 +29,11 @@ import { sortLineups } from "@/lib/lineup-sort";
 import { productTypeLabel } from "@/constants/product-type";
 import { TossPrice } from "@/components/ui/TossPrice";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
-import { QuoteResultActions } from "@/components/quote/QuoteResultActions";
+import {
+  hasQuoteResultDelivery,
+  QuoteResultActions,
+  QuoteResultDeliveryBar,
+} from "@/components/quote/QuoteResultActions";
 import {
   openChannelTalkWithQuote,
   trackQuoteDeliveryRequested,
@@ -1275,7 +1279,13 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const stepLabel = STEPS[step - 1];
 
   return (
-    <div className="min-h-screen bg-app-bg pb-[calc(148px+env(safe-area-inset-bottom,0px))] md:pb-0">
+    <div
+      className={
+        step === 3
+          ? "min-h-screen bg-app-bg"
+          : "min-h-screen bg-app-bg pb-[calc(148px+env(safe-area-inset-bottom,0px))] md:pb-0"
+      }
+    >
       <header className="sticky top-14 z-40 border-b border-border-subtle bg-surface/95 backdrop-blur-md md:hidden">
         <div className="flex h-14 items-center gap-3 px-5 max-[340px]:px-3">
           <button
@@ -1645,15 +1655,35 @@ function Step3ResultHeader({
   const totalVehiclePrice =
     quoteResult.totalVehiclePrice ??
     quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? 0);
+  const isConsultationResult =
+    quoteResult.requiresConsultation === true || !standardScenario;
+  const showDeliveryBar =
+    !isConsultationResult &&
+    hasQuoteResultDelivery({ kakaoDeliveryEnabled, channelTalkDelivery });
+  const deliveryBarProps = {
+    kakaoDeliveryEnabled,
+    channelTalkDelivery,
+    isDelivering,
+    deliverySuccess: deliverSuccess,
+    deliveryError,
+    onQuoteDeliver,
+    onReopenChannelChat,
+    onConfirmChannelSent,
+    deliveryConfirmedBySender,
+  };
 
   return (
-    <motion.section
-      initial={{ opacity: 0, x: 16 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -16 }}
-      transition={{ duration: 0.22 }}
-      className="space-y-5"
-    >
+    <>
+      <motion.section
+        initial={{ opacity: 0, x: 16 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -16 }}
+        transition={{ duration: 0.22 }}
+        className={cn(
+          "space-y-5",
+          showDeliveryBar && "pb-[calc(15rem+env(safe-area-inset-bottom,0px))]",
+        )}
+      >
       {/* ── 1) 차량 정보 카드 ── */}
       <div className="overflow-hidden rounded-[24px] border border-border-subtle bg-surface shadow-soft">
         {/* 상단: 이미지(가로 절반) + 차량명 */}
@@ -1783,7 +1813,7 @@ function Step3ResultHeader({
         </div>
       </div>
 
-      {quoteResult.requiresConsultation === true || !standardScenario ? (
+      {isConsultationResult ? (
         <>
           <div className="rounded-[24px] bg-brand p-6 text-[var(--color-brand-ink)] md:p-7">
             <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[var(--color-brand-ink)]">월 납입금</p>
@@ -1931,15 +1961,8 @@ function Step3ResultHeader({
           </div>
 
           <QuoteResultActions
-            kakaoDeliveryEnabled={kakaoDeliveryEnabled}
-            channelTalkDelivery={channelTalkDelivery}
-            isDelivering={isDelivering}
-            deliverySuccess={deliverSuccess}
-            deliveryError={deliveryError}
-            onQuoteDeliver={onQuoteDeliver}
-            onReopenChannelChat={onReopenChannelChat}
-            onConfirmChannelSent={onConfirmChannelSent}
-            deliveryConfirmedBySender={deliveryConfirmedBySender}
+            {...deliveryBarProps}
+            includeDeliveryBar={false}
           />
 
           <button
@@ -1952,7 +1975,9 @@ function Step3ResultHeader({
           </button>
         </>
       )}
-    </motion.section>
+      </motion.section>
+      {showDeliveryBar ? <QuoteResultDeliveryBar {...deliveryBarProps} /> : null}
+    </>
   );
 }
 

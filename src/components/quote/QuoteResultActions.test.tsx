@@ -72,8 +72,22 @@ describe("QuoteResultActions", () => {
       expect(
         screen.queryByRole("button", { name: "카카오톡으로 견적서 받기" })
       ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("region", { name: "견적서 받기" })
+      ).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "상담하기" })).toBeInTheDocument();
+    });
+
+    it("When delivery is available Then it pins the action to a viewport-fixed bar", () => {
+      render(<QuoteResultActions {...props} />);
+
+      const bar = screen.getByRole("region", { name: "견적서 받기" });
+      expect(bar.className).toMatch(/\bfixed\b/);
+      expect(bar.className).toMatch(/\bbottom-0\b/);
+      expect(
+        screen.getByRole("button", { name: "카카오톡으로 견적서 받기" })
+      ).toBe(bar.querySelector("button"));
     });
 
     it("When Kakao delivery is pending Then it exposes the busy state", () => {
@@ -84,12 +98,23 @@ describe("QuoteResultActions", () => {
       expect(deliveryButton).toHaveAttribute("aria-busy", "true");
     });
 
-    it("When Kakao delivery succeeds Then it renders the completion status", () => {
+    it("When Kakao delivery succeeds Then it renders the completion status in the fixed bar", () => {
       render(<QuoteResultActions {...props} deliverySuccess />);
 
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "카카오톡으로 견적서를 보냈어요."
-      );
+      const bar = screen.getByRole("region", { name: "견적서 받기" });
+      expect(bar).toHaveTextContent("카카오톡으로 견적서를 보냈어요.");
+    });
+
+    it("When includeDeliveryBar is false Then it keeps secondary actions only", () => {
+      render(<QuoteResultActions {...props} includeDeliveryBar={false} />);
+
+      expect(
+        screen.queryByRole("region", { name: "견적서 받기" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "카카오톡으로 견적서 받기" })
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "심사 요청하기" })).toBeInTheDocument();
     });
 
     it("When Kakao delivery fails Then it renders the supplied error", () => {
@@ -100,9 +125,10 @@ describe("QuoteResultActions", () => {
         />
       );
 
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "카카오톡 전송에 실패했습니다."
-      );
+      const bar = screen.getByRole("region", { name: "견적서 받기" });
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent("카카오톡 전송에 실패했습니다.");
+      expect(bar).toContainElement(alert);
     });
   });
 
@@ -145,7 +171,9 @@ describe("QuoteResultActions", () => {
     it("When the chat opens Then it states the request is not sent yet", () => {
       render(<QuoteResultActions {...stopgapProps} deliverySuccess />);
 
+      const bar = screen.getByRole("region", { name: "견적서 받기" });
       const status = screen.getByRole("status");
+      expect(bar).toContainElement(status);
       expect(status).toHaveTextContent("아직 보내지 않았어요");
       expect(status).not.toHaveTextContent("요청 메시지를 복사했어요");
     });

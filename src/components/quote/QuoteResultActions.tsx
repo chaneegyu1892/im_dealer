@@ -16,7 +16,7 @@ import {
   SUPPORT_PHONE_TEL_HREF,
 } from "@/lib/contact";
 
-interface QuoteResultActionsProps {
+interface QuoteResultDeliveryProps {
   readonly kakaoDeliveryEnabled: boolean;
   readonly channelTalkDelivery: boolean;
   readonly isDelivering: boolean;
@@ -31,7 +31,20 @@ interface QuoteResultActionsProps {
   readonly deliveryConfirmedBySender: boolean;
 }
 
-export function QuoteResultActions({
+interface QuoteResultActionsProps extends QuoteResultDeliveryProps {
+  /** false면 본문에 심사/상담만 두고, 견적서 받기 바는 호출측에서 따로 붙인다. */
+  readonly includeDeliveryBar?: boolean;
+}
+
+export function hasQuoteResultDelivery(props: {
+  readonly kakaoDeliveryEnabled: boolean;
+  readonly channelTalkDelivery: boolean;
+}): boolean {
+  return props.kakaoDeliveryEnabled || props.channelTalkDelivery;
+}
+
+/** 견적서 받기 버튼 + 전송 상태. 뷰포트 하단에 고정한다(모바일·데스크톱 공통). */
+export function QuoteResultDeliveryBar({
   kakaoDeliveryEnabled,
   channelTalkDelivery,
   isDelivering,
@@ -41,129 +54,147 @@ export function QuoteResultActions({
   onReopenChannelChat,
   onConfirmChannelSent,
   deliveryConfirmedBySender,
+}: QuoteResultDeliveryProps) {
+  if (!hasQuoteResultDelivery({ kakaoDeliveryEnabled, channelTalkDelivery })) {
+    return null;
+  }
+
+  return (
+    <div
+      role="region"
+      aria-label="견적서 받기"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-border-subtle bg-surface/95 px-5 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md"
+    >
+      <div className="mx-auto flex max-w-[680px] flex-col gap-3">
+        {/* 채널톡 경로는 고객이 대화창에 붙여넣고 보내야 비로소 상담사에게 닿는다.
+            웹에서는 실제 전송 여부를 알 수 없으므로, 대화창을 연 직후에는 "아직 안 보냈다"고
+            안내하고 고객이 '보냈어요'로 직접 넘기게 한다. 연 것만으로 완료처럼 보이면
+            기다리다 이탈하고, 보낸 뒤에도 경고가 남으면 불안해진다. */}
+        {deliverySuccess ? (
+          channelTalkDelivery ? (
+            <div
+              className={`space-y-2 rounded-[12px] border p-3 ${
+                deliveryConfirmedBySender
+                  ? "border-brand/20 bg-brand-soft"
+                  : "border-status-warning/25 bg-status-warning-soft"
+              }`}
+            >
+              {deliveryConfirmedBySender ? (
+                <p
+                  role="status"
+                  className="flex items-start gap-2 text-[12px] font-semibold text-brand"
+                >
+                  <CheckCircle2 aria-hidden="true" size={14} className="mt-0.5 shrink-0" />
+                  <span>
+                    요청을 접수했어요. 상담사가 확인 후 카카오톡으로 견적서를 보내드려요.
+                  </span>
+                </p>
+              ) : (
+                <p
+                  role="status"
+                  className="flex items-start gap-2 text-[12px] font-semibold text-status-warning"
+                >
+                  <TriangleAlert aria-hidden="true" size={14} className="mt-0.5 shrink-0" />
+                  <span>
+                    아직 보내지 않았어요. 카카오톡 대화창에 붙여넣기(길게 눌러 붙여넣기) 후
+                    전송해 주셔야 상담사가 견적서를 보내드려요.
+                  </span>
+                </p>
+              )}
+
+              <div className={deliveryConfirmedBySender ? "" : "grid grid-cols-2 gap-2"}>
+                {deliveryConfirmedBySender ? null : (
+                  <button
+                    type="button"
+                    onClick={onConfirmChannelSent}
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-btn bg-status-warning px-3 text-[13px] font-bold text-white transition-colors duration-state hover:brightness-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
+                  >
+                    <CheckCircle2 aria-hidden="true" size={15} />
+                    보냈어요
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onReopenChannelChat}
+                  className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-btn border bg-surface px-3 text-[13px] font-bold transition-colors duration-state focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] ${
+                    deliveryConfirmedBySender
+                      ? "w-full border-brand/25 text-brand hover:bg-brand-soft"
+                      : "border-status-warning/30 text-status-warning hover:bg-surface-soft"
+                  }`}
+                >
+                  <ExternalLink aria-hidden="true" size={15} />
+                  대화창 다시 열기
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p
+              role="status"
+              className="flex items-start gap-2 rounded-[12px] border border-brand/20 bg-brand-soft p-3 text-[12px] font-semibold text-brand"
+            >
+              <CheckCircle2 aria-hidden="true" size={14} className="mt-0.5 shrink-0" />
+              카카오톡으로 견적서를 보냈어요. 나와의 채팅에서 확인해 주세요.
+            </p>
+          )
+        ) : null}
+
+        {deliveryError ? (
+          <p role="alert" className="text-[13px] font-semibold text-status-danger">
+            {deliveryError}
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onQuoteDeliver}
+          disabled={isDelivering}
+          aria-busy={isDelivering}
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-btn bg-[var(--color-kakao-action)] px-5 text-[15px] font-extrabold text-[var(--color-kakao-ink)] shadow-card transition-colors duration-state hover:bg-[var(--color-kakao-action-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+        >
+          <KakaoBubbleIcon />
+          {isDelivering
+            ? channelTalkDelivery
+              ? "요청 준비 중…"
+              : "전송 중…"
+            : "카카오톡으로 견적서 받기"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function QuoteResultActions({
+  includeDeliveryBar = true,
+  ...deliveryProps
 }: QuoteResultActionsProps) {
-  const showQuoteDelivery = kakaoDeliveryEnabled || channelTalkDelivery;
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
   return (
-    <section aria-label="견적 결과 actions" className="space-y-3">
-      {showQuoteDelivery ? (
-        <>
+    <>
+      {includeDeliveryBar ? <QuoteResultDeliveryBar {...deliveryProps} /> : null}
+
+      <section aria-label="견적 결과 actions" className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={onQuoteDeliver}
-            disabled={isDelivering}
-            aria-busy={isDelivering}
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-btn bg-[var(--color-kakao-action)] px-5 text-[15px] font-extrabold text-[var(--color-kakao-ink)] shadow-card transition-colors duration-state hover:bg-[var(--color-kakao-action-hover)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+            onClick={() => setReviewModalOpen(true)}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-btn bg-brand px-3 text-[14px] font-extrabold text-white transition-colors duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
           >
-            <KakaoBubbleIcon />
-            {isDelivering
-              ? channelTalkDelivery
-                ? "요청 준비 중…"
-                : "전송 중…"
-              : "카카오톡으로 견적서 받기"}
+            <ClipboardCheck aria-hidden="true" size={17} />
+            심사 요청하기
           </button>
 
-          {/* 채널톡 경로는 고객이 대화창에 붙여넣고 보내야 비로소 상담사에게 닿는다.
-              웹에서는 실제 전송 여부를 알 수 없으므로, 대화창을 연 직후에는 "아직 안 보냈다"고
-              안내하고 고객이 '보냈어요'로 직접 넘기게 한다. 연 것만으로 완료처럼 보이면
-              기다리다 이탈하고, 보낸 뒤에도 경고가 남으면 불안해진다. */}
-          {deliverySuccess ? (
-            channelTalkDelivery ? (
-              <div
-                className={`space-y-2 rounded-[12px] border p-3 ${
-                  deliveryConfirmedBySender
-                    ? "border-brand/20 bg-brand-soft"
-                    : "border-status-warning/25 bg-status-warning-soft"
-                }`}
-              >
-                {deliveryConfirmedBySender ? (
-                  <p
-                    role="status"
-                    className="flex items-start gap-2 text-[12px] font-semibold text-brand"
-                  >
-                    <CheckCircle2 aria-hidden="true" size={14} className="mt-0.5 shrink-0" />
-                    <span>
-                      요청을 접수했어요. 상담사가 확인 후 카카오톡으로 견적서를 보내드려요.
-                    </span>
-                  </p>
-                ) : (
-                  <p
-                    role="status"
-                    className="flex items-start gap-2 text-[12px] font-semibold text-status-warning"
-                  >
-                    <TriangleAlert aria-hidden="true" size={14} className="mt-0.5 shrink-0" />
-                    <span>
-                      아직 보내지 않았어요. 카카오톡 대화창에 붙여넣기(길게 눌러 붙여넣기) 후
-                      전송해 주셔야 상담사가 견적서를 보내드려요.
-                    </span>
-                  </p>
-                )}
+          <ChannelTalkButton
+            label="상담하기"
+            className="min-h-12 rounded-btn px-3 text-[14px]"
+          />
+        </div>
 
-                <div className={deliveryConfirmedBySender ? "" : "grid grid-cols-2 gap-2"}>
-                  {deliveryConfirmedBySender ? null : (
-                    <button
-                      type="button"
-                      onClick={onConfirmChannelSent}
-                      className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-btn bg-status-warning px-3 text-[13px] font-bold text-white transition-colors duration-state hover:brightness-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
-                    >
-                      <CheckCircle2 aria-hidden="true" size={15} />
-                      보냈어요
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={onReopenChannelChat}
-                    className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-btn border bg-surface px-3 text-[13px] font-bold transition-colors duration-state focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] ${
-                      deliveryConfirmedBySender
-                        ? "w-full border-brand/25 text-brand hover:bg-brand-soft"
-                        : "border-status-warning/30 text-status-warning hover:bg-surface-soft"
-                    }`}
-                  >
-                    <ExternalLink aria-hidden="true" size={15} />
-                    대화창 다시 열기
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p
-                role="status"
-                className="flex items-start gap-2 rounded-[12px] border border-brand/20 bg-brand-soft p-3 text-[12px] font-semibold text-brand"
-              >
-                <CheckCircle2 aria-hidden="true" size={14} className="mt-0.5 shrink-0" />
-                카카오톡으로 견적서를 보냈어요. 나와의 채팅에서 확인해 주세요.
-              </p>
-            )
-          ) : null}
-
-          {deliveryError ? (
-            <p role="alert" className="text-[13px] font-semibold text-status-danger">
-              {deliveryError}
-            </p>
-          ) : null}
-        </>
-      ) : null}
-
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => setReviewModalOpen(true)}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-btn bg-brand px-3 text-[14px] font-extrabold text-white transition-colors duration-state hover:bg-brand-pressed focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
-        >
-          <ClipboardCheck aria-hidden="true" size={17} />
-          심사 요청하기
-        </button>
-
-        <ChannelTalkButton
-          label="상담하기"
-          className="min-h-12 rounded-btn px-3 text-[14px]"
-        />
-      </div>
-
-      {reviewModalOpen ? (
-        <DocumentReviewComingSoonModal onClose={() => setReviewModalOpen(false)} />
-      ) : null}
-    </section>
+        {reviewModalOpen ? (
+          <DocumentReviewComingSoonModal onClose={() => setReviewModalOpen(false)} />
+        ) : null}
+      </section>
+    </>
   );
 }
 
