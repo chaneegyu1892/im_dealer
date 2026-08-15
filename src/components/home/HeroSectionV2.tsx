@@ -31,7 +31,7 @@ export function HeroSectionV2({ featuredVehicle }: HeroSectionV2Props) {
             <h1 className="max-w-[560px] break-keep text-[34px] font-extrabold leading-[1.15] tracking-[-0.04em] text-text-strong max-[340px]:text-[30px] md:text-[52px] md:leading-[1.1]">
               진짜 견적,
               <br />
-              어떤 차를 알아볼까요?
+              <span className="mt-2 inline-block md:mt-3">어떤 차를 알아볼까요?</span>
             </h1>
             <p className="mt-5 max-w-[440px] break-keep text-[15px] font-medium leading-[1.7] text-text-body md:mt-6 md:text-[17px]">
               견적부터 계약까지 내가 직접 딜러가 되어보세요!
