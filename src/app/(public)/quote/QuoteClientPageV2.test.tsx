@@ -1161,3 +1161,195 @@ describe("QuoteClientPageV2 result first screen", () => {
     expect(screen.getAllByRole("button", { name: "30%" }).length).toBeGreaterThan(0);
   });
 });
+
+function expectSelectedChip(name: string) {
+  expect(screen.getByRole("button", { name }).className).toMatch(/ring-brand/);
+}
+
+async function renderRestoredQuoteResult() {
+  window.history.replaceState({ page: "car" }, "", "/cars/preparing-car");
+  window.history.pushState(
+    { page: "quote" },
+    "",
+    "/quote?vehicle=preparing-car&customerType=individual&restore=1",
+  );
+  writeCalculatedRestore();
+  vi.stubGlobal("fetch", createFetchMock());
+  render(<QuoteClientPageV2 vehicles={vehicles} />);
+  await screen.findByRole("button", { name: "조건 다시 설정하기" });
+  await waitFor(() => {
+    expect(window.history.state).toEqual(expect.objectContaining({ imdQuoteResult: true }));
+  });
+}
+
+async function expectReturnedToStep2(conditions: {
+  readonly months: string;
+  readonly mileage: string;
+  readonly product: string;
+}) {
+  await waitFor(() => {
+    expect(screen.getAllByText("조건 설정").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "조건 다시 설정하기" })).not.toBeInTheDocument();
+  });
+  expect(navigationMock.router.back).not.toHaveBeenCalled();
+  expect(navigationMock.router.push).not.toHaveBeenCalledWith("/cars/preparing-car");
+  expectSelectedChip(conditions.months);
+  expectSelectedChip(conditions.mileage);
+  expectSelectedChip(conditions.product);
+  expect(window.history.state).not.toEqual(expect.objectContaining({ imdQuoteResult: true }));
+}
+
+describe("QuoteClientPageV2 result back navigation", () => {
+  it("returns to step 2 from 「조건 다시 설정하기」 and keeps the chosen conditions", async () => {
+    await renderRestoredQuoteResult();
+
+    fireEvent.click(screen.getByRole("button", { name: "조건 다시 설정하기" }));
+
+    await expectReturnedToStep2({ months: "60개월", mileage: "연 2만km", product: "장기렌트" });
+  });
+
+  it("returns to step 2 from the header back button and does not call router.back", async () => {
+    await renderRestoredQuoteResult();
+
+    fireEvent.click(screen.getByRole("button", { name: "뒤로" }));
+
+    await expectReturnedToStep2({ months: "60개월", mileage: "연 2만km", product: "장기렌트" });
+  });
+
+  it("returns to step 2 from a popstate (system back) without leaving the page", async () => {
+    await renderRestoredQuoteResult();
+
+    act(() => {
+      window.history.back();
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    await expectReturnedToStep2({ months: "60개월", mileage: "연 2만km", product: "장기렌트" });
+  });
+
+  it("keeps user-changed period and mileage after calculating and resetting conditions", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&trim=trim-preparing",
+    );
+    window.history.replaceState({ page: "car" }, "", "/cars/preparing-car");
+    window.history.pushState(
+      { page: "quote" },
+      "",
+      "/quote?vehicle=preparing-car&customerType=individual&trim=trim-preparing",
+    );
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url.endsWith("/trims")) {
+        return Response.json({
+          success: true,
+          data: [
+            {
+              id: "trim-preparing",
+              name: "프리미엄",
+              price: 40_000_000,
+              discountPrice: null,
+              evSubsidy: null,
+              engineType: "GASOLINE",
+              fuelEfficiency: 10,
+              isDefault: true,
+              specs: null,
+              options: [],
+              rules: [],
+              lineupId: null,
+              lineup: null,
+              availableProducts: ["장기렌트"],
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/quote")) {
+        return Response.json({ success: true, data: createUnlockedCalculatedQuoteResult() });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(await screen.findByRole("button", { name: "48개월" }));
+    fireEvent.click(screen.getByRole("button", { name: "연 3만km" }));
+    fireEvent.click(await screen.findByRole("button", { name: "월 납입금 확인하기" }));
+    await screen.findByRole("button", { name: "조건 다시 설정하기" });
+    await waitFor(() => {
+      expect(window.history.state).toEqual(expect.objectContaining({ imdQuoteResult: true }));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "조건 다시 설정하기" }));
+
+    await expectReturnedToStep2({ months: "48개월", mileage: "연 3만km", product: "장기렌트" });
+  });
+
+  it("does not push a second result history entry when already on the result step", async () => {
+    window.history.replaceState({ page: "car" }, "", "/cars/preparing-car");
+    window.history.pushState(
+      { page: "quote" },
+      "",
+      "/quote?vehicle=preparing-car&customerType=individual&restore=1",
+    );
+    const lengthBefore = window.history.length;
+    writeCalculatedRestore();
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    await screen.findByRole("button", { name: "조건 다시 설정하기" });
+    await waitFor(() => {
+      expect(window.history.state).toEqual(expect.objectContaining({ imdQuoteResult: true }));
+    });
+
+    expect(window.history.length).toBe(lengthBefore + 1);
+
+    fireEvent.click(screen.getByRole("button", { name: "조건 다시 설정하기" }));
+    await expectReturnedToStep2({ months: "60개월", mileage: "연 2만km", product: "장기렌트" });
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getAllByText("조건 설정").length).toBeGreaterThan(0);
+    expect(navigationMock.router.back).not.toHaveBeenCalled();
+  });
+
+  it("sends step 2 header back to the vehicle detail via router.back", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual",
+    );
+    window.history.replaceState({ page: "car" }, "", "/cars/preparing-car");
+    window.history.pushState(
+      { page: "quote" },
+      "",
+      "/quote?vehicle=preparing-car&customerType=individual",
+    );
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    await screen.findAllByText("조건 설정");
+
+    fireEvent.click(screen.getByRole("button", { name: "뒤로" }));
+
+    expect(navigationMock.router.back).toHaveBeenCalledTimes(1);
+    expect(navigationMock.router.push).not.toHaveBeenCalled();
+    expect(screen.getAllByText("조건 설정").length).toBeGreaterThan(0);
+  });
+
+  it("falls back to the vehicle detail when step 1 has no history to go back to", async () => {
+    navigationMock.searchParams = new URLSearchParams("vehicle=preparing-car");
+    vi.spyOn(window.history, "length", "get").mockReturnValue(1);
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    await screen.findAllByText("고객 유형");
+
+    fireEvent.click(screen.getByRole("button", { name: "뒤로" }));
+
+    expect(navigationMock.router.push).toHaveBeenCalledWith("/cars/preparing-car");
+    expect(navigationMock.router.back).not.toHaveBeenCalled();
+  });
+});

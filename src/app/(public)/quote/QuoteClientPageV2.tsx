@@ -101,6 +101,42 @@ const DELIVERY_RESUME_PARAM = "deliver";
 // (ExplorationLog) → 전환(clickedApply)이 한 세션 기준으로 조인된다.
 const DELIVERY_GATE_SESSION_KEY = "imd_delivery_gate_session";
 
+// 결과(step 3) 전용 히스토리 항목. 시스템 뒤로가기가 차량 상세로 나가지 않게 한다.
+const QUOTE_RESULT_HISTORY_KEY = "imdQuoteResult";
+
+function isHistoryStateRecord(state: unknown): state is Record<string, unknown> {
+  return typeof state === "object" && state !== null;
+}
+
+function hasQuoteResultHistoryState(state: unknown): boolean {
+  return isHistoryStateRecord(state) && state[QUOTE_RESULT_HISTORY_KEY] === true;
+}
+
+function quoteResultHistoryState(state: unknown): Record<string, unknown> {
+  return {
+    ...(isHistoryStateRecord(state) ? state : {}),
+    [QUOTE_RESULT_HISTORY_KEY]: true,
+  };
+}
+
+function buildQuoteRestoreHref(vehicleSlug: string, customerType: CustomerType): string {
+  const params = new URLSearchParams(window.location.search);
+  params.set("vehicle", vehicleSlug);
+  if (customerType) params.set("customerType", customerType);
+  params.set("restore", "1");
+  return `/quote?${params.toString()}`;
+}
+
+function syncQuoteResultHistory(vehicleSlug: string, customerType: CustomerType): void {
+  const href = buildQuoteRestoreHref(vehicleSlug, customerType);
+  const nextState = quoteResultHistoryState(window.history.state);
+  if (hasQuoteResultHistoryState(window.history.state)) {
+    window.history.replaceState(nextState, "", href);
+    return;
+  }
+  window.history.pushState(nextState, "", href);
+}
+
 const apiErrorSchema = z.object({
   error: z.string().optional(),
   code: z.string().optional(),
@@ -239,6 +275,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   }, [prefillSlug, router]);
 
   const [quoteResult, setQuoteResult] = useState<QuoteResponse | null>(null);
+  const stepRef = useRef<1 | 2 | 3>(step);
+  stepRef.current = step;
+  const quoteResultHistoryOpenRef = useRef(false);
+  const swallowResultHistoryPopRef = useRef(false);
 
   const goToStep = useCallback((s: 1 | 2 | 3) => {
     setStep(s);
@@ -1203,7 +1243,30 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     router.push(`/login?next=${encodeURIComponent(`/quote?${params.toString()}`)}`);
   }, [buildRestoreState, router, selectedVehicle, customerType, draftSource]);
 
+  const applyLeaveQuoteResult = useCallback(() => {
+    quoteResultHistoryOpenRef.current = false;
+    setQuoteResult(null);
+    setError(null);
+    goToStep(2);
+  }, [goToStep]);
+
+  // 결과 화면의 시스템 뒤로가기·헤더 뒤로·「조건 다시 설정하기」가 모두 여기를 탄다.
+  const leaveQuoteResult = useCallback(() => {
+    const shouldPop =
+      typeof window !== "undefined" &&
+      (quoteResultHistoryOpenRef.current ||
+        hasQuoteResultHistoryState(window.history.state));
+    applyLeaveQuoteResult();
+    if (!shouldPop) return;
+    swallowResultHistoryPopRef.current = true;
+    window.history.back();
+    queueMicrotask(() => {
+      swallowResultHistoryPopRef.current = false;
+    });
+  }, [applyLeaveQuoteResult]);
+
   // 결과(step 3) 도달 시 저장본 localStorage 저장 + restore 마커 동기화 (v1 계약)
+  // 결과용 히스토리 항목을 하나 쌓아, 시스템 뒤로가기가 차량 상세로 나가지 않게 한다.
   useEffect(() => {
     if (step === 3 && quoteResult && selectedVehicle) {
       const state = buildRestoreState();
@@ -1211,17 +1274,29 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         restoreRef.current = state;
         saveQuoteImageRestore(state);
       }
-      // restore 마커 동기화
       if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        params.set("vehicle", selectedVehicle.slug);
-        if (customerType) params.set("customerType", customerType);
-        params.set("restore", "1");
-        window.history.replaceState(null, "", `/quote?${params.toString()}`);
+        syncQuoteResultHistory(selectedVehicle.slug, customerType);
+        quoteResultHistoryOpenRef.current = true;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, quoteResult, costMode, customRates]);
+
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      if (swallowResultHistoryPopRef.current) {
+        swallowResultHistoryPopRef.current = false;
+        event.stopImmediatePropagation();
+        return;
+      }
+      if (stepRef.current !== 3 || !quoteResultHistoryOpenRef.current) return;
+      // Next.js 가 이 popstate 를 문서 이동으로 처리하지 않게 가로챈다.
+      event.stopImmediatePropagation();
+      applyLeaveQuoteResult();
+    };
+    window.addEventListener("popstate", onPopState, true);
+    return () => window.removeEventListener("popstate", onPopState, true);
+  }, [applyLeaveQuoteResult]);
 
   // ─── 로그인 게이트 복귀 → 견적서 요청 흐름 1회 자동 재개 ─────
   // 대화창은 여기서 열지 않는다. 페이지 로드 직후의 window.open 은 팝업 차단에 걸리므로,
@@ -1234,10 +1309,15 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     deliveryResumeHandled.current = true;
 
     // 표식 제거 — 새로고침으로 다시 실행되지 않게 한다.
+    // 결과 히스토리 마커는 유지한다. 지워지면 헤더 뒤로가기가 차량 상세로 나간다.
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       params.delete(DELIVERY_RESUME_PARAM);
-      window.history.replaceState(null, "", `/quote?${params.toString()}`);
+      window.history.replaceState(
+        quoteResultHistoryState(window.history.state),
+        "",
+        `/quote?${params.toString()}`,
+      );
     }
 
     void (async () => {
@@ -1292,6 +1372,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
           <button
             type="button"
             onClick={() => {
+              if (step === 3) {
+                leaveQuoteResult();
+                return;
+              }
               // 딥링크/공유로 직접 진입한 경우(history 없음) router.back()이 사이트를 떠나지 않도록 폴백.
               const fallback = selectedVehicle
                 ? `/cars/${selectedVehicle.slug}`
@@ -1439,11 +1523,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               onMemberLogin={() => setLoginGate("initialCost")}
               onComparisonLogin={handleGateLogin}
               onConsultationRequest={handleConsultationRequest}
-              onPrev={() => {
-                setQuoteResult(null);
-                setError(null);
-                goToStep(2);
-              }}
+              onPrev={leaveQuoteResult}
             />
           )}
           {step === 3 && !quoteResult && (
