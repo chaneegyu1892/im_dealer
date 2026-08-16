@@ -60,7 +60,8 @@ const APPROVAL_COPY: Record<ApprovalLevel, {
 // ════════════════════════════════════════════════════════════
 export function ApprovalPreviewV2({ data }: { data: QuoteScenarioDetail }) {
   const depositRate = getDepositRate(data);
-  const level = estimateApproval(data.monthlyPayment, depositRate);
+  // 호출부(견적 결과 화면)가 표시 가능한 시나리오만 넘긴다 — null 은 타입 방어용.
+  const level = estimateApproval(data.monthlyPayment ?? 0, depositRate);
   const copy = APPROVAL_COPY[level];
 
   return (

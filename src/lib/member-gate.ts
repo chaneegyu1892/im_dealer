@@ -20,7 +20,8 @@ type QuoteScenarioMap = {
  * 잠금 시나리오를 새로 만들어 돌려준다(원본은 변형하지 않음 — immutable).
  *
  * 유지하는 값: 계약기간/약정거리/계약유형 — 레이아웃 표시용 비민감 정보.
- * 제거하는 값: 월납입금, 보증금/선납금, 금융사별 결과, 산출내역 등 전부 0/빈값.
+ * 제거하는 값: 월납입금(null — 잠금은 "가격 없음"이지 0원이 아니다),
+ * 보증금/선납금, 금융사별 결과, 산출내역 등 전부 빈값.
  *
  * 홈/카드 대표가(PUBLIC_CARD_QUOTE_CONDITION, 60개월·연 2만km·무보증)와
  * 추천 카드 잠금은 이 정책과 별개다.
@@ -41,7 +42,7 @@ export function isPublicQuoteResultRates(rates: {
 /** 견적 화면용 시나리오(QuoteScenarioDetail)를 비회원용 잠금 상태로 치환. */
 export function lockQuoteScenario(base: QuoteScenarioDetail): QuoteScenarioDetail {
   return {
-    monthlyPayment: 0,
+    monthlyPayment: null,
     depositAmount: 0,
     prepayAmount: 0,
     contractMonths: base.contractMonths,

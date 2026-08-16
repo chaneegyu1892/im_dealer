@@ -3,7 +3,10 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { QuoteResponse } from "@/types/api";
-import type { QuoteScenarioDetail } from "@/types/quote";
+import {
+  isDisplayableQuoteScenario,
+  type DisplayableQuoteScenario,
+} from "@/lib/quote-scenario-selection";
 
 /** 견적 구성(라인업/옵션/색상) — "같은 기준의 비교인지" 드러내기 위한 정보 */
 export interface ComparisonColumnConfig {
@@ -24,7 +27,7 @@ interface ComparisonColumn {
   originalPrice: number | null;
   /** 총 차량가 = 기본 + 옵션 + 색상 */
   totalVehiclePrice: number;
-  scenario: QuoteScenarioDetail;
+  scenario: DisplayableQuoteScenario;
   config?: ComparisonColumnConfig;
   isPrimary?: boolean;
 }
@@ -74,8 +77,15 @@ function DeltaBadge({
 
 export function ComparisonTable({ primary, comparison }: ComparisonTableProps) {
   // 훅은 항상 먼저 호출 (early return 이전)
-  const primaryScenario = primary.result.scenarios?.standard;
-  const compScenario = comparison.result.scenarios?.standard;
+  // 잠긴/가격 없는 시나리오는 비교 표에 0원으로 그려지면 안 되므로 없는 것으로 취급한다.
+  const primaryStandard = primary.result.scenarios?.standard;
+  const compStandard = comparison.result.scenarios?.standard;
+  const primaryScenario = isDisplayableQuoteScenario(primaryStandard)
+    ? primaryStandard
+    : undefined;
+  const compScenario = isDisplayableQuoteScenario(compStandard)
+    ? compStandard
+    : undefined;
 
   const columns: ComparisonColumn[] = useMemo(() => {
     if (!primaryScenario || !compScenario) return [];
@@ -83,7 +93,7 @@ export function ComparisonTable({ primary, comparison }: ComparisonTableProps) {
     const toColumn = (
       label: string,
       src: { brand: string; name: string; result: QuoteResponse; config?: ComparisonColumnConfig },
-      scenario: QuoteScenarioDetail,
+      scenario: DisplayableQuoteScenario,
       isPrimary: boolean
     ): ComparisonColumn => {
       const basePrice = src.result.discountPrice ?? src.result.trimPrice;

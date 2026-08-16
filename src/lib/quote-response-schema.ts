@@ -39,7 +39,8 @@ const financeCompanyQuoteSchema: z.ZodType<FinanceCompanyQuote> = z.object({
 });
 
 export const quoteScenarioSchema: z.ZodType<QuoteScenarioDetail> = z.object({
-  monthlyPayment: moneySchema,
+  // 잠금 시나리오는 가격이 없다(null). 롤아웃 과도기의 구형 잠금 응답(0)도 허용한다.
+  monthlyPayment: moneySchema.nullable(),
   depositAmount: moneySchema,
   prepayAmount: moneySchema,
   contractMonths: z.number().int().min(1).max(120),

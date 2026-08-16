@@ -72,7 +72,10 @@ export interface FinanceCompanyQuote {
 
 /** 견적 계산기 전용 시나리오 상세 (breakdown + surcharges 포함) */
 export interface QuoteScenarioDetail {
-  monthlyPayment: number;
+  /** 월 납입금 (원). 잠금(locked) 시나리오는 "가격 없음"이므로 null 이다 —
+   * 0 은 가격이 숨겨졌다는 센티널이 아니라 실제 0원을 의미하므로 쓰지 않는다.
+   * (롤아웃 과도기의 구버전 응답은 locked + 0 형태일 수 있어 소비 측은 둘 다 견뎌야 한다.) */
+  monthlyPayment: number | null;
   depositAmount: number;
   prepayAmount: number;
   contractMonths: number;
@@ -86,8 +89,8 @@ export interface QuoteScenarioDetail {
   /** 차량가가 회수율 시트 범위(min~max)를 벗어났는지 여부 (1순위 금융사 기준).
    * true 면 클램프된 값으로 계산되어 정확도가 떨어질 수 있다. */
   rangeExceeded?: boolean;
-  /** 회원 전용 시나리오를 비회원에게 잠근 상태. true 면 금액 필드는 0(빈값)이며
-   * 실제 값은 서버 응답에 포함되지 않는다(보안 경계). */
+  /** 회원 전용 시나리오를 비회원에게 잠근 상태. true 면 monthlyPayment 는 null,
+   * 나머지 금액 필드는 빈값이며 실제 값은 서버 응답에 포함되지 않는다(보안 경계). */
   locked?: boolean;
 }
 

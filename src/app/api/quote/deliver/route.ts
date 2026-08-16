@@ -212,7 +212,7 @@ async function enqueueQuoteAlimtalk(params: {
         상품유형: imageData.productType,
         계약기간: imageData.contractMonths,
         약정거리: imageData.annualMileage,
-        월납입금: scenario.monthlyPayment,
+        월납입금: scenario.monthlyPayment ?? 0,
         금융사: scenario.bestFinanceCompany,
         링크: linkUrl,
       }),

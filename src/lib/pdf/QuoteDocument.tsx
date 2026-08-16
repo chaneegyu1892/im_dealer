@@ -222,7 +222,7 @@ function ScenarioCell({ sc, hi }: { sc: QuoteScenarioDetail; hi: boolean }) {
   const noInitial = sc.depositAmount === 0 && sc.prepayAmount === 0;
   return (
     <View style={[s.scCell, hi ? s.scCellHi : {}]}>
-      <Text style={[s.cellMonthly, hi ? s.cellMonthlyHi : {}]}>{fmtMonthly(sc.monthlyPayment)}</Text>
+      <Text style={[s.cellMonthly, hi ? s.cellMonthlyHi : {}]}>{fmtMonthly(sc.monthlyPayment ?? 0)}</Text>
       {sc.depositAmount > 0 && <Text style={s.cellSub}>보증금 {fmt(sc.depositAmount)}</Text>}
       {sc.prepayAmount > 0 && <Text style={s.cellSub}>선납금 {fmt(sc.prepayAmount)}</Text>}
       {noInitial && <Text style={s.cellSub}>초기비용 없음</Text>}
@@ -492,7 +492,7 @@ export function QuoteDocument({
               </Text>
             </View>
             <View>
-              <Text style={s.resValue}>{fmtMonthly(selectedScenario.monthlyPayment)}</Text>
+              <Text style={s.resValue}>{fmtMonthly(selectedScenario.monthlyPayment ?? 0)}</Text>
               {isProductRent && <Text style={s.resValueSub}>취등록세 · 자동차세 · 보험료 포함</Text>}
             </View>
           </View>
