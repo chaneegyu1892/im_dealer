@@ -138,6 +138,58 @@ export function writeConsultationRestore(): void {
   writeRestore(true);
 }
 
+/**
+ * 모든 시나리오가 잠긴 채 복원되는 비회원 세션 — 표시할 공개 금액이 하나도 없다.
+ * 구형 잠금(locked + monthlyPayment 0)과 신형 잠금(locked + monthlyPayment null)
+ * 두 형태 모두 0만원 배너 없이 로그인 안내로 이어져야 한다.
+ */
+export function writeGuestAllLockedRestore(lockedMonthly: 0 | null): void {
+  const lockedScenario = {
+    ...quoteScenario(0, 0, 0),
+    monthlyPayment: lockedMonthly,
+    bestFinanceCompany: "",
+    locked: true,
+  };
+  window.localStorage.setItem(
+    "quote_image_restore",
+    JSON.stringify({
+      vehicleSlug: "preparing-car",
+      customerType: "individual",
+      selectedLineup: null,
+      selectedTrimName: "프리미엄",
+      selectedOptionIds: [],
+      contractCategory: "장기렌트",
+      conditions: {
+        contractMonths: 60,
+        annualMileage: 20000,
+        contractType: "반납형",
+      },
+      customRates: { depositRate: 0, prepayRate: 30 },
+      costMode: "initial",
+      baseStandard: null,
+      quoteResult: {
+        vehicleSlug: "preparing-car",
+        trimId: "trim-preparing",
+        trimName: "프리미엄",
+        trimPrice: 40_000_000,
+        optionsTotalPrice: 0,
+        colorDelta: 0,
+        totalVehiclePrice: 40_000_000,
+        contractMonths: 60,
+        annualMileage: 20000,
+        contractType: "반납형",
+        customerType: "individual",
+        scenarios: {
+          conservative: lockedScenario,
+          standard: lockedScenario,
+          aggressive: lockedScenario,
+        },
+        requiresConsultation: false,
+      },
+    })
+  );
+}
+
 export function writeCalculatedRestore(): void {
   writeRestore(false);
 }

@@ -182,14 +182,15 @@ describe("POST /api/quote/calculate log persistence", () => {
     expect(response.status).toBe(200);
     expect(payload.data.scenarios.aggressive.monthlyPayment).toBe(650_000);
     expect(payload.data.scenarios.aggressive.locked).not.toBe(true);
+    // 잠금 = 가격 없음 — 0원이라는 가짜 가격을 JSON 에 담지 않는다.
     expect(payload.data.scenarios.standard).toMatchObject({
-      monthlyPayment: 0,
+      monthlyPayment: null,
       depositAmount: 0,
       bestFinanceCompany: "",
       locked: true,
     });
     expect(payload.data.scenarios.conservative).toMatchObject({
-      monthlyPayment: 0,
+      monthlyPayment: null,
       depositAmount: 0,
       locked: true,
     });

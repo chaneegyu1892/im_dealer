@@ -10,6 +10,7 @@ import {
   writeCalculatedRestore,
   writeConsultationRestore,
   writeFirstEntryRestore,
+  writeGuestAllLockedRestore,
   writeLockedCalculatedRestore,
 } from "./QuoteClientPageV2.test-fixtures";
 
@@ -1056,6 +1057,58 @@ describe("QuoteClientPageV2 consultation fallback", () => {
     expect(saveBody.exteriorColorId).toBe("color-ext-restored");
     expect(saveBody.interiorColorId).toBe("color-int-restored");
   });
+});
+
+describe("QuoteClientPageV2 locked result representation", () => {
+  it("shows the public prepay-30 amount instead of 0만원 when the standard slot is locked (old shape)", async () => {
+    // 구형 잠금(locked + 0) standard + 공개 aggressive(53만원) — 잠긴 슬롯이
+    // 가격으로 그려지면 안 되고, 공개 선납 30% 금액으로 폴백해야 한다.
+    writeLockedCalculatedRestore();
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    expect(
+      await screen.findByText((_, node) => node?.textContent === "53만원")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText((_, node) => node?.textContent === "0만원")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("별도 상담 필요")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["old shape locked + 0", 0 as const],
+    ["new shape locked + null", null],
+  ])(
+    "never paints 0만원 and offers the login path when every scenario is locked (%s)",
+    async (_label, lockedMonthly) => {
+      writeGuestAllLockedRestore(lockedMonthly);
+      vi.stubGlobal("fetch", createFetchMock());
+
+      render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+      // 잠금 = 가격 없음 — 0원 배너 대신 로그인 안내가 뜬다.
+      expect(
+        await screen.findByText("로그인하면 이 조건 월납 확인")
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText((_, node) => node?.textContent === "0만원")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("별도 상담 필요")).not.toBeInTheDocument();
+
+      // 안내 CTA 는 기존 로그인 모달 퍼널로 이어진다.
+      fireEvent.click(
+        screen.getByRole("button", { name: "로그인하고 월 납입금 보기" })
+      );
+      expect(
+        await screen.findByRole("dialog", { name: "로그인이 필요해요" })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/선납금과 초기비용 조건을 확인하려면/)
+      ).toBeInTheDocument();
+    }
+  );
 });
 
 describe("QuoteClientPageV2 result first screen", () => {

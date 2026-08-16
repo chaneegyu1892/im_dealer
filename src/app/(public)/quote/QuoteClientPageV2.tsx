@@ -58,6 +58,7 @@ import {
   DEFAULT_RESULT_COST_MODE,
   DEFAULT_RESULT_CUSTOM_RATES,
   deriveQuoteScenarioType,
+  isDisplayableQuoteScenario,
   resolveQuoteResultScenario,
 } from "@/lib/quote-scenario-selection";
 import { successfulCalculatedQuoteResponseSchema } from "@/lib/quote-response-schema";
@@ -1736,8 +1737,16 @@ function Step3ResultHeader({
   const totalVehiclePrice =
     quoteResult.totalVehiclePrice ??
     quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? 0);
+  // 시나리오가 아예 없으면(자동 견적 불가) 별도 상담. 시나리오는 있는데 표시 가능한
+  // 공개 금액이 없으면(전부 잠김) 상담이 아니라 로그인 안내를 그린다 — 0원 배너 금지.
+  const hasAnyScenario = Boolean(
+    quoteResult.scenarios &&
+      (quoteResult.scenarios.conservative ||
+        quoteResult.scenarios.standard ||
+        quoteResult.scenarios.aggressive),
+  );
   const isConsultationResult =
-    quoteResult.requiresConsultation === true || !standardScenario;
+    quoteResult.requiresConsultation === true || !hasAnyScenario;
   const showDeliveryBar =
     !isConsultationResult &&
     hasQuoteResultDelivery({ kakaoDeliveryEnabled, channelTalkDelivery });
@@ -1932,6 +1941,37 @@ function Step3ResultHeader({
 
           <div className="rounded-[16px] bg-surface-soft p-4 text-[12px] leading-relaxed text-text-muted">
             옵션·계약조건에 따라 캐피탈사별 금액이 크게 달라질 수 있어 상담을 통한 견적이 더 정확합니다.
+          </div>
+
+          <button
+            type="button"
+            onClick={onPrev}
+            className="mx-auto flex items-center gap-1 text-[13px] font-bold text-text-muted transition-colors hover:text-text-strong"
+          >
+            <ChevronLeft size={14} />
+            조건 다시 설정하기
+          </button>
+        </>
+      ) : !isDisplayableQuoteScenario(standardScenario) ? (
+        <>
+          {/* ── 2-잠금) 표시 가능한 공개 금액이 없다 — 0원 배너 대신 로그인 안내 ── */}
+          <div className="rounded-[24px] bg-brand p-6 text-[var(--color-brand-ink)] md:p-7">
+            <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[var(--color-brand-ink)]">
+              월 납입금
+            </p>
+            <p className="mt-3 break-keep text-[24px] font-extrabold leading-[1.3] text-[var(--color-brand-ink)] sm:text-[28px]">
+              로그인하면 이 조건 월납 확인
+            </p>
+            <p className="mt-2 break-keep text-[13.5px] leading-relaxed text-[var(--color-brand-ink)]">
+              회원 전용 조건이에요. 로그인하면 이 조건의 월 납입금을 바로 확인할 수 있어요.
+            </p>
+            <button
+              type="button"
+              onClick={onMemberLogin}
+              className="mt-5 flex h-[48px] w-full items-center justify-center rounded-[14px] bg-white px-4 text-[14px] font-bold text-brand transition-colors hover:bg-white/95"
+            >
+              로그인하고 월 납입금 보기
+            </button>
           </div>
 
           <button

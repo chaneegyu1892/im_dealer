@@ -42,9 +42,10 @@ describe("member-gate", () => {
   };
 
   describe("lockQuoteScenario", () => {
-    it("민감한 금액·산출내역을 전부 0/빈값으로 제거한다", () => {
+    it("민감한 금액·산출내역을 전부 제거하고 월납입금은 null(가격 없음)로 둔다", () => {
       const locked = lockQuoteScenario(quoteBase);
-      expect(locked.monthlyPayment).toBe(0);
+      // 잠금 = "가격 없음"이다. 0원이라는 가짜 가격을 만들면 안 된다.
+      expect(locked.monthlyPayment).toBeNull();
       expect(locked.depositAmount).toBe(0);
       expect(locked.prepayAmount).toBe(0);
       expect(locked.bestFinanceCompany).toBe("");
@@ -53,6 +54,12 @@ describe("member-gate", () => {
       expect(locked.surcharges).toBeNull();
       expect(locked.allFinanceResults).toEqual([]);
       expect(locked.locked).toBe(true);
+    });
+
+    it("잠금 시나리오는 숫자 0을 월납입금 센티널로 쓰지 않는다", () => {
+      const locked = lockQuoteScenario(quoteBase);
+      expect(locked.monthlyPayment).not.toBe(0);
+      expect(JSON.stringify(locked)).toContain('"monthlyPayment":null');
     });
 
     it("레이아웃용 비민감 필드(계약기간/약정거리/계약유형)는 유지한다", () => {
@@ -121,12 +128,12 @@ describe("member-gate", () => {
       },
     };
 
-    it("선납 30%는 금액을 남기고 무보증·보증금은 잠근다", () => {
+    it("선납 30%는 실제 금액을 남기고 무보증·보증금은 가격 없이 잠근다", () => {
       const gated = gateQuoteScenariosForGuest(scenarios);
       expect(gated.aggressive.monthlyPayment).toBe(530_000);
       expect(gated.aggressive.locked).not.toBe(true);
-      expect(gated.standard).toMatchObject({ monthlyPayment: 0, locked: true });
-      expect(gated.conservative).toMatchObject({ monthlyPayment: 0, locked: true });
+      expect(gated.standard).toMatchObject({ monthlyPayment: null, locked: true });
+      expect(gated.conservative).toMatchObject({ monthlyPayment: null, locked: true });
     });
 
     it("공개 조건 커스텀 재계산이면 standard 슬롯 금액을 유지한다", () => {
