@@ -1106,7 +1106,7 @@ describe("QuoteClientPageV2 locked result representation", () => {
         await screen.findByRole("dialog", { name: "로그인이 필요해요" })
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/선납금과 초기비용 조건을 확인하려면/)
+        screen.getByText(/초기비용 0원 또는 보증금 선납금 조건 수정 하려면/)
       ).toBeInTheDocument();
     }
   );
@@ -1138,7 +1138,7 @@ describe("QuoteClientPageV2 result first screen", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /보증금·선납금 없이 시작/ }));
     expect(await screen.findByRole("dialog", { name: "로그인이 필요해요" })).toBeInTheDocument();
-    expect(screen.getByText(/선납금과 초기비용 조건을 확인하려면/)).toBeInTheDocument();
+    expect(screen.getByText(/초기비용 0원 또는 보증금 선납금 조건 수정 하려면/)).toBeInTheDocument();
     expect(screen.getByText((_, node) => node?.textContent === "53만원")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "닫기" }));
