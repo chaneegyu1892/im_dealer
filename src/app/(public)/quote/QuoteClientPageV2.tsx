@@ -21,6 +21,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuthUser } from "@/hooks/useAuthUser";
 import { startKakaoLogin } from "@/lib/kakao/client-auth";
 import { isKakaoSyncEnabled } from "@/lib/kakao/scopes";
 import { cn } from "@/lib/utils";
@@ -143,11 +144,12 @@ const apiErrorSchema = z.object({
   code: z.string().optional(),
 });
 
+// 상담 필요 결과는 scenarios 가 빈 객체일 수 있어 옵셔널 접근으로 판별한다.
 function hasLockedQuoteScenario(quote: QuoteResponse): boolean {
   return (
-    quote.scenarios.conservative.locked === true ||
-    quote.scenarios.standard.locked === true ||
-    quote.scenarios.aggressive.locked === true
+    quote.scenarios.conservative?.locked === true ||
+    quote.scenarios.standard?.locked === true ||
+    quote.scenarios.aggressive?.locked === true
   );
 }
 
@@ -254,6 +256,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     return typeof crypto !== "undefined" ? crypto.randomUUID() : `quote-${Date.now()}`;
   });
   const { track } = useTracking();
+  // 로그인 상태 — 복원된 비회원 게이트 견적을 회원 자격으로 다시 계산할 때 사용.
+  const { user: authUser } = useAuthUser();
   // 게이트 표시 이벤트는 마운트당 1회만 — 모달을 닫았다 다시 여는 반복이 카운트를 부풀리지 않게.
   const deliveryGateShownTracked = useRef(false);
 
@@ -478,6 +482,37 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ─── 로그인 복귀 회원의 잠긴 견적 자동 갱신 ─────────────
+  // 게이트 로그인 왕복 뒤 복원된 quoteResult 는 여전히 비회원 게이트 응답
+  // (standard·conservative 잠금)일 수 있다. 그대로 두면 없음(무보증) 선택이
+  // 잠긴 기준 시나리오를 되살려 화면이 선납 30% 금액에 계속 머문다 —
+  // 회원 자격으로 한 번 다시 계산해 실제 금액 payload 로 교체한다.
+  const memberUnlockRequested = useRef(false);
+  useEffect(() => {
+    if (!authUser || !quoteResult?.trimId) return;
+    if (!hasLockedQuoteScenario(quoteResult)) return;
+    if (memberUnlockRequested.current) return;
+    memberUnlockRequested.current = true;
+    void (async () => {
+      try {
+        const fresh = await requestCalculatedQuoteForDelivery({
+          depositRate: 0,
+          prepayRate: 0,
+        });
+        baseStandardScenario.current = fresh.scenarios.standard ?? null;
+        recalculateRequestId.current += 1;
+        setIsRecalculating(false);
+        // 사용자가 고른 초기비용 조건은 새 기준 payload 위에 다시 계산해 얹는다.
+        pendingRatesReapply.current = true;
+        setQuoteResult(fresh);
+      } catch {
+        // 갱신 실패 — 이후 비율 변경/없음 선택의 재계산 경로가 다시 시도한다.
+        memberUnlockRequested.current = false;
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser, quoteResult]);
+
   // ─── 캐스케이딩 파생 값 (v1 계약 그대로) ───────────────
   const getLineupName = (t: TrimData): string =>
     t.lineup?.name ?? (t.specs as Record<string, string> | null)?.lineup ?? "";
@@ -665,8 +700,13 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       recalculateRequestId.current = requestId;
 
       if (rates.depositRate === 0 && rates.prepayRate === 0) {
-        restoreBaseStandardScenario();
-        return;
+        // 기준(무보증) 시나리오가 실제 금액일 때만 캐시 복원. 잠긴 기준(비회원
+        // 게이트 응답을 로그인 후 복원한 세션 등)을 되살리면 화면이 선납 30%
+        // 금액에 머무르므로, 그 경우 아래 fetch 로 회원 자격 재계산을 태운다.
+        if (isDisplayableQuoteScenario(baseStandardScenario.current ?? undefined)) {
+          restoreBaseStandardScenario();
+          return;
+        }
       }
 
       setIsRecalculating(true);
@@ -695,6 +735,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         }
         if (requestId !== recalculateRequestId.current) return;
 
+        if (rates.depositRate === 0 && rates.prepayRate === 0) {
+          // 잠긴 기준을 우회한 무보증 재계산 — 응답 standard 가 새 기준이 된다.
+          baseStandardScenario.current = json.data.scenarios.standard ?? null;
+        }
         setQuoteResult((prev) =>
           prev
             ? { ...prev, scenarios: { ...prev.scenarios, standard: json.data.scenarios.standard } }

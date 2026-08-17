@@ -11,6 +11,7 @@ import {
   writeConsultationRestore,
   writeFirstEntryRestore,
   writeGuestAllLockedRestore,
+  writeGuestGatedFirstEntryRestore,
   writeLockedCalculatedRestore,
 } from "./QuoteClientPageV2.test-fixtures";
 
@@ -1163,6 +1164,77 @@ describe("QuoteClientPageV2 result first screen", () => {
     fireEvent.click(screen.getByRole("button", { name: /보증금·선납금 없이 시작/ }));
     expect(screen.queryByRole("dialog", { name: "로그인이 필요해요" })).not.toBeInTheDocument();
     expect(await screen.findByText((_, node) => node?.textContent === "70만원")).toBeInTheDocument();
+  });
+
+  // 고객 리포트 재현: 비회원 선납 30% 화면 → 로그인 → 없음(무보증) 선택.
+  // 복원된 quoteResult 가 아직 비회원 게이트 응답(standard 잠금)이어도,
+  // 회원의 없음 선택은 잠긴 기준을 되살려 선납 30% 금액에 머물면 안 되고
+  // 실제 무보증 월납으로 이어져야 한다.
+  it("shows the real no-deposit monthly when a member selects 없음 on a restored guest-gated result", async () => {
+    writeGuestGatedFirstEntryRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    await screen.findByText((_, node) => node?.textContent === "53만원");
+    await waitFor(() => expect(supabaseMock.getUser).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /보증금·선납금 없이 시작/ }));
+
+    // 회원이므로 로그인 모달 없이 진행된다.
+    expect(
+      screen.queryByRole("dialog", { name: "로그인이 필요해요" })
+    ).not.toBeInTheDocument();
+    // 잔존한 선납 30% 금액(53만원)이 아니라 실제 무보증 월납(70만원)이 떠야 한다.
+    expect(
+      await screen.findByText(
+        (_, node) => node?.textContent === "70만원",
+        undefined,
+        { timeout: 3000 }
+      )
+    ).toBeInTheDocument();
+    // 잠금/무가격이 0원으로 그려지는 회귀도 금지.
+    expect(
+      screen.queryByText((_, node) => node?.textContent === "0만원")
+    ).not.toBeInTheDocument();
+  });
+
+  it("recalculates a restored guest-gated result as the member right after login", async () => {
+    writeGuestGatedFirstEntryRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const fetchMock = createFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    await screen.findByText((_, node) => node?.textContent === "53만원");
+
+    // 로그인 복귀만으로 회원 자격 재계산이 나간다 — 없음을 누르기 전에
+    // 잠긴 standard 가 실제 금액으로 대체되어야 한다.
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/vehicles/preparing-car/quote",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+    const quoteCall = fetchMock.mock.calls.find(
+      ([input]) => input.toString() === "/api/vehicles/preparing-car/quote"
+    );
+    const quoteBody = JSON.parse(String(quoteCall?.[1]?.body));
+    // 기준(무보증) 조건으로 다시 계산한다 — 커스텀 비율 없이.
+    expect(quoteBody.trimId).toBe("trim-preparing");
+    expect(quoteBody.customDepositRate).toBeUndefined();
+    expect(quoteBody.customPrepayRate).toBeUndefined();
+    // 화면은 여전히 선택된 선납 30% 조건의 공개 금액을 유지한다.
+    expect(
+      screen.getByText((_, node) => node?.textContent === "53만원")
+    ).toBeInTheDocument();
   });
 
   it("defaults a fresh calculate result to prepay 30% and initial cost mode", async () => {

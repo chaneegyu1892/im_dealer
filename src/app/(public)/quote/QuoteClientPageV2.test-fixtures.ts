@@ -194,6 +194,59 @@ export function writeCalculatedRestore(): void {
   writeRestore(false);
 }
 
+/**
+ * 비회원 첫 화면(선납 30%)에서 로그인 게이트로 나간 직후의 실제 복원 상태 —
+ * quoteResult 는 아직 비회원 게이트 응답(standard·conservative 잠금 + 공개 aggressive)이고,
+ * baseStandard 도 게스트 세션이 저장한 그대로 **잠긴** standard 다.
+ * 로그인 후 이 상태에서 없음(무보증)을 선택하는 재현 시나리오에 쓴다.
+ */
+export function writeGuestGatedFirstEntryRestore(): void {
+  const lockedScenario = {
+    ...quoteScenario(0, 0, 0),
+    monthlyPayment: null,
+    bestFinanceCompany: "",
+    locked: true,
+  };
+  window.localStorage.setItem(
+    "quote_image_restore",
+    JSON.stringify({
+      vehicleSlug: "preparing-car",
+      customerType: "individual",
+      selectedLineup: null,
+      selectedTrimName: "프리미엄",
+      selectedOptionIds: [],
+      contractCategory: "장기렌트",
+      conditions: {
+        contractMonths: 60,
+        annualMileage: 20000,
+        contractType: "반납형",
+      },
+      customRates: { depositRate: 0, prepayRate: 30 },
+      costMode: "initial",
+      baseStandard: lockedScenario,
+      quoteResult: {
+        vehicleSlug: "preparing-car",
+        trimId: "trim-preparing",
+        trimName: "프리미엄",
+        trimPrice: 40_000_000,
+        optionsTotalPrice: 0,
+        colorDelta: 0,
+        totalVehiclePrice: 40_000_000,
+        contractMonths: 60,
+        annualMileage: 20000,
+        contractType: "반납형",
+        customerType: "individual",
+        scenarios: {
+          conservative: lockedScenario,
+          standard: lockedScenario,
+          aggressive: quoteScenario(530_000, 0, 12_000_000),
+        },
+        requiresConsultation: false,
+      },
+    })
+  );
+}
+
 export function writeLockedCalculatedRestore(): void {
   writeRestore(false, true);
 }
