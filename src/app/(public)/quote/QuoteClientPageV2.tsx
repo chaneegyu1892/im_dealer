@@ -1598,9 +1598,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         description={
           loginGate === "initialCost" ? (
             <>
-              선납금과 초기비용 조건을 확인하려면 로그인이 필요해요.
+              초기비용 0원 또는 보증금 선납금 조건 수정 하려면 로그인이 필요해요
               <br />
-              카카오톡으로 빠르게 시작해보세요.
+              카카오톡 간편로그인으로 빠르게 시작해보세요~!
             </>
           ) : (
             <>
