@@ -8,6 +8,7 @@ import {
 } from "@/lib/referral/attribution";
 import { applyReferralOnProfileComplete } from "@/lib/referral/apply";
 import { normalizeReferralCode } from "@/lib/referral/code";
+import { signupIpHashFromRequest } from "@/lib/referral/signup-ip";
 
 // 가입 때 추천인 코드를 깜빡한 회원의 사후 입력 창구.
 // 가입 완료 후 REFERRAL_ENTRY_WINDOW_DAYS 이내, 평생 1회(Referral.refereeId unique)만 인정된다.
@@ -65,14 +66,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await applyReferralOnProfileComplete(
-      {
-        inviteeUserId: user.id,
-        rawCode: code,
-        isWithinEntryWindow: true,
-        inviteeKakaoId: user.kakaoId ?? null,
-      },
-      prisma,
+    // Referral 생성과 쿠폰 발급을 원자화 — 실패 시 전부 롤백돼 재시도가 깨끗하다.
+    const result = await prisma.$transaction((tx) =>
+      applyReferralOnProfileComplete(
+        {
+          inviteeUserId: user.id,
+          rawCode: code,
+          isWithinEntryWindow: true,
+          inviteeKakaoId: user.kakaoId ?? null,
+          signupIpHash: signupIpHashFromRequest(request),
+        },
+        tx,
+      ),
     );
 
     if (!result.applied) {

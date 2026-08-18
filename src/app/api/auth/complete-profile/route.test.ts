@@ -1,15 +1,20 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { hashIp } from "@/lib/ip-hash";
 import { POST } from "./route";
 
 const mocks = vi.hoisted(() => ({
   requireActiveUser: vi.fn(),
   updateUser: vi.fn(),
   findUniqueUser: vi.fn(),
+  transaction: vi.fn(),
   ensureUserReferralCode: vi.fn(),
   reconcileUserCoupons: vi.fn(),
   applyReferralOnProfileComplete: vi.fn(),
 }));
+
+/** $transaction 콜백에 넘어가는 tx 클라이언트 표식 */
+const TX = { __tx: true };
 
 vi.mock("@/lib/require-user", () => ({
   requireActiveUser: mocks.requireActiveUser,
@@ -18,6 +23,7 @@ vi.mock("@/lib/require-user", () => ({
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { update: mocks.updateUser, findUnique: mocks.findUniqueUser },
+    $transaction: mocks.transaction,
   },
 }));
 
@@ -33,8 +39,15 @@ vi.mock("@/lib/referral/apply", () => ({
   applyReferralOnProfileComplete: mocks.applyReferralOnProfileComplete,
 }));
 
-function request(body: unknown, cookie?: string): NextRequest {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+function request(
+  body: unknown,
+  cookie?: string,
+  extraHeaders: Record<string, string> = {},
+): NextRequest {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...extraHeaders,
+  };
   if (cookie) headers.cookie = cookie;
   return new NextRequest("https://example.com/api/auth/complete-profile", {
     method: "POST",
@@ -57,6 +70,7 @@ describe("POST /api/auth/complete-profile", () => {
       error: null,
     });
     mocks.updateUser.mockResolvedValue({ id: "user-1" });
+    mocks.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb(TX));
     mocks.ensureUserReferralCode.mockResolvedValue("K4821");
     mocks.reconcileUserCoupons.mockResolvedValue(undefined);
     mocks.applyReferralOnProfileComplete.mockResolvedValue({ applied: false, reason: "INVALID_CODE" });
@@ -202,6 +216,51 @@ describe("POST /api/auth/complete-profile", () => {
     expect(res.status).toBe(200);
     expect(mocks.findUniqueUser).not.toHaveBeenCalled();
     expect(mocks.applyReferralOnProfileComplete).not.toHaveBeenCalled();
+  });
+
+  it("가입 IP 해시를 추천 인정에 전달한다", async () => {
+    await POST(
+      request({ name: "홍길동", phone: "010-1234-5678" }, "referral_code=K4821", {
+        "x-forwarded-for": "1.2.3.4, 10.0.0.1",
+      }),
+    );
+    expect(mocks.applyReferralOnProfileComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ signupIpHash: hashIp("1.2.3.4") }),
+      expect.anything(),
+    );
+  });
+
+  it("IP 를 알 수 없으면 signupIpHash 는 null 이다", async () => {
+    await POST(request({ name: "홍길동", phone: "010-1234-5678" }, "referral_code=K4821"));
+    expect(mocks.applyReferralOnProfileComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ signupIpHash: null }),
+      expect.anything(),
+    );
+  });
+
+  it("추천 인정은 트랜잭션 클라이언트로 실행된다", async () => {
+    mocks.applyReferralOnProfileComplete.mockResolvedValue({
+      applied: true,
+      inviterUserId: "inviter-1",
+    });
+    await POST(request({ name: "홍길동", phone: "010-1234-5678" }, "referral_code=K4821"));
+
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+    expect(mocks.applyReferralOnProfileComplete).toHaveBeenCalledWith(
+      expect.anything(),
+      TX,
+    );
+  });
+
+  it("추천 인정이 실패해도 가입은 성공하고 쿠키를 유지한다", async () => {
+    mocks.transaction.mockRejectedValue(new Error("db hiccup"));
+    const res = await POST(
+      request({ name: "홍길동", phone: "010-1234-5678" }, "referral_code=K4821"),
+    );
+
+    expect(res.status).toBe(200);
+    // 쿠키를 지우지 않아야 한다 (set-cookie 로 referral_code 만료를 보내지 않음)
+    expect(res.headers.get("set-cookie") ?? "").not.toContain("referral_code");
   });
 
   it("이미 가입 완료된 회원이 보낸 코드는 검증 없이 무시한다", async () => {

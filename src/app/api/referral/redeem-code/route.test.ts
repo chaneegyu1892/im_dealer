@@ -1,12 +1,17 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { hashIp } from "@/lib/ip-hash";
 import { POST } from "./route";
 
 const mocks = vi.hoisted(() => ({
   requireActiveUser: vi.fn(),
   findUniqueUser: vi.fn(),
+  transaction: vi.fn(),
   applyReferralOnProfileComplete: vi.fn(),
 }));
+
+/** $transaction 콜백에 넘어가는 tx 클라이언트 표식 */
+const TX = { __tx: true };
 
 vi.mock("@/lib/require-user", () => ({
   requireActiveUser: mocks.requireActiveUser,
@@ -15,6 +20,7 @@ vi.mock("@/lib/require-user", () => ({
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: mocks.findUniqueUser },
+    $transaction: mocks.transaction,
   },
 }));
 
@@ -25,10 +31,13 @@ vi.mock("@/lib/referral/apply", () => ({
 const NOW = Date.now();
 const DAY = 24 * 60 * 60 * 1000;
 
-function request(body: unknown): NextRequest {
+function request(
+  body: unknown,
+  extraHeaders: Record<string, string> = {},
+): NextRequest {
   return new NextRequest("https://example.com/api/referral/redeem-code", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(body),
   });
 }
@@ -49,6 +58,7 @@ describe("POST /api/referral/redeem-code", () => {
     vi.clearAllMocks();
     mocks.requireActiveUser.mockResolvedValue({ user: activeUser(), error: null });
     mocks.findUniqueUser.mockResolvedValue({ id: "inviter-1", isActive: true });
+    mocks.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb(TX));
     mocks.applyReferralOnProfileComplete.mockResolvedValue({
       applied: true,
       inviterUserId: "inviter-1",
@@ -146,5 +156,43 @@ describe("POST /api/referral/redeem-code", () => {
       }),
       expect.anything(),
     );
+  });
+
+  it("가입 IP 해시를 추천 인정에 전달한다 (없으면 null)", async () => {
+    await POST(request({ code: "K4821" }, { "x-forwarded-for": "5.6.7.8" }));
+    expect(mocks.applyReferralOnProfileComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ signupIpHash: hashIp("5.6.7.8") }),
+      expect.anything(),
+    );
+
+    vi.clearAllMocks();
+    mocks.requireActiveUser.mockResolvedValue({ user: activeUser(), error: null });
+    mocks.findUniqueUser.mockResolvedValue({ id: "inviter-1", isActive: true });
+    mocks.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb(TX));
+    mocks.applyReferralOnProfileComplete.mockResolvedValue({
+      applied: true,
+      inviterUserId: "inviter-1",
+      referralId: "ref-1",
+    });
+    await POST(request({ code: "K4821" }));
+    expect(mocks.applyReferralOnProfileComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ signupIpHash: null }),
+      expect.anything(),
+    );
+  });
+
+  it("추천 인정은 트랜잭션 클라이언트로 실행된다", async () => {
+    await POST(request({ code: "K4821" }));
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+    expect(mocks.applyReferralOnProfileComplete).toHaveBeenCalledWith(
+      expect.anything(),
+      TX,
+    );
+  });
+
+  it("트랜잭션 실패 시 500 — 롤백되므로 재시도하면 처음부터 인정 가능", async () => {
+    mocks.transaction.mockRejectedValue(new Error("db hiccup"));
+    const res = await POST(request({ code: "K4821" }));
+    expect(res.status).toBe(500);
   });
 });

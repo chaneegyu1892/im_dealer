@@ -141,23 +141,20 @@ async function issueReferralCoupons(input: {
         ? null
         : new Date(input.now.getTime() + policy.validDays * MS_PER_DAY);
 
-    try {
-      await input.db.issuedCoupon.create({
-        data: {
-          userId,
-          policyId: policy.id,
-          code: generateCouponCode(),
-          status: "HELD",
-          titleSnapshot: policy.title,
-          rewardLabelSnapshot: policy.rewardLabel,
-          rewardAmountSnapshot: policy.rewardAmount,
-          expiresAt,
-          referralId: input.referralId,
-        },
-      });
-    } catch (error) {
-      // partial unique (policyId, referralId) 충돌 = 이미 지급
-      console.warn("[referral] coupon issue skipped:", error);
-    }
+    // 호출부가 트랜잭션으로 감싸므로 실패하면 Referral 행과 함께 전부 롤백된다.
+    // (policyId, referralId) partial unique 는 신규 referralId 라 충돌할 수 없다.
+    await input.db.issuedCoupon.create({
+      data: {
+        userId,
+        policyId: policy.id,
+        code: generateCouponCode(),
+        status: "HELD",
+        titleSnapshot: policy.title,
+        rewardLabelSnapshot: policy.rewardLabel,
+        rewardAmountSnapshot: policy.rewardAmount,
+        expiresAt,
+        referralId: input.referralId,
+      },
+    });
   }
 }

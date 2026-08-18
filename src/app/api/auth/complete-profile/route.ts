@@ -7,6 +7,7 @@ import { REFERRAL_COOKIE_NAME } from "@/lib/referral/attribution";
 import { applyReferralOnProfileComplete } from "@/lib/referral/apply";
 import { ensureUserReferralCode } from "@/lib/referral/ensure-code";
 import { normalizeReferralCode } from "@/lib/referral/code";
+import { signupIpHashFromRequest } from "@/lib/referral/signup-ip";
 import { reconcileUserCoupons } from "@/lib/coupons/reconcile";
 
 // 간편가입 완료: 로그인 회원의 이름·전화(필수)와 마케팅 동의(선택)를 저장하고
@@ -113,31 +114,42 @@ export async function POST(request: NextRequest) {
         profileCompleted: true,
       });
     }
-
-    // 최초 가입 완료 시에만 추천 인정. 직접 입력한 코드가 쿠키보다 우선한다.
-    const referralRawCode = typedReferralCode ?? referralFromCookie;
-    if (!wasProfileCompleted && referralRawCode) {
-      const result = await applyReferralOnProfileComplete(
-        {
-          inviteeUserId: user.id,
-          rawCode: referralRawCode,
-          isWithinEntryWindow: true,
-          inviteeKakaoId: user.kakaoId ?? null,
-        },
-        prisma,
-      );
-      if (!result.applied) {
-        console.info("[complete-profile] referral not applied:", result.reason);
-      }
-    }
   } catch (err) {
     console.error("[POST /api/auth/complete-profile]", err);
     return NextResponse.json({ error: "저장 중 오류가 발생했습니다." }, { status: 500 });
   }
 
+  // 최초 가입 완료 시에만 추천 인정. 직접 입력한 코드가 쿠키보다 우선한다.
+  // 가입 저장과 분리해 처리한다 — 인정이 일시 오류로 실패해도 가입은 성공이고,
+  // 트랜잭션 롤백 덕분에 회원이 창구(7일) 안에 쿠폰함 카드로 다시 시도할 수 있다.
+  const referralRawCode = typedReferralCode ?? referralFromCookie;
+  let referralApplyFailed = false;
+  if (!wasProfileCompleted && referralRawCode) {
+    try {
+      const result = await prisma.$transaction((tx) =>
+        applyReferralOnProfileComplete(
+          {
+            inviteeUserId: user.id,
+            rawCode: referralRawCode,
+            isWithinEntryWindow: true,
+            inviteeKakaoId: user.kakaoId ?? null,
+            signupIpHash: signupIpHashFromRequest(request),
+          },
+          tx,
+        ),
+      );
+      if (!result.applied) {
+        console.info("[complete-profile] referral not applied:", result.reason);
+      }
+    } catch (err) {
+      referralApplyFailed = true;
+      console.error("[complete-profile] referral apply failed:", err);
+    }
+  }
+
   const response = NextResponse.json({ success: true });
-  // 소비된 추천 쿠키 제거
-  if (referralFromCookie) {
+  // 소비된 추천 쿠키 제거. 인정이 일시 오류로 실패한 경우에는 남겨둔다.
+  if (referralFromCookie && !referralApplyFailed) {
     response.cookies.set(REFERRAL_COOKIE_NAME, "", {
       httpOnly: true,
       sameSite: "lax",
