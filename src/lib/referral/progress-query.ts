@@ -23,7 +23,9 @@ export async function loadReferralProgressItems(
     select: {
       id: true,
       createdAt: true,
-      referee: { select: { name: true, supabaseId: true } },
+      referee: {
+        select: { name: true, supabaseId: true, profileCompletedAt: true },
+      },
     },
   });
 
@@ -53,7 +55,8 @@ export async function loadReferralProgressItems(
     buildReferralProgressItem({
       id: referral.id,
       refereeName: referral.referee.name,
-      signedUpAt: referral.createdAt,
+      // 사후 코드 입력이면 인정 시점(createdAt)이 실제 가입일보다 늦다. 가입일을 우선한다.
+      signedUpAt: referral.referee.profileCompletedAt ?? referral.createdAt,
       quotes: referral.referee.supabaseId
         ? (quotesByOwner.get(referral.referee.supabaseId) ?? [])
         : [],

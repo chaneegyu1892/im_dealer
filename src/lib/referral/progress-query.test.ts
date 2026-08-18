@@ -4,7 +4,11 @@ import { loadReferralProgressItems } from "./progress-query";
 interface FakeReferralRow {
   id: string;
   createdAt: Date;
-  referee: { name: string; supabaseId: string | null };
+  referee: {
+    name: string;
+    supabaseId: string | null;
+    profileCompletedAt?: Date | null;
+  };
 }
 
 interface FakeQuoteRow {
@@ -87,6 +91,45 @@ describe("loadReferralProgressItems", () => {
     const byId = new Map(items.map((i) => [i.id, i]));
     expect(byId.get("ref-1")?.step).toBe(4);
     expect(byId.get("ref-2")?.step).toBe(1);
+  });
+
+  it("가입일 라벨은 referee 의 실제 가입 완료 시각을 우선한다", async () => {
+    const db = fakeDb(
+      [
+        {
+          id: "ref-1",
+          // 사후 코드 입력으로 인정 시점이 가입보다 5일 늦은 케이스
+          createdAt: new Date("2026-08-15T03:00:00Z"),
+          referee: {
+            name: "김진규",
+            supabaseId: "sb-1",
+            profileCompletedAt: new Date("2026-08-10T03:00:00Z"),
+          },
+        },
+      ],
+      [],
+    );
+
+    const items = await loadReferralProgressItems("referrer-1", db as never);
+
+    expect(items[0]?.signedUpLabel).toBe("2026.08.10");
+  });
+
+  it("가입 완료 시각이 없으면(백필 전 데이터) 인정 시점으로 대체한다", async () => {
+    const db = fakeDb(
+      [
+        {
+          id: "ref-1",
+          createdAt: new Date("2026-08-15T03:00:00Z"),
+          referee: { name: "김진규", supabaseId: "sb-1", profileCompletedAt: null },
+        },
+      ],
+      [],
+    );
+
+    const items = await loadReferralProgressItems("referrer-1", db as never);
+
+    expect(items[0]?.signedUpLabel).toBe("2026.08.15");
   });
 
   it("referrer 기준 REWARDED 추천만 최신순으로 조회한다", async () => {

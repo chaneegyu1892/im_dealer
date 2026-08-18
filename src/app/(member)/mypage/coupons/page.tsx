@@ -4,7 +4,14 @@ import { redirect } from "next/navigation";
 import { Ticket } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CouponTicket } from "@/components/mypage/CouponTicket";
+import { ReferralCodeEntryCard } from "@/components/mypage/ReferralCodeEntryCard";
 import { getCouponBoxData } from "@/lib/member-queries/coupons";
+import { prisma } from "@/lib/prisma";
+import {
+  isReferralEntryWindowOpen,
+  referralEntryDeadline,
+} from "@/lib/referral/attribution";
+import { formatKstDate } from "@/lib/referral/progress";
 import { requireMember } from "@/lib/require-access";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +30,29 @@ export default async function CouponBoxPage() {
 
   const { available, past, summary } = await getCouponBoxData(access.userId);
   const hasAny = available.length > 0 || past.length > 0;
+
+  // 가입 때 추천인 코드를 깜빡한 회원의 사후 입력 카드.
+  // 자격: 가입 완료 + 창구(7일) 이내 + 아직 추천 미인정.
+  let referralEntryDeadlineLabel: string | null = null;
+  const member = await prisma.user.findFirst({
+    where: { supabaseId: access.userId },
+    select: { id: true, profileCompleted: true, profileCompletedAt: true },
+  });
+  if (
+    member?.profileCompleted &&
+    member.profileCompletedAt &&
+    isReferralEntryWindowOpen(member.profileCompletedAt)
+  ) {
+    const alreadyReferred = await prisma.referral.findUnique({
+      where: { refereeId: member.id },
+      select: { id: true },
+    });
+    if (!alreadyReferred) {
+      referralEntryDeadlineLabel = formatKstDate(
+        referralEntryDeadline(member.profileCompletedAt),
+      );
+    }
+  }
 
   return (
     <>
@@ -49,6 +79,10 @@ export default async function CouponBoxPage() {
           note="계약 완료 시 지급"
         />
       </section>
+
+      {referralEntryDeadlineLabel ? (
+        <ReferralCodeEntryCard deadlineLabel={referralEntryDeadlineLabel} />
+      ) : null}
 
       {hasAny ? (
         <>
