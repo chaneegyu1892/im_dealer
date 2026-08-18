@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { getTrustedClientIp } from "@/lib/client-ip";
 import { isValidAnonId } from "@/lib/anon-id";
 import { likeRateLimit } from "@/lib/rate-limit";
 import { toggleReviewLike } from "@/lib/review-likes";
@@ -9,10 +10,7 @@ const bodySchema = z.object({
 });
 
 function getClientKey(request: NextRequest, anonId: string): string {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = getTrustedClientIp(request.headers) ?? "unknown";
   return `${ip}:${anonId}`;
 }
 

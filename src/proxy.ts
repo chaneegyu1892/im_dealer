@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getTrustedClientIp } from "@/lib/client-ip";
 import { apiRateLimit, strictRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_ROLES } from "@/lib/admin-roles";
@@ -10,22 +11,6 @@ import {
 
 // Next 16 의 proxy.ts 는 항상 Node.js 런타임으로 실행됨 → runtime export 불필요.
 // Prisma 직접 호출 가능. https://nextjs.org/docs/messages/middleware-to-proxy
-
-// x-forwarded-for 첫 번째 IP만 사용 (스푸핑 시 체인 뒤를 노출시킬 수 있음).
-// Vercel 등 신뢰 가능한 프록시 뒤에선 헤더만 신뢰. NextRequest.ip 는 Next 15+ 에서 제거됨.
-function getClientIp(request: NextRequest): string | null {
-  const trustProxy = process.env.TRUST_PROXY === "true" || process.env.VERCEL === "1";
-  if (trustProxy) {
-    const xff = request.headers.get("x-forwarded-for");
-    if (xff) {
-      const first = xff.split(",")[0]?.trim();
-      if (first) return first;
-    }
-    const xreal = request.headers.get("x-real-ip");
-    if (xreal) return xreal.trim();
-  }
-  return null;
-}
 
 function isLocalHostname(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
@@ -49,7 +34,7 @@ export default async function middleware(request: NextRequest) {
     const ratelimit = isStrictApi ? strictRateLimit : apiRateLimit;
 
     if (ratelimit) {
-      const ip = getClientIp(request);
+      const ip = getTrustedClientIp(request.headers);
       if (!ip) {
         if (process.env.NODE_ENV === "production" && !isLocalHostname(request.nextUrl.hostname)) {
           return NextResponse.json(
@@ -113,6 +98,11 @@ export default async function middleware(request: NextRequest) {
     supabaseUrl,
     supabaseAnonKey,
     {
+      // src/lib/supabase/server.ts 와 동일 정책 — 운영 세션 쿠키는 secure 강제.
+      cookieOptions: {
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      },
       cookies: {
         getAll() {
           return request.cookies.getAll();

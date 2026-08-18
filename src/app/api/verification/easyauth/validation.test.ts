@@ -32,6 +32,57 @@ describe("easyAuthFieldsSchema", () => {
     void verificationId;
     expect(easyAuthFieldsSchema.safeParse(rest).success).toBe(false);
   });
+
+  it("휴대폰 번호 형식이 아니면 거부한다", () => {
+    for (const phoneNo of ["010-1234-5678", "021234567", "0101234567890", ""]) {
+      expect(easyAuthFieldsSchema.safeParse({ ...valid, phoneNo }).success).toBe(false);
+    }
+  });
+
+  it("알 수 없는 인증 수단은 거부한다", () => {
+    expect(easyAuthFieldsSchema.safeParse({ ...valid, loginTypeLevel: "9" }).success).toBe(
+      false
+    );
+  });
+
+  it("통신사 PASS(5)는 telecom 이 없으면 거부하고, 있으면 통과한다", () => {
+    expect(
+      easyAuthFieldsSchema.safeParse({ ...valid, loginTypeLevel: "5" }).success
+    ).toBe(false);
+    expect(
+      easyAuthFieldsSchema.safeParse({ ...valid, loginTypeLevel: "5", telecom: "2" }).success
+    ).toBe(true);
+  });
+
+  it("생년월일은 8자리 숫자만 허용한다", () => {
+    expect(easyAuthFieldsSchema.safeParse({ ...valid, birthDate: "19900101" }).success).toBe(
+      true
+    );
+    expect(easyAuthFieldsSchema.safeParse({ ...valid, birthDate: "900101" }).success).toBe(
+      false
+    );
+  });
+
+  it("과세기간은 4~6자리 숫자만 허용한다", () => {
+    expect(easyAuthFieldsSchema.safeParse({ ...valid, taxStartMonth: "2025" }).success).toBe(
+      true
+    );
+    expect(easyAuthFieldsSchema.safeParse({ ...valid, taxStartMonth: "202501" }).success).toBe(
+      true
+    );
+    expect(
+      easyAuthFieldsSchema.safeParse({ ...valid, taxStartMonth: "2025-01" }).success
+    ).toBe(false);
+  });
+
+  it("과도하게 긴 이름은 거부한다", () => {
+    expect(easyAuthFieldsSchema.safeParse({ ...valid, userName: "가".repeat(51) }).success).toBe(
+      false
+    );
+    expect(easyAuthFieldsSchema.safeParse({ ...valid, userName: "가".repeat(50) }).success).toBe(
+      true
+    );
+  });
 });
 
 describe("twoWayInfoSchema", () => {

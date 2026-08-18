@@ -45,7 +45,25 @@ const envSchema = z.object({
 
   // 보안 설정
   TRUST_PROXY: z.enum(["true", "false"]).default("false"),
-});
+})
+  // 운영 런타임에선 rate limit 을 위한 Upstash 가 필수다. 누락되면 모든 제한이
+  // fail-open 으로 사라진다. next build 시점(NEXT_PHASE=phase-production-build)은 제외.
+  .superRefine((val, ctx) => {
+    if (
+      val.NODE_ENV === "production" &&
+      process.env.NEXT_PHASE !== "phase-production-build"
+    ) {
+      const missing: string[] = [];
+      if (!val.UPSTASH_REDIS_REST_URL) missing.push("UPSTASH_REDIS_REST_URL");
+      if (!val.UPSTASH_REDIS_REST_TOKEN) missing.push("UPSTASH_REDIS_REST_TOKEN");
+      if (missing.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `운영에서는 rate limit 용 ${missing.join(", ")} 이(가) 필수입니다.`,
+        });
+      }
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

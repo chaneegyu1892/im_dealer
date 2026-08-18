@@ -4,6 +4,7 @@ import { requireActiveUser } from "@/lib/require-user";
 import { startEasyAuth } from "@/lib/codef/easyauth";
 import { docTypesForCustomer } from "@/lib/codef/doc-types";
 import { isCustomerType } from "@/constants/customer-types";
+import { easyAuthRateLimit } from "@/lib/rate-limit";
 import { easyAuthFieldsSchema, toEasyAuthInput } from "../validation";
 
 // ─── POST /api/verification/easyauth/start ───────────────
@@ -15,6 +16,17 @@ export async function POST(request: NextRequest) {
   if (authError) return authError;
   if (!user.supabaseId) {
     return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 403 });
+  }
+
+  // 발송 쿨다운 — 임의 번호로 인증 푸시를 반복 발송하는 스팸 차단.
+  if (easyAuthRateLimit) {
+    const { success } = await easyAuthRateLimit.limit(`easyauth:${user.supabaseId}`);
+    if (!success) {
+      return NextResponse.json(
+        { error: "인증 요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요." },
+        { status: 429 }
+      );
+    }
   }
 
   const parsed = easyAuthFieldsSchema.safeParse(await request.json().catch(() => null));
@@ -36,7 +48,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "해당 고객 유형에 허용되지 않은 문서입니다." }, { status: 400 });
   }
 
-  const result = await startEasyAuth(toEasyAuthInput(fields));
+  // Codef 에 보내는 id 는 소유 검증을 통과한 레코드 id 로 서버가 결정한다.
+  const result = await startEasyAuth(toEasyAuthInput({ ...fields, id: verification.id }));
   if (result.kind === "error") {
     // Codef 원문(PII 가능)·코드를 그대로 노출하지 않고 일반 메시지 + 코드만 반환
     console.error("[easyauth/start]", { code: result.code, docType: fields.docType });

@@ -6,7 +6,12 @@ import { completeEasyAuth } from "@/lib/codef/easyauth";
 import { docTypesForCustomer } from "@/lib/codef/doc-types";
 import { isCustomerType } from "@/constants/customer-types";
 import { encryptPII, encryptString } from "@/lib/pii";
-import { easyAuthFieldsSchema, twoWayInfoSchema, toEasyAuthInput } from "../validation";
+import {
+  easyAuthFieldsBase,
+  easyAuthPassRefinement,
+  twoWayInfoSchema,
+  toEasyAuthInput,
+} from "../validation";
 
 const SAFE_FAILURE_CATEGORIES: Readonly<Record<string, string>> = {
   "CF-12872": "AUTH_NOT_COMPLETED",
@@ -28,7 +33,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 403 });
   }
 
-  const schema = easyAuthFieldsSchema.extend({ twoWayInfo: twoWayInfoSchema });
+  const schema = easyAuthFieldsBase
+    .extend({ twoWayInfo: twoWayInfoSchema })
+    .superRefine(easyAuthPassRefinement);
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "입력값이 올바르지 않습니다." }, { status: 400 });
@@ -49,7 +56,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "해당 고객 유형에 허용되지 않은 문서입니다." }, { status: 400 });
   }
 
-  const issued = await completeEasyAuth(toEasyAuthInput(fields), twoWayInfo);
+  // start 와 동일 — Codef 식별자 id 는 서버가 소유 검증된 레코드 id 로 고정.
+  const issued = await completeEasyAuth(
+    toEasyAuthInput({ ...fields, id: verification.id }),
+    twoWayInfo
+  );
 
   const data = {
     verificationId: fields.verificationId,

@@ -8,10 +8,28 @@
  * - RecommendationConfig (AI 추천 기초 데이터)
  */
 
+import { randomBytes } from "crypto";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+// 잘 알려진 기본 비밀번호를 하드코드하지 않는다 — 운영 DB 시드 시 폭넓게 알려진
+// 값의 해시가 영속되고, 비밀번호 로그인 경로가 추가되는 즉시 치명적이 된다.
+// 운영은 명시 설정 강제, 개발은 재실행마다 다른 랜덤 값을 1회 출력한다.
+function resolveInitialAdminPassword(): string {
+  if (process.env.ADMIN_INITIAL_PASSWORD) return process.env.ADMIN_INITIAL_PASSWORD;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "운영 시드에는 ADMIN_INITIAL_PASSWORD 를 명시적으로 설정해야 합니다."
+    );
+  }
+  const generated = randomBytes(12).toString("base64url");
+  console.warn(
+    `\n🔐 ADMIN_INITIAL_PASSWORD 미설정 — 랜덤 비밀번호 생성 (재실행마다 다름):\n   ${generated}\n   로컬에서 고정값이 필요하면 .env 에 ADMIN_INITIAL_PASSWORD 를 설정하세요.\n`
+  );
+  return generated;
+}
 
 // ─── 금융사 ──────────────────────────────────────────────
 
@@ -1314,7 +1332,7 @@ async function main() {
 
   // 초기 어드민 계정
   const adminEmail = process.env.ADMIN_INITIAL_EMAIL ?? "admin@imdealers.com";
-  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD ?? "changeme123!";
+  const adminPassword = resolveInitialAdminPassword();
   const existingAdmin = await prisma.user.findFirst({ where: { email: adminEmail } });
   if (!existingAdmin) {
     const passwordHash = await bcrypt.hash(adminPassword, 12);

@@ -8,6 +8,12 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // 라이브러리 기본값(httpOnly: false)은 유지하되, 세션 쿠키가 평문 HTTP로
+      // 유출되지 않도록 운영에서는 secure 플래그를 강제한다.
+      cookieOptions: {
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll();
