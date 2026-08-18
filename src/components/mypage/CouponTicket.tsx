@@ -21,22 +21,24 @@ interface StatusStyle {
 }
 
 const STATUS_STYLE: Record<CouponStatusValue, StatusStyle> = {
+  // 지급 예정은 아직 못 쓰는 쿠폰이므로 한 톤 낮추고, 대기 상태는 앰버 칩이 담당한다.
   PENDING: {
+    stub: "bg-brand-soft text-brand",
+    frame: "ring-1 ring-inset ring-border-subtle",
+    chip: "bg-status-warning-soft text-status-warning",
+    title: "text-text-strong",
+    divider: "border-border-strong",
+  },
+  // 지금 쓸 수 있는 보유 쿠폰이 가장 또렷해야 한다.
+  HELD: {
     stub: "bg-brand text-white",
     // Tailwind 의 비-inset ring 은 바깥쪽 box-shadow 인데, 아래 NOTCH_MASK 가
     // mask-clip: border-box 로 적용돼 바깥 그림자를 잘라낸다. ring-inset 을 써야
     // 실제로 보인다.
     frame: "ring-1 ring-inset ring-brand/25",
-    chip: "bg-status-warning-soft text-status-warning",
+    chip: "bg-brand-soft text-brand",
     title: "text-text-strong",
     divider: "border-brand/40",
-  },
-  HELD: {
-    stub: "bg-brand-soft text-brand",
-    frame: "ring-1 ring-inset ring-border-subtle",
-    chip: "bg-surface-soft text-text-body",
-    title: "text-text-strong",
-    divider: "border-border-strong",
   },
   PAID: {
     stub: "bg-status-positive-soft text-status-positive",

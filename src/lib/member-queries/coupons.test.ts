@@ -66,15 +66,15 @@ describe("getCouponBoxData", () => {
     expect(data.available).toHaveLength(1);
   });
 
-  it("PENDING 을 HELD 보다 앞에 둔다", async () => {
+  it("HELD 를 PENDING 보다 앞에 둔다", async () => {
     mocks.findCoupons.mockResolvedValue([
-      coupon({ id: "held", status: "HELD" }),
       coupon({ id: "pending", status: "PENDING" }),
+      coupon({ id: "held", status: "HELD" }),
     ]);
 
     const data = await getCouponBoxData("sb-1");
 
-    expect(data.available.map((item) => item.id)).toEqual(["pending", "held"]);
+    expect(data.available.map((item) => item.id)).toEqual(["held", "pending"]);
   });
 
   it("지급 완료·만료·취소는 지난 쿠폰으로 분류한다", async () => {

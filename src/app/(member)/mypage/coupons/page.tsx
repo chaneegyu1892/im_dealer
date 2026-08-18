@@ -67,12 +67,8 @@ export default async function CouponBoxPage() {
       </section>
 
       <section className="mb-8 grid grid-cols-3 gap-2.5" aria-label="쿠폰 요약">
-        <SummaryTile label="보유" value={`${summary.heldCount}장`} />
-        <SummaryTile
-          label="지급 예정"
-          value={`${summary.pendingCount}장`}
-          emphasis
-        />
+        <SummaryTile label="보유" value={`${summary.heldCount}장`} emphasis />
+        <SummaryTile label="지급 예정" value={`${summary.pendingCount}장`} />
         <SummaryTile
           label="받을 혜택"
           value={`${moneyFormatter.format(summary.totalAmount)}원`}

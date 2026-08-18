@@ -45,8 +45,8 @@ const AVAILABLE_STATUSES: ReadonlySet<CouponStatusValue> = new Set<CouponStatusV
   "HELD",
 ]);
 
-// 사용 가능 목록에서 PENDING 을 항상 먼저 보여준다.
-const AVAILABLE_ORDER: Record<string, number> = { PENDING: 0, HELD: 1 };
+// 사용 가능 목록에서는 지금 쓸 수 있는 HELD 를 항상 먼저 보여준다.
+const AVAILABLE_ORDER: Record<string, number> = { HELD: 0, PENDING: 1 };
 
 /** 동기화 실패가 화면 렌더를 막지 않는다. 다음 진입 때 다시 맞춘다. */
 async function safeReconcile(target: CouponReconcileTarget): Promise<void> {
