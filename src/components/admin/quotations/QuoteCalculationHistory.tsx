@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { AdminQuoteCalculation } from "@/types/admin";
 import { productTypeLabel } from "@/constants/product-type";
+import { deriveQuoteScenarioType } from "@/lib/quote-scenario-selection";
 
 const PAGE_SIZE = 50;
 
@@ -46,9 +47,15 @@ function formatInitialCost(calculation: AdminQuoteCalculation) {
   return "초기비용 없음";
 }
 
-function formatScenario(value: string) {
-  if (value === "conservative") return "보증금형";
-  if (value === "aggressive") return "선납형";
+// 저장된 scenarioType 은 세션×차량 대표 행 키(항상 "standard")라 실제 조건과
+// 다를 수 있다. 라벨은 기록된 초기비용 비율에서 파생해 초기비용 컬럼과 맞춘다.
+function formatScenario(calculation: AdminQuoteCalculation) {
+  const scenarioType = deriveQuoteScenarioType({
+    depositRate: calculation.depositRate,
+    prepayRate: calculation.prepayRate,
+  });
+  if (scenarioType === "conservative") return "보증금형";
+  if (scenarioType === "aggressive") return "선납형";
   return "기본형";
 }
 
@@ -231,7 +238,7 @@ export function QuoteCalculationHistory() {
                   </td>
                   <td className="px-5 py-4">
                     <p className="text-[12px] font-medium text-[#1A1A2E]">
-                      {productTypeLabel(calculation.productType)} · {calculation.contractType} · {formatScenario(calculation.scenarioType)}
+                      {productTypeLabel(calculation.productType)} · {calculation.contractType} · {formatScenario(calculation)}
                     </p>
                     <p className="mt-1 text-[11px] text-[#9BA4C0]">
                       {calculation.contractMonths}개월 · {formatMileage(calculation.annualMileage)}

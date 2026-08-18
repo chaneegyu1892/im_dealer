@@ -335,4 +335,178 @@ describe("POST /api/vehicles/[slug]/quote", () => {
     expect(payload.data.scenarios.standard.locked).not.toBe(true);
     expect(payload.data.scenarios.aggressive.monthlyPayment).toBe(530_000);
   });
+
+  // 계산 로그는 어드민 "견적만 확인" 탭의 소스다. 사용자가 화면에서 실제 본
+  // 조건·금액을 기록해야 한다 — 내부 계산용 무보증(standard) 슬롯이 아니라.
+  describe("calculation log records what the user actually saw", () => {
+    it("logs 선납 30% + aggressive monthly for a guest's first-paint calculation", async () => {
+      mockPricedVehicle();
+
+      await POST(
+        quoteRequest({ sessionId: "session-1", trimId: "trim-1" }),
+        { params: Promise.resolve({ slug: "preparing-car" }) }
+      );
+
+      expect(upsertQuoteCalcLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: "session-1",
+          depositRate: 0,
+          prepayRate: 30,
+          resultMonthly: 530_000,
+          scenarioType: "standard",
+          pricingStatus: "CALCULATED",
+        })
+      );
+    });
+
+    it("logs 선납 30% + aggressive monthly for a member's first-paint calculation", async () => {
+      mockPricedVehicle();
+      getActiveUserMock.mockResolvedValue({ id: "member-1", supabaseId: "sb-1" });
+
+      await POST(
+        quoteRequest({ sessionId: "session-1", trimId: "trim-1" }),
+        { params: Promise.resolve({ slug: "preparing-car" }) }
+      );
+
+      expect(upsertQuoteCalcLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          depositRate: 0,
+          prepayRate: 30,
+          resultMonthly: 530_000,
+        })
+      );
+    });
+
+    it("logs the custom rates and standard monthly when a member recalculates", async () => {
+      mockPricedVehicle();
+      getActiveUserMock.mockResolvedValue({ id: "member-1", supabaseId: "sb-1" });
+
+      await POST(
+        quoteRequest({
+          sessionId: "session-1",
+          trimId: "trim-1",
+          customDepositRate: 10,
+          customPrepayRate: 0,
+        }),
+        { params: Promise.resolve({ slug: "preparing-car" }) }
+      );
+
+      expect(upsertQuoteCalcLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          depositRate: 10,
+          prepayRate: 0,
+          resultMonthly: 610_000,
+        })
+      );
+    });
+
+    it("logs the public 0/30 condition when a guest recalculates with it", async () => {
+      mockPricedVehicle();
+
+      await POST(
+        quoteRequest({
+          sessionId: "session-1",
+          trimId: "trim-1",
+          customDepositRate: 0,
+          customPrepayRate: 30,
+        }),
+        { params: Promise.resolve({ slug: "preparing-car" }) }
+      );
+
+      expect(upsertQuoteCalcLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          depositRate: 0,
+          prepayRate: 30,
+          resultMonthly: 530_000,
+        })
+      );
+    });
+
+    it("logs 선납 30% when a guest requests a non-public custom rate (view stays gated)", async () => {
+      mockPricedVehicle();
+
+      await POST(
+        quoteRequest({
+          sessionId: "session-1",
+          trimId: "trim-1",
+          customDepositRate: 10,
+          customPrepayRate: 0,
+        }),
+        { params: Promise.resolve({ slug: "preparing-car" }) }
+      );
+
+      expect(upsertQuoteCalcLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          depositRate: 0,
+          prepayRate: 30,
+          resultMonthly: 530_000,
+        })
+      );
+    });
+
+    it("logs 선납 30% on a guest consultation-required calculation", async () => {
+      prismaMock.vehicle.findUnique.mockResolvedValue({
+        id: "vehicle-1",
+        name: "테스트 차량",
+        brand: "테스트",
+        slug: "preparing-car",
+        basePrice: 40_000_000,
+        surchargeRate: 0,
+        isVisible: true,
+        trims: [{
+          id: "trim-1",
+          name: "기본 트림",
+          isDefault: true,
+          price: 40_000_000,
+          discountPrice: null,
+          options: [],
+          rules: [],
+        }],
+        colors: [],
+      });
+      prismaMock.capitalRateSheet.findMany.mockResolvedValue([]);
+      prismaMock.rankSurchargeConfig.findMany.mockResolvedValue([]);
+
+      await POST(
+        quoteRequest({ sessionId: "session-1", trimId: "trim-1" }),
+        { params: Promise.resolve({ slug: "preparing-car" }) }
+      );
+
+      expect(upsertQuoteCalcLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          depositRate: 0,
+          prepayRate: 30,
+          resultMonthly: 0,
+          pricingStatus: "CONSULTATION_REQUIRED",
+        })
+      );
+    });
+
+    it("logs 선납 30% on a guest calculation for a vehicle without trims", async () => {
+      prismaMock.vehicle.findUnique.mockResolvedValue({
+        id: "vehicle-preparing",
+        name: "준비중 차량",
+        brand: "테스트",
+        slug: "preparing-car",
+        basePrice: 40_000_000,
+        surchargeRate: 0,
+        isVisible: true,
+        trims: [],
+        colors: [],
+      });
+
+      await POST(quoteRequest({ sessionId: "session-1" }), {
+        params: Promise.resolve({ slug: "preparing-car" }),
+      });
+
+      expect(upsertQuoteCalcLogMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          depositRate: 0,
+          prepayRate: 30,
+          resultMonthly: 0,
+          pricingStatus: "CONSULTATION_REQUIRED",
+        })
+      );
+    });
+  });
 });

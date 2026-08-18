@@ -11,7 +11,11 @@ import {
 } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult, QuoteScenarioDetails } from "@/types/quote";
 import type { RateSheetRaw } from "@/types/admin";
-import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
+import {
+  PUBLIC_RESULT_INITIAL_COST,
+  RANK_SURCHARGE_RATES,
+  SCENARIO_CONDITIONS,
+} from "@/constants/quote-defaults";
 import { gateQuoteScenariosForGuest } from "@/lib/member-gate";
 import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
@@ -99,10 +103,11 @@ export async function POST(request: NextRequest) {
     const totalVehiclePrice = effectiveTrimPrice + optionsTotalPrice + colorDelta;
 
     const userAgent = request.headers.get("user-agent") ?? undefined;
-    const logSessionId = input.sessionId ?? `anon-${Date.now()}`;
+    // sessionId 는 견적 페이지에서만 실린다. 없는 요청까지 익명 키로 적재하면
+    // 요청마다 새 행이 무한 증식하므로(고유키 dedup 무력화) 로그를 남기지 않는다.
+    const logSessionId = input.sessionId ?? null;
     const user = await getActiveUser();
     const calcLogBase = {
-      sessionId: logSessionId,
       userId: user?.supabaseId ?? null,
       vehicleId: vehicle.id,
       vehicleSlug: input.vehicleSlug,
@@ -150,24 +155,29 @@ export async function POST(request: NextRequest) {
     // 자동 견적 불가 공통 분기 — 회수율 시트가 없거나, 시트는 있어도 요청 조건의
     // 회수율이 전부 무효해 계산 결과가 비는 경우. 월납 0원을 정상 견적처럼 내려주지 않는다.
     const respondConsultationRequired = async () => {
-      try {
-        await upsertQuoteCalcLogs([
-          {
-            ...calcLogBase,
-            depositRate: 0,
-            prepayRate: 0,
-            resultMonthly: 0,
-            bestFinanceCompany: "",
-            scenarioType: "standard",
-            pricingStatus: "CONSULTATION_REQUIRED",
-            rangeExceeded: false,
-          },
-        ]);
-      } catch (err) {
-        console.error("[QuoteCalcLog] 별도 상담 로그 저장 실패:", err);
-        Sentry.captureException(err, {
-          tags: { route: "quote/calculate", op: "consultation-log" },
-        });
+      if (logSessionId) {
+        try {
+          await upsertQuoteCalcLogs([
+            {
+              ...calcLogBase,
+              sessionId: logSessionId,
+              // 별도 상담에는 표시 조건이 없다 — 결과 화면 기본 노출과 같은
+              // 공개 조건(선납 30%)으로 기록해 무보증 행 왜곡을 막는다.
+              depositRate: PUBLIC_RESULT_INITIAL_COST.depositRate,
+              prepayRate: PUBLIC_RESULT_INITIAL_COST.prepayRate,
+              resultMonthly: 0,
+              bestFinanceCompany: "",
+              scenarioType: "standard",
+              pricingStatus: "CONSULTATION_REQUIRED",
+              rangeExceeded: false,
+            },
+          ]);
+        } catch (err) {
+          console.error("[QuoteCalcLog] 별도 상담 로그 저장 실패:", err);
+          Sentry.captureException(err, {
+            tags: { route: "quote/calculate", op: "consultation-log" },
+          });
+        }
       }
 
       return NextResponse.json({
@@ -313,26 +323,33 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 견적 로그 저장 ──
-    try {
-      await upsertQuoteCalcLogs(
-        Object.entries(scenarios).map(([scenarioType, sc]) => ({
-          ...calcLogBase,
-          depositRate:
-            SCENARIO_CONDITIONS[scenarioType as keyof typeof SCENARIO_CONDITIONS]
-              ?.depositRate ?? 0,
-          prepayRate:
-            SCENARIO_CONDITIONS[scenarioType as keyof typeof SCENARIO_CONDITIONS]
-              ?.prepayRate ?? 0,
-          resultMonthly: sc.monthlyPayment,
-          bestFinanceCompany: sc.bestFinanceCompany,
-          scenarioType,
-          pricingStatus: "CALCULATED" as const,
-          rangeExceeded: sc.rangeExceeded,
-        }))
-      );
-    } catch (err) {
-      console.error("[QuoteCalcLog] 저장 실패:", err);
-      Sentry.captureException(err, { tags: { route: "quote/calculate", op: "log" } });
+    // 비회원 응답은 aggressive(선납 30%)만 금액이 공개된다 — 로그도 그 행만 남겨
+    // 어드민 "견적만 확인"에 화면에 없던 무보증·보증금 행이 쌓이지 않게 한다.
+    if (logSessionId) {
+      try {
+        await upsertQuoteCalcLogs(
+          Object.entries(scenarios)
+            .filter(([scenarioType]) => user || scenarioType === "aggressive")
+            .map(([scenarioType, sc]) => ({
+              ...calcLogBase,
+              sessionId: logSessionId,
+              depositRate:
+                SCENARIO_CONDITIONS[scenarioType as keyof typeof SCENARIO_CONDITIONS]
+                  ?.depositRate ?? 0,
+              prepayRate:
+                SCENARIO_CONDITIONS[scenarioType as keyof typeof SCENARIO_CONDITIONS]
+                  ?.prepayRate ?? 0,
+              resultMonthly: sc.monthlyPayment,
+              bestFinanceCompany: sc.bestFinanceCompany,
+              scenarioType,
+              pricingStatus: "CALCULATED" as const,
+              rangeExceeded: sc.rangeExceeded,
+            }))
+        );
+      } catch (err) {
+        console.error("[QuoteCalcLog] 저장 실패:", err);
+        Sentry.captureException(err, { tags: { route: "quote/calculate", op: "log" } });
+      }
     }
 
     // 비회원: 선납 30%(aggressive)만 금액을 남기고 무보증·보증금은 잠근다.
