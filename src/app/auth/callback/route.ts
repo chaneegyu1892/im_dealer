@@ -115,6 +115,12 @@ export async function GET(request: Request) {
 
   const marketingTag = process.env.KAKAO_MARKETING_TERMS_TAG?.trim() || "marketing";
   const marketingConsent = agreedTags.includes(marketingTag);
+  // 카카오싱크 채널추가 동의 문구가 광고·마케팅 수신 동의를 겸하지만, 서비스 약관이 아니라
+  // 약관 tag 로 잡히지 않는다. 그래서 채널 추가 상태로도 동의를 인정한다.
+  // 단 최초 가입(동의창을 실제로 통과한 시점)에만 적용한다 — 기존 회원에 적용하면
+  // 마이페이지에서 수신을 철회해도 채널을 추가해둔 이상 재로그인마다 되살아난다.
+  // (KAKAO_CHANNEL_ID 미설정 시 channelRelation 이 null 이라 이 경로는 동작하지 않는다)
+  const signupMarketingConsent = marketingConsent || channelRelation === "ADDED";
 
   const resolvedPhone = normalizedPhone ?? account?.phone ?? null;
   // 동의항목 "이름"으로 받은 실명이 있으면 닉네임 기반 표시명보다 우선한다.
@@ -154,7 +160,7 @@ export async function GET(request: Request) {
         kakaoNickname,
         phone: resolvedPhone,
         channelRelation,
-        marketingConsent,
+        marketingConsent: signupMarketingConsent,
         consentedAt: useSync ? new Date() : null,
         isActive: true,
         lastLoginAt: new Date(),
