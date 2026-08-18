@@ -9,7 +9,11 @@ import {
   type CalcInput,
 } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult, QuoteScenarioDetails } from "@/types/quote";
-import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
+import {
+  PUBLIC_RESULT_INITIAL_COST,
+  RANK_SURCHARGE_RATES,
+  SCENARIO_CONDITIONS,
+} from "@/constants/quote-defaults";
 import { normalizeSelectedOptions } from "@/lib/option-rules";
 import {
   gateQuoteScenariosForGuest,
@@ -65,6 +69,29 @@ export async function POST(
     //    무보증·보증금 시나리오는 응답 JSON 에 금액을 담지 않는다(보안 경계).
     const user = await getActiveUser();
     const isMember = !!user;
+
+    // 커스텀 보증/선납 비율이 실제 계산(standard 슬롯)에 적용되는 요청인지.
+    // 회원은 자유, 비회원은 공개 조건(선납 30%)일 때만 적용된다.
+    const hasCustomRates =
+      input.customDepositRate !== undefined || input.customPrepayRate !== undefined;
+    const guestCustomIsPublic =
+      !isMember &&
+      hasCustomRates &&
+      isPublicQuoteResultRates({
+        depositRate: input.customDepositRate ?? 0,
+        prepayRate: input.customPrepayRate ?? 0,
+      });
+    const appliesCustomRates = hasCustomRates && (isMember || guestCustomIsPublic);
+    // 계산 로그(어드민 "견적만 확인")에 남길 초기비용 — 사용자가 화면에서 실제
+    // 보는 조건. 커스텀 재계산은 그 비율, 그 외 첫 화면은 회원·비회원 공통
+    // 기본값인 선납 30%다. 내부 계산용 무보증(0/0)을 기록하면 비회원이 무보증
+    // 견적을 본 것처럼 어드민에 표시되는 왜곡이 생긴다.
+    const loggedRates = appliesCustomRates
+      ? {
+          depositRate: input.customDepositRate ?? 0,
+          prepayRate: input.customPrepayRate ?? 0,
+        }
+      : PUBLIC_RESULT_INITIAL_COST;
 
     // 1) 차량 + 트림 조회
     const vehicle = await prisma.vehicle.findUnique({
@@ -156,22 +183,8 @@ export async function POST(
               vehicle.basePrice + (input.extraOptionsPrice ?? 0) + colorDelta,
             contractMonths: input.contractMonths,
             annualMileage: input.annualMileage,
-            depositRate:
-              isMember ||
-              isPublicQuoteResultRates({
-                depositRate: input.customDepositRate ?? 0,
-                prepayRate: input.customPrepayRate ?? 0,
-              })
-                ? input.customDepositRate ?? 0
-                : 0,
-            prepayRate:
-              isMember ||
-              isPublicQuoteResultRates({
-                depositRate: input.customDepositRate ?? 0,
-                prepayRate: input.customPrepayRate ?? 0,
-              })
-                ? input.customPrepayRate ?? 0
-                : 0,
+            depositRate: loggedRates.depositRate,
+            prepayRate: loggedRates.prepayRate,
             contractType: input.contractType,
             productType: input.productType,
             customerType: input.customerType,
@@ -313,22 +326,8 @@ export async function POST(
           await upsertQuoteCalcLog({
             sessionId: input.sessionId,
             ...calcLogBase,
-            depositRate:
-              isMember ||
-              isPublicQuoteResultRates({
-                depositRate: input.customDepositRate ?? 0,
-                prepayRate: input.customPrepayRate ?? 0,
-              })
-                ? input.customDepositRate ?? 0
-                : 0,
-            prepayRate:
-              isMember ||
-              isPublicQuoteResultRates({
-                depositRate: input.customDepositRate ?? 0,
-                prepayRate: input.customPrepayRate ?? 0,
-              })
-                ? input.customPrepayRate ?? 0
-                : 0,
+            depositRate: loggedRates.depositRate,
+            prepayRate: loggedRates.prepayRate,
             resultMonthly: 0,
             bestFinanceCompany: "",
             scenarioType: "standard",
@@ -389,18 +388,8 @@ export async function POST(
       : [...RANK_SURCHARGE_RATES];
 
     // 4) 시나리오별 전체 파이프라인 실행
-    // standard 시나리오에 실제 적용된 보증/선납 비율 — 계산 로그 기록에 사용.
-    let stdDeposit = 0;
-    let stdPrepay = 0;
     let standardUnavailable = false;
     const scenarioKeys = ["conservative", "standard", "aggressive"] as const;
-    const guestCustomIsPublic =
-      !isMember &&
-      (input.customDepositRate !== undefined || input.customPrepayRate !== undefined) &&
-      isPublicQuoteResultRates({
-        depositRate: input.customDepositRate ?? 0,
-        prepayRate: input.customPrepayRate ?? 0,
-      });
     const scenarios: Record<string, {
       monthlyPayment: number;
       depositAmount: number;
@@ -429,10 +418,6 @@ export async function POST(
       if (key === "standard" && (isMember || guestCustomIsPublic)) {
         if (input.customDepositRate !== undefined) depositRate = input.customDepositRate;
         if (input.customPrepayRate  !== undefined) prepayRate  = input.customPrepayRate;
-      }
-      if (key === "standard") {
-        stdDeposit = depositRate;
-        stdPrepay = prepayRate;
       }
 
       const calcInput: CalcInput = {
@@ -519,18 +504,21 @@ export async function POST(
     // 슬라이더 재계산 등 반복 호출이 카운트를 부풀리지 않게 한다.
     if (input.sessionId) {
       const sessionId = input.sessionId;
-      const std = scenarios.standard;
+      // 사용자가 실제 본 시나리오 — 커스텀 재계산은 standard 슬롯(그 비율로 계산됨),
+      // 그 외 첫 화면은 기본 노출인 선납 30%(aggressive) 슬롯.
+      const displayed = appliesCustomRates ? scenarios.standard : scenarios.aggressive;
       try {
         // QuoteCalcLog: 세션×차량×시나리오 고유키로 최신 조건/결과를 원자적으로 갱신.
+        // scenarioType "standard"는 세션×차량 대표 행 키다 — 조건은 rates 필드가 진실.
         const calcData = {
           ...calcLogBase,
-          depositRate: stdDeposit,
-          prepayRate: stdPrepay,
-          resultMonthly: std?.monthlyPayment ?? 0,
-          bestFinanceCompany: std?.bestFinanceCompany ?? "",
+          depositRate: loggedRates.depositRate,
+          prepayRate: loggedRates.prepayRate,
+          resultMonthly: displayed?.monthlyPayment ?? 0,
+          bestFinanceCompany: displayed?.bestFinanceCompany ?? "",
           scenarioType: "standard",
           pricingStatus: "CALCULATED" as const,
-          rangeExceeded: std?.rangeExceeded ?? false,
+          rangeExceeded: displayed?.rangeExceeded ?? false,
         };
         await upsertQuoteCalcLog({ sessionId, ...calcData });
 

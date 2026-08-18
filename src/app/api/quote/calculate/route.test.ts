@@ -44,7 +44,7 @@ vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 
 import { POST } from "./route";
 
-function request() {
+function request(overrides: Record<string, unknown> = {}) {
   return new NextRequest("https://example.com/api/quote/calculate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -58,6 +58,7 @@ function request() {
       contractType: "반납형",
       productType: "장기렌트",
       customerType: "individual",
+      ...overrides,
     }),
   });
 }
@@ -194,6 +195,66 @@ describe("POST /api/quote/calculate log persistence", () => {
       depositAmount: 0,
       locked: true,
     });
+  });
+
+  // 어드민 "견적만 확인" 탭은 이 로그를 그대로 나열한다 — 비회원 행에 화면에서
+  // 볼 수 없는 무보증·보증금 조건이 찍히면 안 된다.
+  it("logs only the aggressive scenario a guest can actually see", async () => {
+    mocks.getActiveUser.mockResolvedValue(null);
+    mocks.upsertLogs.mockResolvedValue(undefined);
+
+    await POST(request());
+
+    const rows = mocks.upsertLogs.mock.calls[0]?.[0];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      scenarioType: "aggressive",
+      depositRate: 0,
+      prepayRate: 30,
+      resultMonthly: 650_000,
+    });
+  });
+
+  it("keeps all three scenario rows for members", async () => {
+    mocks.upsertLogs.mockResolvedValue(undefined);
+
+    await POST(request());
+
+    const rows = mocks.upsertLogs.mock.calls[0]?.[0];
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row: { scenarioType: string }) => row.scenarioType).sort()).toEqual([
+      "aggressive",
+      "conservative",
+      "standard",
+    ]);
+  });
+
+  it("logs the public 선납 30% condition on a guest consultation-required calculation", async () => {
+    mocks.getActiveUser.mockResolvedValue(null);
+    mocks.findRateSheets.mockResolvedValue([]);
+    mocks.upsertLogs.mockResolvedValue(undefined);
+
+    await POST(request());
+
+    expect(mocks.upsertLogs).toHaveBeenCalledWith([
+      expect.objectContaining({
+        depositRate: 0,
+        prepayRate: 30,
+        resultMonthly: 0,
+        pricingStatus: "CONSULTATION_REQUIRED",
+      }),
+    ]);
+  });
+
+  // sessionId 없는 호출(외부/비정상 트래픽)은 요청마다 새 익명 키가 만들어져
+  // dedup 이 무력화되고 행이 무한 증식한다 — 로그 자체를 남기지 않는다.
+  it("skips calc logging entirely when the request carries no sessionId", async () => {
+    mocks.upsertLogs.mockResolvedValue(undefined);
+
+    const response = await POST(request({ sessionId: undefined }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.upsertLogs).not.toHaveBeenCalled();
   });
 
   it("requires consultation instead of returning a 0-won quote when no rate cell matches", async () => {

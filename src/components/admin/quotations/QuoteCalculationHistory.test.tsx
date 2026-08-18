@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QuoteCalculationHistory } from "./QuoteCalculationHistory";
+import type { AdminQuoteCalculation } from "@/types/admin";
 
-const calculation = {
+const calculation: AdminQuoteCalculation = {
   id: "calc-1",
   sessionId: "session-1",
   userId: "member-1",
@@ -42,11 +43,11 @@ const calculation = {
   calculatedAt: "2026-07-14T07:00:00.000Z",
 };
 
-function success(total = 1) {
+function success(total = 1, rows: AdminQuoteCalculation[] = [calculation]) {
   return new Response(
     JSON.stringify({
       success: true,
-      data: [calculation],
+      data: rows,
       meta: { total, page: 1, limit: 50 },
     }),
     { status: 200, headers: { "content-type": "application/json" } }
@@ -71,7 +72,9 @@ describe("QuoteCalculationHistory", () => {
     expect(screen.getByText("테스트 · 기본 트림")).toBeInTheDocument();
     expect(screen.getByText("옵션 파노라마 선루프")).toBeInTheDocument();
     expect(screen.getByText("색상 화이트 / 블랙")).toBeInTheDocument();
-    expect(screen.getByText("장기렌트 · 반납형 · 기본형")).toBeInTheDocument();
+    // 시나리오 라벨은 저장된 scenarioType(대표 행 키, 항상 "standard")이 아니라
+    // 기록된 초기비용 비율에서 파생한다 — 보증금 10% 행은 보증금형.
+    expect(screen.getByText("장기렌트 · 반납형 · 보증금형")).toBeInTheDocument();
     expect(screen.getByText("보증금 10%")).toBeInTheDocument();
     expect(screen.getByText("차량가 40,100,000원")).toBeInTheDocument();
     expect(screen.getByText("650,000원")).toBeInTheDocument();
@@ -93,5 +96,37 @@ describe("QuoteCalculationHistory", () => {
         "/api/admin/quote-calculations?page=2&limit=50"
       )
     );
+  });
+
+  it("labels a 선납 30% row as 선납형 even though its stored scenarioType is standard", async () => {
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        success(1, [
+          { ...calculation, depositRate: 0, prepayRate: 30, scenarioType: "standard" },
+        ])
+      )
+    );
+
+    render(<QuoteCalculationHistory />);
+
+    expect(
+      await screen.findByText("장기렌트 · 반납형 · 선납형")
+    ).toBeInTheDocument();
+    expect(screen.getByText("선납금 30%")).toBeInTheDocument();
+  });
+
+  it("labels a no-initial-cost row as 기본형", async () => {
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        success(1, [{ ...calculation, depositRate: 0, prepayRate: 0 }])
+      )
+    );
+
+    render(<QuoteCalculationHistory />);
+
+    expect(
+      await screen.findByText("장기렌트 · 반납형 · 기본형")
+    ).toBeInTheDocument();
+    expect(screen.getByText("초기비용 없음")).toBeInTheDocument();
   });
 });

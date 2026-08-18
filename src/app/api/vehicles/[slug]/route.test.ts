@@ -115,7 +115,7 @@ describe("GET /api/vehicles/[slug]", () => {
     }]);
   });
 
-  it("keeps malformed legacy rate matrices on the prior zero-rate response path", async () => {
+  it("serves malformed legacy rate matrices without crashing", async () => {
     mocks.findUnique.mockResolvedValue({
       ...activeVehicle,
       images: [],
@@ -148,11 +148,8 @@ describe("GET /api/vehicles/[slug]", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(payload.data.scenarios).toMatchObject({
-      conservative: { monthlyPayment: -41_840 },
-      standard: { monthlyPayment: 0 },
-      aggressive: { monthlyPayment: -241_240 },
-    });
+    expect(payload.data.scenarios).toBeNull();
+    expect(payload.data.bestFinanceName).toBe("테스트캐피탈");
     expect(payload.data.hasRateConfig).toBe(true);
   });
 
@@ -197,7 +194,42 @@ describe("GET /api/vehicles/[slug]", () => {
     const payload = await (await GET(request, context)).json();
 
     expect(payload.data.bestFinanceName).toBe("포지티브캐피탈");
-    expect(payload.data.scenarios.standard.monthlyPayment).toBe(800_000);
+  });
+
+  // 차량 상세는 무인증 공개 API 다. 보증금·무보증 실금액이 담기는 3시나리오는
+  // 비회원 게이트(견적 결과는 선납 30%만 공개)를 우회하므로 응답에 싣지 않는다.
+  // 공개 대표가는 /api/vehicles/representative-quotes(무보증 단일 금액)가 담당한다.
+  it("keeps per-scenario quote amounts out of the public detail response", async () => {
+    mocks.findUnique.mockResolvedValue({
+      ...activeVehicle,
+      images: [],
+      trims: [{
+        id: "trim-default",
+        name: "기본 트림",
+        price: 40_000_000,
+        engineType: "GASOLINE",
+        fuelEfficiency: null,
+        isDefault: true,
+        specs: null,
+        options: [],
+      }],
+    });
+    mocks.findRateSheets.mockResolvedValue([{
+      financeCompanyId: "finance-1",
+      minVehiclePrice: 30_000_000,
+      maxVehiclePrice: 50_000_000,
+      minRateMatrix: rateMatrix(0.02),
+      maxRateMatrix: rateMatrix(0.02),
+      depositDiscountRate: -0.000523,
+      prepayAdjustRate: 0.000073,
+      financeCompany: { name: "테스트캐피탈", surchargeRate: 0 },
+    }]);
+
+    const payload = await (await GET(request, context)).json();
+
+    expect(payload.data.scenarios).toBeNull();
+    expect(payload.data.hasRateConfig).toBe(true);
+    expect(payload.data.bestFinanceName).toBe("테스트캐피탈");
   });
 
   it("allows raw legacy gallery fallback only for an unmigrated vehicle", async () => {

@@ -154,7 +154,7 @@ describe("POST /api/recommend", () => {
   it("stores even zero v2 vehicles in a versioned frozen envelope", async () => {
     const response = await POST(request(valid));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ sessionId: expect.any(String), vehicles: [] });
+    expect(await response.json()).toEqual({ sessionId: expect.any(String) });
     expect(mocks.recommendForVersion).toHaveBeenCalledOnce();
     expect(mocks.recommendForVersion.mock.calls[0]?.[0].preferences).toEqual(["안정감", "가족"]);
     expect(mocks.create.mock.calls[0]?.[0].data.result).toEqual({ version: "overlap-v2", vehicles: [] });
@@ -231,10 +231,7 @@ describe("POST /api/recommend", () => {
       nearMissVehicles: [{ vehicleId: "veh_near", reason: "근접" }],
     });
     const response = await POST(request(validV3));
-    expect(await response.json()).toEqual({
-      sessionId: expect.any(String),
-      vehicles: [],
-    });
+    expect(await response.json()).toEqual({ sessionId: expect.any(String) });
   });
 
   it("stores the derived lower bound for the 예산 여유 mode", async () => {
@@ -299,6 +296,28 @@ describe("POST /api/recommend", () => {
     });
     expect(JSON.stringify(newStored).replaceAll("https://cdn.example/new-cover.jpg", "<thumbnail>"))
       .toBe(oldSnapshotBytes.replaceAll("https://cdn.example/old-cover.jpg", "<thumbnail>"));
+  });
+
+  // 회원 게이트는 결과 조회 GET(/api/recommend/[sessionId])에만 있다. 생성 응답에
+  // 추천 원본 vehicles 를 실으면 비회원이 잠긴 무보증·보증금 금액을 그대로 받아간다.
+  // 클라이언트(RecommendFlow/RecommendResultView)는 sessionId 만 사용한다.
+  it("keeps ungated scenario amounts out of the creation response", async () => {
+    mocks.recommendForVersion.mockResolvedValue({
+      vehicles: [{
+        vehicleId: "vehicle-1",
+        scenarios: {
+          conservative: { monthlyPayment: 610_000, depositAmount: 8_000_000 },
+          standard: { monthlyPayment: 700_000 },
+          aggressive: { monthlyPayment: 530_000, prepayAmount: 12_000_000 },
+        },
+      }],
+      nearMissVehicles: [],
+    });
+
+    const response = await POST(request(valid));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ sessionId: expect.any(String) });
   });
 
   it("returns 400 with field details and performs no recommendation or write", async () => {

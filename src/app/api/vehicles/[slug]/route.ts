@@ -1,11 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { subsidyRangeFromTrims } from "@/lib/ev-subsidy";
-import {
-  calculateScenarios,
-  estimateMonthly,
-  type RateConfigData,
-} from "@/lib/quote-calculator";
+import { estimateMonthly, type RateConfigData } from "@/lib/quote-calculator";
 import {
   canUseLegacyImageFallback,
   publicVehicleImageStateInclude,
@@ -75,7 +71,6 @@ export async function GET(
 
     const defaultTrim = vehicle.trims.find((t) => t.isDefault) ?? vehicle.trims[0];
 
-    let scenarios = null;
     let bestFinanceName: string | null = null;
     const rateSheets = defaultTrim
       ? await prisma.capitalRateSheet.findMany({
@@ -108,7 +103,6 @@ export async function GET(
         }
       }
 
-      scenarios = calculateScenarios(defaultTrim.price, bestConfig, 20000, 48);
       bestFinanceName = bestConfig.financeCompanyName;
     }
 
@@ -163,7 +157,10 @@ export async function GET(
               specs: defaultTrim.specs,
             }
           : null,
-        scenarios,
+        // 3시나리오 실금액(보증금·무보증 포함)은 무인증 상세 응답에 싣지 않는다 —
+        // 견적 결과의 비회원 게이트(선납 30%만 공개)를 우회하게 된다.
+        // 공개 대표가는 /api/vehicles/representative-quotes(무보증 단일)가 담당.
+        scenarios: null,
         bestFinanceName,
         highlights: recConfig?.highlights ?? [],
         aiCaption: recConfig?.aiCaption ?? null,

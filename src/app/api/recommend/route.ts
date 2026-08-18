@@ -63,7 +63,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ sessionId, vehicles });
+    // 응답은 sessionId 만 — vehicles 원본에는 잠긴 시나리오(무보증·보증금)
+    // 실금액이 들어 있어 비회원 게이트(GET /api/recommend/[sessionId])를
+    // 우회하게 된다. 클라이언트는 sessionId 로 결과 페이지만 연다.
+    return NextResponse.json({ sessionId });
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
