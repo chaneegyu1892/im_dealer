@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   findFirstQuote: vi.fn(),
   updateQuote: vi.fn(),
   findUniqueUser: vi.fn(),
-  reconcileUserCoupons: vi.fn(),
+  reconcileForQuoteOwner: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -39,7 +39,7 @@ vi.mock("@/lib/require-admin", () => ({
 }));
 
 vi.mock("@/lib/coupons/reconcile", () => ({
-  reconcileUserCoupons: mocks.reconcileUserCoupons,
+  reconcileCouponsForQuoteOwner: mocks.reconcileForQuoteOwner,
 }));
 
 import { DELETE, PATCH } from "./route";
@@ -74,12 +74,7 @@ beforeEach(() => {
   mocks.revokeTokens.mockResolvedValue({ count: 1 });
   mocks.createActivityLog.mockResolvedValue({});
   mocks.updateQuote.mockResolvedValue({});
-  mocks.reconcileUserCoupons.mockResolvedValue(undefined);
-  mocks.findUniqueUser.mockResolvedValue({
-    id: "member-1",
-    supabaseId: "sb-user-1",
-    profileCompleted: true,
-  });
+  mocks.reconcileForQuoteOwner.mockResolvedValue(undefined);
 });
 
 describe("DELETE /api/admin/quotes/[id]", () => {
@@ -116,10 +111,12 @@ describe("DELETE /api/admin/quotes/[id]", () => {
     });
   });
 
-  // Fix 4: CONVERTED 계약을 소프트 삭제하면 그 순간부터 reconcileUserCoupons 가 계약으로
+  // Fix 4: CONVERTED 계약을 소프트 삭제하면 그 순간부터 쿠폰 동기화가 계약으로
   // 집계하지 않는다(deletedAt: null 조건). 동기화하지 않으면 PENDING 쿠폰이 남아
   // 사라진 계약 건에 대해 어드민이 지급할 수 있는 유령 지급 대기가 생긴다.
-  it("CONVERTED 견적을 소프트 삭제하면 supabaseId 로 회원을 조회하고 reconcileUserCoupons 를 호출한다", async () => {
+  // 회원 조회·추천인 동기화의 정밀 검증은 reconcile.test.ts 의
+  // reconcileCouponsForQuoteOwner 테스트가 담당한다.
+  it("CONVERTED 견적을 소프트 삭제하면 소유자 기준 쿠폰 동기화를 호출한다", async () => {
     mocks.findFirstQuote.mockResolvedValue({
       userId: "sb-user-1",
       status: "CONVERTED",
@@ -130,15 +127,7 @@ describe("DELETE /api/admin/quotes/[id]", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(mocks.findUniqueUser).toHaveBeenCalledWith({
-      where: { supabaseId: "sb-user-1" },
-      select: { id: true, supabaseId: true, profileCompleted: true },
-    });
-    expect(mocks.reconcileUserCoupons).toHaveBeenCalledWith({
-      id: "member-1",
-      supabaseId: "sb-user-1",
-      profileCompleted: true,
-    });
+    expect(mocks.reconcileForQuoteOwner).toHaveBeenCalledWith("sb-user-1");
   });
 
   it("CONVERTED 가 아닌 견적을 소프트 삭제하면 훅이 호출되지 않는다", async () => {
@@ -152,17 +141,15 @@ describe("DELETE /api/admin/quotes/[id]", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(mocks.findUniqueUser).not.toHaveBeenCalled();
-    expect(mocks.reconcileUserCoupons).not.toHaveBeenCalled();
+    expect(mocks.reconcileForQuoteOwner).not.toHaveBeenCalled();
   });
 });
 
 describe("PATCH /api/admin/quotes/[id] — 쿠폰 동기화 훅", () => {
-  // 이 훅이 조용히 죽는 방식: where 절을 supabaseId 에서 id 로 잘못 바꾸면 타입은
-  // 그대로 통과하고(둘 다 unique String 컬럼), findUnique 가 null 을 반환하고,
-  // `if (member?.supabaseId)` 가드가 그걸 그냥 삼킨다. 그래서 정확한 where 절과
-  // reconcileUserCoupons 호출 인자를 둘 다 못박는다.
-  it("CONVERTED 전환 시 supabaseId 로 회원을 조회하고 reconcileUserCoupons 를 호출한다", async () => {
+  // 회원 조회 where 절·추천인 동기화의 정밀 검증은 reconcile.test.ts 의
+  // reconcileCouponsForQuoteOwner 테스트가 담당한다. 여기서는 훅이 올바른
+  // 조건에서, 견적 소유자(supabaseId)를 인자로 호출되는지를 못박는다.
+  it("CONVERTED 전환 시 소유자 기준 쿠폰 동기화를 호출한다", async () => {
     mocks.findFirstQuote.mockResolvedValue({
       id: "quote-1",
       status: "CONTACTED",
@@ -174,15 +161,7 @@ describe("PATCH /api/admin/quotes/[id] — 쿠폰 동기화 훅", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(mocks.findUniqueUser).toHaveBeenCalledWith({
-      where: { supabaseId: "sb-user-1" },
-      select: { id: true, supabaseId: true, profileCompleted: true },
-    });
-    expect(mocks.reconcileUserCoupons).toHaveBeenCalledWith({
-      id: "member-1",
-      supabaseId: "sb-user-1",
-      profileCompleted: true,
-    });
+    expect(mocks.reconcileForQuoteOwner).toHaveBeenCalledWith("sb-user-1");
   });
 
   // Fix 2: CONVERTED → LOST 로 철회되는 방향도 훅이 잡아야 한다. 안 잡으면 쿠폰이
@@ -198,11 +177,7 @@ describe("PATCH /api/admin/quotes/[id] — 쿠폰 동기화 훅", () => {
       params: Promise.resolve({ id: "quote-1" }),
     });
 
-    expect(mocks.reconcileUserCoupons).toHaveBeenCalledWith({
-      id: "member-1",
-      supabaseId: "sb-user-1",
-      profileCompleted: true,
-    });
+    expect(mocks.reconcileForQuoteOwner).toHaveBeenCalledWith("sb-user-1");
   });
 
   it("CONVERTED 를 어느 쪽으로도 건드리지 않는 전환에서는 훅이 호출되지 않는다", async () => {
@@ -216,7 +191,7 @@ describe("PATCH /api/admin/quotes/[id] — 쿠폰 동기화 훅", () => {
       params: Promise.resolve({ id: "quote-1" }),
     });
 
-    expect(mocks.reconcileUserCoupons).not.toHaveBeenCalled();
+    expect(mocks.reconcileForQuoteOwner).not.toHaveBeenCalled();
   });
 
   it("상태 변경이 없으면(LOST → LOST) 훅이 호출되지 않는다", async () => {
@@ -230,6 +205,6 @@ describe("PATCH /api/admin/quotes/[id] — 쿠폰 동기화 훅", () => {
       params: Promise.resolve({ id: "quote-1" }),
     });
 
-    expect(mocks.reconcileUserCoupons).not.toHaveBeenCalled();
+    expect(mocks.reconcileForQuoteOwner).not.toHaveBeenCalled();
   });
 });

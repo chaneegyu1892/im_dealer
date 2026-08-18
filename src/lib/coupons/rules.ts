@@ -22,6 +22,9 @@ export interface CouponView {
   policyId: string;
   status: CouponStatusValue;
   expiresAt: Date | null;
+  trigger: CouponTriggerValue;
+  /** REFERRAL_GIVEN 전용: 연결된 추천 건의 피추천인이 계약한 견적 id (없으면 null) */
+  refereeConvertedQuoteId?: string | null;
 }
 
 export interface CouponReconcileInput {
@@ -45,8 +48,8 @@ export interface CouponIssuePlan {
 
 export interface CouponReconcilePlan {
   issue: CouponIssuePlan[];
-  /** HELD → PENDING 으로 올릴 IssuedCoupon.id */
-  qualify: string[];
+  /** HELD → PENDING 으로 올릴 쿠폰과 그 자격 근거 견적 */
+  qualify: { id: string; qualifiedQuoteId: string }[];
   /** PENDING → HELD 로 되돌릴 IssuedCoupon.id */
   unqualify: string[];
   /** HELD → EXPIRED 로 바꿀 IssuedCoupon.id */
@@ -79,8 +82,23 @@ function meetsIssueCondition(
 }
 
 /**
+ * 쿠폰별 지급 자격의 근거가 되는 계약 견적.
+ * 추천인 보상(REFERRAL_GIVEN)은 소유자 본인이 아니라 연결된 피추천인의 계약에
+ * 걸린다 — 친구가 계약해야 추천인이 보상받는다. 나머지 trigger 는 본인 계약.
+ */
+function qualifyingQuoteIdFor(
+  coupon: CouponView,
+  input: CouponReconcileInput
+): string | null {
+  if (coupon.trigger === "REFERRAL_GIVEN") {
+    return coupon.refereeConvertedQuoteId ?? null;
+  }
+  return input.convertedQuoteId;
+}
+
+/**
  * 쿠폰 동기화 계획을 세운다. DB 를 모르는 순수 함수다.
- * 지급 조건(PENDING 전이)은 두 trigger 모두 "계약 완료"로 같다.
+ * 지급 조건(PENDING 전이)은 qualifyingQuoteIdFor 가 정한 계약 완료 기준을 따른다.
  */
 export function planCouponReconcile(input: CouponReconcileInput): CouponReconcilePlan {
   const paidQualified = input.convertedQuoteId !== null;
@@ -100,11 +118,13 @@ export function planCouponReconcile(input: CouponReconcileInput): CouponReconcil
       qualifiedQuoteId: paidQualified ? input.convertedQuoteId : null,
     }));
 
-  const qualify: string[] = [];
+  const qualify: { id: string; qualifiedQuoteId: string }[] = [];
   const unqualify: string[] = [];
   const expire: string[] = [];
 
   for (const coupon of input.coupons) {
+    const quoteId = qualifyingQuoteIdFor(coupon, input);
+
     if (coupon.status === "HELD") {
       // 만료가 지급 자격보다 우선한다. 계약이 있어도 유효기간이 지났으면 만료시킨다.
       // 지급 여부가 방문 시점에 좌우되면 안 된다 — 만료를 계약 확인보다 뒤에 두면,
@@ -118,13 +138,13 @@ export function planCouponReconcile(input: CouponReconcileInput): CouponReconcil
         expire.push(coupon.id);
         continue;
       }
-      if (paidQualified) {
-        qualify.push(coupon.id);
+      if (quoteId !== null) {
+        qualify.push({ id: coupon.id, qualifiedQuoteId: quoteId });
       }
       continue;
     }
 
-    if (coupon.status === "PENDING" && !paidQualified) {
+    if (coupon.status === "PENDING" && quoteId === null) {
       unqualify.push(coupon.id);
     }
   }

@@ -1,7 +1,13 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateCouponCode } from "./code";
-import { planCouponReconcile, type CouponView, type PolicyView } from "./rules";
+import {
+  planCouponReconcile,
+  type CouponStatusValue,
+  type CouponTriggerValue,
+  type CouponView,
+  type PolicyView,
+} from "./rules";
 
 export type CouponDb = PrismaClient | Prisma.TransactionClient;
 
@@ -37,7 +43,14 @@ export async function reconcileUserCoupons(
     }),
     db.issuedCoupon.findMany({
       where: { userId: target.id },
-      select: { id: true, policyId: true, status: true, expiresAt: true },
+      select: {
+        id: true,
+        policyId: true,
+        status: true,
+        expiresAt: true,
+        policy: { select: { trigger: true } },
+        referral: { select: { referee: { select: { supabaseId: true } } } },
+      },
     }),
     db.savedQuote.findFirst({
       where: { userId: target.supabaseId, status: "CONVERTED", deletedAt: null },
@@ -46,13 +59,53 @@ export async function reconcileUserCoupons(
     }),
   ]);
 
+  // 추천인 보상(REFERRAL_GIVEN)은 소유자 본인이 아니라 피추천인의 계약에 걸리므로,
+  // 해당 쿠폰들이 연결된 피추천인의 계약 여부를 따로 조회한다.
+  const refereeSupabaseIds = [
+    ...new Set(
+      coupons
+        .filter((coupon) => coupon.policy.trigger === "REFERRAL_GIVEN")
+        .map((coupon) => coupon.referral?.referee.supabaseId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const refereeConversions =
+    refereeSupabaseIds.length === 0
+      ? []
+      : await db.savedQuote.findMany({
+          where: {
+            userId: { in: refereeSupabaseIds },
+            status: "CONVERTED",
+            deletedAt: null,
+          },
+          orderBy: { convertedAt: "asc" },
+          select: { id: true, userId: true },
+        });
+  const firstConversionByReferee = new Map<string, string>();
+  for (const quote of refereeConversions) {
+    if (quote.userId && !firstConversionByReferee.has(quote.userId)) {
+      firstConversionByReferee.set(quote.userId, quote.id);
+    }
+  }
+
+  const couponViews: CouponView[] = coupons.map((coupon) => ({
+    id: coupon.id,
+    policyId: coupon.policyId,
+    status: coupon.status as CouponStatusValue,
+    expiresAt: coupon.expiresAt,
+    trigger: coupon.policy.trigger as CouponTriggerValue,
+    refereeConvertedQuoteId: coupon.referral?.referee.supabaseId
+      ? (firstConversionByReferee.get(coupon.referral.referee.supabaseId) ?? null)
+      : null,
+  }));
+
   const now = new Date();
   const plan = planCouponReconcile({
     now,
     profileCompleted: target.profileCompleted,
     convertedQuoteId: convertedQuote?.id ?? null,
     policies: policies as PolicyView[],
-    coupons: coupons as CouponView[],
+    coupons: couponViews,
   });
 
   if (plan.issue.length > 0) {
@@ -77,14 +130,25 @@ export async function reconcileUserCoupons(
   // 있으므로, 쓰기마다 계획이 가정한 상태를 조건절에 명시해 다른 상태(특히 PAID)를
   // 덮어쓰지 않게 한다.
   if (plan.qualify.length > 0) {
-    await db.issuedCoupon.updateMany({
-      where: { id: { in: plan.qualify }, status: "HELD" },
-      data: {
-        status: "PENDING",
-        qualifiedQuoteId: convertedQuote?.id ?? null,
-        qualifiedAt: now,
-      },
-    });
+    // 쿠폰마다 자격 근거 견적이 다를 수 있다(본인 계약 vs 피추천인 계약).
+    // 같은 견적끼리 묶어 updateMany 한다.
+    const idsByQuote = new Map<string, string[]>();
+    for (const item of plan.qualify) {
+      idsByQuote.set(item.qualifiedQuoteId, [
+        ...(idsByQuote.get(item.qualifiedQuoteId) ?? []),
+        item.id,
+      ]);
+    }
+    for (const [qualifiedQuoteId, ids] of idsByQuote) {
+      await db.issuedCoupon.updateMany({
+        where: { id: { in: ids }, status: "HELD" },
+        data: {
+          status: "PENDING",
+          qualifiedQuoteId,
+          qualifiedAt: now,
+        },
+      });
+    }
   }
 
   if (plan.unqualify.length > 0) {
@@ -100,4 +164,50 @@ export async function reconcileUserCoupons(
       data: { status: "EXPIRED" },
     });
   }
+}
+
+/**
+ * 계약(CONVERTED) 상태가 바뀐 견적의 소유 회원과, 그 회원을 추천한 추천인의
+ * 쿠폰을 함께 동기화한다. 추천인 보상(REFERRAL_GIVEN)의 지급 조건이 피추천인
+ * 계약에 걸려 있어, 소유자만 동기화하면 추천인 쿠폰이 회원 방문 전까지
+ * 어드민 지급 대기 목록에 잡히지 않는다.
+ */
+export async function reconcileCouponsForQuoteOwner(
+  quoteOwnerSupabaseId: string,
+  db: CouponDb = prisma
+): Promise<void> {
+  const member = await db.user.findUnique({
+    where: { supabaseId: quoteOwnerSupabaseId },
+    select: { id: true, supabaseId: true, profileCompleted: true },
+  });
+  if (!member?.supabaseId) return;
+
+  await reconcileUserCoupons(
+    {
+      id: member.id,
+      supabaseId: member.supabaseId,
+      profileCompleted: member.profileCompleted,
+    },
+    db
+  );
+
+  const referral = await db.referral.findUnique({
+    where: { refereeId: member.id },
+    select: {
+      referrer: {
+        select: { id: true, supabaseId: true, profileCompleted: true },
+      },
+    },
+  });
+  const referrer = referral?.referrer;
+  if (!referrer?.supabaseId) return;
+
+  await reconcileUserCoupons(
+    {
+      id: referrer.id,
+      supabaseId: referrer.supabaseId,
+      profileCompleted: referrer.profileCompleted,
+    },
+    db
+  );
 }

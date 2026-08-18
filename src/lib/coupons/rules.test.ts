@@ -49,6 +49,19 @@ function heldSignup(overrides: Partial<CouponView> = {}): CouponView {
     policyId: "policy-signup",
     status: "HELD",
     expiresAt: null,
+    trigger: "SIGNUP",
+    ...overrides,
+  };
+}
+
+function heldReferralGiven(overrides: Partial<CouponView> = {}): CouponView {
+  return {
+    id: "coupon-given",
+    policyId: "policy-given",
+    status: "HELD",
+    expiresAt: null,
+    trigger: "REFERRAL_GIVEN",
+    refereeConvertedQuoteId: null,
     ...overrides,
   };
 }
@@ -104,7 +117,49 @@ describe("planCouponReconcile", () => {
     const plan = planCouponReconcile(
       makeInput({ convertedQuoteId: "quote-1", coupons: [heldSignup()] })
     );
-    expect(plan.qualify).toEqual(["coupon-1"]);
+    expect(plan.qualify).toEqual([{ id: "coupon-1", qualifiedQuoteId: "quote-1" }]);
+  });
+
+  it("추천인 쿠폰은 본인 계약으로는 지급 대상이 되지 않는다", () => {
+    const plan = planCouponReconcile(
+      makeInput({ convertedQuoteId: "quote-own", coupons: [heldReferralGiven()] })
+    );
+    expect(plan.qualify).toEqual([]);
+  });
+
+  it("추천인 쿠폰은 피추천인이 계약하면 지급 대상이 된다", () => {
+    const plan = planCouponReconcile(
+      makeInput({
+        coupons: [heldReferralGiven({ refereeConvertedQuoteId: "friend-quote" })],
+      })
+    );
+    expect(plan.qualify).toEqual([
+      { id: "coupon-given", qualifiedQuoteId: "friend-quote" },
+    ]);
+  });
+
+  it("피추천인 계약이 철회되면 추천인 PENDING 을 HELD 로 되돌린다 (본인 계약과 무관)", () => {
+    const plan = planCouponReconcile(
+      makeInput({
+        convertedQuoteId: "quote-own",
+        coupons: [heldReferralGiven({ status: "PENDING", refereeConvertedQuoteId: null })],
+      })
+    );
+    expect(plan.unqualify).toEqual(["coupon-given"]);
+  });
+
+  it("피추천인 쿠폰(REFERRAL_RECEIVED)은 본인 계약 기준을 그대로 따른다", () => {
+    const plan = planCouponReconcile(
+      makeInput({
+        convertedQuoteId: "quote-1",
+        coupons: [
+          heldSignup({ id: "coupon-received", trigger: "REFERRAL_RECEIVED" }),
+        ],
+      })
+    );
+    expect(plan.qualify).toEqual([
+      { id: "coupon-received", qualifiedQuoteId: "quote-1" },
+    ]);
   });
 
   it("계약이 철회되면 PENDING 을 HELD 로 되돌린다", () => {
@@ -184,7 +239,7 @@ describe("planCouponReconcile", () => {
         coupons: [heldSignup()],
       })
     );
-    expect(plan.qualify).toEqual(["coupon-1"]);
+    expect(plan.qualify).toEqual([{ id: "coupon-1", qualifiedQuoteId: "quote-1" }]);
   });
 
   it("입력 배열을 변형하지 않는다", () => {
