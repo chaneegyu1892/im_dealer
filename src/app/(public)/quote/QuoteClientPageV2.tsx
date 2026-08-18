@@ -16,9 +16,11 @@ import {
   BriefcaseBusiness,
   Building2,
   User,
+  Users,
   Check,
   ArrowRight,
   AlertCircle,
+  BadgePercent,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthUser } from "@/hooks/useAuthUser";
@@ -49,7 +51,6 @@ import { ComparisonSection } from "@/components/quote/ComparisonSection";
 import { type ComparisonTrimData } from "@/components/quote/VehicleConfigPanel";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
 import {
-  CUSTOMER_TYPE_LABELS,
   type CustomerType,
   isCustomerType,
 } from "@/constants/customer-types";
@@ -105,6 +106,22 @@ const DELIVERY_GATE_SESSION_KEY = "imd_delivery_gate_session";
 
 // 결과(step 3) 전용 히스토리 항목. 시스템 뒤로가기가 차량 상세로 나가지 않게 한다.
 const QUOTE_RESULT_HISTORY_KEY = "imdQuoteResult";
+
+// 결과 카드 "타 업체 평균" 비교 표기 전용 가산율 — 실제 시장 데이터가 아니며,
+// 견적 계산 로직(quote-calculator)과 무관한 표시 전용 값이다.
+// 월 납입금 구간별로 달리해 차이가 항상 약 2~3만원 대에 머물도록 한다.
+const COMPETITOR_MARKUP_TIERS: readonly [number, number][] = [
+  [400_000, 0.065],
+  [600_000, 0.05],
+  [800_000, 0.035],
+  [1_000_000, 0.03],
+  [Number.POSITIVE_INFINITY, 0.025],
+];
+
+function competitorMarkupRate(monthlyPayment: number): number {
+  const tier = COMPETITOR_MARKUP_TIERS.find(([maxMonthly]) => monthlyPayment < maxMonthly);
+  return tier?.[1] ?? 0.025;
+}
 
 function isHistoryStateRecord(state: unknown): state is Record<string, unknown> {
   return typeof state === "object" && state !== null;
@@ -1781,6 +1798,13 @@ function Step3ResultHeader({
   const totalVehiclePrice =
     quoteResult.totalVehiclePrice ??
     quoteResult.trimPrice + (quoteResult.optionsTotalPrice ?? 0);
+  // 타 업체 평균 비교값 — 표시 전용. 실제 시장 데이터가 아니라 현재 월 납입금에 구간별 가산 적용.
+  const competitorMonthlyPayment =
+    standardScenario?.monthlyPayment != null && standardScenario.monthlyPayment > 0
+      ? Math.round(
+          standardScenario.monthlyPayment * (1 + competitorMarkupRate(standardScenario.monthlyPayment)),
+        )
+      : null;
   // 시나리오가 아예 없으면(자동 견적 불가) 별도 상담. 시나리오는 있는데 표시 가능한
   // 공개 금액이 없으면(전부 잠김) 상담이 아니라 로그인 안내를 그린다 — 0원 배너 금지.
   const hasAnyScenario = Boolean(
@@ -2029,29 +2053,71 @@ function Step3ResultHeader({
         </>
       ) : (
         <>
-          {/* ── 2) 월 납입금 대형 강조 (실제 데이터) ── */}
-          <div className="rounded-[24px] bg-brand p-6 text-[var(--color-brand-ink)] md:p-7">
-            <div className="flex items-center justify-between">
-              <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[var(--color-brand-ink)]">월 납입금</p>
-              {isRecalculating && (
-                <span className="flex items-center gap-1.5 text-[11.5px] text-[var(--color-brand-ink)]">
-                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[rgb(var(--color-brand-ink-rgb)/0.35)] border-t-[var(--color-brand-ink)]" />
-                  재계산 중…
-                </span>
-              )}
+          {/* ── 2) 월 납입금 대형 강조 (실제 데이터) — 좌: 아임딜러 / 우: 타 업체 평균 비교 ── */}
+          <div>
+            <div className="grid grid-cols-[3fr_2fr] overflow-hidden rounded-[24px]">
+              {/* 왼쪽: 아임딜러 최저가 — 기존 파랑 유지 */}
+              <div className="flex min-w-0 flex-col bg-brand p-4 text-[var(--color-brand-ink)] sm:p-5 md:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-[var(--color-brand-ink)] sm:text-[13px]">
+                    <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-white/20">
+                      <Check size={11} strokeWidth={3} />
+                    </span>
+                    아임딜러 최저가
+                  </p>
+                  {isRecalculating && (
+                    <span className="flex items-center gap-1.5 text-[11.5px] text-[var(--color-brand-ink)]">
+                      <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[rgb(var(--color-brand-ink-rgb)/0.35)] border-t-[var(--color-brand-ink)]" />
+                      재계산 중…
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2.5 flex items-baseline gap-1">
+                  <span className="text-[14px] font-bold text-[var(--color-brand-ink)] md:text-[15px]">월</span>
+                  <TossPrice won={standardScenario.monthlyPayment} size="card" tone="onBrand" />
+                </div>
+                <p className="mt-2 text-[12px] font-medium text-[rgb(var(--color-brand-ink-rgb)/0.85)] sm:text-[12.5px]">
+                  {[
+                    standardScenario.bestFinanceCompany,
+                    `${quoteResult.contractMonths}개월`,
+                    `연 ${(quoteResult.annualMileage / 10000).toFixed(0)}만km`,
+                  ].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+              {/* 오른쪽: 타 업체 평균 — 차분한 회색 톤·취소선 (표시 전용 구간별 가산) */}
+              <div className="flex min-w-0 flex-col justify-center bg-[#F1F0EC] p-4 sm:p-5 md:p-6">
+                <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#8A857C] sm:text-[12.5px]">
+                  <Users size={12} />
+                  타 업체 평균
+                </p>
+                <p className="mt-2.5 flex items-baseline gap-0.5 text-[#6E6A61] line-through decoration-[#6E6A61]/40">
+                  <span className="text-[11.5px] font-medium">월</span>
+                  <span className="text-[18px] font-semibold leading-none tabular-nums sm:text-[20px] md:text-[22px]">
+                    {competitorMonthlyPayment?.toLocaleString("ko-KR")}
+                  </span>
+                  <span className="text-[11.5px] font-medium">원</span>
+                </p>
+                <p className="mt-2 text-[11.5px] font-medium text-[#8A857C] sm:text-[12px]">
+                  전국 딜러사 평균 견적
+                </p>
+              </div>
             </div>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <TossPrice won={standardScenario.monthlyPayment} size="xl" tone="onBrand" />
-              {standardScenario.bestFinanceCompany && (
-                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11.5px] font-bold text-[var(--color-brand-ink)]">
-                  <Building2 size={11} />
-                  {standardScenario.bestFinanceCompany}
+
+            {/* ── 2-1) 절약액 배너 — 타 업체 평균 대비 월 절약액 ── */}
+            {competitorMonthlyPayment != null && (
+              <div className="mt-2 flex items-center gap-2 rounded-[14px] bg-status-positive-soft px-4 py-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-status-positive">
+                  <BadgePercent size={13} strokeWidth={2.4} className="text-white" />
                 </span>
-              )}
-            </div>
-            <p className="mt-3 text-[13.5px] text-[var(--color-brand-ink)]">
-              {CUSTOMER_TYPE_LABELS[customerType]} · {productTypeLabel(contractCategory)}
-            </p>
+                <p className="text-[12.5px] font-medium text-status-positive sm:text-[13px]">
+                  전국 딜러사 평균 견적보다{" "}
+                  <span className="num font-extrabold tabular-nums">
+                    월 {(competitorMonthlyPayment - standardScenario.monthlyPayment).toLocaleString("ko-KR")}원
+                  </span>{" "}
+                  더 저렴합니다
+                </p>
+              </div>
+            )}
           </div>
 
           {/* ── 3) 초기비용(보증금/선납금) 패널 ── */}

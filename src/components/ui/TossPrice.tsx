@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  * 표시 전용 컴포넌트 — 금액 값/계산 로직과 무관하다.
  */
 
-type TossPriceSize = "sm" | "md" | "lg" | "xl";
+type TossPriceSize = "sm" | "md" | "lg" | "xl" | "card";
 type TossPriceTone = "ink" | "brand" | "white" | "onBrand";
 
 interface TossPriceProps {
@@ -26,6 +26,8 @@ const SIZE: Record<
   md: { num: "text-[28px]", man: "text-[16px]", rest: "text-[16px]", won: "text-[13px]", prefix: "text-[13px]" },
   lg: { num: "text-[32px]", man: "text-[18px]", rest: "text-[18px]", won: "text-[14px]", prefix: "text-[14px]" },
   xl: { num: "text-[38px] md:text-[44px]", man: "text-[20px]", rest: "text-[20px]", won: "text-[14px]", prefix: "text-[14px]" },
+  // 반분할 결과 카드 전용 — 모바일 half-width에서 넘치지 않게 하되 최대한 크게.
+  card: { num: "text-[34px] md:text-[46px]", man: "text-[18px] md:text-[23px]", rest: "text-[18px] md:text-[23px]", won: "text-[14px] md:text-[15px]", prefix: "text-[14px] md:text-[15px]" },
 };
 
 const TONE: Record<TossPriceTone, { num: string; unit: string }> = {

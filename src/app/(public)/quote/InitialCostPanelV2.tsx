@@ -169,7 +169,7 @@ export function InitialCostPanelV2({
               )}
             >
               {showGuestPerk && (
-                <span className="absolute -top-2.5 right-2 rounded-full bg-status-warning px-2 py-0.5 text-[10px] font-extrabold leading-tight text-surface shadow-card after:absolute after:-bottom-[3px] after:right-3 after:h-1.5 after:w-1.5 after:rotate-45 after:bg-status-warning after:content-['']">
+                <span className="absolute -top-3 right-2 rounded-full bg-status-warning px-2.5 py-1 text-[11.5px] font-extrabold leading-tight text-surface shadow-card motion-safe:animate-nudge after:absolute after:-bottom-[3px] after:right-3 after:h-1.5 after:w-1.5 after:rotate-45 after:bg-status-warning after:content-['']">
                   회원만 0원
                 </span>
               )}
