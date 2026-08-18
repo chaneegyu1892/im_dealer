@@ -5,6 +5,7 @@ import { POST } from "./route";
 const mocks = vi.hoisted(() => ({
   requireActiveUser: vi.fn(),
   updateUser: vi.fn(),
+  findUniqueUser: vi.fn(),
   ensureUserReferralCode: vi.fn(),
   reconcileUserCoupons: vi.fn(),
   applyReferralOnProfileComplete: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock("@/lib/require-user", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    user: { update: mocks.updateUser },
+    user: { update: mocks.updateUser, findUnique: mocks.findUniqueUser },
   },
 }));
 
@@ -137,5 +138,87 @@ describe("POST /api/auth/complete-profile", () => {
       }),
       expect.anything(),
     );
+  });
+
+  it("직접 입력한 추천인 코드 형식이 잘못되면 400이고 프로필을 저장하지 않는다", async () => {
+    const res = await POST(
+      request({ name: "홍길동", phone: "010-1234-5678", referralCode: "ABC12" }),
+    );
+    expect(res.status).toBe(400);
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("존재하지 않는 추천인 코드를 입력하면 400", async () => {
+    mocks.findUniqueUser.mockResolvedValue(null);
+    const res = await POST(
+      request({ name: "홍길동", phone: "010-1234-5678", referralCode: "K4821" }),
+    );
+    expect(res.status).toBe(400);
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("비활성 추천인의 코드를 입력하면 400", async () => {
+    mocks.findUniqueUser.mockResolvedValue({ id: "inviter-1", isActive: false });
+    const res = await POST(
+      request({ name: "홍길동", phone: "010-1234-5678", referralCode: "K4821" }),
+    );
+    expect(res.status).toBe(400);
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("본인의 추천 코드를 입력하면 400", async () => {
+    mocks.findUniqueUser.mockResolvedValue({ id: "user-1", isActive: true });
+    const res = await POST(
+      request({ name: "홍길동", phone: "010-1234-5678", referralCode: "K4821" }),
+    );
+    expect(res.status).toBe(400);
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("직접 입력한 코드는 소문자여도 정규화되고 쿠키보다 우선한다", async () => {
+    mocks.findUniqueUser.mockResolvedValue({ id: "inviter-2", isActive: true });
+    mocks.applyReferralOnProfileComplete.mockResolvedValue({
+      applied: true,
+      inviterUserId: "inviter-2",
+    });
+    const res = await POST(
+      request(
+        { name: "홍길동", phone: "010-1234-5678", referralCode: "b7777" },
+        "referral_code=K4821",
+      ),
+    );
+    expect(res.status).toBe(200);
+    expect(mocks.applyReferralOnProfileComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ rawCode: "B7777", isFirstProfileComplete: true }),
+      expect.anything(),
+    );
+  });
+
+  it("빈 문자열 추천인 코드는 없는 것으로 취급한다", async () => {
+    const res = await POST(
+      request({ name: "홍길동", phone: "010-1234-5678", referralCode: "" }),
+    );
+    expect(res.status).toBe(200);
+    expect(mocks.findUniqueUser).not.toHaveBeenCalled();
+    expect(mocks.applyReferralOnProfileComplete).not.toHaveBeenCalled();
+  });
+
+  it("이미 가입 완료된 회원이 보낸 코드는 검증 없이 무시한다", async () => {
+    mocks.requireActiveUser.mockResolvedValue({
+      user: {
+        id: "user-1",
+        profileCompleted: true,
+        supabaseId: "sb-1",
+        kakaoId: null,
+        isActive: true,
+      },
+      error: null,
+    });
+    const res = await POST(
+      request({ name: "홍길동", phone: "010-1234-5678", referralCode: "ABC12" }),
+    );
+    expect(res.status).toBe(200);
+    expect(mocks.findUniqueUser).not.toHaveBeenCalled();
+    expect(mocks.applyReferralOnProfileComplete).not.toHaveBeenCalled();
   });
 });

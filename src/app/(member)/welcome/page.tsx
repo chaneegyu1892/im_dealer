@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/admin-auth";
 import { getSafeInternalPath } from "@/lib/auth/redirect";
+import { REFERRAL_COOKIE_NAME } from "@/lib/referral/attribution";
+import { normalizeReferralCode } from "@/lib/referral/code";
 import { WelcomeForm } from "./WelcomeForm";
 
 export const dynamic = "force-dynamic";
@@ -24,11 +27,17 @@ export default async function WelcomePage({
     redirect(safeNext);
   }
 
+  // 추천 링크 쿠키는 httpOnly 라 클라이언트가 못 읽는다. 서버에서 읽어 프리필로 넘긴다.
+  const cookieStore = await cookies();
+  const referralFromCookie =
+    normalizeReferralCode(cookieStore.get(REFERRAL_COOKIE_NAME)?.value) ?? "";
+
   return (
     <WelcomeForm
       defaultName={user.kakaoNickname ?? user.name ?? ""}
       defaultPhone={user.phone ?? ""}
       next={safeNext}
+      defaultReferralCode={referralFromCookie}
     />
   );
 }

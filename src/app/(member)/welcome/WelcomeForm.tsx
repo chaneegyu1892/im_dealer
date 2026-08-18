@@ -2,20 +2,30 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { REFERRAL_CODE_PATTERN } from "@/lib/referral/code";
 
 interface WelcomeFormProps {
   readonly defaultName: string;
   readonly defaultPhone: string;
   readonly next: string;
+  /** 추천 링크 쿠키(httpOnly)에서 서버가 읽어온 코드. 없으면 빈 문자열. */
+  readonly defaultReferralCode: string;
 }
 
-export function WelcomeForm({ defaultName, defaultPhone, next }: WelcomeFormProps) {
+export function WelcomeForm({
+  defaultName,
+  defaultPhone,
+  next,
+  defaultReferralCode,
+}: WelcomeFormProps) {
   const router = useRouter();
   const [name, setName] = useState(defaultName);
   const [phone, setPhone] = useState(defaultPhone);
   const [marketingConsent, setMarketingConsent] = useState(false);
+  const [referralCode, setReferralCode] = useState(defaultReferralCode);
+  const [showReferral, setShowReferral] = useState(Boolean(defaultReferralCode));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,12 +33,25 @@ export function WelcomeForm({ defaultName, defaultPhone, next }: WelcomeFormProp
     e.preventDefault();
     if (submitting) return;
     setError(null);
+
+    // 코드 오타는 가입 완료 전에만 고칠 수 있으므로(서버의 최초 1회 게이트) 여기서 먼저 거른다.
+    const trimmedReferralCode = referralCode.trim().toUpperCase();
+    if (trimmedReferralCode && !REFERRAL_CODE_PATTERN.test(trimmedReferralCode)) {
+      setError("추천인 코드 형식이 올바르지 않습니다. (예: K4821)");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch("/api/auth/complete-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), marketingConsent }),
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          marketingConsent,
+          ...(trimmedReferralCode ? { referralCode: trimmedReferralCode } : {}),
+        }),
       });
       const json = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
@@ -89,6 +112,40 @@ export function WelcomeForm({ defaultName, defaultPhone, next }: WelcomeFormProp
                   className="min-h-[52px] rounded-[16px] border border-border-subtle bg-surface-soft px-4 text-[16px] font-semibold text-text-strong outline-none transition-colors focus:border-brand focus:bg-surface focus-visible:ring-4 focus-visible:ring-focus-ring/20"
                 />
               </label>
+
+              {showReferral ? (
+                <label className="grid gap-1.5">
+                  <span className="text-[13px] font-bold text-text-body">
+                    추천인 코드 <span className="font-bold text-text-muted">(선택)</span>
+                  </span>
+                  <input
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    maxLength={5}
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="K4821"
+                    className="min-h-[52px] rounded-[16px] border border-border-subtle bg-surface-soft px-4 font-mono text-[16px] font-semibold tracking-[0.14em] text-text-strong outline-none transition-colors focus:border-brand focus:bg-surface focus-visible:ring-4 focus-visible:ring-focus-ring/20"
+                  />
+                  {defaultReferralCode ? (
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand">
+                      <CheckCircle2 size={14} className="shrink-0" />
+                      추천 링크로 들어와 코드가 자동 입력됐어요
+                    </span>
+                  ) : null}
+                </label>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowReferral(true)}
+                  className="inline-flex min-h-11 items-center gap-1.5 justify-self-start text-[13px] font-bold text-text-muted underline-offset-4 transition-colors hover:text-text-body hover:underline"
+                >
+                  <Ticket size={14} className="shrink-0" />
+                  추천인 코드가 있나요?
+                </button>
+              )}
 
               <button
                 type="button"
