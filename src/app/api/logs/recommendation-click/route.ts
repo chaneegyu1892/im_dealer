@@ -5,8 +5,8 @@ import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 
 // ─── 스키마 ─────────────────────────────────────────────
 const clickSchema = z.object({
-  sessionId: z.string().min(1),
-  vehicleId: z.string().min(1),
+  sessionId: z.string().min(1).max(64),
+  vehicleId: z.string().min(1).max(64),
   proceedToQuote: z.boolean().optional().default(false),
 });
 

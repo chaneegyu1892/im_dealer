@@ -34,6 +34,9 @@ const envSchema = z.object({
   // 90일 PII 자동 만료 cron 호출 시 Bearer 토큰 검증용
   CRON_SECRET: z.string().min(32, "CRON_SECRET 은 32자 이상이어야 합니다."),
 
+  // PII 평문 레거시 거부 스위치 — encrypt-existing-pii.ts 백필 + --check 0건 확인 후 true 로.
+  PII_REJECT_PLAINTEXT: z.enum(["true", "false"]).optional(),
+
   // Optional integrations
   CODEF_CLIENT_ID: z.string().optional(),
   CODEF_CLIENT_SECRET: z.string().optional(),

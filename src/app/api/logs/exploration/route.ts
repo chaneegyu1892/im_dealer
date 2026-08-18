@@ -20,12 +20,23 @@ const EVENT_TYPES = [
 ] as const;
 
 // ─── 스키마 ─────────────────────────────────────────────
+// 공개 수집 라우트 — 대량 문자열·깊은 페이로드로 DB 부피를 공격하지 못하게 상한 둠.
 const explorationSchema = z.object({
-  sessionId: z.string().min(1),
+  sessionId: z.string().min(1).max(64),
   eventType: z.enum(EVENT_TYPES),
-  path: z.string().optional(),
-  vehicleId: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  path: z.string().max(200).optional(),
+  vehicleId: z.string().max(64).optional(),
+  metadata: z
+    .record(z.unknown())
+    .refine(
+      (m) =>
+        Object.keys(m).length <= 20 &&
+        Object.values(m).every(
+          (v) => (typeof v === "string" ? v.length <= 200 : typeof v !== "object" || v === null)
+        ),
+      { message: "metadata 크기 제한 초과" }
+    )
+    .optional(),
 });
 
 // ─── POST /api/logs/exploration ──────────────────────────

@@ -4,6 +4,10 @@
  * 운영 배포 시 1회 실행:
  *   PII_ENCRYPTION_KEY=<base64-32byte> npx tsx scripts/encrypt-existing-pii.ts
  *
+ * 읽기전용 점검 (PII_REJECT_PLAINTEXT=true 켜기 전 확인용):
+ *   npx tsx scripts/encrypt-existing-pii.ts --check
+ *   → 평문 잔여 0건이면 exit 0, 1건이라도 있으면 exit 1 (배포 게이트로 사용 가능)
+ *
  * 멱등성:
  *   - 이미 EncryptedBlob 형식인 행은 skip
  *   - 평문 JSON 만 encryptPII 적용
@@ -99,6 +103,57 @@ async function main(): Promise<void> {
     throw new Error(
       "PII_ENCRYPTION_KEY 환경변수가 필요합니다. .env 또는 명령행에서 지정하세요."
     );
+  }
+
+  // --check: 읽기전용 점검 모드 — 평문 잔여만 세고 쓰지 않는다.
+  if (process.argv.includes("--check")) {
+    let scanned = 0;
+    let plaintextRows = 0;
+    type CheckRow = {
+      id: string;
+      connectedId: string | null;
+      licenseData: unknown;
+      insuranceData: unknown;
+      bizData: unknown;
+    };
+    let cursor: string | undefined = undefined;
+    while (true) {
+      const rows: CheckRow[] = await prisma.customerVerification.findMany({
+        orderBy: { id: "asc" },
+        take: BATCH_SIZE,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        select: {
+          id: true,
+          connectedId: true,
+          licenseData: true,
+          insuranceData: true,
+          bizData: true,
+        },
+      });
+      if (rows.length === 0) break;
+      for (const row of rows) {
+        scanned++;
+        const hasPlaintext =
+          (row.connectedId != null && !isStringAlreadyEncrypted(row.connectedId)) ||
+          (row.licenseData != null && !isEncryptedBlob(row.licenseData)) ||
+          (row.insuranceData != null && !isEncryptedBlob(row.insuranceData)) ||
+          (row.bizData != null && !isEncryptedBlob(row.bizData));
+        if (hasPlaintext) plaintextRows++;
+      }
+      cursor = rows[rows.length - 1].id;
+      if (rows.length < BATCH_SIZE) break;
+    }
+    console.log("[encrypt-existing-pii --check] 읽기전용 점검 완료 (쓰기 없음)");
+    console.log(`  - 스캔: ${scanned} 행`);
+    console.log(`  - 평문 잔여: ${plaintextRows} 행`);
+    if (plaintextRows > 0) {
+      console.error(
+        "  → 평문이 남아 있습니다. 백필을 먼저 실행한 뒤 PII_REJECT_PLAINTEXT 를 켜세요."
+      );
+      process.exit(1);
+    }
+    console.log("  → 평문 0건: PII_REJECT_PLAINTEXT=true 로 전환해도 안전합니다.");
+    return;
   }
 
   const counter: ProgressCounter = {

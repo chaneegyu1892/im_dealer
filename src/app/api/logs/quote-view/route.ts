@@ -7,9 +7,9 @@ import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
 
 // 견적 조회 이벤트 = car_click → quote_start 흐름을 한 번에 기록
 const quoteViewSchema = z.object({
-  sessionId: z.string().min(1),
-  vehicleId: z.string().min(1),
-  slug: z.string().min(1),
+  sessionId: z.string().min(1).max(64),
+  vehicleId: z.string().min(1).max(64),
+  slug: z.string().min(1).max(200),
   contractMonths: z.number().int().optional(),
   annualMileage: z.number().int().optional(),
   scenario: z.enum(["보수형", "표준형", "공격형"]).optional(),

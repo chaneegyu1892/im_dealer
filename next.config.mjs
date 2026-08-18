@@ -15,6 +15,25 @@ const quoteImageTraceIncludes = [
 
 const vehicleImageE2ENext = vehicleImageE2ENextConfig(process.env);
 
+/**
+ * Sentry DSN → CSP 위반 리포트 수신 엔드포인트.
+ * DSN 형식: https://<publicKey>@<host>/<projectId>
+ * CSP 엔드포인트: https://<host>/api/<projectId>/security/?sentry_key=<publicKey>
+ * DSN 이 없으면(null) report-uri 를 붙이지 않는다 — 위반 리포트가 그냥 버려질 뿐 동작 무영향.
+ */
+function sentryCspReportUri() {
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  if (!dsn) return null;
+  try {
+    const url = new URL(dsn);
+    const projectId = url.pathname.replace(/^\//, "");
+    if (!projectId || !url.username) return null;
+    return `https://${url.host}/api/${projectId}/security/?sentry_key=${url.username}`;
+  } catch {
+    return null;
+  }
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   ...(vehicleImageE2ENext.distDir ? { distDir: vehicleImageE2ENext.distDir } : {}),
@@ -37,6 +56,8 @@ const nextConfig = {
   async headers() {
     // CSP 정책. Next.js 16 + Sentry + Supabase + Upstash + 외부 차량 이미지 도메인을 모두 허용.
     // 첫 단계는 Report-Only로 운영 위반을 모니터링한 뒤 enforce 전환은 후속 PR.
+    // report-uri 로 위반 내역을 Sentry 로 수집한다(DSN 있을 때만) → enforce 전환 판단 데이터.
+    const reportUri = sentryCspReportUri();
     const csp = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.sentry.io",
@@ -47,6 +68,7 @@ const nextConfig = {
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
+      ...(reportUri ? [`report-uri ${reportUri}`] : []),
     ].join("; ");
 
     return [

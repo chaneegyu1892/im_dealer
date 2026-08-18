@@ -65,6 +65,16 @@ export function isEncryptedBlob(value: unknown): value is EncryptedBlob {
   );
 }
 
+/**
+ * 평문 레거시 거부 스위치 (기본 false).
+ * 백필(encrypt-existing-pii.ts) 완료 + --check 로 평문 0건을 확인한 뒤
+ * 운영에서 PII_REJECT_PLAINTEXT=true 로 켜면, 이후 평문 데이터는 복호화 단계에서
+ * 침묵 통과 대신 즉시 실패한다 — 암호화 보장이 "기대치"가 아닌 "강제"가 된다.
+ */
+function shouldRejectPlaintext(): boolean {
+  return process.env.PII_REJECT_PLAINTEXT === "true";
+}
+
 export function encryptPII(value: unknown): EncryptedBlob {
   const key = getKey();
   const iv = randomBytes(IV_LENGTH);
@@ -84,13 +94,21 @@ export function encryptPII(value: unknown): EncryptedBlob {
  * 복호화. 전략:
  *   - 입력이 EncryptedBlob 이면 복호화하여 반환
  *   - 그 외(레거시 평문 JSON, null, undefined, primitive) 는 그대로 반환
+ *     (단 PII_REJECT_PLAINTEXT=true 면 평문은 throw — 백필 완료 후 강제 모드)
  *   - auth tag 검증 실패/키 불일치 시 throw
  */
 export function decryptPII<T = unknown>(blob: unknown): T | null {
   if (blob === null || blob === undefined) return null as T | null;
 
   // 마이그레이션 진행 중 양립: 평문 레거시는 그대로 반환
-  if (!isEncryptedBlob(blob)) return blob as T;
+  if (!isEncryptedBlob(blob)) {
+    if (shouldRejectPlaintext()) {
+      throw new Error(
+        "[pii] 평문 PII 가 감지되었습니다. encrypt-existing-pii.ts 백필 후 재시도하세요 (PII_REJECT_PLAINTEXT=true)."
+      );
+    }
+    return blob as T;
+  }
 
   const key = getKey();
   const iv = Buffer.from(blob.iv, "base64");
@@ -118,9 +136,21 @@ export function decryptString(value: string | null | undefined): string | null {
   try {
     parsed = JSON.parse(value);
   } catch {
+    if (shouldRejectPlaintext()) {
+      throw new Error(
+        "[pii] 평문 PII 가 감지되었습니다. encrypt-existing-pii.ts 백필 후 재시도하세요 (PII_REJECT_PLAINTEXT=true)."
+      );
+    }
     return value; // 평문 레거시
   }
-  if (!isEncryptedBlob(parsed)) return value;
+  if (!isEncryptedBlob(parsed)) {
+    if (shouldRejectPlaintext()) {
+      throw new Error(
+        "[pii] 평문 PII 가 감지되었습니다. encrypt-existing-pii.ts 백필 후 재시도하세요 (PII_REJECT_PLAINTEXT=true)."
+      );
+    }
+    return value;
+  }
   return decryptPII<string>(parsed);
 }
 
