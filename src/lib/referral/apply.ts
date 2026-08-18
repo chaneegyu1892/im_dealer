@@ -13,8 +13,8 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export interface ApplyReferralInput {
   inviteeUserId: string;
   rawCode: string | null | undefined;
-  /** profileCompleted 가 이번 요청에서 false → true 로 바뀌는지 */
-  isFirstProfileComplete: boolean;
+  /** 인정 창구 안인지 — 최초 가입 완료 시점이거나 완료 후 창구(7일) 이내 */
+  isWithinEntryWindow: boolean;
   inviteeKakaoId: string | null;
   signupIpHash?: string | null;
 }
@@ -69,7 +69,7 @@ export async function applyReferralOnProfileComplete(
     inviteeKakaoId: input.inviteeKakaoId,
     alreadyAttributed: Boolean(already),
     inviterMonthCount: monthCount,
-    isFirstProfileComplete: input.isFirstProfileComplete,
+    isWithinEntryWindow: input.isWithinEntryWindow,
     code,
   });
 

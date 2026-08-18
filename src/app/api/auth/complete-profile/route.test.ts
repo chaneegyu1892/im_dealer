@@ -106,6 +106,7 @@ describe("POST /api/auth/complete-profile", () => {
         phone: "010-1234-5678",
         marketingConsent: true,
         profileCompleted: true,
+        profileCompletedAt: expect.any(Date),
       },
     });
     expect(mocks.ensureUserReferralCode).toHaveBeenCalledWith("user-1", expect.anything());
@@ -134,7 +135,7 @@ describe("POST /api/auth/complete-profile", () => {
       expect.objectContaining({
         inviteeUserId: "user-1",
         rawCode: "K4821",
-        isFirstProfileComplete: true,
+        isWithinEntryWindow: true,
       }),
       expect.anything(),
     );
@@ -189,7 +190,7 @@ describe("POST /api/auth/complete-profile", () => {
     );
     expect(res.status).toBe(200);
     expect(mocks.applyReferralOnProfileComplete).toHaveBeenCalledWith(
-      expect.objectContaining({ rawCode: "B7777", isFirstProfileComplete: true }),
+      expect.objectContaining({ rawCode: "B7777", isWithinEntryWindow: true }),
       expect.anything(),
     );
   });

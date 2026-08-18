@@ -1,6 +1,10 @@
 export const REFERRAL_MONTHLY_CAP = 10;
 export const REFERRAL_COOKIE_NAME = "referral_code";
 export const REFERRAL_COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 30; // 30일
+/** 가입 완료 후 추천인 코드를 사후 입력할 수 있는 창구(일) */
+export const REFERRAL_ENTRY_WINDOW_DAYS = 7;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export type AttributionRejectReason =
   | "INVALID_CODE"
@@ -8,7 +12,7 @@ export type AttributionRejectReason =
   | "INVITER_INACTIVE"
   | "ALREADY_ATTRIBUTED"
   | "MONTHLY_CAP"
-  | "NOT_NEW_PROFILE";
+  | "ENTRY_WINDOW_CLOSED";
 
 export interface AttributionDecisionInput {
   inviteeUserId: string;
@@ -19,9 +23,31 @@ export interface AttributionDecisionInput {
   alreadyAttributed: boolean;
   /** 이번 달(KST) 추천인 성공 건수 */
   inviterMonthCount: number;
-  /** 이번에 처음 profileCompleted 가 켜지는지 */
-  isFirstProfileComplete: boolean;
+  /** 인정 창구 안인지 — 최초 가입 완료 시점이거나, 완료 후 REFERRAL_ENTRY_WINDOW_DAYS 이내 */
+  isWithinEntryWindow: boolean;
   code: string | null;
+}
+
+/**
+ * 추천인 코드 사후 입력 창구가 열려 있는지.
+ * 완료 시각이 미래인 비정상 케이스(시계 오차)는 관대하게 열림으로 본다.
+ */
+export function isReferralEntryWindowOpen(
+  profileCompletedAt: Date | null,
+  now: Date = new Date(),
+): boolean {
+  if (!profileCompletedAt) return false;
+  return (
+    now.getTime() - profileCompletedAt.getTime() <=
+    REFERRAL_ENTRY_WINDOW_DAYS * MS_PER_DAY
+  );
+}
+
+/** 사후 입력 창구가 닫히는 시각 */
+export function referralEntryDeadline(profileCompletedAt: Date): Date {
+  return new Date(
+    profileCompletedAt.getTime() + REFERRAL_ENTRY_WINDOW_DAYS * MS_PER_DAY,
+  );
 }
 
 export type AttributionDecision =
@@ -31,8 +57,8 @@ export type AttributionDecision =
 export function decideReferralAttribution(
   input: AttributionDecisionInput,
 ): AttributionDecision {
-  if (!input.isFirstProfileComplete) {
-    return { ok: false, reason: "NOT_NEW_PROFILE" };
+  if (!input.isWithinEntryWindow) {
+    return { ok: false, reason: "ENTRY_WINDOW_CLOSED" };
   }
   if (!input.code) {
     return { ok: false, reason: "INVALID_CODE" };

@@ -97,6 +97,8 @@ export async function POST(request: NextRequest) {
         phone,
         marketingConsent: parsed.data.marketingConsent,
         profileCompleted: true,
+        // 추천 코드 사후 입력 창구(7일)의 기준 시각. 최초 완료 때만 기록한다.
+        ...(!wasProfileCompleted ? { profileCompletedAt: new Date() } : {}),
       },
     });
 
@@ -119,7 +121,7 @@ export async function POST(request: NextRequest) {
         {
           inviteeUserId: user.id,
           rawCode: referralRawCode,
-          isFirstProfileComplete: true,
+          isWithinEntryWindow: true,
           inviteeKakaoId: user.kakaoId ?? null,
         },
         prisma,
