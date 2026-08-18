@@ -7,6 +7,7 @@ import { CouponTicket } from "@/components/mypage/CouponTicket";
 import { ReferralCodeEntryCard } from "@/components/mypage/ReferralCodeEntryCard";
 import { getCouponBoxData } from "@/lib/member-queries/coupons";
 import { prisma } from "@/lib/prisma";
+import { formatWonShort } from "@/lib/utils";
 import {
   isReferralEntryWindowOpen,
   referralEntryDeadline,
@@ -21,8 +22,6 @@ export const metadata: Metadata = {
   description: "받으실 혜택과 지급 상태를 확인하세요.",
   robots: { index: false, follow: false, nocache: true },
 };
-
-const moneyFormatter = new Intl.NumberFormat("ko-KR");
 
 export default async function CouponBoxPage() {
   const access = await requireMember();
@@ -71,7 +70,7 @@ export default async function CouponBoxPage() {
         <SummaryTile label="지급 예정" value={`${summary.pendingCount}장`} />
         <SummaryTile
           label="받을 혜택"
-          value={`${moneyFormatter.format(summary.totalAmount)}원`}
+          value={formatWonShort(summary.totalAmount)}
           note="계약 완료 시 지급"
         />
       </section>
@@ -167,12 +166,12 @@ function SummaryTile({
       }`}
     >
       <p
-        className={`text-[12px] font-bold ${emphasis ? "text-brand" : "text-text-muted"}`}
+        className={`whitespace-nowrap text-[12px] font-bold ${emphasis ? "text-brand" : "text-text-muted"}`}
       >
         {label}
       </p>
       <p
-        className={`mt-1 break-keep tabular-nums text-[18px] font-extrabold ${
+        className={`mt-1 break-keep tabular-nums text-[16px] font-extrabold md:text-[18px] ${
           emphasis ? "text-brand" : "text-text-strong"
         }`}
       >
