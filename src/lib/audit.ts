@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import type { NextRequest } from "next/server";
 import type { User } from "@prisma/client";
 import { Prisma } from "@prisma/client";
+import { getTrustedClientIp } from "@/lib/client-ip";
 import { prisma } from "@/lib/prisma";
 
 export const VEHICLE_IMAGE_AUDIT_ACTIONS = [
@@ -93,7 +94,11 @@ export type AuditAction =
   | "COUPON_POLICY_UPDATE"
   | "COUPON_POLICY_DELETE"
   | "COUPON_PAID"
-  | "COUPON_REVOKED";
+  | "COUPON_REVOKED"
+  | "MEMO_CREATE"
+  | "MEMO_UPDATE"
+  | "MEMO_DELETE"
+  | "FILE_UPLOAD";
 
 export type AuditActor = Pick<User, "id"> & { email: string | null };
 
@@ -110,18 +115,8 @@ interface LogAdminActionParams {
 
 function extractIp(request?: NextRequest | Request | null): string | null {
   if (!request) return null;
-  const trustProxy = process.env.TRUST_PROXY === "true";
-  if (trustProxy) {
-    const xff = request.headers.get("x-forwarded-for");
-    if (xff) {
-      const first = xff.split(",")[0]?.trim();
-      if (first) return first;
-    }
-    const xreal = request.headers.get("x-real-ip");
-    if (xreal) return xreal.trim();
-  }
-  if ("ip" in request && typeof request.ip === "string") return request.ip;
-  return null;
+  // IP 추출 단일 정책(src/lib/client-ip) 적용 — TRUST_PROXY/VERCEL 검사 포함.
+  return getTrustedClientIp(request.headers);
 }
 
 function extractUserAgent(request?: NextRequest | Request | null): string | null {

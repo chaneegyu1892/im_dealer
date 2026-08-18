@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { logAdminAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdminLike } from "@/lib/require-admin";
 
@@ -40,6 +41,16 @@ export async function PATCH(
       data: parsed.data,
     });
 
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "MEMO_UPDATE",
+      resource: "OperationalNote",
+      targetId: id,
+      before: { title: before.title, category: before.category, isPinned: before.isPinned },
+      after: { title: updated.title, category: updated.category, isPinned: updated.isPinned },
+    });
+
     return NextResponse.json({ success: true, data: updated });
   } catch (err) {
     console.error("[PATCH /api/admin/memos/[id]]", err);
@@ -51,10 +62,10 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAdminLike();
+  const { admin, error } = await requireAdminLike();
   if (error) return error;
 
   try {
@@ -65,6 +76,15 @@ export async function DELETE(
     }
 
     await prisma.operationalNote.delete({ where: { id } });
+
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "MEMO_DELETE",
+      resource: "OperationalNote",
+      targetId: id,
+      before: { title: before.title, category: before.category, isPinned: before.isPinned },
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
+import { logAdminAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { ingestMeritzRent, type OurVehicle, type MeritzIngestResult, type MappedPriceByMdelCd } from "@/lib/scraper/meritz/ingest";
@@ -24,7 +25,7 @@ function weekMonday(): Date {
 
 // POST /api/admin/capital-catalog/meritz-upload — 메리츠 렌터카 견적기 .xlsm 업로드 → 파싱·매칭·산출 → 카탈로그 저장.
 export async function POST(request: NextRequest) {
-  const { error } = await requireRoleAtLeast("admin");
+  const { admin, error } = await requireRoleAtLeast("admin");
   if (error) return error;
 
   try {
@@ -79,7 +80,9 @@ export async function POST(request: NextRequest) {
             : ingestMeritzRent(buf, ourVehicles, mappedPrices);
       }
     } catch (e) {
-      return NextResponse.json({ error: `엑셀 파싱 실패: ${(e as Error).message}` }, { status: 400 });
+      // 파서 내부 경로·노드 정보가 응답에 실리지 않도록 원문은 서버 로그로만.
+      console.error("[meritz-upload] parse failed:", e instanceof Error ? e.message : e);
+      return NextResponse.json({ error: "엑셀 파싱에 실패했습니다. 파일 형식을 확인해 주세요." }, { status: 400 });
     }
 
     const weekOf = weekMonday();
@@ -107,6 +110,23 @@ export async function POST(request: NextRequest) {
       });
       saved++;
     }
+
+    // 카탈로그 금리 일괄 교체는 민감 변경 — apply-catalog 와 동일 액션으로 추적.
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "RATE_SHEET_APPLY_CATALOG",
+      resource: "CapitalCatalogTrim",
+      meta: {
+        financeCompanyId,
+        financeCompanyName: fc.name,
+        productType,
+        saved,
+        total: result.summary.total,
+        unmatched: result.summary.unmatched,
+        weekOf: weekOf.toISOString(),
+      },
+    });
 
     return NextResponse.json({
       success: true,

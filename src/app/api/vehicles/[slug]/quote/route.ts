@@ -21,16 +21,17 @@ import {
 } from "@/lib/member-gate";
 import { hashIp, getClientIp } from "@/lib/ip-hash";
 import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { EXTRA_OPTIONS_PRICE_MAX } from "@/app/api/quote/save/request-schema";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { upsertQuoteCalcLog } from "@/lib/quote-calc-log";
 
 const quoteSchema = z
   .object({
     // 견적 페이지에서만 전달 — 있으면 조회/계산 로그를 세션 기준으로 적재한다(비교 기능 등은 미전달).
-    sessionId: z.string().min(1).optional(),
+    sessionId: z.string().min(1).max(64).optional(),
     trimId: z.string().optional(),
     selectedOptionIds: z.array(z.string()).optional(),
-    extraOptionsPrice: z.number().int().min(0).optional(),
+    extraOptionsPrice: z.number().int().min(0).max(EXTRA_OPTIONS_PRICE_MAX).optional(),
     contractMonths: z.number().int().refine((v) => [36, 48, 60].includes(v)),
     annualMileage: z.number().int().refine((v) => [10000, 20000, 30000].includes(v)),
     contractType: z.enum(["인수형", "반납형"]),

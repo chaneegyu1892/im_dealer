@@ -23,6 +23,8 @@ const nextConfig = {
     root: __dirname,
   },
   serverExternalPackages: ["@napi-rs/canvas"],
+  // 프레임워크/버전 지문(X-Powered-By) 노출 차단
+  poweredByHeader: false,
   // 견적서 이미지가 내부 PDF 렌더링 중 process.cwd()로 읽는 한글 TTF와 브랜드 로고(PNG)를
   // 서버리스 함수 번들에 포함시킨다. PDF.js의 Node canvas polyfill은 런타임 require라
   // 정적 분석으로 추적되지 않으므로 native canvas 패키지도 함께 명시한다.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { logAdminAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/admin-auth";
 
@@ -47,6 +48,18 @@ export async function PATCH(request: Request) {
       where: { id: admin.id },
       data: { name: parsed.data.name },
       select: { id: true, email: true, name: true, role: true },
+    });
+
+    // 자기 계정 이름 변경도 어드민 계정 변경 — 추적 대상.
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "ACCOUNT_UPDATE",
+      resource: "User",
+      targetId: admin.id,
+      before: { name: admin.name },
+      after: { name: updated.name },
+      meta: { self: true },
     });
 
     return NextResponse.json({ success: true, data: updated });

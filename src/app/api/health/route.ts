@@ -17,7 +17,10 @@ export async function GET() {
     await prisma.$queryRaw`SELECT 1`;
     checks.database = { status: "ok", latencyMs: Date.now() - dbStart };
   } catch (e) {
-    checks.database = { status: "error", error: e instanceof Error ? e.message : "unknown" };
+    // 비인증 공개 라우트 — 원문 에러(인프라 구성 노출) 대신 정적 코드만 응답하고
+    // 상세는 서버 로그/Sentry 로 보낸다.
+    console.error("[health] database check failed:", e instanceof Error ? e.message : e);
+    checks.database = { status: "error", error: "db_unreachable" };
     overall = "degraded";
   }
 
@@ -32,7 +35,8 @@ export async function GET() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       checks.redis = { status: "ok", latencyMs: Date.now() - redisStart };
     } catch (e) {
-      checks.redis = { status: "error", error: e instanceof Error ? e.message : "unknown" };
+      console.error("[health] redis check failed:", e instanceof Error ? e.message : e);
+      checks.redis = { status: "error", error: "redis_unreachable" };
       overall = "degraded";
     }
   }

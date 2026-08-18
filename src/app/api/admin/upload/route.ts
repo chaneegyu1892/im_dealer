@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logAdminAction } from "@/lib/audit";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import {
   ADMIN_UPLOAD_ALLOWED_MIME,
@@ -11,7 +12,7 @@ import {
 const CATEGORY_SET = new Set<string>(ADMIN_UPLOAD_CATEGORIES);
 
 export async function POST(req: NextRequest) {
-  const { error: authError } = await requireRoleAtLeast("staff");
+  const { admin, error: authError } = await requireRoleAtLeast("staff");
   if (authError) return authError;
 
   try {
@@ -64,6 +65,14 @@ export async function POST(req: NextRequest) {
       category: category as AdminUploadCategory,
       file,
       contentType: mime,
+    });
+
+    await logAdminAction({
+      request: req,
+      actor: admin,
+      action: "FILE_UPLOAD",
+      resource: "AdminStorage",
+      meta: { category, contentType: mime, size: file.size, url },
     });
 
     return NextResponse.json({ url });

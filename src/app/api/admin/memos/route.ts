@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { logAdminAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdminLike } from "@/lib/require-admin";
 
@@ -58,6 +59,15 @@ export async function POST(request: NextRequest) {
         isPinned: parsed.data.isPinned,
         createdBy: admin.name,
       },
+    });
+
+    await logAdminAction({
+      request,
+      actor: admin,
+      action: "MEMO_CREATE",
+      resource: "OperationalNote",
+      targetId: memo.id,
+      after: { title: memo.title, category: memo.category, isPinned: memo.isPinned },
     });
 
     return NextResponse.json({ success: true, data: memo }, { status: 201 });

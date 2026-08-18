@@ -18,15 +18,16 @@ import {
 } from "@/constants/quote-defaults";
 import { gateQuoteScenariosForGuest } from "@/lib/member-gate";
 import { apiRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { EXTRA_OPTIONS_PRICE_MAX } from "@/app/api/quote/save/request-schema";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 import { upsertQuoteCalcLogs } from "@/lib/quote-calc-log";
 
 const calculateSchema = z.object({
-  sessionId: z.string().min(1).optional(),
+  sessionId: z.string().min(1).max(64).optional(),
   vehicleSlug: z.string().min(1),
   trimId: z.string().optional(),
   selectedOptionIds: z.array(z.string()).optional(),
-  extraOptionsPrice: z.number().int().min(0).optional(),
+  extraOptionsPrice: z.number().int().min(0).max(EXTRA_OPTIONS_PRICE_MAX).optional(),
   contractMonths: z.number().int().refine((v) => [36, 48, 60].includes(v)),
   annualMileage: z.number().int().refine((v) => [10000, 20000, 30000].includes(v)),
   contractType: z.enum(["인수형", "반납형"]),
