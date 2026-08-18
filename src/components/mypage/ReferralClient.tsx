@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Check, Copy, Link2, Share2, Users } from "lucide-react";
+import type { ReferralProgressItem } from "@/lib/referral/progress";
+import { ReferralProgress } from "./ReferralProgress";
 
 interface ReferralClientProps {
   readonly code: string;
@@ -10,6 +12,7 @@ interface ReferralClientProps {
   readonly monthCap: number;
   readonly totalCount: number;
   readonly memberName: string;
+  readonly progressItems: ReferralProgressItem[];
 }
 
 export function ReferralClient({
@@ -19,6 +22,7 @@ export function ReferralClient({
   monthCap,
   totalCount,
   memberName,
+  progressItems,
 }: ReferralClientProps) {
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
 
@@ -135,6 +139,8 @@ export function ReferralClient({
           </p>
         </div>
       </section>
+
+      <ReferralProgress items={progressItems} />
 
       <section className="rounded-card border border-border-subtle bg-surface p-5 text-[13px] leading-6 text-text-body md:p-6">
         <h2 className="mb-2 text-[15px] font-extrabold text-text-strong">이용 안내</h2>

@@ -4,6 +4,7 @@ import { requireMember } from "@/lib/require-access";
 import { prisma } from "@/lib/prisma";
 import { ensureUserReferralCode } from "@/lib/referral/ensure-code";
 import { kstMonthRange, REFERRAL_MONTHLY_CAP } from "@/lib/referral/attribution";
+import { buildReferralProgressItem } from "@/lib/referral/progress";
 import { SITE_URL } from "@/lib/site-config";
 import { ReferralClient } from "@/components/mypage/ReferralClient";
 
@@ -41,6 +42,41 @@ export default async function ReferralPage() {
     },
   });
 
+  const referrals = await prisma.referral.findMany({
+    where: { referrerId: user.id, status: "REWARDED" },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      refereeId: true,
+      createdAt: true,
+      referee: { select: { name: true } },
+    },
+  });
+  const refereeIds = referrals.map((r) => r.refereeId);
+  const refereeQuotes =
+    refereeIds.length === 0
+      ? []
+      : await prisma.savedQuote.findMany({
+          where: { userId: { in: refereeIds }, deletedAt: null },
+          select: { userId: true, status: true, contactedAt: true },
+        });
+  const quotesByReferee = new Map<string, { status: (typeof refereeQuotes)[number]["status"]; contactedAt: Date | null }[]>();
+  for (const q of refereeQuotes) {
+    if (!q.userId) continue;
+    const list = quotesByReferee.get(q.userId) ?? [];
+    list.push({ status: q.status, contactedAt: q.contactedAt });
+    quotesByReferee.set(q.userId, list);
+  }
+  // 이름 원문·견적 상세는 클라이언트에 보내지 않고 마스킹된 단계 정보만 전달한다.
+  const progressItems = referrals.map((r) =>
+    buildReferralProgressItem({
+      id: r.id,
+      refereeName: r.referee.name,
+      signedUpAt: r.createdAt,
+      quotes: quotesByReferee.get(r.refereeId) ?? [],
+    }),
+  );
+
   const shareUrl = `${SITE_URL.replace(/\/$/, "")}/r/${code}`;
 
   return (
@@ -51,6 +87,7 @@ export default async function ReferralPage() {
       monthCap={REFERRAL_MONTHLY_CAP}
       totalCount={totalCount}
       memberName={user.name}
+      progressItems={progressItems}
     />
   );
 }
