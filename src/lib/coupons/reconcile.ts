@@ -109,6 +109,11 @@ export async function reconcileUserCoupons(
   });
 
   if (plan.issue.length > 0) {
+    // 스냅숏→쓰기 사이 경쟁(두 탭 동시 reconcile)의 이중 발급은 DB 부분 유니크
+    // IssuedCoupon_nonreferral_unique 가 원천 차단하고, skipDuplicates(ON CONFLICT
+    // DO NOTHING)가 위반 행을 건너뛰게 처리한다. 즉 "한 장" 보장은 유니크에
+    // 의존하며, 유니크가 없으면 이 약속은 성립하지 않는다. REFERRAL_* 정책은
+    // 이 경로에서 발급하지 않는다(applyReferralOnProfileComplete 전용).
     await db.issuedCoupon.createMany({
       data: plan.issue.map((item) => ({
         userId: target.id,

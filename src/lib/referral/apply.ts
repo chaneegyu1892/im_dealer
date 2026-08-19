@@ -207,8 +207,11 @@ async function issueReferralCoupons(input: {
         : new Date(input.now.getTime() + policy.validDays * MS_PER_DAY);
 
     // 호출부가 트랜잭션으로 감싸므로 실패하면 Referral 행과 함께 전부 롤백된다.
-    // IssuedCoupon 에 (policyId, referralId) 유니크는 없다 — 유니크는 쿠폰 코드(code)뿐이고
-    // referralId 는 일반 인덱스다. 중복 발급은 스키마가 아니라 이 발급 로직(Referral 1행당 1회)이 막는다.
+    // IssuedCoupon 은 부분 유니크 2개로 보호된다(마이그레이션 20260819000000 이 단일 진실 공급원):
+    //   IssuedCoupon_referral_unique (policyId, referralId) WHERE referralId IS NOT NULL
+    //   IssuedCoupon_nonreferral_unique (userId, policyId) WHERE referralId IS NULL
+    // 이 발급 경로는 referralId 가 항상 NOT NULL 이므로 referral 유니크가 (policyId, referralId) 차원에서
+    // 중복 발급을 스키마 수준에서도 막는다(발급 로직의 Referral 1행당 1회 원칙과 이중 방어).
     await input.db.issuedCoupon.create({
       data: {
         userId,

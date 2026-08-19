@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -317,5 +319,187 @@ describe("reconcileCouponsForQuoteOwner", () => {
     await reconcileCouponsForQuoteOwner("sb-user-1");
 
     expect(mocks.findCoupons).toHaveBeenCalledTimes(1);
+  });
+});
+
+// T19: IssuedCoupon 복합 유니크. 유니크는 DB 부분 유니크 2개로 존재하므로
+// (1) 배포본(마이그레이션 SQL·스키마)이 그 계약을 유지하는지, (2) 발급 경로가
+// 유니크+skipDuplicates 로 경쟁을 이기는지를 검증한다.
+describe("IssuedCoupon 복합 유니크 정합 (T19)", () => {
+  // vitest 루트(레포 최상위) 기준 경로.
+  const repoRoot = process.cwd();
+  const migrationsDir = join(repoRoot, "prisma", "migrations");
+
+  function readAllMigrations(): { dir: string; sql: string }[] {
+    return readdirSync(migrationsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => ({
+        dir: entry.name,
+        sql: readFileSync(join(migrationsDir, entry.name, "migration.sql"), "utf8"),
+      }))
+      .sort((a, b) => a.dir.localeCompare(b.dir));
+  }
+
+  it("부분 유니크 마이그레이션이 존재한다", () => {
+    const migrations = readAllMigrations();
+    const owners = migrations.filter((m) =>
+      m.sql.includes("IssuedCoupon_nonreferral_unique")
+    );
+    expect(owners.length).toBe(1);
+  });
+
+  it("마이그레이션은 두 부분 유니크를 만들고 레거시 풀 유니크를 제거한다", () => {
+    const migration = readAllMigrations().find((m) =>
+      m.sql.includes("IssuedCoupon_nonreferral_unique")
+    );
+    expect(migration).toBeDefined();
+    const sql = migration!.sql;
+
+    // 비추천 쿠폰: 회원×정책 1장 (reconcile 경로 전부)
+    expect(sql).toMatch(
+      /CREATE\s+UNIQUE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+"IssuedCoupon_nonreferral_unique"[\s\S]*WHERE\s+"referralId"\s+IS\s+NULL/
+    );
+    // 추천 쿠폰: 정책×추천건 1장 (apply 경로 전부 — 추천인은 피추천인마다 발급된다)
+    expect(sql).toMatch(
+      /CREATE\s+UNIQUE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+"IssuedCoupon_referral_unique"[\s\S]*WHERE\s+"referralId"\s+IS\s+NOT\s+NULL/
+    );
+    // add_coupon_box 가 만든 풀 유니크는 REFERRAL_GIVEN 다중 보유와 충돌하므로 제거한다.
+    expect(sql).toContain('DROP INDEX IF EXISTS "IssuedCoupon_userId_policyId_key"');
+  });
+
+  it("유니크 생성 전에 중복 낙오 행을 삭제 정리한다", () => {
+    const migration = readAllMigrations().find((m) =>
+      m.sql.includes("IssuedCoupon_nonreferral_unique")
+    );
+    const sql = migration!.sql;
+
+    // 중복 제거가 먼저 오고 유니크 생성이 나중에 와야 색인 생성이 실패하지 않는다.
+    // 부분 유니크는 상태와 무관하게 키를 점유하므로, 폐기(REVOKED)가 아니라
+    // 삭제로 낙오 행을 키에서 내보내야만 색인이 만들어진다.
+    const dedupIndex = sql.search(/DELETE FROM "IssuedCoupon"/);
+    const uniqueIndex = sql.search(/CREATE\s+UNIQUE\s+INDEX[^;]*"IssuedCoupon_nonreferral_unique"/);
+    expect(dedupIndex).toBeGreaterThan(-1);
+    expect(uniqueIndex).toBeGreaterThan(dedupIndex);
+    // 보관 행 우선순위: 이미 지급된 PAID 는 낙오에서 제외한다.
+    expect(sql).toMatch(/ORDER BY \(status = 'PAID'\) DESC/);
+  });
+
+  it("스키마는 REFERRAL_GIVEN 다중 발급과 충돌하는 풀 유니크를 선언하지 않는다", () => {
+    const schema = readFileSync(join(repoRoot, "prisma", "schema.prisma"), "utf8");
+    // 주석(문서화)은 허용되고 선언만 금지한다.
+    const declarationsOnly = schema
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("//"))
+      .join("\n");
+    // @@unique([userId, policyId]) 전역 유니크는 추천인이 같은 정책으로
+    // 피추천인마다 쿠폰을 받는 구조(월 상한 10건)와 양립하지 않는다.
+    expect(declarationsOnly).not.toContain("@@unique([userId, policyId])");
+  });
+});
+
+// 2탭 동시 reconcile 경쟁: 두 탭 모두 "쿠폰 없음" 스냅숏을 보고 발급을 시도한다.
+// 최종 1장 보장은 DB 부분 유니크 + skipDuplicates(ON CONFLICT DO NOTHING) 의 조합이며,
+// 이 테스트는 저장소가 그 유니크를 강제할 때 reconcile 의 쓰기가 수렴함을 못박는다.
+describe("동시 reconcile 경쟁 (T19)", () => {
+  type StoredRow = {
+    userId: string;
+    policyId: string;
+    referralId: string | null;
+  };
+
+  function makeRaceTabDb(rows: StoredRow[], snapshotCoupons: unknown[]) {
+    return {
+      couponPolicy: {
+        findMany: async () => [
+          {
+            id: "policy-signup",
+            trigger: "SIGNUP",
+            title: "첫가입 축하 주유권",
+            rewardLabel: "주유권 10만원",
+            rewardAmount: 100_000,
+            validDays: 90,
+            isActive: true,
+            startsAt: null,
+            endsAt: null,
+          },
+          {
+            id: "policy-given",
+            trigger: "REFERRAL_GIVEN",
+            title: "추천인 축하금",
+            rewardLabel: "축하금 10만원",
+            rewardAmount: 100_000,
+            validDays: null,
+            isActive: true,
+            startsAt: null,
+            endsAt: null,
+          },
+        ],
+      },
+      issuedCoupon: {
+        findMany: async () => snapshotCoupons,
+        createMany: async (args: {
+          data: StoredRow[];
+          skipDuplicates?: boolean;
+        }) => {
+          for (const row of args.data) {
+            // reconcile 발급 행은 referralId 필드를 아예 안 넘긴다(컬럼 기본값 NULL).
+            // 저장소에서는 NULL 로 정규화해 DB 와 동일하게 취급한다.
+            const referralId = row.referralId ?? null;
+            const conflicts = rows.some(
+              (existing) =>
+                existing.referralId === null &&
+                referralId === null &&
+                existing.userId === row.userId &&
+                existing.policyId === row.policyId
+            );
+            if (conflicts) {
+              if (!args.skipDuplicates) {
+                throw new Error(
+                  "Unique constraint failed: IssuedCoupon_nonreferral_unique"
+                );
+              }
+              continue;
+            }
+            rows.push({ ...row, referralId });
+          }
+          return { count: args.data.length };
+        },
+        updateMany: async () => ({ count: 0 }),
+      },
+      savedQuote: { findFirst: async () => null },
+    };
+  }
+
+  it("같은 스냅숏으로 경쟁해도 SIGNUP 쿠폰은 정확히 1장 발급된다", async () => {
+    const rows: StoredRow[] = [];
+
+    // 두 탭 모두 빈 쿠폰함을 본 시점의 스냅숏으로 발급을 시도한다(경쟁).
+    await reconcileUserCoupons(
+      TARGET,
+      makeRaceTabDb(rows, []) as never
+    );
+    await reconcileUserCoupons(
+      TARGET,
+      makeRaceTabDb(rows, []) as never
+    );
+
+    const signup = rows.filter((row) => row.policyId === "policy-signup");
+    expect(signup).toHaveLength(1);
+    expect(signup[0]).toMatchObject({
+      userId: "user-1",
+      policyId: "policy-signup",
+      referralId: null,
+    });
+  });
+
+  it("REFERRAL_* 정책은 reconcile 발급 경로에서 만들지 않는다", async () => {
+    const rows: StoredRow[] = [];
+
+    await reconcileUserCoupons(
+      TARGET,
+      makeRaceTabDb(rows, []) as never
+    );
+
+    expect(rows.filter((row) => row.policyId === "policy-given")).toHaveLength(0);
   });
 });

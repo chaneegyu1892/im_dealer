@@ -1100,7 +1100,13 @@ model IssuedCoupon {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // 추천 쿠폰이면 해당 Referral 행에 연결. partial unique 로 중복 방지.
+  // 추천 쿠폰이면 해당 Referral 행에 연결. 중복 방지 유니크는 DB 부분 유니크 2개로
+  // 존재한다(Prisma 는 partial unique 를 표현하지 못해 여기 선언하지 않는다):
+  //   IssuedCoupon_nonreferral_unique (userId, policyId)     WHERE referralId IS NULL
+  //   IssuedCoupon_referral_unique    (policyId, referralId) WHERE referralId IS NOT NULL
+  // 20260819000000_issued_coupon_partial_uniques 마이그레이션이 유지한다.
+  // @@unique([userId, policyId]) 풀 유니크는 REFERRAL_GIVEN(추천인이 피추천인마다
+  // 발급, 월 상한 10건) 다중 보유와 충돌하므로 선언하지 않는다.
   referralId String?
 
   user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
