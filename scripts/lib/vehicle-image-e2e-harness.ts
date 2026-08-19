@@ -174,6 +174,11 @@ export async function prepareVehicleImageE2EHarness(root: string,
       IP_HASH_SALT: "vehicle-image-e2e-ip-hash-salt",
       PII_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
       CRON_SECRET: "vehicle-image-e2e-cron-secret-000000000000",
+      // 격리 하네스는 Upstash 없이 구동한다. 더미 접속정보를 주면 rate-limit.ts 가
+      // 닿지 않는 호스트로 Redis 를 붙잡으므로, 대신 env.ts 검증을 면제한다.
+      E2E_ALLOW_MISSING_RATE_LIMIT: "true",
+      UPSTASH_REDIS_REST_URL: undefined,
+      UPSTASH_REDIS_REST_TOKEN: undefined,
       PORT: String(appPort),
     };
     return {

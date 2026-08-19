@@ -48,13 +48,22 @@ const envSchema = z.object({
 
   // 보안 설정
   TRUST_PROXY: z.enum(["true", "false"]).default("false"),
+
+  // CI E2E 전용 옵트아웃 — 격리된 테스트 런타임은 Upstash 없이 구동한다.
+  // Vercel 배포(VERCEL=1)에서는 무시되므로 운영에서 실수로 켤 수 없다.
+  E2E_ALLOW_MISSING_RATE_LIMIT: z.enum(["true", "false"]).optional(),
 })
   // 운영 런타임에선 rate limit 을 위한 Upstash 가 필수다. 누락되면 모든 제한이
   // fail-open 으로 사라진다. next build 시점(NEXT_PHASE=phase-production-build)은 제외.
   .superRefine((val, ctx) => {
+    // CI E2E 는 Upstash 없이 도는 격리 런타임이라 면제한다. 단 Vercel 배포에서는
+    // 플래그를 무시해, 운영에서 rate limit 이 조용히 사라지는 길을 남기지 않는다.
+    const e2eExempt =
+      val.E2E_ALLOW_MISSING_RATE_LIMIT === "true" && process.env.VERCEL !== "1";
     if (
       val.NODE_ENV === "production" &&
-      process.env.NEXT_PHASE !== "phase-production-build"
+      process.env.NEXT_PHASE !== "phase-production-build" &&
+      !e2eExempt
     ) {
       const missing: string[] = [];
       if (!val.UPSTASH_REDIS_REST_URL) missing.push("UPSTASH_REDIS_REST_URL");
@@ -76,8 +85,16 @@ export function loadEnv(): Env {
   if (cached) return cached;
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
-    const flat = parsed.error.flatten().fieldErrors;
-    const msg = `환경변수 검증 실패:\n${JSON.stringify(flat, null, 2)}`;
+    // fieldErrors 만 찍으면 path 없는 superRefine 이슈(formErrors)가 통째로 사라져
+    // '{}' 만 남는다. 값은 절대 싣지 않고 키 이름과 사유만 노출한다.
+    const { fieldErrors, formErrors } = parsed.error.flatten();
+    const reasons = [
+      ...formErrors,
+      ...Object.entries(fieldErrors).map(
+        ([key, errors]) => `${key}: ${(errors ?? []).join(", ")}`
+      ),
+    ];
+    const msg = `환경변수 검증 실패:\n${reasons.map((line) => `- ${line}`).join("\n")}`;
     if (process.env.NODE_ENV === "production") {
       throw new Error(msg);
     }
