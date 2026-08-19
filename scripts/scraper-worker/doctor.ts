@@ -104,7 +104,7 @@ async function collect(): Promise<Result[]> {
       fail(
         "프로그램 버전",
         `이 프로그램 v${WORKER_PROTOCOL_VERSION} ≠ 서버 요구 v${body.expectedWorkerVersion}`,
-        "개발 담당자에게 최신 파일을 받아 다시 설치하세요. 접속 정보는 유지됩니다."
+        "'수집 시작.bat' 을 다시 실행하면 자동으로 업데이트됩니다(접속 정보 유지)."
       );
     }
 

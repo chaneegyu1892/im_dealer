@@ -48,6 +48,8 @@ const nextConfig = {
   // 서버리스 함수 번들에 포함시킨다. PDF.js의 Node canvas polyfill은 런타임 require라
   // 정적 분석으로 추적되지 않으므로 native canvas 패키지도 함께 명시한다.
   outputFileTracingIncludes: {
+    // 워커 자동 업데이트 zip — 빌드 시 생성되는 파일이라 정적 분석으로 추적되지 않는다
+    "/api/worker/update": ["./worker-dist/**"],
     "/api/quote/image": quoteImageTraceIncludes,
     "/api/quote/deliver": quoteImageTraceIncludes,
     "/api/admin/quotes/[id]/image": quoteImageTraceIncludes,
