@@ -24,6 +24,11 @@ import type { VehicleListItem } from "@/types/api";
 import { compareWithQuoteLast, type QuoteResponse, type QuoteSnapshot } from "./carsBrowseData";
 import { CarsPageHero, FeaturedVehiclesSection } from "./CarsPageSections";
 
+/** 서버 route(/api/vehicles/representative-quotes)의 MAX_IDS 와 동일. 초과분은 잘리므로 청크로 쪼개 보낸다. */
+const QUOTE_IDS_PER_REQUEST = 80;
+/** id 당 최초 1회 + 재시도 1회. 서버가 끝내 못 채우는 id 가 이펙트를 재점화하지 못하게 막는다. */
+const MAX_QUOTE_ATTEMPTS = 2;
+
 interface CarsClientPageProps {
   readonly vehicles: VehicleListItem[];
   readonly brandSignals: Record<string, BrandSignal>;
@@ -45,8 +50,14 @@ export function CarsClientPage({
   const [sortOpen, setSortOpen] = useState(false);
   const [quoteCache, setQuoteCache] = useState<Record<string, QuoteSnapshot>>({});
   const [quoteLoadFailed, setQuoteLoadFailed] = useState(false);
+  const [quoteRetryTick, setQuoteRetryTick] = useState(0);
   const filterPanelRef = useRef<HTMLDivElement>(null);
   const searchSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 요청 시도 횟수 / 진행 중 id / 살아있는 요청을 ref 로 들고 있어야
+  // quoteCache 갱신으로 이펙트가 다시 돌아도 같은 id 를 재발사하지 않는다.
+  const quoteAttemptsRef = useRef<Map<string, number>>(new Map());
+  const quoteInflightRef = useRef<Set<string>>(new Set());
+  const quoteControllersRef = useRef<Set<AbortController>>(new Set());
 
   useEffect(() => {
     const element = filterPanelRef.current;
@@ -224,34 +235,77 @@ export function CarsClientPage({
     };
   }, [searchQuery, categoryFilter, brandFilter, sortBy]);
 
+  // 언마운트 때만 살아있는 요청을 끊는다.
+  // 이펙트 재실행마다 abort 하면 청크 응답이 서로를 취소해 같은 id 를 반복 요청하게 된다.
+  useEffect(() => {
+    const controllers = quoteControllersRef.current;
+    return () => {
+      controllers.forEach((controller) => controller.abort());
+      controllers.clear();
+    };
+  }, []);
+
   useEffect(() => {
     if (!isBrowsing) return;
 
-    const missingIds = filteredVehicles
+    const attempts = quoteAttemptsRef.current;
+    const inflight = quoteInflightRef.current;
+    const controllers = quoteControllersRef.current;
+    // 숨김 차량은 서버가 견적을 돌려주지 않으므로 애초에 요청하지 않는다.
+    const pendingIds = filteredVehicles
+      .filter((vehicle) => vehicle.isVisible !== false)
       .map((vehicle) => vehicle.id)
-      .filter((id) => !quoteCache[id]);
-    if (missingIds.length === 0) return;
+      .filter(
+        (id) =>
+          !quoteCache[id] &&
+          !inflight.has(id) &&
+          (attempts.get(id) ?? 0) < MAX_QUOTE_ATTEMPTS,
+      );
+    if (pendingIds.length === 0) return;
 
-    const controller = new AbortController();
-    const params = new URLSearchParams({ ids: missingIds.join(",") });
+    pendingIds.forEach((id) => {
+      inflight.add(id);
+      attempts.set(id, (attempts.get(id) ?? 0) + 1);
+    });
 
-    fetch(`/api/vehicles/representative-quotes?${params.toString()}`, {
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) return;
-        const payload = (await response.json()) as QuoteResponse;
-        if (!payload.data) return;
-        setQuoteLoadFailed(false);
-        setQuoteCache((current) => ({ ...current, ...payload.data }));
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setQuoteLoadFailed(true);
-      });
+    const chunks: string[][] = [];
+    for (let index = 0; index < pendingIds.length; index += QUOTE_IDS_PER_REQUEST) {
+      chunks.push(pendingIds.slice(index, index + QUOTE_IDS_PER_REQUEST));
+    }
 
-    return () => controller.abort();
-  }, [filteredVehicles, isBrowsing, quoteCache]);
+    void Promise.all(
+      chunks.map(async (chunkIds) => {
+        const controller = new AbortController();
+        controllers.add(controller);
+        const params = new URLSearchParams({ ids: chunkIds.join(",") });
+        try {
+          const response = await fetch(
+            `/api/vehicles/representative-quotes?${params.toString()}`,
+            { signal: controller.signal },
+          );
+          if (!response.ok) return false;
+          const payload = (await response.json()) as QuoteResponse;
+          const data = payload.data;
+          // 빈 응답에 setQuoteCache 를 호출하면 새 객체 identity 때문에 이펙트가 다시 돈다.
+          if (!data || Object.keys(data).length === 0) return true;
+          setQuoteLoadFailed(false);
+          setQuoteCache((current) => ({ ...current, ...data }));
+          return true;
+        } catch (error: unknown) {
+          if (error instanceof DOMException && error.name === "AbortError") return true;
+          return false;
+        } finally {
+          controllers.delete(controller);
+          chunkIds.forEach((id) => inflight.delete(id));
+        }
+      }),
+    ).then((results) => {
+      if (results.every(Boolean)) return;
+      setQuoteLoadFailed(true);
+      // 실패한 id 는 시도 상한(2회) 안에서만 한 번 더 간다.
+      setQuoteRetryTick((tick) => tick + 1);
+    });
+  }, [filteredVehicles, isBrowsing, quoteCache, quoteRetryTick]);
 
   return (
     <div className="public-app-page min-h-screen overflow-x-hidden pb-28 lg:pb-0">

@@ -22,6 +22,11 @@ export interface VehicleListItem {
   isPopular: boolean;
   /** 차량 탐색(/cars) "주목할 차량" 슬라이더 노출 플래그. isPopular와 별개. */
   isSpotlight?: boolean;
+  /**
+   * 공개 노출 여부. 공개 목록은 노출 차량만 담으므로 보통 생략(=노출)한다.
+   * false 인 차량은 서버가 대표견적을 돌려주지 않으므로 지연 로드 요청에서 제외한다.
+   */
+  isVisible?: boolean;
   description: string | null;
   displayOrder: number;
   defaultTrim: {
