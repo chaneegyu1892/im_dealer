@@ -126,7 +126,7 @@ const nextConfig = {
       { protocol: "http", hostname: "*.kakaocdn.net" },
       // 기타 외부 이미지 도메인 (필요 시 추가)
       { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "cdn.imdealers.com" },
+      { protocol: "https", hostname: "cdn.imdealer.co.kr" },
     ],
   },
 };

@@ -1331,7 +1331,7 @@ async function main() {
   console.log(`   ✅ 중복 ${dedupRows}행 정리\n`);
 
   // 초기 어드민 계정
-  const adminEmail = process.env.ADMIN_INITIAL_EMAIL ?? "admin@imdealers.com";
+  const adminEmail = process.env.ADMIN_INITIAL_EMAIL ?? "admin@imdealer.co.kr";
   const adminPassword = resolveInitialAdminPassword();
   const existingAdmin = await prisma.user.findFirst({ where: { email: adminEmail } });
   if (!existingAdmin) {
