@@ -83,6 +83,8 @@ beforeEach(() => {
 afterEach(() => {
   delete window.ChannelIO;
   window.localStorage.clear();
+  // 자동 재개 1회 예산은 sessionStorage 에 있다 — 테스트 간 누수 금지.
+  window.sessionStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -93,7 +95,7 @@ afterEach(() => {
 });
 
 describe("QuoteClientPageV2 consultation fallback", () => {
-  it("keeps the quote result summary and shows consultation guidance when scenarios are missing", async () => {
+  it("keeps the quote result summary and shows consultation guidance for a restored consultation result", async () => {
     writeConsultationRestore();
     vi.stubGlobal(
       "fetch",
@@ -1476,5 +1478,652 @@ describe("QuoteClientPageV2 result back navigation", () => {
 
     expect(navigationMock.router.push).toHaveBeenCalledWith("/cars/preparing-car");
     expect(navigationMock.router.back).not.toHaveBeenCalled();
+  });
+});
+
+// 슬라이더(초기비용 비율) 재계산이 실패하면, 화면에 남은 금액은 새 조건이 아니라
+// 직전 조건 금액이다. 조용히 넘어가면 고객이 잘못된 금액을 새 조건 금액으로 오인한다.
+describe("QuoteClientPageV2 slider recalculation failure", () => {
+  it("surfaces a retryable error, keeps the last successful amount, and clears the spinner", async () => {
+    // 디바운스(500ms)만 결정론화한다 — 애니메이션/rAF 는 실시간 그대로 둔다.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      writeCalculatedRestore();
+      supabaseMock.getUser.mockResolvedValue({
+        data: { user: { id: "supabase-user-1" } },
+      });
+      let failRecalculation = false;
+      const fetchMock = vi.fn<
+        (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+      >(async (input) => {
+        const url = input.toString();
+        if (url.endsWith("/colors") || url.endsWith("/trims")) {
+          return Response.json({ success: true, data: [] });
+        }
+        if (url === "/api/vehicles/preparing-car/quote") {
+          if (failRecalculation) {
+            return Response.json(
+              { success: false, error: "recalculation failed" },
+              { status: 500 }
+            );
+          }
+          return Response.json({
+            success: true,
+            data: createUnlockedCalculatedQuoteResult(),
+          });
+        }
+        return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<QuoteClientPageV2 vehicles={vehicles} />);
+      // 복원 직후 보증금 10% 재계산이 성공해 70만원이 마지막 성공 금액이 된다.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(
+        screen.getByText((_, node) => node?.textContent === "70만원")
+      ).toBeInTheDocument();
+      const successfulRecalculations = fetchMock.mock.calls.filter(
+        ([input]) => input.toString() === "/api/vehicles/preparing-car/quote"
+      ).length;
+
+      // 고객이 슬라이더(프리셋 20%)를 옮겼는데 서버가 500 을 돌려준다.
+      failRecalculation = true;
+      fireEvent.click(screen.getAllByRole("button", { name: "20%" })[0]!);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+
+      expect(
+        fetchMock.mock.calls.filter(
+          ([input]) => input.toString() === "/api/vehicles/preparing-car/quote"
+        ).length
+      ).toBe(successfulRecalculations + 1);
+      // ① 실패를 화면에 알린다
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent("다시 계산하지 못했어요");
+      // ② 재시도 경로를 남긴다
+      expect(screen.getByRole("button", { name: "다시 계산하기" })).toBeInTheDocument();
+      // ③ 직전 성공 금액을 유지한다(0원·빈 금액으로 무너지지 않는다)
+      expect(
+        screen.getByText((_, node) => node?.textContent === "70만원")
+      ).toBeInTheDocument();
+      // ④ 스피너는 해제된다 — 초기비용 패널의 상시 노드 1개만 남는다.
+      expect(screen.getAllByText("재계산 중…")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // 네트워크 자체가 끊긴 경우 — 디바운스 타이머에서 미처리 rejection 을 남기지 않고
+  // 같은 안내로 표면화한다.
+  it("surfaces a network failure from the debounced recalculation without an unhandled rejection", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      writeCalculatedRestore();
+      supabaseMock.getUser.mockResolvedValue({
+        data: { user: { id: "supabase-user-1" } },
+      });
+      let failRecalculation = false;
+      const fetchMock = vi.fn<
+        (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+      >(async (input) => {
+        const url = input.toString();
+        if (url.endsWith("/colors") || url.endsWith("/trims")) {
+          return Response.json({ success: true, data: [] });
+        }
+        if (url === "/api/vehicles/preparing-car/quote") {
+          if (failRecalculation) throw new TypeError("Failed to fetch");
+          return Response.json({
+            success: true,
+            data: createUnlockedCalculatedQuoteResult(),
+          });
+        }
+        return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<QuoteClientPageV2 vehicles={vehicles} />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+
+      failRecalculation = true;
+      fireEvent.click(screen.getAllByRole("button", { name: "20%" })[0]!);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+
+      expect(screen.getByRole("alert")).toHaveTextContent("다시 계산하지 못했어요");
+      expect(screen.getAllByText("재계산 중…")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retries the failed recalculation and restores the amount for the new condition", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      writeCalculatedRestore();
+      supabaseMock.getUser.mockResolvedValue({
+        data: { user: { id: "supabase-user-1" } },
+      });
+      let failRecalculation = false;
+      const fetchMock = vi.fn<
+        (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+      >(async (input) => {
+        const url = input.toString();
+        if (url.endsWith("/colors") || url.endsWith("/trims")) {
+          return Response.json({ success: true, data: [] });
+        }
+        if (url === "/api/vehicles/preparing-car/quote") {
+          if (failRecalculation) {
+            return Response.json(
+              { success: false, error: "recalculation failed" },
+              { status: 500 }
+            );
+          }
+          const data = createUnlockedCalculatedQuoteResult();
+          return Response.json({
+            success: true,
+            data: {
+              ...data,
+              scenarios: {
+                ...data.scenarios,
+                standard: { ...data.scenarios.standard!, monthlyPayment: 660_000 },
+              },
+            },
+          });
+        }
+        return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<QuoteClientPageV2 vehicles={vehicles} />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+
+      failRecalculation = true;
+      fireEvent.click(screen.getAllByRole("button", { name: "20%" })[0]!);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(screen.getByRole("alert")).toHaveTextContent("다시 계산하지 못했어요");
+
+      failRecalculation = false;
+      fireEvent.click(screen.getByRole("button", { name: "다시 계산하기" }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(
+        screen.getByText((_, node) => node?.textContent === "66만원")
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// 카카오 동의(왕복) 흐름은 복귀 URL 에 표식을 남기지 않으면 저장본을 읽지 않아
+// 고객이 1단계부터 다시 시작하게 된다.
+describe("QuoteClientPageV2 kakao consent round trip", () => {
+  it("carries restore and delivery markers into the Kakao consent redirect", async () => {
+    writeCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({ data: { user: null } });
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "카카오톡으로 견적서 받기" })
+    );
+
+    await waitFor(() => expect(supabaseMock.signInWithOAuth).toHaveBeenCalledTimes(1));
+    const redirectTo =
+      supabaseMock.signInWithOAuth.mock.calls[0]?.[0]?.options?.redirectTo ?? "";
+    const next = new URL(redirectTo).searchParams.get("next") ?? "";
+    expect(next.startsWith("/quote")).toBe(true);
+    expect(new URLSearchParams(next.split("?")[1] ?? "").get("restore")).toBe("1");
+    expect(new URLSearchParams(next.split("?")[1] ?? "").get("deliver")).toBe("1");
+    // 왕복 뒤에도 같은 견적 세션으로 이어지도록 보관한다.
+    expect(window.localStorage.getItem("imd_delivery_gate_session")).toBeTruthy();
+  });
+
+  it("resumes the saved quote and the delivery intent after returning from Kakao", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&restore=1&deliver=1"
+    );
+    writeCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/vehicles/preparing-car/quote") {
+        return Response.json({
+          success: true,
+          data: createUnlockedCalculatedQuoteResult(),
+        });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: savedQuoteSuccessData({ id: "saved-quote-1", sessionId: "saved-session-1" }),
+        });
+      }
+      if (url === "/api/quote/deliver") {
+        return Response.json({ success: true, data: { deliveryId: "delivery-1" } });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    // 1단계로 초기화되지 않고 저장된 견적(3단계)이 복원된다.
+    expect(
+      await screen.findByRole("button", { name: "조건 다시 설정하기" })
+    ).toBeInTheDocument();
+    // 전달 의도도 이어져 자동으로 전송이 완료된다.
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/deliver",
+        expect.objectContaining({ method: "POST" })
+      )
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "카카오톡으로 견적서를 보냈어요"
+    );
+  });
+
+  // 동의창에서 취소하고 돌아온 고객 — 견적은 살아 있어야 하고, 로그인 루프나
+  // 무단 전송(저장/발송)이 일어나면 안 된다.
+  it("keeps the restored quote without delivering when the consent was cancelled", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&restore=1&deliver=1"
+    );
+    writeCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({ data: { user: null } });
+    const fetchMock = createFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    expect(
+      await screen.findByRole("button", { name: "조건 다시 설정하기" })
+    ).toBeInTheDocument();
+    await waitFor(() => expect(supabaseMock.getUser).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/quote/save", expect.anything());
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/quote/deliver", expect.anything());
+    expect(supabaseMock.signInWithOAuth).not.toHaveBeenCalled();
+  });
+
+  it("falls back to step 1 with guidance when the restore snapshot is missing", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&restore=1&deliver=1"
+    );
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    expect((await screen.findAllByText("고객 유형")).length).toBeGreaterThan(0);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "이전 견적 정보를 불러오지 못했어요"
+    );
+  });
+});
+
+// ── 자동 재개(deliver=1) 안전장치 ─────────────────────────────────
+// OAuth 왕복은 페이지 전체 이동이라 useRef 가드가 회차마다 초기화된다.
+// 자동 재개가 실패(409 재동의 요구)로 다시 동의창으로 나가면 왕복이 무한 반복되고,
+// 회차마다 견적 저장(DB 쓰기)까지 발생한다.
+describe("QuoteClientPageV2 delivery auto-resume guard", () => {
+  type QuoteFetchMock = ReturnType<
+    typeof vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>
+  >;
+
+  function autoResumeFetchMock(
+    options: { readonly deliverStatus?: number } = {}
+  ): QuoteFetchMock {
+    const deliverStatus = options.deliverStatus ?? 200;
+    return vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/logs/exploration") {
+        return Response.json({ ok: true });
+      }
+      if (url === "/api/vehicles/preparing-car/quote") {
+        return Response.json({
+          success: true,
+          data: createUnlockedCalculatedQuoteResult(),
+        });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: savedQuoteSuccessData({
+            id: "saved-quote-1",
+            sessionId: "saved-session-1",
+          }),
+        });
+      }
+      if (url === "/api/quote/deliver") {
+        return deliverStatus === 200
+          ? Response.json({ success: true, data: { deliveryId: "delivery-1" } })
+          : Response.json(
+              {
+                error: "카카오톡 전송 권한이 만료되었습니다. 다시 로그인해 주세요.",
+                code: "KAKAO_REAUTH_REQUIRED",
+              },
+              { status: deliverStatus }
+            );
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+  }
+
+  function countRequests(fetchMock: QuoteFetchMock, url: string): number {
+    return fetchMock.mock.calls.filter(([input]) => input.toString() === url).length;
+  }
+
+  // 보류된 fetch 체인(전부 즉시 resolve)을 매크로태스크 경계에서 모두 흘려보낸다.
+  async function drainPendingWork(): Promise<void> {
+    for (let i = 0; i < 2; i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
+  }
+
+  it("stops at guidance instead of re-entering Kakao consent when the auto resume needs re-auth", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&restore=1&deliver=1"
+    );
+    writeCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const fetchMock = autoResumeFetchMock({ deliverStatus: 409 });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/quote/deliver",
+        expect.objectContaining({ method: "POST" })
+      )
+    );
+    await drainPendingWork();
+
+    // 클릭 0회로 다시 동의창에 나가면 복귀 → 자동 재개 → 409 → 동의창… 무한 왕복이 된다.
+    expect(supabaseMock.signInWithOAuth).not.toHaveBeenCalled();
+    // 대신 사용자에게 무엇을 해야 하는지 알린다.
+    expect(await screen.findByText(/다시 눌러 동의해 주세요/)).toBeInTheDocument();
+    // 수동 재시도 경로는 그대로 남는다.
+    expect(
+      screen.getByRole("button", { name: "카카오톡으로 견적서 받기" })
+    ).toBeInTheDocument();
+    // 저장(DB 쓰기)·전송도 회차마다 반복되지 않는다.
+    expect(countRequests(fetchMock, "/api/quote/deliver")).toBe(1);
+    expect(countRequests(fetchMock, "/api/quote/save")).toBe(1);
+  });
+
+  it("does not auto-resume the delivery twice in the same browser session", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&restore=1&deliver=1"
+    );
+    writeCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const fetchMock = autoResumeFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = render(<QuoteClientPageV2 vehicles={vehicles} />);
+    expect(await screen.findByText(/카카오톡으로 견적서를 보냈어요/)).toBeInTheDocument();
+    first.unmount();
+
+    // 같은 탭에서 다시 진입(새로고침·뒤로가기) — useRef 가드는 초기화되지만
+    // 재전송은 없어야 한다. 페이지 이동을 견디는 저장소가 차단막이다.
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    await screen.findByRole("button", { name: "조건 다시 설정하기" });
+    await drainPendingWork();
+
+    expect(countRequests(fetchMock, "/api/quote/deliver")).toBe(1);
+    expect(countRequests(fetchMock, "/api/quote/save")).toBe(1);
+  });
+
+  // 마커 생성(동의 리다이렉트)과 소비(복귀 자동 재개)를 한 테스트로 잇는다 —
+  // 두 단계를 수기 URL 로 끊어두면 마커 누락 회귀를 잡지 못한다.
+  it("carries the consent redirect markers into the auto resume and delivers exactly once", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/quote?vehicle=preparing-car&customerType=individual&restore=1"
+    );
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&restore=1"
+    );
+    writeCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({ data: { user: null } });
+    const fetchMock = autoResumeFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const guest = render(<QuoteClientPageV2 vehicles={vehicles} />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "카카오톡으로 견적서 받기" })
+    );
+    await waitFor(() => expect(supabaseMock.signInWithOAuth).toHaveBeenCalledTimes(1));
+    const redirectTo =
+      supabaseMock.signInWithOAuth.mock.calls[0]?.[0]?.options?.redirectTo ?? "";
+    const next = new URL(redirectTo).searchParams.get("next") ?? "";
+    // 비회원 단계에서는 저장·전송이 없다.
+    expect(countRequests(fetchMock, "/api/quote/save")).toBe(0);
+    guest.unmount();
+
+    // 카카오가 돌려보낸 next 그대로 재진입한다(수기 URL 금지).
+    navigationMock.searchParams = new URLSearchParams(next.split("?")[1] ?? "");
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    // 견적(3단계)과 전달 의도가 모두 복원된다.
+    expect(
+      await screen.findByRole("button", { name: "조건 다시 설정하기" })
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/카카오톡으로 견적서를 보냈어요/)).toBeInTheDocument();
+    await drainPendingWork();
+    expect(countRequests(fetchMock, "/api/quote/deliver")).toBe(1);
+  });
+
+  // 자동 재개는 막히지만, 사용자가 직접 누른 전송은 기존대로 동의 흐름을 탄다 —
+  // 수동/자동 구분이 실제 복구 여정에서 유지되는지 확인한다.
+  it("recovers through the manual consent round trip after the auto resume was stopped", async () => {
+    let deliverStatus = 409;
+    const baseFetchMock = autoResumeFetchMock();
+    // autoResumeFetchMock 는 생성 시점 상태를 고정하므로 동적 상태로 한 번 감싼다.
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input, init) => {
+      const url = input.toString();
+      if (url === "/api/quote/deliver") {
+        return deliverStatus === 200
+          ? Response.json({ success: true, data: { deliveryId: "delivery-1" } })
+          : Response.json(
+              {
+                error: "카카오톡 전송 권한이 만료되었습니다. 다시 로그인해 주세요.",
+                code: "KAKAO_REAUTH_REQUIRED",
+              },
+              { status: deliverStatus }
+            );
+      }
+      return baseFetchMock.getMockImplementation()!(input, init);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    // ① 자동 재개 → 409 → 안내로 멈춘다(동의창 재진입 금지).
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&restore=1&deliver=1"
+    );
+    writeCalculatedRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    const first = render(<QuoteClientPageV2 vehicles={vehicles} />);
+    await waitFor(() =>
+      expect(screen.getByText(/다시 눌러 동의해 주세요/)).toBeInTheDocument()
+    );
+    expect(supabaseMock.signInWithOAuth).not.toHaveBeenCalled();
+
+    // ② 사용자가 직접 누른다 — 재동의 왕복은 그대로 간다.
+    fireEvent.click(screen.getByRole("button", { name: "카카오톡으로 견적서 받기" }));
+    await waitFor(() => expect(supabaseMock.signInWithOAuth).toHaveBeenCalledTimes(1));
+    const redirectTo =
+      supabaseMock.signInWithOAuth.mock.calls[0]?.[0]?.options?.redirectTo ?? "";
+    const next = new URL(redirectTo).searchParams.get("next") ?? "";
+    first.unmount();
+
+    // ③ 동의 완료 복귀 — 이 왕복은 사용자 제스처로 나간 것이므로 자동 재개가 이어진다.
+    deliverStatus = 200;
+    navigationMock.searchParams = new URLSearchParams(next.split("?")[1] ?? "");
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    expect(await screen.findByText(/카카오톡으로 견적서를 보냈어요/)).toBeInTheDocument();
+    await drainPendingWork();
+    expect(countRequests(fetchMock, "/api/quote/deliver")).toBe(3);
+  });
+
+  // 「다시 계산하지 못했어요」와 「보냈어요」가 함께 떠 있으면 고객은 무엇을 믿을지 알 수 없다.
+  it("clears the recalculation failure notice once the delivery succeeds", async () => {
+    let failRecalculation = false;
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/vehicles/preparing-car/quote") {
+        if (failRecalculation) {
+          return Response.json(
+            { success: false, error: "recalculation failed" },
+            { status: 500 }
+          );
+        }
+        return Response.json({
+          success: true,
+          data: createUnlockedCalculatedQuoteResult(),
+        });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: savedQuoteSuccessData({
+            id: "saved-quote-1",
+            sessionId: "saved-session-1",
+          }),
+        });
+      }
+      if (url === "/api/quote/deliver") {
+        return Response.json({ success: true, data: { deliveryId: "delivery-1" } });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      writeCalculatedRestore();
+      supabaseMock.getUser.mockResolvedValue({
+        data: { user: { id: "supabase-user-1" } },
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<QuoteClientPageV2 vehicles={vehicles} />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+
+      failRecalculation = true;
+      fireEvent.click(screen.getAllByRole("button", { name: "20%" })[0]!);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(600);
+      });
+      expect(screen.getByText(/다시 계산하지 못했어요/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: "카카오톡으로 견적서 받기" }));
+
+    expect(await screen.findByText(/카카오톡으로 견적서를 보냈어요/)).toBeInTheDocument();
+    expect(screen.queryByText(/다시 계산하지 못했어요/)).not.toBeInTheDocument();
+  });
+
+  // 보존된 비율 재적용(pendingRatesReapply) 경로는 await 도 catch 도 없이 호출된다 —
+  // 네트워크 거부가 그대로 미처리 rejection 이 된다.
+  it("does not leave an unhandled rejection when the reapplied-rates recalculation is rejected", async () => {
+    writeGuestGatedFirstEntryRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    let quoteCalls = 0;
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/vehicles/preparing-car/quote") {
+        quoteCalls += 1;
+        // ① 회원 자격 기준 재계산은 성공 → 보관된 비율(선납 30%) 재적용이 예약된다.
+        if (quoteCalls === 1) {
+          return Response.json({
+            success: true,
+            data: createUnlockedCalculatedQuoteResult(),
+          });
+        }
+        // ② 그 재적용 요청에서 네트워크가 끊긴다.
+        throw new TypeError("Failed to fetch");
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => {
+      rejections.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandledRejection);
+    try {
+      render(<QuoteClientPageV2 vehicles={vehicles} />);
+      // 실패는 무음 삼킴이 아니라 같은 안내로 표면화한다.
+      expect(await screen.findByText(/다시 계산하지 못했어요/)).toBeInTheDocument();
+      await drainPendingWork();
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandledRejection);
+    }
   });
 });

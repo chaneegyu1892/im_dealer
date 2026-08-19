@@ -99,6 +99,42 @@ const STEPS = ["고객 유형", "조건 설정", "견적 확인"] as const;
 // 견적서 받기 로그인 게이트 → 로그인 후 복귀 시 요청 흐름을 이어가기 위한 URL 표식.
 const DELIVERY_RESUME_PARAM = "deliver";
 
+// 초기비용 재계산 실패 안내 — 화면 금액이 직전 조건 기준임을 분명히 한다.
+const RECALCULATION_ERROR_MESSAGE =
+  "새 조건으로 다시 계산하지 못했어요. 아래 금액은 직전 조건 기준이에요.";
+
+// 자동 재개가 재동의(409)를 요구받았을 때의 안내. 여기서 동의창으로 되돌아가면
+// 복귀 → 자동 재개 → 409 → 동의창… 왕복이 무한 반복되므로 사용자 클릭을 기다린다.
+const KAKAO_REAUTH_MANUAL_RETRY_MESSAGE =
+  "카카오톡 전송 권한이 만료됐어요. 아래 「카카오톡으로 견적서 받기」를 다시 눌러 동의해 주세요.";
+
+// 자동 재개 1회 예산의 소진 표식. OAuth 왕복은 페이지 전체 이동이라 useRef 가드가
+// 회차마다 초기화된다 — 이동을 견디는 sessionStorage 에 남겨야 차단막이 된다.
+const AUTO_DELIVERY_RESUME_SPENT_KEY = "imd_quote_auto_resume_spent";
+
+/** 사용자가 직접 동의/로그인으로 나갔다 — 그 왕복 1회분 자동 재개를 허용한다. */
+function grantAutoDeliveryResume(): void {
+  try {
+    window.sessionStorage.removeItem(AUTO_DELIVERY_RESUME_SPENT_KEY);
+  } catch {
+    // 저장소 접근 불가(프라이빗 모드 등) — 소비 로직이 기존 동작으로 폴백한다.
+  }
+}
+
+/** 예산이 남아 있으면 소비하고 true. 이미 소진했으면 자동 재개를 막는다. */
+function consumeAutoDeliveryResume(): boolean {
+  try {
+    if (window.sessionStorage.getItem(AUTO_DELIVERY_RESUME_SPENT_KEY) === "1") {
+      return false;
+    }
+    window.sessionStorage.setItem(AUTO_DELIVERY_RESUME_SPENT_KEY, "1");
+    return true;
+  } catch {
+    // 저장소를 못 쓰면 마운트당 1회(useRef) 보호만 남는다.
+    return true;
+  }
+}
+
 // 게이트 로그인 왕복 동안 견적 세션 ID 를 보관하는 localStorage 키.
 // 복귀 마운트에서 같은 세션을 이어받아야 계산 로그(QuoteCalcLog) → 게이트 이벤트
 // (ExplorationLog) → 전환(clickedApply)이 한 세션 기준으로 조인된다.
@@ -338,6 +374,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   });
   const [costMode, setCostMode] = useState<CostMode>(DEFAULT_RESULT_COST_MODE);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  // 슬라이더 재계산 실패 — 화면 금액이 새 조건이 아니라는 사실을 고객에게 알린다.
+  const [recalculationError, setRecalculationError] = useState<string | null>(null);
+  // 복원 표식(restore=1)으로 돌아왔는데 저장본이 없을 때의 폴백 안내.
+  const [restoreSnapshotMissing, setRestoreSnapshotMissing] = useState(false);
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [isDelivering, setIsDelivering] = useState(false);
   const [deliverSuccess, setDeliverSuccess] = useState(false);
@@ -494,6 +534,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       setQuoteResult(restored.quoteResult);
       setStep(3);
     } else {
+      // 저장본이 없거나 다른 차량 것이다 — 빈 결과 화면에 갇히지 않게 조건 단계로
+      // 되돌리되, 왜 처음부터 다시인지 안내한다(로그인 왕복 복귀 포함).
+      setRestoreSnapshotMissing(true);
       setStep(initialCustomerType ? 2 : 1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -727,6 +770,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       }
 
       setIsRecalculating(true);
+      setRecalculationError(null);
       try {
         const res = await fetch(`/api/vehicles/${selectedVehicle.slug}/quote`, {
           method: "POST",
@@ -748,6 +792,11 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         const json = await res.json();
         if (!res.ok || !json.success) {
           console.error("[recalculateStandard]", json?.error ?? "failed");
+          // 조용히 넘어가면 직전 조건 금액이 새 조건 금액으로 오인된다 —
+          // 실패를 화면에 알리고 재계산 경로를 남긴다.
+          if (requestId === recalculateRequestId.current) {
+            setRecalculationError(RECALCULATION_ERROR_MESSAGE);
+          }
           return;
         }
         if (requestId !== recalculateRequestId.current) return;
@@ -761,6 +810,13 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
             ? { ...prev, scenarios: { ...prev.scenarios, standard: json.data.scenarios.standard } }
             : prev
         );
+      } catch (recalculationFailure) {
+        // 네트워크 실패도 화면에 알린다. 저장/전송 경로(flushPendingQuoteRecalculation)는
+        // 이 거부를 그대로 받아야 낡은 금액으로 저장되지 않으므로 다시 던진다.
+        if (requestId === recalculateRequestId.current) {
+          setRecalculationError(RECALCULATION_ERROR_MESSAGE);
+        }
+        throw recalculationFailure;
       } finally {
         if (requestId === recalculateRequestId.current) {
           setIsRecalculating(false);
@@ -781,6 +837,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const restoreBaseStandardScenario = useCallback(() => {
     recalculateRequestId.current += 1;
     setIsRecalculating(false);
+    setRecalculationError(null);
     const standard = baseStandardScenario.current;
     if (!standard) return;
     setQuoteResult((prev) =>
@@ -796,7 +853,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       if (pendingRecalcTimerRef.current === handle) {
         pendingRecalcTimerRef.current = null;
       }
-      void recalculateStandardRef.current(rates);
+      // 거부는 recalculateStandard 안에서 이미 에러 상태로 표면화한다 —
+      // 여기서 삼키지 않으면 디바운스 타이머에서 미처리 rejection 이 된다.
+      void recalculateStandardRef.current(rates).catch(() => {});
     }, 500);
     pendingRecalcTimerRef.current = handle;
     return () => {
@@ -812,7 +871,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   useEffect(() => {
     if (!pendingRatesReapply.current || !quoteResult) return;
     pendingRatesReapply.current = false;
-    recalculateStandard(customRates);
+    // 거부는 recalculateStandard 안에서 이미 화면에 표면화한다 — 여기 걸어두지
+    // 않으면 미처리 rejection 이 된다.
+    void recalculateStandard(customRates).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteResult, customRates]);
 
@@ -871,6 +932,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     setQuoteResult((prev) =>
       prev ? applySavedQuoteAmountsToDisplay(prev, savedQuote) : prev
     );
+    // 저장 확정 응답은 서버가 같은 요율로 재계산한 금액이다 — 화면 금액이 그것으로
+    // 덮어졌으므로 "새 조건이 아니"라는 재계산 실패 안내는 이제 사실이 아니다.
+    // 「다시 계산하지 못했어요」와 「보냈어요」가 함께 뜨는 모순을 없앤다.
+    setRecalculationError(null);
     return savedQuote;
   }, [
     quoteResult,
@@ -973,7 +1038,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   ]);
 
   // ─── 카카오톡으로 견적서 전송 ─────────────────────────────
-  async function handleQuoteDeliver() {
+  // auto: true 는 로그인 왕복 복귀의 자동 재개다 — 409 재동의 요구를 만나도
+  // 제스처 없이 동의창으로 되돌아가면(복귀 → 자동 재개 → 409 → …) 무한 왕복이
+  // 되므로 안내로 멈춘다. 수동 클릭(auto: false)은 기존대로 동의 흐름을 탄다.
+  async function deliverQuoteToKakao(auto: boolean): Promise<void> {
     if (!kakaoDeliveryEnabled || !quoteResult) return;
     setIsDelivering(true);
     setDeliveryError(null);
@@ -985,6 +1053,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
+        // 사용자 클릭으로 나가는 왕복만 자동 재개 1회분을 허용한다. 자동 재개 레인이
+        // 여기 도달했다면(로그인이 풀린 극한 레이스) 예산을 다시 채우면 루프가 되므로
+        // 채우지 않는다 — 돌아와도 소진 표식이 자동 재개를 막는다.
+        if (!auto) grantAutoDeliveryResume();
         await startKakaoConsentFlow();
         return;
       }
@@ -1006,11 +1078,18 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       const apiErrorResult = apiErrorSchema.safeParse(responsePayload);
 
       if (!response.ok) {
-        if (
+        const requiresReauth =
           response.status === 401 ||
           (apiErrorResult.success &&
-            apiErrorResult.data.code === "KAKAO_REAUTH_REQUIRED")
-        ) {
+            apiErrorResult.data.code === "KAKAO_REAUTH_REQUIRED");
+        if (requiresReauth) {
+          if (auto) {
+            // 다시 나가면 루프다 — 안내 + 수동 재시도(하단 버튼)로 멈춘다.
+            setDeliveryError(KAKAO_REAUTH_MANUAL_RETRY_MESSAGE);
+            return;
+          }
+          // 수동 클릭의 재동의 왕복 — 돌아오면 자동으로 이어지도록 1회분을 허용한다.
+          grantAutoDeliveryResume();
           await startKakaoConsentFlow();
           return;
         }
@@ -1032,6 +1111,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     } finally {
       setIsDelivering(false);
     }
+  }
+
+  async function handleQuoteDeliver() {
+    await deliverQuoteToKakao(false);
   }
 
   // ─── 임시방편: 견적서 받기 → 안내 모달 → 카카오 채널 대화창 (비즈톡 자동발송 전) ───
@@ -1141,6 +1224,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     const params = new URLSearchParams(window.location.search);
     params.set("restore", "1");
     params.set(DELIVERY_RESUME_PARAM, "1");
+    // 게이트 CTA 도 사용자 제스처 — 돌아올 자동 재개 1회분을 허용한다.
+    grantAutoDeliveryResume();
     try {
       await startKakaoLogin({ next: `${window.location.pathname}?${params.toString()}` });
     } catch (loginError) {
@@ -1286,7 +1371,14 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       restoreRef.current = state;
       saveQuoteImageRestore(state);
     }
-    const next = `${window.location.pathname}${window.location.search}`;
+    // 게이트 로그인(handleDeliveryLoginGateConfirm)과 같은 표식을 남긴다 —
+    // restore 마커가 없으면 복귀 시 저장본을 읽지 않아 1단계로 초기화되고,
+    // deliver 마커가 없으면 전달 의도가 사라진다.
+    window.localStorage.setItem(DELIVERY_GATE_SESSION_KEY, quoteSessionId);
+    const params = new URLSearchParams(window.location.search);
+    params.set("restore", "1");
+    params.set(DELIVERY_RESUME_PARAM, "1");
+    const next = `${window.location.pathname}?${params.toString()}`;
     await startKakaoLogin({ next });
   }
 
@@ -1365,7 +1457,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   // 안내 모달까지만 띄우고 대화창은 모달 CTA(사용자 제스처)로 연다.
   const deliveryResumeHandled = useRef(false);
   useEffect(() => {
-    if (!channelTalkDelivery || !isDeliveryResumeReturn) return;
+    // 카카오 자동발송 레인도 같은 표식으로 돌아온다 — 여기서 조기 반환하면
+    // 왕복 복귀가 전달 의도 없이 결과 화면에만 머문다.
+    if (!isDeliveryResumeReturn) return;
     if (deliveryResumeHandled.current) return;
     if (step !== 3 || !quoteResult) return;
     deliveryResumeHandled.current = true;
@@ -1382,10 +1476,16 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       );
     }
 
+    // 자동 재개 1회 예산 — 소진됐다면 이 왕복은 사용자 의도로 보지 않는다.
+    // OAuth 왕복은 페이지 이동이라 useRef 는 회차마다 초기화되므로 여기서 막는다.
+    if (!consumeAutoDeliveryResume()) return;
+
     void (async () => {
       // 로그인이 끝나지 않았다면 조용히 넘어간다. 버튼을 다시 누르면 게이트가 다시 뜬다.
       if (!(await hasActiveSession())) return;
-      await handleQuoteReceiveViaChannelTalk();
+      await (channelTalkDelivery
+        ? handleQuoteReceiveViaChannelTalk()
+        : deliverQuoteToKakao(true));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelTalkDelivery, isDeliveryResumeReturn, step, quoteResult]);
@@ -1487,6 +1587,17 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
 
       {/* 본문 */}
       <main className="mx-auto max-w-[680px] px-5 py-8 max-[340px]:px-4 md:px-8 md:py-10">
+        {restoreSnapshotMissing && step !== 3 && (
+          <div
+            role="status"
+            className="mb-4 flex items-start gap-2 rounded-[14px] border border-status-warning/25 bg-status-warning-soft px-4 py-3"
+          >
+            <AlertCircle size={13} className="mt-0.5 shrink-0 text-status-warning" />
+            <p className="break-keep text-[12.5px] font-medium leading-relaxed text-status-warning">
+              이전 견적 정보를 불러오지 못했어요. 조건을 다시 선택하면 바로 견적을 확인할 수 있어요.
+            </p>
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {step === 1 && (
             <Step1CustomerType
@@ -1564,6 +1675,10 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               customRates={customRates}
               costMode={costMode}
               isRecalculating={isRecalculating}
+              recalculationError={recalculationError}
+              onRecalculationRetry={() => {
+                void recalculateStandardRef.current(customRates).catch(() => {});
+              }}
               isConsultationSubmitting={isConsultationSubmitting}
               consultationError={consultationError}
               kakaoDeliveryEnabled={kakaoDeliveryEnabled}
@@ -1738,6 +1853,8 @@ function Step3ResultHeader({
   customRates,
   costMode,
   isRecalculating,
+  recalculationError,
+  onRecalculationRetry,
   isConsultationSubmitting,
   consultationError,
   kakaoDeliveryEnabled,
@@ -1772,6 +1889,8 @@ function Step3ResultHeader({
   customRates: { depositRate: number; prepayRate: number };
   costMode: CostMode;
   isRecalculating: boolean;
+  recalculationError: string | null;
+  onRecalculationRetry: () => void;
   isConsultationSubmitting: boolean;
   consultationError: string | null;
   kakaoDeliveryEnabled: boolean;
@@ -2102,6 +2221,28 @@ function Step3ResultHeader({
                 </p>
               </div>
             </div>
+
+            {/* ── 2-0) 재계산 실패 안내 — 표시 금액이 새 조건이 아님을 알리고 재시도를 준다 ── */}
+            {recalculationError && (
+              <div
+                role="alert"
+                className="mt-2 flex items-start gap-2 rounded-[14px] border border-status-warning/25 bg-status-warning-soft px-4 py-3"
+              >
+                <AlertCircle size={13} className="mt-0.5 shrink-0 text-status-warning" />
+                <div className="min-w-0">
+                  <p className="break-keep text-[12.5px] font-medium leading-relaxed text-status-warning">
+                    {recalculationError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onRecalculationRetry}
+                    className="mt-1.5 text-[12.5px] font-bold text-status-warning underline underline-offset-2"
+                  >
+                    다시 계산하기
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* ── 2-1) 절약액 배너 — 타 업체 평균 대비 월 절약액 ── */}
             {competitorMonthlyPayment != null && (

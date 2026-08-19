@@ -72,6 +72,7 @@ function writeRestore(
   window.localStorage.setItem(
     "quote_image_restore",
     JSON.stringify({
+      schemaVersion: 1,
       vehicleSlug: "preparing-car",
       customerType: "individual",
       selectedLineup: null,
@@ -104,7 +105,14 @@ function writeRestore(
         contractType: "반납형",
         customerType: "individual",
         scenarios: requiresConsultation
-          ? {}
+          ? {
+              // 상담 필요 판정은 requiresConsultation 플래그가 담당한다. 시나리오가
+              // 아예 없는 스냅샷은 T12 의 readQuoteImageRestore 검증에서 파손으로
+              // 폐기되므로, 검증을 통과하는 형태로 만들어도 같은 화면이 그려진다.
+              conservative: quoteScenario(0, 0, 0),
+              standard: quoteScenario(0, 0, 0),
+              aggressive: quoteScenario(0, 0, 0),
+            }
           : locked
             ? {
                 conservative: {
@@ -153,6 +161,7 @@ export function writeGuestAllLockedRestore(lockedMonthly: 0 | null): void {
   window.localStorage.setItem(
     "quote_image_restore",
     JSON.stringify({
+      schemaVersion: 1,
       vehicleSlug: "preparing-car",
       customerType: "individual",
       selectedLineup: null,
@@ -210,6 +219,7 @@ export function writeGuestGatedFirstEntryRestore(): void {
   window.localStorage.setItem(
     "quote_image_restore",
     JSON.stringify({
+      schemaVersion: 1,
       vehicleSlug: "preparing-car",
       customerType: "individual",
       selectedLineup: null,
