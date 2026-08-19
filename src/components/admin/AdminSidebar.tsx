@@ -17,6 +17,7 @@ import {
   Building2,
   Settings,
   ClipboardList,
+  Send,
   MessageSquare,
   ShieldCheck,
   LogOut,
@@ -69,6 +70,7 @@ const NAV: NavGroup[] = [
     group: "시스템",
     items: [
       { href: "/admin/memo", label: "운영 메모", icon: ClipboardList },
+      { href: "/admin/alimtalk-queue", label: "알림톡 큐", icon: Send },
       { href: "/admin/audit-logs", label: "감사 로그", icon: ShieldCheck },
       { href: "/admin/settings", label: "계정 관리", icon: Settings },
     ],
