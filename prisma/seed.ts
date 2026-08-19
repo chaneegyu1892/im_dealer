@@ -795,24 +795,7 @@ async function main() {
   }
   console.log(`   ✅ ${Object.keys(scoreProfiles).length}개 추천 기초 데이터\n`);
 
-  // 6) 메인 배너
-  console.log("🎨 메인 배너 생성...");
-  await prisma.contentBanner.upsert({
-    where: { id: "hero-main" },
-    update: {},
-    create: {
-      id: "hero-main",
-      type: "hero",
-      title: "AI가 찾아주는 진짜견적",
-      subtitle: "허위견적 없이, 개인정보 없이, 내 조건에 맞는 장기렌트·운용리스 견적을 바로 확인하세요.",
-      ctaLabel: "AI 추천 시작하기",
-      ctaUrl: "/recommend",
-      displayOrder: 1,
-    },
-  });
-  console.log("   ✅ 히어로 배너\n");
-
-  // 7) 추천 구성 (PopularConfig)
+  // 6) 추천 구성 (PopularConfig)
   console.log("🔧 추천 구성 생성...");
 
   const popularConfigsData: {
