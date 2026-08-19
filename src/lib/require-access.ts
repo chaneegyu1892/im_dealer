@@ -4,7 +4,11 @@
 
 import { redirect } from "next/navigation";
 import type { User } from "@prisma/client";
-import { getCurrentUser } from "@/lib/admin-auth";
+import {
+  getCurrentUser,
+  rethrowUnlessUnauthenticated,
+  SessionLookupError,
+} from "@/lib/admin-auth";
 import { ADMIN_ROLES } from "@/lib/admin-roles";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -36,10 +40,15 @@ async function resolveContext(): Promise<AccessContext> {
   // 로컬 계정 행이 아직 없는 직후 로그인은 기존 동작대로 Supabase 세션만 확인한다.
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
     if (user) return { role: "member", admin: null, userId: user.id };
+    if (error) rethrowUnlessUnauthenticated(error);
   } catch (error) {
-    console.error("[require-access] Supabase 세션 확인 실패:", error);
+    if (error instanceof SessionLookupError) throw error;
+    rethrowUnlessUnauthenticated(error);
   }
   return { role: "guest", admin: null, userId: null };
 }
