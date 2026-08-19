@@ -2127,3 +2127,175 @@ describe("QuoteClientPageV2 delivery auto-resume guard", () => {
     }
   });
 });
+
+function makePublicTrim(
+  overrides: {
+    readonly id?: string;
+    readonly name?: string;
+    readonly isDefault?: boolean;
+    readonly price?: number;
+    readonly availableProducts?: Array<"장기렌트" | "리스">;
+  } = {},
+) {
+  return {
+    id: overrides.id ?? "trim-default",
+    name: overrides.name ?? "기본 트림",
+    price: overrides.price ?? 38_000_000,
+    discountPrice: null,
+    evSubsidy: null,
+    engineType: "GASOLINE",
+    fuelEfficiency: 10,
+    isDefault: overrides.isDefault ?? true,
+    specs: null,
+    options: [],
+    rules: [],
+    lineupId: null,
+    lineup: null,
+    availableProducts: overrides.availableProducts ?? ["장기렌트"],
+  };
+}
+
+function quotePageFetchMock(options: {
+  readonly colors?: Response | (() => Response);
+  readonly trims?: unknown[];
+  readonly quote?: unknown;
+} = {}) {
+  return vi.fn<
+    (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  >(async (input) => {
+    const url = input.toString();
+    if (url.endsWith("/colors")) {
+      if (typeof options.colors === "function") return options.colors();
+      if (options.colors) return options.colors;
+      return Response.json({ success: true, data: [] });
+    }
+    if (url.endsWith("/trims")) {
+      return Response.json({
+        success: true,
+        data: options.trims ?? [makePublicTrim()],
+      });
+    }
+    if (url.endsWith("/quote")) {
+      return Response.json({
+        success: true,
+        data: options.quote ?? createUnlockedCalculatedQuoteResult(),
+      });
+    }
+    return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+  });
+}
+
+// T9 / R3 — 추천 트림 프리필이 목록에 없을 때 무음 유실 금지.
+describe("QuoteClientPageV2 stale recommend prefill", () => {
+  it("shows a fallback banner and uses the default trim when the recommended trim is gone", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&source=AI&trim=stale-trim",
+    );
+    const fetchMock = quotePageFetchMock({
+      trims: [
+        makePublicTrim({ id: "trim-default", name: "기본 트림", isDefault: true }),
+        makePublicTrim({
+          id: "trim-other",
+          name: "다른 트림",
+          isDefault: false,
+          price: 42_000_000,
+        }),
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    expect(
+      await screen.findByText(/추천하신 트림을 지금은 선택할 수 없어요/),
+    ).toBeInTheDocument();
+    const submit = await screen.findByRole("button", { name: "월 납입금 확인하기" });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([request]) => request.toString().endsWith("/quote")),
+      ).toBe(true);
+    });
+    const quoteCall = fetchMock.mock.calls.find(([request]) =>
+      request.toString().endsWith("/quote"),
+    );
+    expect(JSON.parse(String(quoteCall?.[1]?.body))).toMatchObject({
+      trimId: "trim-default",
+    });
+  });
+});
+
+// T14 / Q6 — 색상 API 실패를 삼키지 않고, priceDelta 미반영 견적을 막는다.
+describe("QuoteClientPageV2 color api failure", () => {
+  it("renders a color fallback and blocks quote until colors load", async () => {
+    navigationMock.searchParams = new URLSearchParams(
+      "vehicle=preparing-car&customerType=individual&trim=trim-default",
+    );
+    let colorsOk = false;
+    const fetchMock = quotePageFetchMock({
+      colors: () =>
+        colorsOk
+          ? Response.json({
+              success: true,
+              data: [
+                {
+                  id: "ext-white",
+                  kind: "EXTERIOR",
+                  name: "화이트",
+                  hexCode: "#FFFFFF",
+                  imageUrl: null,
+                  priceDelta: 300_000,
+                  isDefault: true,
+                  sortOrder: 0,
+                },
+              ],
+            })
+          : Response.json({ success: false, error: "colors down" }, { status: 500 }),
+      trims: [makePublicTrim({ id: "trim-default", name: "기본 트림" })],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    expect(await screen.findByText(/색상 정보를 불러오지 못했어요/)).toBeInTheDocument();
+    const submit = await screen.findByRole("button", { name: "월 납입금 확인하기" });
+    expect(submit).toBeDisabled();
+    fireEvent.click(submit);
+    expect(
+      fetchMock.mock.calls.filter(([request]) => request.toString().endsWith("/quote")),
+    ).toHaveLength(0);
+    expect(
+      fetchMock.mock.calls.filter(([request]) => request.toString().endsWith("/colors")),
+    ).toHaveLength(1);
+
+    colorsOk = true;
+    fireEvent.click(screen.getByRole("button", { name: "색상 다시 불러오기" }));
+    expect(await screen.findByText("화이트")).toBeInTheDocument();
+    expect(screen.queryByText(/색상 정보를 불러오지 못했어요/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "월 납입금 확인하기" })).toBeEnabled();
+  });
+});
+
+// T13 연동 — 부모가 메인 견적 비율을 ComparisonSection primaryRates 로 넘긴다.
+describe("QuoteClientPageV2 comparison primaryRates", () => {
+  it("passes the main quote rates so the comparison caption matches 선납 30%", async () => {
+    writeFirstEntryRestore();
+    supabaseMock.getUser.mockResolvedValue({
+      data: { user: { id: "supabase-user-1" } },
+    });
+    vi.stubGlobal("fetch", createFetchMock());
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+    await screen.findByRole("button", { name: "조건 다시 설정하기" });
+
+    fireEvent.click(screen.getByRole("button", { name: /다른 차량과 비교하기/ }));
+    expect(
+      await screen.findByText("비교 월납입금은 선납금 30% 기준입니다"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("비교 월납입금은 보증금·선납금 없이 계산한 기준입니다"),
+    ).not.toBeInTheDocument();
+  });
+});

@@ -56,6 +56,8 @@ interface Step2ConditionV2Props {
   optionsTotalPrice: number;
   selectedOptionDetails: { id: string; name: string; price: number }[];
   colors: readonly VehicleColorPublic[];
+  colorsError?: boolean;
+  onRetryLoadColors?: () => void;
   exteriorColorId: string | null;
   interiorColorId: string | null;
   onColorChange: (kind: "EXTERIOR" | "INTERIOR", colorId: string | null) => void;
@@ -101,6 +103,8 @@ export function Step2ConditionV2({
   onOptionToggle,
   optionsTotalPrice,
   colors,
+  colorsError = false,
+  onRetryLoadColors,
   exteriorColorId,
   interiorColorId,
   onColorChange,
@@ -127,7 +131,11 @@ export function Step2ConditionV2({
   const canSkipTrimSelection =
     canRequestConsultation && !trimsLoading && !trimsError && trimOptions.length === 0;
   const canShowConditionSections = !!selectedTrim || canSkipTrimSelection;
-  const canCalculate = canShowConditionSections && !isLoading && !trimsError;
+  const canCalculate =
+    canShowConditionSections &&
+    !isLoading &&
+    !trimsError &&
+    !(colorsError && !!selectedTrim);
   const productRequiresConsultation = !!selectedTrim &&
     !selectedTrim.availableProducts.includes(contractCategory);
   const ctaLabel = selectedTrim
@@ -403,7 +411,34 @@ export function Step2ConditionV2({
       )}
 
       {/* ─── 3. 색상 ─── */}
-      {colors.length > 0 && (exteriorColors.length > 0 || interiorColors.length > 0) && selectedTrim && (
+      {colorsError && selectedTrim && (
+        <section className="space-y-3">
+          <SectionTitle title="색상 선택" />
+          <div className="flex flex-col gap-3 rounded-[16px] bg-status-danger-soft p-4">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-status-danger">
+                <AlertCircle size={17} strokeWidth={2.4} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[14.5px] font-extrabold text-text-strong">색상 정보를 불러오지 못했어요</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-text-body">
+                  색상 추가금이 빠질 수 있어 견적을 잠시 멈췄어요. 다시 불러온 뒤 계속해 주세요.
+                </p>
+              </div>
+            </div>
+            {onRetryLoadColors && (
+              <button
+                type="button"
+                onClick={onRetryLoadColors}
+                className="public-touch-button w-fit bg-brand text-white"
+              >
+                색상 다시 불러오기
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+      {!colorsError && colors.length > 0 && (exteriorColors.length > 0 || interiorColors.length > 0) && selectedTrim && (
         <section className="space-y-3">
           <SectionTitle title="색상 선택" />
           {exteriorColors.length > 0 && (

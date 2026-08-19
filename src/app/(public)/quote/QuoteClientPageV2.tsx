@@ -103,6 +103,20 @@ const DELIVERY_RESUME_PARAM = "deliver";
 const RECALCULATION_ERROR_MESSAGE =
   "새 조건으로 다시 계산하지 못했어요. 아래 금액은 직전 조건 기준이에요.";
 
+// 추천 카드의 트림이 견적 목록에 없을 때 — 기본 트림으로 폴백하되 침묵하지 않는다.
+const PREFILL_FALLBACK_MESSAGE =
+  "추천하신 트림을 지금은 선택할 수 없어요. 기본 트림으로 먼저 보여드릴게요.";
+
+function exclusivePrimaryRates(rates: {
+  depositRate: number;
+  prepayRate: number;
+}): { depositRate: number; prepayRate: number } {
+  if (rates.depositRate > 0 && rates.prepayRate > 0) {
+    return { depositRate: 0, prepayRate: 0 };
+  }
+  return rates;
+}
+
 // 자동 재개가 재동의(409)를 요구받았을 때의 안내. 여기서 동의창으로 되돌아가면
 // 복귀 → 자동 재개 → 409 → 동의창… 왕복이 무한 반복되므로 사용자 클릭을 기다린다.
 const KAKAO_REAUTH_MANUAL_RETRY_MESSAGE =
@@ -348,6 +362,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [trimsLoading, setTrimsLoading] = useState(false);
   const [trimsLoaded, setTrimsLoaded] = useState(false);
   const [colorsLoaded, setColorsLoaded] = useState(false);
+  const [colorsError, setColorsError] = useState(false);
   const [trimsError, setTrimsError] = useState(false);
   const [selectedLineup, setSelectedLineup] = useState<string | null>(null);
   const [selectedTrimId, setSelectedTrimId] = useState<string | null>(null);
@@ -355,6 +370,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   const [colors, setColors] = useState<VehicleColorPublic[]>([]);
   const [exteriorColorId, setExteriorColorId] = useState<string | null>(null);
   const [interiorColorId, setInteriorColorId] = useState<string | null>(null);
+  const [prefillFallbackNotice, setPrefillFallbackNotice] = useState<string | null>(null);
 
   const [contractCategory, setContractCategory] = useState<"장기렌트" | "리스">(initialProductType);
   const [conditions, setConditions] = useState<{ contractMonths: number; annualMileage: number }>({
@@ -423,13 +439,19 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     setSelectedOptionIds(new Set());
     setColors([]);
     setColorsLoaded(false);
+    setColorsError(false);
     setExteriorColorId(null);
     setInteriorColorId(null);
 
     fetch(`/api/vehicles/${slug}/colors`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`colors ${r.status}`);
+        return r.json();
+      })
       .then((json) => {
-        if (!json?.success || !Array.isArray(json.data)) return;
+        if (!json?.success || !Array.isArray(json.data)) {
+          throw new Error("colors payload invalid");
+        }
         const list: VehicleColorPublic[] = json.data;
         setColors(list);
         const defaultExt = list.find((c) => c.kind === "EXTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "EXTERIOR");
@@ -439,9 +461,17 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
         const restoreInt = restore ? list.find((c) => c.id === restore.interiorColorId) : undefined;
         setExteriorColorId(restoreExt?.id ?? defaultExt?.id ?? null);
         setInteriorColorId(restoreInt?.id ?? defaultInt?.id ?? null);
+        setColorsError(false);
         setColorsLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        // 자동 재시도는 하지 않는다 — 실패 루프와 priceDelta 미반영 견적을 막는다.
+        setColors([]);
+        setColorsLoaded(false);
+        setColorsError(true);
+        setExteriorColorId(null);
+        setInteriorColorId(null);
+      });
 
     fetch(`/api/vehicles/${slug}/trims`)
       .then((r) => r.json())
@@ -482,16 +512,22 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
             t.lineup?.name ?? (t.specs as Record<string, string> | null)?.lineup ?? "";
           const hasLineup = loadedTrims.some((t) => lineupNameOf(t));
           const recommendedTrim = loadedTrims.find((t) => t.id === prefillTrimId);
-          if (!recommendedTrim) return;
-          const resolvedLineupName = lineupNameOf(recommendedTrim);
+          const fallbackTrim =
+            loadedTrims.find((t) => t.isDefault) ?? loadedTrims[0];
+          const appliedTrim = recommendedTrim ?? fallbackTrim;
+          if (!appliedTrim) return;
+          if (!recommendedTrim) {
+            setPrefillFallbackNotice(PREFILL_FALLBACK_MESSAGE);
+          }
+          const resolvedLineupName = lineupNameOf(appliedTrim);
           if (hasLineup && resolvedLineupName) {
             setSelectedLineup(resolvedLineupName);
-            setSelectedTrimId(recommendedTrim.id);
+            setSelectedTrimId(appliedTrim.id);
           } else {
-            setSelectedLineup(recommendedTrim.id);
+            setSelectedLineup(appliedTrim.id);
           }
           const prefillOptionIds = prefillOptionsParam.split(",").filter(Boolean);
-          if (prefillOptionIds.length > 0) {
+          if (recommendedTrim && prefillOptionIds.length > 0) {
             const validIds = new Set(recommendedTrim.options.map((o: TrimOption) => o.id));
             const toSelect = prefillOptionIds.filter((id) => validIds.has(id));
             if (toSelect.length > 0) setSelectedOptionIds(new Set(toSelect));
@@ -504,6 +540,41 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
       })
       .finally(() => setTrimsLoading(false));
   }, [selectedVehicle, prefillOptionsParam, prefillTrimId]);
+
+  const retryLoadColors = useCallback(() => {
+    if (!selectedVehicle) return;
+    const slug = selectedVehicle.slug;
+    setColorsError(false);
+    setColorsLoaded(false);
+    fetch(`/api/vehicles/${slug}/colors`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`colors ${r.status}`);
+        return r.json();
+      })
+      .then((json) => {
+        if (!json?.success || !Array.isArray(json.data)) {
+          throw new Error("colors payload invalid");
+        }
+        const list: VehicleColorPublic[] = json.data;
+        setColors(list);
+        const defaultExt = list.find((c) => c.kind === "EXTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "EXTERIOR");
+        const defaultInt = list.find((c) => c.kind === "INTERIOR" && c.isDefault) ?? list.find((c) => c.kind === "INTERIOR");
+        const restore = restoreRef.current;
+        const restoreExt = restore ? list.find((c) => c.id === restore.exteriorColorId) : undefined;
+        const restoreInt = restore ? list.find((c) => c.id === restore.interiorColorId) : undefined;
+        setExteriorColorId(restoreExt?.id ?? defaultExt?.id ?? null);
+        setInteriorColorId(restoreInt?.id ?? defaultInt?.id ?? null);
+        setColorsError(false);
+        setColorsLoaded(true);
+      })
+      .catch(() => {
+        setColors([]);
+        setColorsLoaded(false);
+        setColorsError(true);
+        setExteriorColorId(null);
+        setInteriorColorId(null);
+      });
+  }, [selectedVehicle]);
 
   useEffect(() => {
     loadVehicleDetails();
@@ -668,6 +739,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   // ─── 견적 계산 API (v1 계약 그대로) ────────────────────
   async function fetchQuote() {
     if (!selectedVehicle || (!selectedTrim && !canRequestConsultation)) return;
+    // 색상 API 가 실패한 채 견적하면 priceDelta 가 빠진다 — 진행을 막는다.
+    if (selectedTrim && colorsError) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -1598,6 +1671,17 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
             </p>
           </div>
         )}
+        {prefillFallbackNotice && step === 2 && (
+          <div
+            role="status"
+            className="mb-4 flex items-start gap-2 rounded-[14px] border border-status-warning/25 bg-status-warning-soft px-4 py-3"
+          >
+            <AlertCircle size={13} className="mt-0.5 shrink-0 text-status-warning" />
+            <p className="break-keep text-[12.5px] font-medium leading-relaxed text-status-warning">
+              {prefillFallbackNotice}
+            </p>
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {step === 1 && (
             <Step1CustomerType
@@ -1638,6 +1722,8 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
               optionsTotalPrice={optionsTotalPrice}
               selectedOptionDetails={selectedOptionDetails}
               colors={colors}
+              colorsError={colorsError}
+              onRetryLoadColors={retryLoadColors}
               exteriorColorId={exteriorColorId}
               interiorColorId={interiorColorId}
               onColorChange={(kind, id) => {
@@ -2319,6 +2405,7 @@ function Step3ResultHeader({
               }}
               allVehicles={vehicles}
               onMemberLogin={onComparisonLogin}
+              primaryRates={exclusivePrimaryRates(customRates)}
             />
           )}
 
