@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ShieldCheck, AlertTriangle } from "lucide-react";
+import { ShieldCheck, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { maskAuthorName, formatReviewDate } from "@/lib/review-utils";
 import { ReviewWriteForm } from "./ReviewWriteForm";
@@ -61,16 +61,12 @@ async function loadTokenState(token: string): Promise<TokenState> {
 }
 
 const INVALID_COPY: Record<
-  Exclude<TokenState["kind"], "ok">,
+  Exclude<TokenState["kind"], "ok" | "used">,
   { title: string; body: string }
 > = {
   not_found: {
     title: "유효하지 않은 링크예요",
     body: "주소가 잘못되었거나 더 이상 사용할 수 없는 링크입니다. 담당 딜러에게 새 링크를 요청해 주세요.",
-  },
-  used: {
-    title: "이미 후기를 남기셨어요",
-    body: "이 링크는 한 번만 사용할 수 있습니다. 작성하신 후기는 어드민 검토 후 공개됩니다.",
   },
   expired: {
     title: "링크가 만료되었어요",
@@ -82,7 +78,23 @@ const INVALID_COPY: Record<
   },
 };
 
-function InvalidNotice({ kind }: { kind: Exclude<TokenState["kind"], "ok"> }) {
+function SubmittedNotice() {
+  return (
+    <div className="rounded-card border border-border-subtle bg-surface p-6 text-center shadow-card">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft">
+        <CheckCircle2 size={22} className="text-brand" />
+      </div>
+      <p className="mt-4 text-[16px] font-extrabold text-text-strong">후기가 접수되었어요</p>
+      <p className="mt-2 text-[13px] leading-relaxed text-text-body">
+        담당 어드민 검토 후 공개됩니다.
+        <br />
+        소중한 의견 감사합니다.
+      </p>
+    </div>
+  );
+}
+
+function InvalidNotice({ kind }: { kind: Exclude<TokenState["kind"], "ok" | "used"> }) {
   const copy = INVALID_COPY[kind];
   return (
     <div className="rounded-card border border-border-subtle bg-surface p-6 text-center shadow-card">
@@ -123,7 +135,9 @@ export default async function ReviewWritePage({
       </div>
 
       <div className="page-container mx-auto max-w-md space-y-4 pb-[calc(var(--mobile-fixed-action-height)+env(safe-area-inset-bottom)+32px)] pt-8 md:pb-8">
-        {state.kind === "ok" ? (
+        {state.kind === "used" ? (
+          <SubmittedNotice />
+        ) : state.kind === "ok" ? (
           <>
             <div className="rounded-card border border-border-subtle bg-surface p-5 shadow-card">
               <div className="flex items-start gap-3">

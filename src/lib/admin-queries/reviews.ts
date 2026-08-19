@@ -170,7 +170,7 @@ export async function listPublicReviews(
   const limit = Math.min(Math.max(params.limit ?? 12, 1), 24);
   const sort = params.sort ?? "recent";
 
-  const where: Prisma.ReviewWhereInput = { isPublic: true };
+  const where: Prisma.ReviewWhereInput = { isPublic: true, isBest: false };
   if (params.vehicleId) where.vehicleId = params.vehicleId;
   else if (params.brand)
     where.vehicle = { is: { brand: params.brand } };
