@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn, formatCurrency } from "@/lib/utils";
-import { isSupabaseStorageUrl } from "@/lib/image-url";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import type { RecommendedVehicle } from "@/types/recommendation";
 import { AiInsight } from "@/components/quote/AiInsight";
 import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
@@ -72,6 +71,12 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
   const formatMan = (won: number) =>
     `${Math.round(won / 10000).toLocaleString("ko-KR")}만원`;
 
+  // 카드 금액은 quote-calculator 가 금융사 순위 가산(최저가 1순위 기준)을 더한 결과다.
+  // 다른 화면 금액과 기준이 같다는 걸 밝히기 위한 표기이므로, 잠기거나 0원이라
+  // 실제 견적 금액이 없는 카드에는 붙이지 않는다.
+  const showsRankSurchargeNote =
+    scenarios.standard.locked !== true && scenarios.standard.monthlyPayment > 0;
+
   function handleQuote() {
     const params = new URLSearchParams({
       vehicle: detail.slug,
@@ -126,23 +131,13 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
         <div className="flex items-center gap-4">
           {/* 썸네일 */}
           <div className="relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-[10px] bg-neutral">
-            {(() => {
-              const imageSrc = detail.thumbnailUrl || detail.imageUrls?.[0];
-              return imageSrc ? (
-                <Image
-                  src={imageSrc}
-                  alt={detail.name}
-                  fill
-                  sizes="96px"
-                  unoptimized={isSupabaseStorageUrl(imageSrc)}
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-[12px] font-bold text-text-muted">
-                  이미지 준비 중
-                </div>
-              );
-            })()}
+            <ImageWithFallback
+              src={detail.thumbnailUrl || detail.imageUrls?.[0]}
+              alt={detail.name}
+              fill
+              sizes="96px"
+              className="object-cover"
+            />
           </div>
 
           {/* 이름·트림 */}
@@ -252,9 +247,16 @@ export function RecommendVehicleCard({ vehicle, isTop = false, industry }: Recom
         {/* 월 납입금 예상 — 3가지 견적 비교 */}
         <div>
           <div className="mb-3">
-            <p className="text-[13.5px] font-medium text-text-body">
-              예상 월 납입금 ({months}개월 · 연 {(scenarios.standard.annualMileage / 10_000).toLocaleString("ko-KR")}만km)
-            </p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="text-[13.5px] font-medium text-text-body">
+                예상 월 납입금 ({months}개월 · 연 {(scenarios.standard.annualMileage / 10_000).toLocaleString("ko-KR")}만km)
+              </p>
+              {showsRankSurchargeNote && (
+                <span className="rounded-pill border border-border-subtle bg-surface-soft px-2 py-0.5 text-[11px] font-bold text-text-muted">
+                  금융사 순위 가산 포함
+                </span>
+              )}
+            </div>
             <p className="text-[12px] text-text-muted mt-0.5">
               조건별 월 납입금과 실부담을 함께 비교해 보세요
             </p>

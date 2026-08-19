@@ -1,10 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
-import { isSupabaseStorageUrl } from "@/lib/image-url";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { getVehicleCardPoints } from "@/lib/vehicle-card-points";
 import type { VehicleListItem } from "@/types/api";
 
@@ -28,20 +27,13 @@ export function CarCard({ vehicle }: CarCardProps) {
       >
         <div className="flex w-[44%] min-w-[132px] max-w-[216px] shrink-0 flex-col max-[340px]:w-[42%] max-[340px]:min-w-[100px] max-[340px]:max-w-[112px] lg:w-[46%] lg:min-w-[208px] lg:max-w-[248px] xl:min-w-[220px]">
           <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-card bg-surface">
-            {vehicle.thumbnailUrl ? (
-              <Image
-                src={vehicle.thumbnailUrl}
-                alt={`${vehicle.brand} ${vehicle.name}`}
-                fill
-                sizes="(max-width: 767px) 44vw, (max-width: 1023px) 216px, 248px"
-                unoptimized={isSupabaseStorageUrl(vehicle.thumbnailUrl)}
-                className="rounded-card object-cover object-center"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center p-2 text-center text-[12px] font-bold text-text-muted">
-                이미지 준비 중
-              </div>
-            )}
+            <ImageWithFallback
+              src={vehicle.thumbnailUrl}
+              alt={`${vehicle.brand} ${vehicle.name}`}
+              fill
+              sizes="(max-width: 767px) 44vw, (max-width: 1023px) 216px, 248px"
+              className="rounded-card object-cover object-center"
+            />
             <div className="absolute left-1.5 top-1.5 flex flex-wrap gap-1">
               {vehicle.isPopular && (
                 <span className="inline-flex rounded-pill bg-brand px-2 py-0.5 text-[10px] font-extrabold text-white lg:px-2.5 lg:py-1 lg:text-[11px]">

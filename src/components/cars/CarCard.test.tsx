@@ -1,11 +1,12 @@
 import type { ComponentProps } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { VehicleListItem } from "@/types/api";
 import { CarCard } from "./CarCard";
 
 type MockImageProps = ComponentProps<"img"> & {
   readonly fill?: boolean;
+  readonly priority?: boolean;
   readonly unoptimized?: boolean;
 };
 
@@ -16,9 +17,11 @@ type MockMotionDivProps = ComponentProps<"div"> & {
   readonly whileInView?: unknown;
 };
 
+// 실제 img 로 렌더해 onError 폴백까지 검증한다 (span 목업은 error 이벤트를 못 받는다).
 vi.mock("next/image", () => ({
-  default: (props: MockImageProps) => (
-    <span role="img" aria-label={props.alt} className={props.className} />
+  // eslint-disable-next-line @next/next/no-img-element
+  default: ({ fill, priority, unoptimized, ...props }: MockImageProps) => (
+    <img {...props} alt={props.alt ?? ""} />
   ),
 }));
 
@@ -54,6 +57,18 @@ describe("CarCard", () => {
     const image = screen.getByRole("img", { name: "현대 테스트 세단" });
     expect(image).toHaveClass("object-cover", "object-center");
     expect(image).not.toHaveClass("object-contain");
+  });
+
+  it("썸네일 로드가 실패하면 깨진 이미지 대신 폴백을 보여준다", () => {
+    render(<CarCard vehicle={vehicle} />);
+
+    fireEvent.error(screen.getByRole("img", { name: "현대 테스트 세단" }));
+
+    expect(
+      screen.getByRole("img", { name: "현대 테스트 세단 이미지를 불러올 수 없음" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("이미지 준비 중")).toBeInTheDocument();
+    expect(document.querySelector("img")).toBeNull();
   });
 
   it("차량 포인트를 사진 아래에 두고 가격과 조건을 오른쪽 정렬한다", () => {

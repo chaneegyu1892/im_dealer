@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   Armchair,
   CarFront,
@@ -12,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { isSupabaseStorageUrl } from "@/lib/image-url";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { cn } from "@/lib/utils";
 import type { VehicleImageItem, VehicleImageKind } from "@/types/api";
 
@@ -235,12 +234,11 @@ function ImageTile({
   return (
     <figure className={cn(className)}>
       <div className="relative aspect-[4/3] overflow-hidden rounded-[14px] bg-surface-muted">
-        <Image
+        <ImageWithFallback
           src={image.storageUrl}
           alt={`${vehicleName} ${title} ${index + 1}`}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 220px"
-          unoptimized={isSupabaseStorageUrl(image.storageUrl)}
           className="object-cover"
         />
       </div>

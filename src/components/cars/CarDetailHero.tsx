@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check } from "lucide-react";
 import { EvSubsidyNotice } from "@/components/quote/EvSubsidyNotice";
 import { RepresentativeQuotePrice } from "@/components/cars/RepresentativeQuotePrice";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { hasRepresentativeQuote, type RepresentativeQuote } from "@/lib/representative-quote";
-import { isSupabaseStorageUrl } from "@/lib/image-url";
 import { readRememberedCarsBrowseUrl } from "@/lib/cars-browse-state";
 import type { VehicleDetail } from "@/types/api";
 import type { EngineType } from "@/types/vehicle";
@@ -48,13 +47,15 @@ export function CarDetailHero({
     <section className="relative min-h-[520px] overflow-hidden md:min-h-[620px]">
       {heroImage && (
         <div className="absolute inset-0 scale-105">
-          <Image
+          {/* 히어로는 어두운 오버레이가 덮여 안내 문구가 묻히므로 폴백은 배경 톤만 유지한다. */}
+          <ImageWithFallback
             src={heroImage}
             alt={`${vehicle.brand} ${vehicle.name}`}
             fill
             priority
             sizes="100vw"
-            unoptimized={isSupabaseStorageUrl(heroImage)}
+            fallbackLabel={null}
+            fallbackClassName="bg-surface-soft"
             className="object-cover"
           />
         </div>

@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { Images } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isSupabaseStorageUrl } from "@/lib/image-url";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 
 export function CarImageGallery({
   vehicleName,
@@ -39,12 +38,11 @@ export function CarImageGallery({
             exit={{ opacity: 0.85 }}
             transition={{ duration: 0.25 }}
           >
-            <Image
+            <ImageWithFallback
               src={images[activeImageIdx]}
               alt={`${vehicleName} 이미지 ${activeImageIdx + 1}`}
               fill
               sizes="(max-width: 1024px) 100vw, 66vw"
-              unoptimized={isSupabaseStorageUrl(images[activeImageIdx])}
               className="object-cover"
             />
           </motion.div>
@@ -65,12 +63,13 @@ export function CarImageGallery({
                   : "border-transparent opacity-60 hover:opacity-90",
               )}
             >
-              <Image
+              <ImageWithFallback
                 src={url}
                 alt={`썸네일 ${index + 1}`}
                 width={96}
                 height={54}
-                unoptimized={isSupabaseStorageUrl(url)}
+                fallbackLabel={null}
+                fallbackClassName="bg-surface-soft"
                 className="h-full w-full object-cover"
               />
             </button>
