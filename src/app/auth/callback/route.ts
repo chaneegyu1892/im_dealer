@@ -50,8 +50,7 @@ export async function GET(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
     console.error("[auth/callback] local account status lookup failed:", message);
-    await supabase.auth.signOut({ scope: "global" });
-    return NextResponse.redirect(`${redirectOrigin}/login?error=auth_failed`);
+    return NextResponse.redirect(`${redirectOrigin}/login?error=temporarily_unavailable`);
   }
 
   const providerToken =
@@ -173,10 +172,10 @@ export async function GET(request: Request) {
       await storeKakaoRefreshToken(user.id, providerRefreshToken);
     }
   } catch (error) {
-    if (!(error instanceof Error)) throw error;
+    const message = error instanceof Error ? error.message : "unknown error";
     // upsert 실패해도 세션은 살아있다. 다음 요청에서 lazy 보정 가능.
     // 어드민 가드는 prisma.user 행 부재 시 null 반환이라 권한 우회 위험 없음.
-    console.error("[auth/callback] user upsert failed:", error);
+    console.error("[auth/callback] user upsert failed:", message);
   }
 
   // 간편가입 미완료 회원(이름·전화 미수집)은 가입완료 폼으로 유도한다.
@@ -218,7 +217,8 @@ function getRedirectOrigin(requestOrigin: string) {
         return url.origin;
       }
     } catch (error) {
-      if (!(error instanceof Error)) throw error;
+      const message = error instanceof Error ? error.message : "unknown error";
+      console.error("[auth/callback] redirect origin fallback:", message);
     }
   }
 
