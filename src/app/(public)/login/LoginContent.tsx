@@ -15,6 +15,21 @@ import { useKakaoTalkInApp } from "@/hooks/useKakaoTalkInApp";
 // 탭을 닫으면 사라지므로 다음 방문에는 다시 한 번 시도한다.
 const AUTO_LOGIN_FLAG = "imdealer:inapp-auto-login-attempted";
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  no_code: "로그인 인증 정보를 확인하지 못했습니다. 다시 로그인해 주세요.",
+  auth_failed: "카카오 로그인에 실패했습니다. 다시 시도해 주세요.",
+  account_inactive: "사용할 수 없는 계정입니다. 고객센터에 문의해 주세요.",
+  temporarily_unavailable:
+    "일시적인 장애로 로그인 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+};
+
+const GENERIC_AUTH_ERROR = "로그인에 문제가 발생했습니다. 다시 시도해 주세요.";
+
+function getAuthErrorMessage(code: string | null): string | null {
+  if (!code) return null;
+  return AUTH_ERROR_MESSAGES[code] ?? GENERIC_AUTH_ERROR;
+}
+
 /** 프라이빗 모드 등에서 sessionStorage 접근이 던질 수 있다. 실패하면 시도한 것으로 취급해 건너뛴다. */
 function hasAutoLoginAttempted(): boolean {
   try {
@@ -44,7 +59,10 @@ export default function LoginContent() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const { isInApp, escapeUrl } = useKakaoTalkInApp();
   // auth/callback 은 실패 시 /login?error=... 로 되돌린다. 실패 직후 자동 재시도를 막는다.
-  const hasAuthError = Boolean(params?.get("error"));
+  const authErrorCode = params?.get("error");
+  const hasAuthError = Boolean(authErrorCode);
+  const authErrorMessage = getAuthErrorMessage(authErrorCode);
+  const displayedError = loginError ?? authErrorMessage;
   // runKakaoLogin 자체의 재진입 방지. isStartingLogin state 는 리렌더 이후에야 반영되므로
   // 자동 시작과 수동 클릭이 거의 동시에 들어오는 순간에는 막지 못한다. ref 는 즉시 반영된다.
   const isLoggingInRef = useRef(false);
@@ -73,6 +91,8 @@ export default function LoginContent() {
       // 언마운트될 수 있다. 그 경우 리다이렉트나 자동 로그인을 실행하지 않는다.
       if (cancelled) return;
       if (session) {
+        // 콜백이 세션을 남긴 채 error 코드만 넘긴 경우(일시 장애) 홈으로 보내지 않고 안내를 보여준다.
+        if (hasAuthError) return;
         router.replace(next);
         return;
       }
@@ -202,12 +222,12 @@ export default function LoginContent() {
                 </div>
               ) : null}
 
-              {loginError ? (
+              {displayedError ? (
                 <p
                   role="alert"
                   className="mt-3 rounded-[14px] border border-status-danger/20 bg-status-danger-soft px-4 py-3 text-[13px] font-semibold leading-relaxed text-status-danger"
                 >
-                  {loginError}
+                  {displayedError}
                 </p>
               ) : null}
 

@@ -232,3 +232,87 @@ describe("LoginContent external browser escape link", () => {
     ).toBeNull();
   });
 });
+
+describe("LoginContent callback error messages", () => {
+  it("shows a retryable login-failure message for no_code", async () => {
+    navigation.searchParams = new URLSearchParams("error=no_code");
+
+    render(<LoginContent />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "로그인 인증 정보를 확인하지 못했습니다. 다시 로그인해 주세요."
+    );
+  });
+
+  it("shows a retryable login-failure message for auth_failed", async () => {
+    navigation.searchParams = new URLSearchParams("error=auth_failed");
+
+    render(<LoginContent />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "카카오 로그인에 실패했습니다. 다시 시도해 주세요."
+    );
+  });
+
+  it("shows a non-retryable account message for account_inactive", async () => {
+    navigation.searchParams = new URLSearchParams("error=account_inactive");
+
+    render(<LoginContent />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "사용할 수 없는 계정입니다. 고객센터에 문의해 주세요."
+    );
+  });
+
+  it("shows a temporary-outage message for temporarily_unavailable", async () => {
+    navigation.searchParams = new URLSearchParams(
+      "error=temporarily_unavailable"
+    );
+
+    render(<LoginContent />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "일시적인 장애로 로그인 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요."
+    );
+  });
+
+  it("keeps a live session on the login screen when temporarily_unavailable is present", async () => {
+    navigation.searchParams = new URLSearchParams(
+      "error=temporarily_unavailable"
+    );
+    mocks.getSession.mockResolvedValue({
+      data: { session: { user: { id: "member-1" } } },
+    });
+
+    render(<LoginContent />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "일시적인 장애로 로그인 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요."
+    );
+    await waitFor(() => expect(mocks.getSession).toHaveBeenCalled());
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("still redirects an existing session when there is no error param", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: { session: { user: { id: "member-1" } } },
+    });
+
+    render(<LoginContent />);
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith("/quote?vehicle=sonata")
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("falls back to a generic message for an unknown error code", async () => {
+    navigation.searchParams = new URLSearchParams("error=zzz");
+
+    render(<LoginContent />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "로그인에 문제가 발생했습니다. 다시 시도해 주세요."
+    );
+  });
+});
