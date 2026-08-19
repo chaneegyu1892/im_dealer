@@ -3,11 +3,38 @@ import { prisma } from "@/lib/prisma";
 
 type WithdrawingMember = Pick<User, "id" | "supabaseId">;
 
+export const KAKAO_UNLINK_AUDIT_ACTION = "ACCOUNT_WITHDRAWAL_KAKAO_UNLINKED";
+
 export interface LocalWithdrawalResult {
   auditLogId: string;
   deletedVerifications: number;
   anonymizedQuotes: number;
   unlinkedQuoteCalculations: number;
+}
+
+/** 이전 시도에서 카카오 unlink 가 커밋됐는지. 로컬 파기 재시도의 멱등 가드. */
+export async function hasKakaoUnlinkedForWithdrawal(userId: string): Promise<boolean> {
+  const row = await prisma.adminAuditLog.findFirst({
+    where: { actorId: userId, action: KAKAO_UNLINK_AUDIT_ACTION },
+    select: { id: true },
+  });
+  return Boolean(row);
+}
+
+/** unlink 직후, 로컬 파기 전에 남겨 재시도가 카카오를 다시 요구하지 않게 한다. */
+export async function markKakaoUnlinkedForWithdrawal(userId: string): Promise<void> {
+  const already = await hasKakaoUnlinkedForWithdrawal(userId);
+  if (already) return;
+  await prisma.adminAuditLog.create({
+    data: {
+      actorId: userId,
+      actorEmail: `pending-withdrawal:${userId}`,
+      action: KAKAO_UNLINK_AUDIT_ACTION,
+      resource: "User",
+      targetId: userId,
+      diff: { kakaoUnlinked: true },
+    },
+  });
 }
 
 /**

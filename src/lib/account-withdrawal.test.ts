@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   userUpdate: vi.fn(),
   auditCreate: vi.fn(),
   auditUpdate: vi.fn(),
+  auditFindFirst: vi.fn(),
+  auditCreateStandalone: vi.fn(),
 }));
 
 const tx = {
@@ -33,11 +35,18 @@ const tx = {
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     $transaction: mocks.transaction,
-    adminAuditLog: { update: mocks.auditUpdate },
+    adminAuditLog: {
+      update: mocks.auditUpdate,
+      findFirst: mocks.auditFindFirst,
+      create: mocks.auditCreateStandalone,
+    },
   },
 }));
 
 import {
+  KAKAO_UNLINK_AUDIT_ACTION,
+  hasKakaoUnlinkedForWithdrawal,
+  markKakaoUnlinkedForWithdrawal,
   recordSupabaseDeletionOutcome,
   withdrawLocalMember,
 } from "@/lib/account-withdrawal";
@@ -53,6 +62,8 @@ describe("account withdrawal", () => {
     mocks.quoteUpdateMany.mockResolvedValue({ count: 3 });
     mocks.calcUpdateMany.mockResolvedValue({ count: 4 });
     mocks.auditCreate.mockResolvedValue({ id: "audit-1" });
+    mocks.auditFindFirst.mockResolvedValue(null);
+    mocks.auditCreateStandalone.mockResolvedValue({ id: "unlink-audit-1" });
   });
 
   it("deletes verification PII and anonymizes only the withdrawing member's business records", async () => {
@@ -118,6 +129,30 @@ describe("account withdrawal", () => {
         referralCode: null,
       }),
     });
+  });
+
+  it("records a Kakao unlink marker so a later retry can skip unlink", async () => {
+    await markKakaoUnlinkedForWithdrawal("local-1");
+
+    expect(mocks.auditCreateStandalone).toHaveBeenCalledWith({
+      data: {
+        actorId: "local-1",
+        actorEmail: "pending-withdrawal:local-1",
+        action: KAKAO_UNLINK_AUDIT_ACTION,
+        resource: "User",
+        targetId: "local-1",
+        diff: { kakaoUnlinked: true },
+      },
+    });
+  });
+
+  it("does not write a second Kakao unlink marker", async () => {
+    mocks.auditFindFirst.mockResolvedValue({ id: "unlink-audit-1" });
+
+    await expect(hasKakaoUnlinkedForWithdrawal("local-1")).resolves.toBe(true);
+    await markKakaoUnlinkedForWithdrawal("local-1");
+
+    expect(mocks.auditCreateStandalone).not.toHaveBeenCalled();
   });
 
   it("records session/auth cleanup outcome without PII", async () => {

@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   requireActiveUser: vi.fn(),
   getKakaoAccessToken: vi.fn(),
   unlinkKakaoAccount: vi.fn(),
+  hasKakaoUnlinked: vi.fn(),
+  markKakaoUnlinked: vi.fn(),
   withdrawLocalMember: vi.fn(),
   recordOutcome: vi.fn(),
   signOut: vi.fn(),
@@ -16,6 +18,8 @@ vi.mock("@/lib/require-user", () => ({ requireActiveUser: mocks.requireActiveUse
 vi.mock("@/lib/kakao/token", () => ({ getKakaoAccessToken: mocks.getKakaoAccessToken }));
 vi.mock("@/lib/kakao/account", () => ({ unlinkKakaoAccount: mocks.unlinkKakaoAccount }));
 vi.mock("@/lib/account-withdrawal", () => ({
+  hasKakaoUnlinkedForWithdrawal: mocks.hasKakaoUnlinked,
+  markKakaoUnlinkedForWithdrawal: mocks.markKakaoUnlinked,
   withdrawLocalMember: mocks.withdrawLocalMember,
   recordSupabaseDeletionOutcome: mocks.recordOutcome,
 }));
@@ -54,6 +58,8 @@ describe("POST /api/me/withdraw", () => {
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://example.com");
     mocks.requireActiveUser.mockResolvedValue({ user: member, error: null });
     mocks.getKakaoAccessToken.mockResolvedValue("kakao-access");
+    mocks.hasKakaoUnlinked.mockResolvedValue(false);
+    mocks.markKakaoUnlinked.mockResolvedValue(undefined);
     mocks.unlinkKakaoAccount.mockResolvedValue(true);
     mocks.withdrawLocalMember.mockResolvedValue({
       auditLogId: "audit-1",
@@ -94,6 +100,7 @@ describe("POST /api/me/withdraw", () => {
     expect(response.status).toBe(200);
     expect(mocks.getKakaoAccessToken).toHaveBeenCalledWith("supabase-1");
     expect(mocks.unlinkKakaoAccount).toHaveBeenCalledWith("kakao-access");
+    expect(mocks.markKakaoUnlinked).toHaveBeenCalledWith("local-1");
     expect(mocks.withdrawLocalMember).toHaveBeenCalledWith(member, true);
     expect(mocks.signOut).toHaveBeenCalledWith({ scope: "global" });
     expect(mocks.deleteUser).toHaveBeenCalledWith("supabase-1");
@@ -105,23 +112,94 @@ describe("POST /api/me/withdraw", () => {
     );
   });
 
-  it("completes local withdrawal and surfaces cleanup state when Kakao or Supabase rejects cleanup", async () => {
+  it("keeps local data and stops provider cleanup when Kakao unlink fails", async () => {
     mocks.unlinkKakaoAccount.mockResolvedValue(false);
-    mocks.signOut.mockResolvedValue({ error: new Error("signout unavailable") });
-    mocks.deleteUser.mockResolvedValue({ error: new Error("delete unavailable") });
+
+    const response = await POST(request());
+    const payload = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(payload).toEqual({
+      error: "카카오 계정 연결 해제에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+    });
+    expect(mocks.markKakaoUnlinked).not.toHaveBeenCalled();
+    expect(mocks.withdrawLocalMember).not.toHaveBeenCalled();
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
+    expect(mocks.recordOutcome).not.toHaveBeenCalled();
+  });
+
+  it("keeps local data when Kakao access token cannot be issued", async () => {
+    mocks.getKakaoAccessToken.mockResolvedValue(null);
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(422);
+    expect(mocks.unlinkKakaoAccount).not.toHaveBeenCalled();
+    expect(mocks.withdrawLocalMember).not.toHaveBeenCalled();
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it("resumes local destruction when a previous attempt already unlinked Kakao", async () => {
+    mocks.hasKakaoUnlinked.mockResolvedValue(true);
+    mocks.getKakaoAccessToken.mockResolvedValue(null);
 
     const response = await POST(request());
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      success: true,
-      cleanup: {
-        kakaoUnlinked: false,
-        sessionsRevoked: false,
-        supabaseAuthDeleted: false,
-      },
-    });
-    expect(mocks.withdrawLocalMember).toHaveBeenCalledWith(member, false);
-    expect(mocks.captureException).toHaveBeenCalled();
+    expect(mocks.unlinkKakaoAccount).not.toHaveBeenCalled();
+    expect(mocks.markKakaoUnlinked).not.toHaveBeenCalled();
+    expect(mocks.withdrawLocalMember).toHaveBeenCalledWith(member, true);
+    expect(mocks.signOut).toHaveBeenCalledWith({ scope: "global" });
+    expect(mocks.deleteUser).toHaveBeenCalledWith("supabase-1");
+  });
+
+  it("lets the user retry after a Kakao outage without destroying local data on the failed attempt", async () => {
+    mocks.unlinkKakaoAccount.mockResolvedValue(false);
+
+    const first = await POST(request());
+    expect(first.status).toBe(422);
+    expect(mocks.withdrawLocalMember).not.toHaveBeenCalled();
+
+    mocks.unlinkKakaoAccount.mockResolvedValue(true);
+
+    const retry = await POST(request());
+    expect(retry.status).toBe(200);
+    expect(mocks.withdrawLocalMember).toHaveBeenCalledTimes(1);
+    expect(mocks.withdrawLocalMember).toHaveBeenCalledWith(member, true);
+  });
+
+  it("keeps the Kakao-unlinked marker so a later retry can finish after local destruction fails", async () => {
+    mocks.withdrawLocalMember.mockRejectedValue(new Error("local destroy failed"));
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(500);
+    expect(mocks.markKakaoUnlinked).toHaveBeenCalledWith("local-1");
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it("continues local destruction when Kakao unlink succeeded but the unlink marker write fails", async () => {
+    mocks.markKakaoUnlinked.mockRejectedValue(new Error("audit write failed"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    expect(mocks.unlinkKakaoAccount).toHaveBeenCalledWith("kakao-access");
+    expect(mocks.withdrawLocalMember).toHaveBeenCalledWith(member, true);
+    expect(mocks.signOut).toHaveBeenCalledWith({ scope: "global" });
+    expect(mocks.deleteUser).toHaveBeenCalledWith("supabase-1");
+    expect(mocks.captureException).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        tags: expect.objectContaining({ operation: "account-withdrawal-kakao-marker" }),
+      })
+    );
+    expect(warn).toHaveBeenCalledWith(
+      "[withdraw] kakao unlink marker write failed",
+      { memberId: "local-1" }
+    );
+    warn.mockRestore();
   });
 });

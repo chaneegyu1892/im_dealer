@@ -2,6 +2,8 @@ import * as Sentry from "@sentry/nextjs";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import {
+  hasKakaoUnlinkedForWithdrawal,
+  markKakaoUnlinkedForWithdrawal,
   recordSupabaseDeletionOutcome,
   withdrawLocalMember,
 } from "@/lib/account-withdrawal";
@@ -47,10 +49,32 @@ export async function POST(request: NextRequest) {
 
   let kakaoUnlinked = false;
   try {
-    const accessToken = await getKakaoAccessToken(user.supabaseId);
-    kakaoUnlinked = accessToken ? await unlinkKakaoAccount(accessToken) : false;
+    kakaoUnlinked = await hasKakaoUnlinkedForWithdrawal(user.id);
+    if (!kakaoUnlinked) {
+      const accessToken = await getKakaoAccessToken(user.supabaseId);
+      kakaoUnlinked = accessToken ? await unlinkKakaoAccount(accessToken) : false;
+      if (kakaoUnlinked) {
+        try {
+          await markKakaoUnlinkedForWithdrawal(user.id);
+        } catch (error) {
+          Sentry.captureException(error, {
+            tags: { operation: "account-withdrawal-kakao-marker" },
+          });
+          console.warn("[withdraw] kakao unlink marker write failed", {
+            memberId: user.id,
+          });
+        }
+      }
+    }
   } catch (error) {
     Sentry.captureException(error, { tags: { operation: "account-withdrawal-kakao" } });
+  }
+
+  if (!kakaoUnlinked) {
+    return NextResponse.json(
+      { error: "카카오 계정 연결 해제에 실패했습니다. 잠시 후 다시 시도해 주세요." },
+      { status: 422 }
+    );
   }
 
   let localResult;
