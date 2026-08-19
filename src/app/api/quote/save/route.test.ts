@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   calculate: vi.fn(),
   createAdminNotification: vi.fn(),
   cookieGet: vi.fn(),
+  checkRateLimit: vi.fn(async (): Promise<Response | null> => null),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -47,6 +48,11 @@ vi.mock("@/lib/admin-notification", () => ({
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({ get: mocks.cookieGet })),
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  quoteSaveRateLimit: {},
+  checkRateLimit: mocks.checkRateLimit,
 }));
 
 function request(): NextRequest {
@@ -903,6 +909,27 @@ describe("POST /api/quote/save", () => {
 
     expect(response.status).toBe(500);
     expect(payload.error).toBe("견적 저장 중 오류가 발생했습니다.");
+  });
+
+  it("returns 429 after 10 saves in the current minute", async () => {
+    let hits = 0;
+    mocks.checkRateLimit.mockImplementation(async () => {
+      hits += 1;
+      if (hits <= 10) return null;
+      return new Response(JSON.stringify({ error: "잠시 후 다시 시도해 주세요." }), {
+        status: 429,
+        headers: { "Retry-After": "60", "Content-Type": "application/json" },
+      });
+    });
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 11; i += 1) {
+      statuses.push((await POST(request())).status);
+    }
+
+    expect(statuses.slice(0, 10).every((status) => status !== 429)).toBe(true);
+    expect(statuses.at(-1)).toBe(429);
+    expect(mocks.findVehicle).toHaveBeenCalledTimes(10);
   });
 });
 

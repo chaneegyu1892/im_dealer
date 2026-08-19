@@ -11,6 +11,7 @@ import {
   REVIEW_IMAGE_MAX_SIZE,
   uploadReviewImage,
 } from "@/lib/supabase/storage";
+import { checkRateLimit, reviewImageRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
+  const limited = await checkRateLimit(request, reviewImageRateLimit, "review-image");
+  if (limited) return limited;
+
   const { token } = await params;
 
   const resolved = await resolveReviewToken(token);

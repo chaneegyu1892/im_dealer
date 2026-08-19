@@ -12,6 +12,7 @@ import { getKakaoAccessToken } from "@/lib/kakao/token";
 import { requireActiveUser } from "@/lib/require-user";
 import { supabaseAdmin } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, withdrawRateLimit } from "@/lib/rate-limit";
 
 const requestSchema = z.object({ confirmation: z.literal("회원탈퇴") }).strict();
 
@@ -29,6 +30,9 @@ function requestHasTrustedOrigin(request: NextRequest): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, withdrawRateLimit, "withdraw");
+  if (limited) return limited;
+
   if (!requestHasTrustedOrigin(request)) {
     return NextResponse.json({ error: "허용되지 않은 요청입니다." }, { status: 403 });
   }

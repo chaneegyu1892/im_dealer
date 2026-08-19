@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   releaseReviewImageUpload: vi.fn(),
   deleteReviewImage: vi.fn(),
   uploadReviewImage: vi.fn(),
+  checkRateLimit: vi.fn(async (): Promise<Response | null> => null),
 }));
 
 vi.mock("@/lib/review-token", () => ({
@@ -19,6 +20,11 @@ vi.mock("@/lib/review-token", () => ({
     revoked: "사용이 중단된 링크입니다.",
     expired: "링크 사용 기간이 만료되었습니다.",
   },
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  reviewImageRateLimit: {},
+  checkRateLimit: mocks.checkRateLimit,
 }));
 
 vi.mock("@/lib/supabase/storage", () => ({
@@ -87,5 +93,33 @@ describe("POST /api/reviews/submit/[token]/image", () => {
     expect(response.status).toBe(500);
     expect(mocks.deleteReviewImage).toHaveBeenCalledWith("review-token-1/one.jpg");
     expect(mocks.releaseReviewImageUpload).toHaveBeenCalledWith("upload-1");
+  });
+
+  it("returns 429 after 20 image uploads in the current minute", async () => {
+    let hits = 0;
+    mocks.checkRateLimit.mockImplementation(async () => {
+      hits += 1;
+      if (hits <= 20) return null;
+      return new Response(JSON.stringify({ error: "잠시 후 다시 시도해 주세요." }), {
+        status: 429,
+        headers: { "Retry-After": "60", "Content-Type": "application/json" },
+      });
+    });
+    mocks.reserveReviewImageUpload.mockReset();
+    mocks.reserveReviewImageUpload.mockResolvedValue({
+      ok: true,
+      data: { id: "upload-n", path: "review-token-1/n.jpg", url: "https://cdn.example/n.jpg" },
+    });
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 21; i += 1) {
+      statuses.push(
+        (await POST(request(), { params: Promise.resolve({ token: "review-token" }) })).status,
+      );
+    }
+
+    expect(statuses.slice(0, 20).every((status) => status === 201)).toBe(true);
+    expect(statuses.at(-1)).toBe(429);
+    expect(mocks.uploadReviewImage).toHaveBeenCalledTimes(20);
   });
 });

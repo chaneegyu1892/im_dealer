@@ -26,7 +26,10 @@ export default async function middleware(request: NextRequest) {
   // strict: 실제로 리소스 무거운 / 어뷰징 위험 큰 경로만 (AI 추천, 이미지 생성, 파일 업로드)
   // 단순 견적 조회/계산/저장은 일반 apiRateLimit 으로 강등 — 비교/옵션 변경 시 정상 사용자가 걸리지 않게
   const isUploadApi = pathname === "/api/admin/upload";
-  if (pathname.startsWith("/api/") && (!isAdminApi || isUploadApi)) {
+  const isCronApi = pathname.startsWith("/api/cron/");
+  // cron 은 CRON_SECRET Bearer 가 본 인증. Vercel cron 은 XFF 가 없어
+  // IP 게이트에 넣으면 운영에서 400/unknown 공용 버킷을 소진한다.
+  if (pathname.startsWith("/api/") && !isCronApi && (!isAdminApi || isUploadApi)) {
     const isStrictApi =
       isUploadApi ||
       pathname.startsWith("/api/recommend") ||
@@ -35,15 +38,12 @@ export default async function middleware(request: NextRequest) {
 
     if (ratelimit) {
       const ip = getTrustedClientIp(request.headers);
-      if (!ip) {
-        if (process.env.NODE_ENV === "production" && !isLocalHostname(request.nextUrl.hostname)) {
-          return NextResponse.json(
-            { error: "요청 출처를 식별할 수 없습니다." },
-            { status: 400 }
-          );
-        }
+      const isProdRemote =
+        process.env.NODE_ENV === "production" && !isLocalHostname(request.nextUrl.hostname);
+      if (!ip && isProdRemote) {
+        console.warn("[proxy] client IP unavailable — using unknown bucket", { pathname });
       }
-      const rateKey = ip ?? "local-dev";
+      const rateKey = ip ?? (isProdRemote ? "unknown" : "local-dev");
       const { success, limit, reset, remaining } = await ratelimit.limit(rateKey);
 
       if (!success) {

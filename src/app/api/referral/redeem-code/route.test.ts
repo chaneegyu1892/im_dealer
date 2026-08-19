@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   findUniqueUser: vi.fn(),
   transaction: vi.fn(),
   applyReferralOnProfileComplete: vi.fn(),
+  checkRateLimit: vi.fn(async (): Promise<Response | null> => null),
 }));
 
 /** $transaction 콜백에 넘어가는 tx 클라이언트 표식 */
@@ -26,6 +27,11 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/referral/apply", () => ({
   applyReferralOnProfileComplete: mocks.applyReferralOnProfileComplete,
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  referralRedeemRateLimit: {},
+  checkRateLimit: mocks.checkRateLimit,
 }));
 
 const NOW = Date.now();
@@ -194,5 +200,26 @@ describe("POST /api/referral/redeem-code", () => {
     mocks.transaction.mockRejectedValue(new Error("db hiccup"));
     const res = await POST(request({ code: "K4821" }));
     expect(res.status).toBe(500);
+  });
+
+  it("returns 429 after 5 redeem attempts in the current minute", async () => {
+    let hits = 0;
+    mocks.checkRateLimit.mockImplementation(async () => {
+      hits += 1;
+      if (hits <= 5) return null;
+      return new Response(JSON.stringify({ error: "잠시 후 다시 시도해 주세요." }), {
+        status: 429,
+        headers: { "Retry-After": "60", "Content-Type": "application/json" },
+      });
+    });
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 6; i += 1) {
+      statuses.push((await POST(request({ code: "K4821" }))).status);
+    }
+
+    expect(statuses.slice(0, 5).every((status) => status === 200)).toBe(true);
+    expect(statuses.at(-1)).toBe(429);
+    expect(mocks.applyReferralOnProfileComplete).toHaveBeenCalledTimes(5);
   });
 });

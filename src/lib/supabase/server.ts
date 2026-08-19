@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -23,8 +24,22 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
+            Sentry.setTag("budget_tag", "refresh");
+            Sentry.addBreadcrumb({
+              category: "auth.refresh",
+              message: "supabase session cookies written",
+              level: "info",
+              data: { outcome: "success" },
+            });
           } catch {
             // Server component에서 set 불가 — middleware가 갱신함
+            Sentry.setTag("budget_tag", "refresh");
+            Sentry.addBreadcrumb({
+              category: "auth.refresh",
+              message: "supabase session cookie write skipped",
+              level: "info",
+              data: { outcome: "skipped" },
+            });
           }
         },
       },

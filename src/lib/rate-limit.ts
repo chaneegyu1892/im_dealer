@@ -89,9 +89,58 @@ export const easyAuthRateLimit = redis
     })
   : null;
 
+// 6. 견적 저장 — 분당 최대 10회. 프록시 공통(40/10s)보다 좁혀 저장 폭주만 차단.
+export const quoteSaveRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "1 m"),
+      ephemeralCache: cache,
+      analytics: true,
+      prefix: "ratelimit:quote-save",
+    })
+  : null;
+
+// 7. 추천인 코드 사후 입력 — 분당 최대 5회. 코드 존재 여부 탐색 방어.
+export const referralRedeemRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, "1 m"),
+      ephemeralCache: cache,
+      analytics: true,
+      prefix: "ratelimit:referral-redeem",
+    })
+  : null;
+
+// 8. 회원 탈퇴 — 분당 최대 3회. 카카오 unlink / Supabase delete 재시도 폭주 방어.
+export const withdrawRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(3, "1 m"),
+      ephemeralCache: cache,
+      analytics: true,
+      prefix: "ratelimit:withdraw",
+    })
+  : null;
+
+// 9. 후기 이미지 업로드 — 분당 최대 20회. 토큰당 5장 쿼터와 별개의 IP 폭주 방어.
+export const reviewImageRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(20, "1 m"),
+      ephemeralCache: cache,
+      analytics: true,
+      prefix: "ratelimit:review-image",
+    })
+  : null;
+
+function retryAfterSeconds(resetMs: number): string {
+  return Math.max(1, Math.ceil((resetMs - Date.now()) / 1000)).toString();
+}
+
 // ─── 헬퍼: 라우트에서 rate limit 검사 ────────────────────
 // limiter가 null(로컬 환경 등)이면 즉시 통과. Redis가 있으면 IP 기준으로 제한.
 // 429 응답을 반환하거나, 통과 시 null 을 반환한다.
+// 식별 키는 IP(+선택 suffix). suffix 는 라우트 간 공용 NAT 버킷 붕괴를 막는다.
 export async function checkRateLimit(
   request: NextRequest,
   limiter: Ratelimit | null,
@@ -102,11 +151,19 @@ export async function checkRateLimit(
   const ip = getTrustedClientIp(request.headers) ?? "unknown";
   const identifier = identifierSuffix ? `${ip}:${identifierSuffix}` : ip;
 
-  const { success } = await limiter.limit(identifier);
+  const { success, limit, remaining, reset } = await limiter.limit(identifier);
   if (!success) {
     return NextResponse.json(
       { error: "잠시 후 다시 시도해 주세요." },
-      { status: 429 }
+      {
+        status: 429,
+        headers: {
+          "Retry-After": retryAfterSeconds(reset),
+          "X-RateLimit-Limit": limit.toString(),
+          "X-RateLimit-Remaining": remaining.toString(),
+          "X-RateLimit-Reset": reset.toString(),
+        },
+      }
     );
   }
   return null;

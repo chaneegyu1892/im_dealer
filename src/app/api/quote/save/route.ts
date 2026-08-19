@@ -28,6 +28,7 @@ import {
   VERIFICATION_CAPABILITY_MAX_AGE_SECONDS,
   verificationCapabilityCookieName,
 } from "@/lib/verification-capability";
+import { checkRateLimit, quoteSaveRateLimit } from "@/lib/rate-limit";
 
 function attachVerificationCapability<T>(
   response: NextResponse<T>,
@@ -76,6 +77,9 @@ async function denySavedQuoteAccess(
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, quoteSaveRateLimit, "quote-save");
+  if (limited) return limited;
+
   const user = await getActiveUser();
   let sessionId: string | null = null;
 

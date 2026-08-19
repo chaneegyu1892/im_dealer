@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   deleteUser: vi.fn(),
   captureException: vi.fn(),
+  checkRateLimit: vi.fn(async (): Promise<Response | null> => null),
 }));
 
 vi.mock("@/lib/require-user", () => ({ requireActiveUser: mocks.requireActiveUser }));
@@ -30,6 +31,10 @@ vi.mock("@/lib/supabase", () => ({
   supabaseAdmin: vi.fn(() => ({ auth: { admin: { deleteUser: mocks.deleteUser } } })),
 }));
 vi.mock("@sentry/nextjs", () => ({ captureException: mocks.captureException }));
+vi.mock("@/lib/rate-limit", () => ({
+  withdrawRateLimit: {},
+  checkRateLimit: mocks.checkRateLimit,
+}));
 
 import { POST } from "./route";
 
@@ -201,5 +206,26 @@ describe("POST /api/me/withdraw", () => {
       { memberId: "local-1" }
     );
     warn.mockRestore();
+  });
+
+  it("returns 429 after 3 withdraw attempts in the current minute", async () => {
+    let hits = 0;
+    mocks.checkRateLimit.mockImplementation(async () => {
+      hits += 1;
+      if (hits <= 3) return null;
+      return new Response(JSON.stringify({ error: "잠시 후 다시 시도해 주세요." }), {
+        status: 429,
+        headers: { "Retry-After": "60", "Content-Type": "application/json" },
+      });
+    });
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      statuses.push((await POST(request())).status);
+    }
+
+    expect(statuses.slice(0, 3).every((status) => status === 200)).toBe(true);
+    expect(statuses.at(-1)).toBe(429);
+    expect(mocks.withdrawLocalMember).toHaveBeenCalledTimes(3);
   });
 });

@@ -9,6 +9,7 @@ import {
 import { applyReferralOnProfileComplete } from "@/lib/referral/apply";
 import { normalizeReferralCode } from "@/lib/referral/code";
 import { signupIpHashFromRequest } from "@/lib/referral/signup-ip";
+import { checkRateLimit, referralRedeemRateLimit } from "@/lib/rate-limit";
 
 // 가입 때 추천인 코드를 깜빡한 회원의 사후 입력 창구.
 // 가입 완료 후 REFERRAL_ENTRY_WINDOW_DAYS 이내, 평생 1회(Referral.refereeId unique)만 인정된다.
@@ -17,6 +18,9 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, referralRedeemRateLimit, "referral-redeem");
+  if (limited) return limited;
+
   const { user, error: authError } = await requireActiveUser();
   if (authError) return authError;
 
