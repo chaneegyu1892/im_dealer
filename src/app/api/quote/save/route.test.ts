@@ -198,8 +198,9 @@ describe("POST /api/quote/save", () => {
       })
     );
     expect(response.headers.get("set-cookie")).toContain("HttpOnly");
-    // /api/quote/save 재저장과 /api/verification/* 모두에서 읽어야 하므로 공통 상위 경로.
-    expect(response.headers.get("set-cookie")).toContain("Path=/api;");
+    // /api/quote/save 재저장·/api/verification/*·/auth/callback(로그인 시 게스트 견적 귀속)
+    // 모두에서 읽어야 하므로 루트 경로 — path 를 /api 에 한정하면 콜백이 쿠키를 못 받는다.
+    expect(response.headers.get("set-cookie")).toContain("Path=/;");
   });
 
   it("stores the linked member profile when the quote has no verified contact yet", async () => {

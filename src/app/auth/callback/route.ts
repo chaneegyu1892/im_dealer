@@ -7,6 +7,7 @@ import { fetchKakaoAccount, fetchAgreedTermTags } from "@/lib/kakao/account";
 import { getChannelRelation } from "@/lib/kakao/channel";
 import { isKakaoSyncEnabled } from "@/lib/kakao/scopes";
 import { storeKakaoRefreshToken } from "@/lib/kakao/token";
+import { claimGuestSavedQuotes } from "@/lib/guest-quote-claim";
 import { allocateUniqueReferralCode } from "@/lib/referral/ensure-code";
 import {
   REFERRAL_COOKIE_MAX_AGE_SEC,
@@ -176,6 +177,19 @@ export async function GET(request: Request) {
     // upsert 실패해도 세션은 살아있다. 다음 요청에서 lazy 보정 가능.
     // 어드민 가드는 prisma.user 행 부재 시 null 반환이라 권한 우회 위험 없음.
     console.error("[auth/callback] user upsert failed:", message);
+  }
+
+  // 이어서 보기: 게스트로 저장한 견적을 이 브라우저의 capability 쿠키로
+  // 회원 계정에 귀속한다(마이페이지 노출). best-effort — 실패해도 로그인은 계속되고,
+  // 귀속 조건이 userId: null 이라 재로그인 시 no-op 다(멱등).
+  try {
+    const claimed = await claimGuestSavedQuotes(request.headers.get("cookie"), user.id);
+    if (claimed > 0) {
+      console.log(`[auth/callback] claimed ${claimed} guest quote(s) to user ${user.id}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    console.error("[auth/callback] guest quote claim failed:", message);
   }
 
   // 간편가입 미완료 회원(이름·전화 미수집)은 가입완료 폼으로 유도한다.

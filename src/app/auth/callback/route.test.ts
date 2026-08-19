@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   upsert: vi.fn(),
   allocateUniqueReferralCode: vi.fn(),
+  claimQuotes: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -23,6 +24,9 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: mocks.findUnique,
       upsert: mocks.upsert,
     },
+    savedQuote: {
+      updateMany: mocks.claimQuotes,
+    },
   },
 }));
 
@@ -39,6 +43,11 @@ vi.mock("@/lib/referral/ensure-code", () => ({
 }));
 
 import { GET } from "./route";
+import {
+  createVerificationCapability,
+  hashVerificationCapability,
+  verificationCapabilityCookieName,
+} from "@/lib/verification-capability";
 
 function authUser(overrides: Record<string, unknown> = {}) {
   return {
@@ -70,6 +79,7 @@ describe("GET /auth/callback", () => {
     mocks.upsert.mockResolvedValue({ role: "member", profileCompleted: true });
     mocks.signOut.mockResolvedValue({ error: null });
     mocks.allocateUniqueReferralCode.mockResolvedValue("ABC12");
+    mocks.claimQuotes.mockResolvedValue({ count: 0 });
   });
 
   afterEach(() => {
@@ -166,5 +176,106 @@ describe("GET /auth/callback", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://app.example/mypage");
     expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it("게스트 견적 capability 쿠키가 있으면 로그인 성공 시 회원 계정에 귀속한다", async () => {
+    const capQuote1 = createVerificationCapability();
+    const capQuote2 = createVerificationCapability();
+    const request = new Request(
+      "https://app.example/auth/callback?code=code-1&next=/mypage",
+      {
+        headers: {
+          cookie: [
+            "imd_nav=1",
+            `${verificationCapabilityCookieName("guest-quote-session-1")}=${capQuote1}`,
+            "unrelated=noise",
+            `${verificationCapabilityCookieName("guest-quote-session-2")}=${capQuote2}`,
+          ].join("; "),
+        },
+      },
+    );
+
+    mocks.claimQuotes.mockResolvedValue({ count: 2 });
+
+    const response = await GET(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://app.example/mypage");
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    // 귀속 predicate 는 /api/verification/consent 의 원자적 클레임과 동일한 조건이다:
+    // 미귀속(userId null) · 미삭제 · 미만료 + capability 해시 소유 증명.
+    // mypage(getMyPageData)는 where { userId, deletedAt: null } 로 조회하므로
+    // data.userId 가 심어진 게스트 견적이 로그인 직후 마이페이지에 노출된다.
+    expect(mocks.claimQuotes).toHaveBeenCalledTimes(1);
+    expect(mocks.claimQuotes).toHaveBeenCalledWith({
+      where: {
+        userId: null,
+        deletedAt: null,
+        expiresAt: { gt: expect.any(Date) },
+        verificationCapabilityHash: {
+          in: [
+            hashVerificationCapability(capQuote1),
+            hashVerificationCapability(capQuote2),
+          ],
+        },
+      },
+      data: { userId: "supabase-member-1", verificationCapabilityHash: null },
+    });
+  });
+
+  it("capability 쿠키가 없으면 게스트 견적 귀속을 시도하지 않는다(no-op)", async () => {
+    const request = new Request(
+      "https://app.example/auth/callback?code=code-1&next=/mypage",
+      { headers: { cookie: "imd_nav=1; other=noise" } },
+    );
+
+    const response = await GET(request);
+
+    expect(response.headers.get("location")).toBe("https://app.example/mypage");
+    expect(mocks.claimQuotes).not.toHaveBeenCalled();
+  });
+
+  it("게스트 견적 귀속 실패가 로그인을 깨지 않는다(best-effort)", async () => {
+    const cap = createVerificationCapability();
+    const request = new Request(
+      "https://app.example/auth/callback?code=code-1&next=/mypage",
+      {
+        headers: {
+          cookie: `${verificationCapabilityCookieName("guest-quote-session")}=${cap}`,
+        },
+      },
+    );
+    mocks.claimQuotes.mockRejectedValue(new Error("db connection refused"));
+
+    const response = await GET(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://app.example/mypage");
+    expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it("재로그인(이미 귀속된 견적)에서도 클레임은 멱등하게 no-op 이다", async () => {
+    const cap = createVerificationCapability();
+    const request = new Request(
+      "https://app.example/auth/callback?code=code-1&next=/mypage",
+      {
+        headers: {
+          cookie: `${verificationCapabilityCookieName("guest-quote-session")}=${cap}`,
+        },
+      },
+    );
+
+    await GET(request);
+    await GET(request);
+
+    // 두 로그인 모두 동일 predicate 로 호출되지만, 첫 클레임에서
+    // data.userId 가 심어지고 verificationCapabilityHash 가 null 로 지워지므로
+    // 두 번째 호출은 매칭 행이 없다(Prisma in 은 null 행에 매칭되지 않음).
+    expect(mocks.claimQuotes).toHaveBeenCalledTimes(2);
+    const first = mocks.claimQuotes.mock.calls[0][0];
+    const second = mocks.claimQuotes.mock.calls[1][0];
+    expect(first.where.userId).toBeNull();
+    expect(first.data.verificationCapabilityHash).toBeNull();
+    expect(second).toEqual(first);
   });
 });
