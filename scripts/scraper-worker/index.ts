@@ -102,7 +102,7 @@ async function preflight(): Promise<boolean> {
     if (expectedWorkerVersion !== undefined && expectedWorkerVersion !== WORKER_PROTOCOL_VERSION) {
       console.error(
         `[worker] 프로그램이 오래되었습니다 (이 프로그램 v${WORKER_PROTOCOL_VERSION} / 서버 요구 v${expectedWorkerVersion}).\n` +
-          "        개발 담당자에게 최신 파일을 받아 다시 설치해 주세요.\n" +
+          "        '수집 시작.bat' 을 다시 실행하면 자동으로 업데이트됩니다.\n" +
           "        접속 정보는 유지되므로 다시 입력하지 않아도 됩니다."
       );
       return false;
@@ -374,7 +374,7 @@ async function main(): Promise<void> {
               "=".repeat(62) +
               `\n 프로그램이 오래되어 수집을 시작할 수 없습니다.\n` +
               `   (이 프로그램 v${WORKER_PROTOCOL_VERSION} / 서버 요구 v${claimed.expectedWorkerVersion})\n\n` +
-              " 개발 담당자에게 최신 파일을 받아 다시 설치해 주세요.\n" +
+              " '수집 시작.bat' 을 다시 실행하면 자동으로 업데이트됩니다.\n" +
               " 접속 정보는 그대로 유지되니 다시 입력하지 않아도 됩니다.\n" +
               "=".repeat(62) +
               "\n"

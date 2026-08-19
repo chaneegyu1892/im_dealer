@@ -34,6 +34,61 @@ if (-not (Test-Path $EnvPath)) {
     exit 1
 }
 
+# ── 자동 업데이트 ────────────────────────────────────────────
+# 서버가 요구하는 버전과 이 폴더의 버전이 다르면, 서버에서 최신 코드를 받아
+# 스스로 교체하고 다시 시작한다. 담당자가 zip 을 새로 받을 필요가 없다.
+# 실패해도 수집 시작은 막지 않는다 — 버전이 정말 안 맞으면 아래 점검이 잡아준다.
+if ($env:IMDEALER_WORKER_UPDATED -ne "1") {
+    try {
+        # .env 에서 서버 주소·시크릿 읽기 (KEY=VALUE 형식)
+        $envMap = @{}
+        foreach ($line in Get-Content $EnvPath) {
+            if ($line -match '^\s*([A-Z_]+)\s*=\s*(.*)$') { $envMap[$Matches[1]] = $Matches[2].Trim().Trim('"') }
+        }
+        # PowerShell 5.1 호환 — ?? 연산자 금지
+        $apiBase = ([string]$envMap["WORKER_API_BASE"]).TrimEnd('/')
+        $secret = [string]$envMap["SCRAPER_WORKER_SECRET"]
+
+        $verFile = Join-Path $RepoRoot "src\lib\scraper\worker-version.ts"
+        $localVer = [int]([regex]::Match((Get-Content $verFile -Raw), 'WORKER_PROTOCOL_VERSION = (\d+)').Groups[1].Value)
+
+        if ($apiBase -and $secret -and $localVer -gt 0) {
+            $pre = Invoke-RestMethod -Uri "$apiBase/api/worker/preflight" -Headers @{ Authorization = "Bearer $secret" } -TimeoutSec 10
+            $serverVer = [int]$pre.expectedWorkerVersion
+
+            if ($serverVer -gt 0 -and $serverVer -ne $localVer) {
+                Write-Host ""
+                Write-Host " 새 버전이 있습니다 (v$localVer -> v$serverVer). 자동 업데이트를 시작합니다..." -ForegroundColor Cyan
+                $tmpZip = Join-Path $env:TEMP "imdealer-worker-update.zip"
+                $tmpDir = Join-Path $env:TEMP "imdealer-worker-update"
+                Invoke-WebRequest -Uri "$apiBase/api/worker/update" -Headers @{ Authorization = "Bearer $secret" } -OutFile $tmpZip -TimeoutSec 120
+                if (Test-Path $tmpDir) { Remove-Item $tmpDir -Recurse -Force }
+                Expand-Archive -Path $tmpZip -DestinationPath $tmpDir -Force
+                # 접속 정보(.env)는 zip 에 없으므로 덮어쓰기에서 보존된다
+                Copy-Item -Path (Join-Path $tmpDir "*") -Destination $RepoRoot -Recurse -Force
+                Remove-Item $tmpZip -Force -ErrorAction SilentlyContinue
+                Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
+
+                Write-Host " 필요한 구성요소를 설치합니다 (몇 분 걸릴 수 있습니다)..." -ForegroundColor DarkGray
+                Push-Location $RepoRoot
+                try {
+                    & corepack pnpm install
+                    & corepack pnpm prisma generate
+                } finally { Pop-Location }
+
+                Write-Host " 업데이트 완료 — 새 버전으로 다시 시작합니다." -ForegroundColor Green
+                # 이 파일 자체가 새 버전으로 바뀌었을 수 있으므로 새 프로세스로 재실행 (무한루프 방지 플래그)
+                $env:IMDEALER_WORKER_UPDATED = "1"
+                & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $WorkerDir "run.ps1")
+                exit $LASTEXITCODE
+            }
+        }
+    } catch {
+        Write-Host ""
+        Write-Host " 자동 업데이트 확인을 건너뜁니다 ($($_.Exception.Message))" -ForegroundColor DarkGray
+    }
+}
+
 Push-Location $RepoRoot
 try {
     Write-Host ""
