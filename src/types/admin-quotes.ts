@@ -1,5 +1,24 @@
 export type QuoteCrmStatus = "NEW" | "CONTACTED" | "IN_PROGRESS" | "CONVERTED" | "LOST";
 
+/** QuoteDelivery.status. NONE = 해당 견적에 전달 행이 없음(미전달과 구분). */
+export type AdminQuoteDeliveryStatus = "SENT" | "PENDING" | "FAILED" | "NONE";
+
+export interface AdminQuoteDelivery {
+  status: AdminQuoteDeliveryStatus;
+  failReason: string | null;
+  createdAt: string | null;
+  sentAt: string | null;
+}
+
+export interface AdminQuoteAlimtalk {
+  status: string;
+  failReason: string | null;
+  resultCode: string | null;
+  templateKey: string;
+  createdAt: string;
+  resultAt: string | null;
+}
+
 export interface AdminSavedQuote {
   id: string;
   sessionId: string;
@@ -34,6 +53,10 @@ export interface AdminSavedQuote {
   interiorColorName: string | null;
   interiorColorHex: string | null;
   selectedOptions: { id: string; name: string; price: number }[];
+  /** 최신 QuoteDelivery. 행이 없으면 status=NONE (미전달로 오인 금지). */
+  delivery: AdminQuoteDelivery;
+  /** 최신 견적 알림톡(refType=quote). 없으면 null. */
+  alimtalk: AdminQuoteAlimtalk | null;
 }
 
 export interface AdminQuoteCalculation {

@@ -15,6 +15,10 @@ import { logActivity } from "@/lib/activity-store";
 import { AdminSavedQuote } from "@/types/admin";
 import { ReviewLinkSection } from "@/components/admin/quotations/ReviewLinkSection";
 import { QuoteCalculationHistory } from "@/components/admin/quotations/QuoteCalculationHistory";
+import {
+  QuoteDeliveryDetail,
+  QuoteDeliveryStatusBadge,
+} from "@/components/admin/quotations/QuoteDeliveryStatusBadge";
 import { VerificationResult } from "@/components/admin/VerificationResult";
 import { formatQuoteForClipboard } from "@/lib/admin/quote-clipboard";
 import { productTypeLabel } from "@/constants/product-type";
@@ -669,12 +673,13 @@ function QuotationsContent() {
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">금융사</th>
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider text-center">유형</th>
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">상태</th>
+              <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">전달</th>
               <th className="py-3 px-4 text-[11px] font-bold text-[#6B7399] uppercase tracking-wider">접수일자</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#F0F2F8]">
               {filteredQuotes.length === 0 ? (
-                <tr><td colSpan={9} className="py-20 text-center text-[13px] text-[#9BA4C0]">해당하는 견적 데이터가 없습니다.</td></tr>
+                <tr><td colSpan={10} className="py-20 text-center text-[13px] text-[#9BA4C0]">해당하는 견적 데이터가 없습니다.</td></tr>
               ) : filteredQuotes.map(q => {
               const isSelected = selectedIds.has(q.id);
               const uiStatus = STATUS_MAP[q.status] || "상담대기";
@@ -747,6 +752,9 @@ function QuotationsContent() {
                     <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", SStyle?.bg || "bg-gray-100", SStyle?.text || "text-gray-600")}>
                       <SIcon size={11} strokeWidth={2.5} /> {uiStatus}
                     </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <QuoteDeliveryStatusBadge status={q.delivery.status} />
                   </td>
                   <td className="py-4 px-4 text-[12px] text-[#6B7399]">{new Date(q.createdAt).toLocaleDateString()}</td>
                 </tr>
@@ -955,6 +963,11 @@ function QuotationsContent() {
                     )}
                   </div>
                 </section>
+
+                <QuoteDeliveryDetail
+                  delivery={drawerQuote.delivery}
+                  alimtalk={drawerQuote.alimtalk}
+                />
 
                 <ReviewLinkSection
                   quoteId={drawerQuote.id}

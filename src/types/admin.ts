@@ -28,7 +28,10 @@ export type {
 } from "./admin-analytics";
 export type {
   AdminNotification,
+  AdminQuoteAlimtalk,
   AdminQuoteCalculation,
+  AdminQuoteDelivery,
+  AdminQuoteDeliveryStatus,
   AdminSavedQuote,
   QuoteCrmStatus,
 } from "./admin-quotes";

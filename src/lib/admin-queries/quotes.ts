@@ -1,5 +1,10 @@
 import { prisma } from "../prisma";
-import type { AdminSavedQuote } from "@/types/admin";
+import type {
+  AdminQuoteAlimtalk,
+  AdminQuoteDelivery,
+  AdminQuoteDeliveryStatus,
+  AdminSavedQuote,
+} from "@/types/admin";
 import { resolveQuoteContact } from "@/lib/quote-contact";
 import { readSnapshotTrimPricing } from "@/lib/quote-snapshot-pricing";
 
@@ -7,6 +12,18 @@ function readBreakdown(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
+}
+
+const EMPTY_DELIVERY: AdminQuoteDelivery = {
+  status: "NONE",
+  failReason: null,
+  createdAt: null,
+  sentAt: null,
+};
+
+function toDeliveryStatus(status: string): Exclude<AdminQuoteDeliveryStatus, "NONE"> {
+  if (status === "SENT" || status === "FAILED") return status;
+  return "PENDING";
 }
 
 function readSelectedOptions(value: unknown): AdminSavedQuote["selectedOptions"] {
@@ -45,11 +62,12 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
 
   const vehicleIds = [...new Set(quotes.map((q) => q.vehicleId))];
   const trimIds = [...new Set(quotes.map((q) => q.trimId))];
+  const quoteIds = quotes.map((q) => q.id);
   const memberIds = [
     ...new Set(quotes.map((q) => q.userId).filter((id): id is string => Boolean(id))),
   ];
 
-  const [vehicles, trims, members] = await Promise.all([
+  const [vehicles, trims, members, deliveries, alimtalks] = await Promise.all([
     prisma.vehicle.findMany({
       where: { id: { in: vehicleIds } },
       select: { id: true, name: true, brand: true },
@@ -64,6 +82,34 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
           select: { supabaseId: true, name: true, phone: true },
         })
       : Promise.resolve([]),
+    quoteIds.length > 0
+      ? prisma.quoteDelivery.findMany({
+          where: { savedQuoteId: { in: quoteIds } },
+          orderBy: { createdAt: "desc" },
+          select: {
+            savedQuoteId: true,
+            status: true,
+            failReason: true,
+            createdAt: true,
+            sentAt: true,
+          },
+        })
+      : Promise.resolve([]),
+    quoteIds.length > 0
+      ? prisma.alimtalkMessage.findMany({
+          where: { refType: "quote", refId: { in: quoteIds } },
+          orderBy: { createdAt: "desc" },
+          select: {
+            refId: true,
+            status: true,
+            failReason: true,
+            resultCode: true,
+            templateKey: true,
+            createdAt: true,
+            resultAt: true,
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   const vehicleMap = new Map(vehicles.map((v) => [v.id, v]));
@@ -73,6 +119,30 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       member.supabaseId ? [[member.supabaseId, member] as const] : []
     )
   );
+
+  const latestDeliveryByQuoteId = new Map<string, AdminQuoteDelivery>();
+  for (const row of deliveries) {
+    if (!row.savedQuoteId || latestDeliveryByQuoteId.has(row.savedQuoteId)) continue;
+    latestDeliveryByQuoteId.set(row.savedQuoteId, {
+      status: toDeliveryStatus(row.status),
+      failReason: row.failReason,
+      createdAt: row.createdAt.toISOString(),
+      sentAt: row.sentAt?.toISOString() ?? null,
+    });
+  }
+
+  const latestAlimtalkByQuoteId = new Map<string, AdminQuoteAlimtalk>();
+  for (const row of alimtalks) {
+    if (!row.refId || latestAlimtalkByQuoteId.has(row.refId)) continue;
+    latestAlimtalkByQuoteId.set(row.refId, {
+      status: row.status,
+      failReason: row.failReason,
+      resultCode: row.resultCode,
+      templateKey: row.templateKey,
+      createdAt: row.createdAt.toISOString(),
+      resultAt: row.resultAt?.toISOString() ?? null,
+    });
+  }
 
   const data: AdminSavedQuote[] = quotes.map((q) => {
     const vehicle = vehicleMap.get(q.vehicleId);
@@ -125,6 +195,8 @@ export async function getAdminQuotes(page = 1, limit = 20): Promise<{
       interiorColorName: q.interiorColor?.name ?? null,
       interiorColorHex: q.interiorColor?.hexCode ?? null,
       selectedOptions: readSelectedOptions(breakdown.selectedOptions),
+      delivery: latestDeliveryByQuoteId.get(q.id) ?? EMPTY_DELIVERY,
+      alimtalk: latestAlimtalkByQuoteId.get(q.id) ?? null,
     };
   });
 
