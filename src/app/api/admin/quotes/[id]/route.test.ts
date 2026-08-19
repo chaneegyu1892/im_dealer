@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   updateQuote: vi.fn(),
   findUniqueUser: vi.fn(),
   reconcileForQuoteOwner: vi.fn(),
+  requestReviewAlimtalkForQuote: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -40,6 +41,14 @@ vi.mock("@/lib/require-admin", () => ({
 
 vi.mock("@/lib/coupons/reconcile", () => ({
   reconcileCouponsForQuoteOwner: mocks.reconcileForQuoteOwner,
+}));
+
+vi.mock("@/lib/review-request-alimtalk", () => ({
+  requestReviewAlimtalkForQuote: mocks.requestReviewAlimtalkForQuote,
+}));
+
+vi.mock("@/lib/admin-notification", () => ({
+  notifyAdminOnce: vi.fn(),
 }));
 
 import { DELETE, PATCH } from "./route";
@@ -75,6 +84,7 @@ beforeEach(() => {
   mocks.createActivityLog.mockResolvedValue({});
   mocks.updateQuote.mockResolvedValue({});
   mocks.reconcileForQuoteOwner.mockResolvedValue(undefined);
+  mocks.requestReviewAlimtalkForQuote.mockResolvedValue({ ok: true });
 });
 
 describe("DELETE /api/admin/quotes/[id]", () => {
@@ -206,5 +216,87 @@ describe("PATCH /api/admin/quotes/[id] — 쿠폰 동기화 훅", () => {
     });
 
     expect(mocks.reconcileForQuoteOwner).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/admin/quotes/[id] — 후기 요청 알림톡 훅", () => {
+  it("CONTACTED→CONVERTED 전환에서 requestReviewAlimtalkForQuote 를 한 번 호출한다", async () => {
+    const quote = {
+      id: "quote-1",
+      status: "CONTACTED",
+      userId: "sb-user-1",
+      phone: "010-1234-5678",
+      customerName: "홍길동",
+    };
+    mocks.findFirstQuote.mockResolvedValue(quote);
+
+    const response = await PATCH(patchRequest({ status: "CONVERTED" }), {
+      params: Promise.resolve({ id: "quote-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.requestReviewAlimtalkForQuote).toHaveBeenCalledTimes(1);
+    expect(mocks.requestReviewAlimtalkForQuote).toHaveBeenCalledWith({
+      quote,
+      actorId: "staff-1",
+    });
+  });
+
+  it("CONVERTED→LOST 전환에서는 후기 훅을 호출하지 않고 쿠폰 훅은 호출한다", async () => {
+    mocks.findFirstQuote.mockResolvedValue({
+      id: "quote-1",
+      status: "CONVERTED",
+      userId: "sb-user-1",
+    });
+
+    const response = await PATCH(patchRequest({ status: "LOST" }), {
+      params: Promise.resolve({ id: "quote-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.requestReviewAlimtalkForQuote).not.toHaveBeenCalled();
+    expect(mocks.reconcileForQuoteOwner).toHaveBeenCalledWith("sb-user-1");
+  });
+
+  it("CONTACTED→LOST 전환에서는 후기 훅을 호출하지 않는다", async () => {
+    mocks.findFirstQuote.mockResolvedValue({
+      id: "quote-1",
+      status: "CONTACTED",
+      userId: "sb-user-1",
+    });
+
+    const response = await PATCH(patchRequest({ status: "LOST" }), {
+      params: Promise.resolve({ id: "quote-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.requestReviewAlimtalkForQuote).not.toHaveBeenCalled();
+  });
+
+  it("후기 훅이 던져도 PATCH 는 200 이고 로그에 전화번호를 넣지 않는다", async () => {
+    mocks.findFirstQuote.mockResolvedValue({
+      id: "quote-1",
+      status: "CONTACTED",
+      userId: "sb-user-1",
+      phone: "010-1234-5678",
+      customerName: "홍길동",
+    });
+    mocks.requestReviewAlimtalkForQuote.mockRejectedValue(new Error("enqueue exploded"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await PATCH(patchRequest({ status: "CONVERTED" }), {
+      params: Promise.resolve({ id: "quote-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[PATCH /api/admin/quotes/[id]] review-request enqueue failed",
+      { quoteId: "quote-1" },
+    );
+    const logged = JSON.stringify(errorSpy.mock.calls);
+    expect(logged).not.toContain("010-1234-5678");
+    expect(logged).not.toContain("01012345678");
+    expect(logged).not.toContain("홍길동");
+    errorSpy.mockRestore();
   });
 });

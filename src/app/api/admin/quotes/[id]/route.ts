@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { revokeReviewTokensForQuote } from "@/lib/review-token";
 import { reconcileCouponsForQuoteOwner } from "@/lib/coupons/reconcile";
+import { requestReviewAlimtalkForQuote } from "@/lib/review-request-alimtalk";
+import { notifyAdminOnce } from "@/lib/admin-notification";
 import { QuoteStatus } from "@prisma/client";
 
 const patchSchema = z.object({
@@ -84,6 +86,25 @@ export async function PATCH(
       await reconcileCouponsForQuoteOwner(quote.userId);
     } catch (err) {
       console.error("[PATCH /api/admin/quotes/[id]] 쿠폰 동기화 실패:", err);
+    }
+  }
+
+  const enteredConverted = status === "CONVERTED" && quote.status !== "CONVERTED";
+  if (enteredConverted && admin) {
+    try {
+      await requestReviewAlimtalkForQuote({ quote, actorId: admin.id });
+    } catch (err) { // no-excuse-ok: catch — 알림톡 실패가 CONVERTED PATCH 를 되돌리면 안 됨
+      console.error("[PATCH /api/admin/quotes/[id]] review-request enqueue failed", {
+        quoteId: id,
+      });
+      if (err instanceof Error) {
+        await notifyAdminOnce({
+          type: "SYSTEM",
+          title: "후기 요청 알림톡 적재 실패",
+          content: `후기 요청 알림톡 적재를 건너뛰었습니다. 견적 ${id}`,
+          linkUrl: `/admin/quotations?id=${id}&notice=review-request-enqueue`,
+        });
+      }
     }
   }
 

@@ -6,7 +6,7 @@
 
 import type { AlimtalkButton } from "./types";
 
-export type AlimtalkTemplateKey = "QUOTE_DELIVERED";
+export type AlimtalkTemplateKey = "QUOTE_DELIVERED" | "REVIEW_REQUEST";
 
 /** 비즈톡센터에 등록할 원문. 검수 접수 시 이 문자열을 그대로 붙여넣는다. */
 export const QUOTE_DELIVERED_DRAFT = `[아임딜러] 견적서 도착 안내
@@ -52,6 +52,39 @@ ${v.고객명}님, 요청하신 견적서가 준비되었습니다.
 
 export function buildQuoteDeliveredButtons(linkUrl: string): AlimtalkButton[] {
   return [{ name: "견적서 확인하기", type: "WL", url_mobile: linkUrl, url_pc: linkUrl }];
+}
+
+/** 비즈톡센터에 등록할 원문. 검수 접수 시 이 문자열을 그대로 붙여넣는다. */
+export const REVIEW_REQUEST_DRAFT = `[아임딜러] 후기 작성 안내
+
+#{고객명}님, 계약이 완료되었습니다.
+
+이용 경험에 대한 후기를 남겨주시면 다른 고객님께 큰 도움이 됩니다.
+
+아래 버튼에서 후기를 작성하실 수 있습니다.
+
+※ 본 메시지는 계약을 완료하신 고객님께 발송되는 안내입니다.`;
+
+export type ReviewRequestVars = {
+  readonly 고객명: string;
+  /** 버튼 링크. 프로토콜(https://)까지 포함된 완성 URL 이어야 한다. */
+  readonly 링크: string;
+};
+
+export function buildReviewRequestMessage(v: ReviewRequestVars): string {
+  return `[아임딜러] 후기 작성 안내
+
+${v.고객명}님, 계약이 완료되었습니다.
+
+이용 경험에 대한 후기를 남겨주시면 다른 고객님께 큰 도움이 됩니다.
+
+아래 버튼에서 후기를 작성하실 수 있습니다.
+
+※ 본 메시지는 계약을 완료하신 고객님께 발송되는 안내입니다.`;
+}
+
+export function buildReviewRequestButtons(linkUrl: string): AlimtalkButton[] {
+  return [{ name: "후기 작성하기", type: "WL", url_mobile: linkUrl, url_pc: linkUrl }];
 }
 
 /**

@@ -1,15 +1,8 @@
-import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
-
-const TOKEN_TTL_DAYS = 30;
-
-function buildReviewUrl(token: string): string {
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-  return `${base}/reviews/write/${token}`;
-}
+import { issueOrReuseReviewToken } from "@/lib/review-token-issue";
 
 export async function POST(
   request: NextRequest,
@@ -40,62 +33,37 @@ export async function POST(
       );
     }
 
-    const now = new Date();
-
-    const existing = await prisma.reviewRequestToken.findFirst({
-      where: {
-        savedQuoteId: quoteId,
-        usedAt: null,
-        revokedAt: null,
-        expiresAt: { gt: now },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (existing) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          token: existing.token,
-          url: buildReviewUrl(existing.token),
-          expiresAt: existing.expiresAt,
-          reused: true,
-        },
-      });
+    if (!session) {
+      return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }
 
-    const expiresAt = new Date(now.getTime() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
-    const token = randomUUID();
-
-    const created = await prisma.reviewRequestToken.create({
-      data: {
-        token,
-        savedQuoteId: quoteId,
-        expiresAt,
-        createdById: session.id,
-      },
+    const issued = await issueOrReuseReviewToken({
+      quoteId,
+      createdById: session.id,
     });
 
-    await logAdminAction({
-      request,
-      actor: session,
-      action: "REVIEW_TOKEN_ISSUE",
-      resource: "ReviewRequestToken",
-      targetId: created.id,
-      after: { savedQuoteId: quoteId, expiresAt },
-    });
+    if (!issued.reused) {
+      await logAdminAction({
+        request,
+        actor: session,
+        action: "REVIEW_TOKEN_ISSUE",
+        resource: "ReviewRequestToken",
+        targetId: issued.id,
+        after: { savedQuoteId: quoteId, expiresAt: issued.expiresAt },
+      });
+    }
 
     return NextResponse.json(
       {
         success: true,
         data: {
-          token: created.token,
-          url: buildReviewUrl(created.token),
-          expiresAt: created.expiresAt,
-          reused: false,
+          token: issued.token,
+          url: issued.url,
+          expiresAt: issued.expiresAt,
+          reused: issued.reused,
         },
       },
-      { status: 201 }
+      { status: issued.reused ? 200 : 201 }
     );
   } catch (error) {
     console.error("[POST /api/admin/quotes/[id]/review-token]", error);

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   QUOTE_DELIVERED_DRAFT,
+  REVIEW_REQUEST_DRAFT,
   buildQuoteDeliveredButtons,
   buildQuoteDeliveredMessage,
+  buildReviewRequestButtons,
+  buildReviewRequestMessage,
 } from "./templates";
 
 const VARS = {
@@ -50,5 +53,36 @@ describe("buildQuoteDeliveredButtons", () => {
     expect(button.url_mobile).toBe(VARS.링크);
     expect(button.url_pc).toBe(VARS.링크);
     expect(button.url_mobile.startsWith("https://")).toBe(true);
+  });
+});
+
+const REVIEW_VARS = {
+  고객명: "홍길동",
+  링크: "https://www.imdealer.co.kr/reviews/write/token-1",
+} as const;
+
+describe("buildReviewRequestMessage", () => {
+  it("등록 원문의 변수만 치환한 결과와 일치한다", () => {
+    const expected = REVIEW_REQUEST_DRAFT.replace("#{고객명}", "홍길동");
+    expect(buildReviewRequestMessage(REVIEW_VARS)).toBe(expected);
+  });
+
+  it("미치환 변수가 남지 않는다", () => {
+    expect(buildReviewRequestMessage(REVIEW_VARS)).not.toMatch(/#\{/);
+  });
+
+  it("본문이 1300자를 넘지 않는다", () => {
+    expect(buildReviewRequestMessage(REVIEW_VARS).length).toBeLessThanOrEqual(1300);
+  });
+});
+
+describe("buildReviewRequestButtons", () => {
+  it("모바일·PC 링크가 완성된 https URL 이다", () => {
+    const [button] = buildReviewRequestButtons(REVIEW_VARS.링크);
+    expect(button?.type).toBe("WL");
+    expect(button?.name).toBe("후기 작성하기");
+    expect(button?.url_mobile).toBe(REVIEW_VARS.링크);
+    expect(button?.url_pc).toBe(REVIEW_VARS.링크);
+    expect(button?.url_mobile.startsWith("https://")).toBe(true);
   });
 });

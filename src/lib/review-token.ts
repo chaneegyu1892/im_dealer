@@ -30,6 +30,9 @@ export const REVIEW_TOKEN_REASON_MESSAGE: Record<TokenInvalidReason, string> = {
 export const REVIEW_TOKEN_MAX_IMAGE_UPLOADS = 5;
 export const REVIEW_TOKEN_MAX_IMAGE_BYTES = REVIEW_TOKEN_MAX_IMAGE_UPLOADS * REVIEW_IMAGE_MAX_SIZE;
 
+export type { IssuedReviewToken } from "./review-token-issue";
+export { buildReviewUrl, issueOrReuseReviewToken } from "./review-token-issue";
+
 export type ReviewImageUploadReservation =
   | { ok: true; data: { id: string; path: string; url: string } }
   | { ok: false; reason: "quota" | "invalid" };
