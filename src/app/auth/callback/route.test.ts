@@ -267,6 +267,7 @@ describe("GET /auth/callback", () => {
   });
 
   it("재로그인(이미 귀속된 견적)에서도 클레임은 멱등하게 no-op 이다", async () => {
+    vi.useFakeTimers({ now: new Date("2026-08-19T00:00:00.000Z") });
     const cap = createVerificationCapability();
     const request = new Request(
       "https://app.example/auth/callback?code=code-1&next=/mypage",
@@ -277,17 +278,21 @@ describe("GET /auth/callback", () => {
       },
     );
 
-    await GET(request);
-    await GET(request);
+    try {
+      await GET(request);
+      await GET(request);
 
-    // 두 로그인 모두 동일 predicate 로 호출되지만, 첫 클레임에서
-    // data.userId 가 심어지고 verificationCapabilityHash 가 null 로 지워지므로
-    // 두 번째 호출은 매칭 행이 없다(Prisma in 은 null 행에 매칭되지 않음).
-    expect(mocks.claimQuotes).toHaveBeenCalledTimes(2);
-    const first = mocks.claimQuotes.mock.calls[0][0];
-    const second = mocks.claimQuotes.mock.calls[1][0];
-    expect(first.where.userId).toBeNull();
-    expect(first.data.verificationCapabilityHash).toBeNull();
-    expect(second).toEqual(first);
+      // 두 로그인 모두 동일 predicate 로 호출되지만, 첫 클레임에서
+      // data.userId 가 심어지고 verificationCapabilityHash 가 null 로 지워지므로
+      // 두 번째 호출은 매칭 행이 없다(Prisma in 은 null 행에 매칭되지 않음).
+      expect(mocks.claimQuotes).toHaveBeenCalledTimes(2);
+      const first = mocks.claimQuotes.mock.calls[0][0];
+      const second = mocks.claimQuotes.mock.calls[1][0];
+      expect(first.where.userId).toBeNull();
+      expect(first.data.verificationCapabilityHash).toBeNull();
+      expect(second).toEqual(first);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
