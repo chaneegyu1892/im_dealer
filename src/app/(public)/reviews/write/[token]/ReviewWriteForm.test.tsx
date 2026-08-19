@@ -178,6 +178,32 @@ describe("ReviewWriteForm image quota release", () => {
     expect(screen.queryByText("이미지 업로드에 실패했습니다.")).not.toBeInTheDocument();
   });
 
+  it("제출에 성공한 이미지는 beforeunload 때 release 하지 않는다", async () => {
+    render(
+      <ReviewWriteForm
+        token={TOKEN}
+        vehicleName="테스트 차량"
+        customerDisplayName="홍*동"
+      />,
+    );
+
+    const input = document.querySelector('input[type="file"]');
+    fireEvent.change(input as HTMLInputElement, { target: { files: [uploadFile()] } });
+    expect(await screen.findByAltText("첨부 이미지 1")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("후기 내용"), {
+      target: { value: "충분히 긴 후기 내용입니다." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "후기 제출하기" }));
+    expect(await screen.findByText("후기가 접수되었어요")).toBeInTheDocument();
+
+    window.dispatchEvent(new Event("beforeunload"));
+    await Promise.resolve();
+
+    expect(sendBeacon).not.toHaveBeenCalled();
+    expect(releaseCalls()).toHaveLength(0);
+  });
+
   it("제출에 성공한 이미지는 언마운트 때 release 하지 않는다", async () => {
     const view = render(
       <ReviewWriteForm
@@ -233,5 +259,58 @@ describe("ReviewWriteForm image quota release", () => {
     });
     expect(JSON.parse(text)).toEqual({ uploadIds: [UPLOAD_ID] });
     expect(releaseCalls()).toHaveLength(0);
+  });
+
+  it("beforeunload 는 마지막으로 업로드된 이미지 id 를 사용한다", async () => {
+    let uploadCount = 0;
+    fetchMock.mockImplementation(async (input: unknown, init?: RequestInit) => {
+      const url = fetchUrl(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (url === `/api/reviews/submit/${TOKEN}/image` && method === "POST") {
+        uploadCount += 1;
+        return jsonResponse(
+          {
+            success: true,
+            data: {
+              id: `upload-${uploadCount}`,
+              path: `review-token-1/${uploadCount}.jpg`,
+              url: `https://cdn.example/review-images/${uploadCount}.jpg`,
+            },
+          },
+          201,
+        );
+      }
+      if (url === `/api/reviews/submit/${TOKEN}/image/release` && method === "POST") {
+        return jsonResponse({ success: true });
+      }
+      return jsonResponse({ error: "not found" }, 404);
+    });
+
+    render(
+      <ReviewWriteForm
+        token={TOKEN}
+        vehicleName="테스트 차량"
+        customerDisplayName="홍*동"
+      />,
+    );
+
+    const input = document.querySelector('input[type="file"]');
+    fireEvent.change(input as HTMLInputElement, { target: { files: [uploadFile("one.jpg")] } });
+    expect(await screen.findByAltText("첨부 이미지 1")).toBeInTheDocument();
+    fireEvent.change(input as HTMLInputElement, { target: { files: [uploadFile("two.jpg")] } });
+    expect(await screen.findByAltText("첨부 이미지 2")).toBeInTheDocument();
+
+    window.dispatchEvent(new Event("beforeunload"));
+
+    expect(sendBeacon).toHaveBeenCalledTimes(1);
+    const beaconBody = sendBeacon.mock.calls[0]?.[1];
+    expect(beaconBody).toBeInstanceOf(Blob);
+    const text = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(beaconBody as Blob);
+    });
+    expect(JSON.parse(text)).toEqual({ uploadIds: ["upload-1", "upload-2"] });
   });
 });

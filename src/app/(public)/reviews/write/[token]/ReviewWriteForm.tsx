@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Star, CheckCircle2 } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import { Button } from "@/components/ui/Button";
@@ -86,8 +86,11 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
   const submittedRef = useRef(false);
   const claimedReleaseIdsRef = useRef<Set<string>>(new Set());
 
-  imagesRef.current = images;
-  submittedRef.current = submitted;
+  useLayoutEffect(() => {
+    imagesRef.current = images;
+    submittedRef.current = submitted;
+  }, [images, submitted]);
+
   const imageUrls = images.map((image) => image.url);
 
   const length = content.length;
@@ -209,6 +212,7 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
       for (const image of imagesRef.current) {
         claimedReleaseIdsRef.current.add(image.id);
       }
+      submittedRef.current = true;
       setSubmitted(true);
     } catch (submitError: unknown) {
       if (submitError instanceof Error) {
