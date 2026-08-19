@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { generateCouponCode } from "@/lib/coupons/code";
 import {
   decideReferralAttribution,
@@ -6,9 +6,47 @@ import {
 } from "./attribution";
 import { normalizeReferralCode } from "./code";
 
-type Db = PrismaClient | Prisma.TransactionClient;
+export type Db = PrismaClient | Prisma.TransactionClient;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** refereeId 유니크 위반 — 동시 적용(경합)에서 진 쪽이 받는 유일한 신호 */
+function isRefereeIdUniqueViolation(err: unknown): boolean {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (err.code !== "P2002") return false;
+  const target = err.meta?.target;
+  if (Array.isArray(target)) return target.includes("refereeId");
+  return String(target ?? "").includes("refereeId");
+}
+
+/**
+ * 거절을 어뷰즈 원장에 남긴다. refereeId @unique 로 슬롯이 1개뿐이라
+ * BLOCKED 행은 해당 회원의 평생 1회 기회를 소진한다(종단 거절).
+ * 이미 슬롯을 점유한 경우(P2002) 기록이 존재하므로 결과만 반환한다.
+ */
+async function recordBlockedReferral(input: {
+  db: Db;
+  referrerId: string;
+  refereeId: string;
+  code: string;
+  signupIpHash: string | null | undefined;
+}): Promise<void> {
+  try {
+    await input.db.referral.create({
+      data: {
+        referrerId: input.referrerId,
+        refereeId: input.refereeId,
+        code: input.code,
+        status: "BLOCKED",
+        signupIpHash: input.signupIpHash ?? null,
+      },
+      select: { id: true },
+    });
+  } catch (err) {
+    if (isRefereeIdUniqueViolation(err)) return;
+    throw err;
+  }
+}
 
 export interface ApplyReferralInput {
   inviteeUserId: string;
@@ -74,22 +112,49 @@ export async function applyReferralOnProfileComplete(
   });
 
   if (!decision.ok) {
+    // B6 거절 기록: 자기 추천(본인 코드·동일 카카오 다계정)은 어뷰즈로 BLOCKED 행을 남긴다.
+    // 이후 재시도는 findUnique 가 BLOCKED 행을 발견해 ALREADY_ATTRIBUTED 로 막힌다(의도된 영구 차단).
+    // ALREADY_ATTRIBUTED 는 슬롯을 이미 점유한 기존 행이 곧 기록이라 추가 행이 불가능하고,
+    // INVALID_CODE 는 referrerId FK 를 채울 추천인이 없으며,
+    // INVITER_INACTIVE / MONTHLY_CAP / ENTRY_WINDOW_CLOSED 는 피초청자 잘못이 아니므로
+    // 슬롯을 소진해 재시도(다른 코드·다음 달)까지 막아서는 안 된다.
+    if (decision.reason === "SELF_REFERRAL" && inviter) {
+      await recordBlockedReferral({
+        db,
+        referrerId: inviter.id,
+        refereeId: input.inviteeUserId,
+        code,
+        signupIpHash: input.signupIpHash,
+      });
+    }
     return { applied: false, reason: decision.reason };
   }
 
-  const referral = await db.referral.create({
-    data: {
-      referrerId: decision.inviterUserId,
-      refereeId: input.inviteeUserId,
-      code: decision.code,
-      status: "REWARDED",
-      signupIpHash: input.signupIpHash ?? null,
-    },
-    select: { id: true },
-  });
+  let referralId: string;
+  try {
+    const referral = await db.referral.create({
+      data: {
+        referrerId: decision.inviterUserId,
+        refereeId: input.inviteeUserId,
+        code: decision.code,
+        status: "REWARDED",
+        signupIpHash: input.signupIpHash ?? null,
+      },
+      select: { id: true },
+    });
+    referralId = referral.id;
+  } catch (err) {
+    if (isRefereeIdUniqueViolation(err)) {
+      // 조회→생성 사이 동시 적용: refereeId 유니크 가드가 승자 1건만 남긴다.
+      // 패자는 '이미 적용됨'으로 응답해 redeem-code 가 500 이 아닌 409 를 내리게 한다.
+      // 이 시점 트랜잭션엔 쓰기가 없었으므로 커밋되어도 부분 커밋이 없다.
+      return { applied: false, reason: "ALREADY_ATTRIBUTED" };
+    }
+    throw err;
+  }
 
   await issueReferralCoupons({
-    referralId: referral.id,
+    referralId,
     inviterUserId: decision.inviterUserId,
     inviteeUserId: input.inviteeUserId,
     now: new Date(),
@@ -99,7 +164,7 @@ export async function applyReferralOnProfileComplete(
   return {
     applied: true,
     inviterUserId: decision.inviterUserId,
-    referralId: referral.id,
+    referralId,
   };
 }
 
@@ -142,7 +207,8 @@ async function issueReferralCoupons(input: {
         : new Date(input.now.getTime() + policy.validDays * MS_PER_DAY);
 
     // 호출부가 트랜잭션으로 감싸므로 실패하면 Referral 행과 함께 전부 롤백된다.
-    // (policyId, referralId) partial unique 는 신규 referralId 라 충돌할 수 없다.
+    // IssuedCoupon 에 (policyId, referralId) 유니크는 없다 — 유니크는 쿠폰 코드(code)뿐이고
+    // referralId 는 일반 인덱스다. 중복 발급은 스키마가 아니라 이 발급 로직(Referral 1행당 1회)이 막는다.
     await input.db.issuedCoupon.create({
       data: {
         userId,

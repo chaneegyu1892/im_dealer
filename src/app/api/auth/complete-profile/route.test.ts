@@ -263,6 +263,44 @@ describe("POST /api/auth/complete-profile", () => {
     expect(res.headers.get("set-cookie") ?? "").not.toContain("referral_code");
   });
 
+  it("추천 인정 결과를 응답에 표면화한다 — 성공 시 referralApplied:true", async () => {
+    mocks.applyReferralOnProfileComplete.mockResolvedValue({
+      applied: true,
+      inviterUserId: "inviter-1",
+      referralId: "ref-1",
+    });
+    const res = await POST(
+      request({ name: "홍길동", phone: "010-1234-5678" }, "referral_code=K4821"),
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { referralApplied?: boolean };
+    expect(json.referralApplied).toBe(true);
+    expect(res.headers.get("set-cookie") ?? "").toContain("referral_code");
+  });
+
+  it("추천 인정 결과를 응답에 표면화한다 — 거절 시 referralApplied:false", async () => {
+    mocks.applyReferralOnProfileComplete.mockResolvedValue({
+      applied: false,
+      reason: "ALREADY_ATTRIBUTED",
+    });
+    const res = await POST(
+      request({ name: "홍길동", phone: "010-1234-5678" }, "referral_code=K4821"),
+    );
+
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { referralApplied?: boolean };
+    expect(json.referralApplied).toBe(false);
+  });
+
+  it("추천 코드 시도가 없으면 referralApplied 필드를 보내지 않는다", async () => {
+    const res = await POST(request({ name: "홍길동", phone: "010-1234-5678" }));
+
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { referralApplied?: boolean };
+    expect(json).not.toHaveProperty("referralApplied");
+  });
+
   it("이미 가입 완료된 회원이 보낸 코드는 검증 없이 무시한다", async () => {
     mocks.requireActiveUser.mockResolvedValue({
       user: {

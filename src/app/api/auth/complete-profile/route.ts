@@ -124,7 +124,10 @@ export async function POST(request: NextRequest) {
   // 트랜잭션 롤백 덕분에 회원이 창구(7일) 안에 쿠폰함 카드로 다시 시도할 수 있다.
   const referralRawCode = typedReferralCode ?? referralFromCookie;
   let referralApplyFailed = false;
+  let referralAttempted = false;
+  let referralApplied = false;
   if (!wasProfileCompleted && referralRawCode) {
+    referralAttempted = true;
     try {
       const result = await prisma.$transaction((tx) =>
         applyReferralOnProfileComplete(
@@ -138,6 +141,7 @@ export async function POST(request: NextRequest) {
           tx,
         ),
       );
+      referralApplied = result.applied;
       if (!result.applied) {
         console.info("[complete-profile] referral not applied:", result.reason);
       }
@@ -147,7 +151,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.json({ success: true });
+  // 추천 인정 결과 표면화: 삼켜진 실패/거절을 클라이언트가 알 수 있게 한다.
+  // 시도가 없었으면 필드를 보내지 않는다(코드 없는 일반 가입과 구분).
+  const response = NextResponse.json({
+    success: true,
+    ...(referralAttempted ? { referralApplied } : {}),
+  });
   // 소비된 추천 쿠키 제거. 인정이 일시 오류로 실패한 경우에는 남겨둔다.
   if (referralFromCookie && !referralApplyFailed) {
     response.cookies.set(REFERRAL_COOKIE_NAME, "", {
