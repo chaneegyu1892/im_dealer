@@ -3,10 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
+  inventoryFindFirst: vi.fn(async (): Promise<{ id: string } | null> => null),
   buildJsonLd: vi.fn((input: unknown) => [input]),
 }));
 
-vi.mock("@/lib/prisma", () => ({ prisma: { vehicle: { findUnique: mocks.findUnique } } }));
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    vehicle: { findUnique: mocks.findUnique },
+    inventory: { findFirst: mocks.inventoryFindFirst },
+  },
+}));
 vi.mock("@/lib/representative-quote-query", () => ({
   getRepresentativeQuotesByVehicle: vi.fn(async () => new Map()),
 }));
@@ -190,6 +196,51 @@ describe("public car detail SSR", () => {
 
     expect(markup).not.toContain(attack);
     expect(JSON.parse(jsonLdText)).toMatchObject({ description: attack });
+  });
+
+  it("passes live inventory availability into JSON-LD", async () => {
+    mocks.findUnique.mockResolvedValue({
+      id: "vehicle",
+      slug: "test-car",
+      name: "테스트카",
+      brand: "테스트",
+      category: "SUV",
+      vehicleCode: null,
+      basePrice: 40_000_000,
+      thumbnailUrl: "",
+      thumbnailImageId: null,
+      thumbnailImage: null,
+      imageUrls: [],
+      surchargeRate: 0,
+      isVisible: true,
+      isPopular: false,
+      description: null,
+      detailedSpecs: null,
+      trims: [{
+        id: "trim-1",
+        name: "기본",
+        price: 40_000_000,
+        engineType: "GASOLINE",
+        fuelEfficiency: 12,
+        isDefault: true,
+        isVisible: true,
+        specs: null,
+        options: [],
+        lineup: { name: "2027년형 가솔린", isVisible: true },
+      }],
+      recConfigs: null,
+      images: [],
+      _count: { images: 0 },
+    });
+    mocks.inventoryFindFirst.mockResolvedValue({ id: "inv-1" });
+
+    await CarDetailPage({
+      params: Promise.resolve({ slug: "test-car" }),
+    });
+
+    expect(mocks.buildJsonLd).toHaveBeenCalledWith(
+      expect.objectContaining({ hasAvailableInventory: true }),
+    );
   });
 
 });

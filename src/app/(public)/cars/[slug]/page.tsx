@@ -1,15 +1,22 @@
 // ISR: 10분마다 재생성. 첫 요청 시 on-demand prerender 후 캐시.
 // 어드민 mutation 시 revalidatePath('/cars/[slug]', 'page') 로 즉시 무효화.
+// dynamicParams 기본값 true — 빌드에 없는 slug 도 첫 요청에서 렌더한다.
+// notFound() 응답도 동일 TTL 로 캐시되므로, 숨김 전환 직후 404가 남으면
+// 어드민 revalidatePublicVehicleSurfaces() 가 경로를 비운다.
 //
 // 주의: generateStaticParams 로 빌드 시점에 일괄 prerender 하지 않는다.
 // Supabase pgbouncer 풀(connection_limit=1) 환경에서 다중 worker가 동시 조회 시
 // connection pool timeout 으로 빌드가 실패한다.
 export const revalidate = 600;
+export const dynamicParams = true;
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
+import {
+  filterLatestPublicTrims,
+  PUBLIC_TRIM_WHERE,
+} from "@/lib/vehicle-visibility-policy";
 
 import { getRepresentativeQuotesByVehicle } from "@/lib/representative-quote-query";
 import type { RepresentativeQuote } from "@/lib/representative-quote";
@@ -51,7 +58,11 @@ async function getVehicleMeta(slug: string) {
       isVisible: true,
       trims: {
         where: PUBLIC_TRIM_WHERE,
-        select: { price: true },
+        select: {
+          price: true,
+          isVisible: true,
+          lineup: { select: { name: true, isVisible: true } },
+        },
         orderBy: { price: "asc" },
       },
     },
@@ -69,7 +80,8 @@ export async function generateMetadata({
     return { title: "차량을 찾을 수 없습니다", robots: { index: false, follow: false } };
   }
 
-  const lowestPrice = v.trims[0]?.price ?? v.basePrice;
+  const lowestPrice =
+    filterLatestPublicTrims(v.trims)[0]?.price ?? v.basePrice;
   const priceManwon = Math.round(lowestPrice / 10000).toLocaleString("ko-KR");
   const titleText = `${v.brand} ${v.name} 장기렌트·운용리스 견적`;
   const descText = summarizeMetaDescription(
@@ -111,7 +123,10 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
       trims: {
         where: PUBLIC_TRIM_WHERE,
         orderBy: [{ isDefault: "desc" }, { price: "asc" }],
-        include: { options: true },
+        include: {
+          options: true,
+          lineup: { select: { name: true, isVisible: true } },
+        },
       },
       recConfigs: {
         where: { isActive: true },
@@ -123,16 +138,16 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
 
   if (!vehicle || !vehicle.isVisible) return null;
 
-  const defaultTrim = vehicle.trims.find((t) => t.isDefault) ?? vehicle.trims[0];
+  const publicTrims = filterLatestPublicTrims(vehicle.trims);
+  const defaultTrim = publicTrims.find((t) => t.isDefault) ?? publicTrims[0];
 
   // 60개월·무보증·2만km 기준 productType(장기렌트/리스)별 대표 견적가.
-  // 목록 페이지와 동일하게 "모든 노출 트림" 기준 최저값으로 산출 — 트림 선택 차이로
-  // 목록과 상세 견적가가 달라지거나 "견적 준비중"이 뜨던 문제 방지.
+  // 목록·견적 페이지와 동일하게 최신 공개 연식 트림만 대표가 산출에 쓴다.
   const quotesByVehicle = await getRepresentativeQuotesByVehicle([
     {
       vehicleId: vehicle.id,
       vehicleSurchargeRate: vehicle.surchargeRate,
-      trims: vehicle.trims.map((t) => ({
+      trims: publicTrims.map((t) => ({
         trimId: t.id,
         vehiclePrice: t.price,
         discountPrice: t.discountPrice,
@@ -157,7 +172,7 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     category: vehicle.category as VehicleDetail["category"],
     vehicleCode: vehicle.vehicleCode,
     basePrice: vehicle.basePrice,
-    evSubsidyRange: subsidyRangeFromTrims(vehicle.trims),
+    evSubsidyRange: subsidyRangeFromTrims(publicTrims),
     thumbnailUrl,
     imageUrls: legacyImageFallbackAllowed ? vehicle.imageUrls : [],
     images: resolvePublicVehicleImages(vehicle.images),
@@ -166,7 +181,7 @@ async function getVehicle(slug: string): Promise<VehicleDetail | null> {
     surchargeRate: vehicle.surchargeRate,
     isPopular: vehicle.isPopular,
     description: vehicle.description,
-    trims: vehicle.trims.map((t) => ({
+    trims: publicTrims.map((t) => ({
       id: t.id,
       name: t.name,
       price: t.price,
@@ -210,9 +225,20 @@ export default async function CarDetailPage({
   const vehicle = await getVehicle(slug);
   if (!vehicle) notFound();
 
-  const [reviews, bestReviews] = await Promise.all([
+  const [reviews, bestReviews, availableInventory] = await Promise.all([
     getPublicReviewsByVehicleId(vehicle.id, 10),
     getBestReviews({ vehicleId: vehicle.id, limit: 4 }),
+    prisma.inventory.findFirst({
+      where: {
+        status: "AVAILABLE",
+        stockCount: { gt: 0 },
+        trim: {
+          vehicleId: vehicle.id,
+          isVisible: true,
+        },
+      },
+      select: { id: true },
+    }),
   ]);
 
   const jsonLd = buildCarJsonLd({
@@ -225,6 +251,7 @@ export default async function CarDetailPage({
     thumbnailUrl: vehicle.thumbnailUrl,
     trims: vehicle.trims.map((t) => ({ price: t.price })),
     basePrice: vehicle.basePrice,
+    hasAvailableInventory: availableInventory !== null,
   });
 
   return (

@@ -8,6 +8,7 @@ interface CarJsonLdInput {
   readonly thumbnailUrl: string | null;
   readonly trims: readonly { readonly price: number }[];
   readonly basePrice: number;
+  readonly hasAvailableInventory?: boolean;
 }
 
 export function buildCarJsonLd(v: CarJsonLdInput): Record<string, unknown>[] {
@@ -34,7 +35,9 @@ export function buildCarJsonLd(v: CarJsonLdInput): Record<string, unknown>[] {
         highPrice,
         offerCount,
         url,
-        availability: "https://schema.org/InStock",
+        availability: v.hasAvailableInventory
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
       },
     },
     {

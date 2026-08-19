@@ -62,7 +62,7 @@ export function CarsStickyFilterBar({
             <button
               type="button"
               onClick={() => onBrandChange("전체")}
-              className="inline-flex h-10 shrink-0 items-center gap-1 rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand max-[430px]:hidden"
+              className="inline-flex h-10 shrink-0 items-center gap-1 rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand"
             >
               {brandFilter}
               <X size={11} />
@@ -72,7 +72,7 @@ export function CarsStickyFilterBar({
             <button
               type="button"
               onClick={() => onCategoryChange("전체")}
-              className="inline-flex h-10 shrink-0 items-center gap-1 rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand max-[430px]:hidden"
+              className="inline-flex h-10 shrink-0 items-center gap-1 rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand"
             >
               {categoryFilter}
               <X size={11} />

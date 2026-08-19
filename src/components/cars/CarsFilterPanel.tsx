@@ -195,14 +195,36 @@ export function CarsFilterPanel({
           </p>
         </div>
         {activeFilterCount > 0 && (
-          <button
-            type="button"
-            onClick={onResetFilters}
-            className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-pill bg-surface-soft px-3 text-[12px] font-extrabold text-text-body transition-colors hover:text-brand"
-          >
-            <X size={12} />
-            초기화
-          </button>
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+            {brandFilter !== "전체" && (
+              <button
+                type="button"
+                onClick={() => onBrandChange("전체")}
+                className="inline-flex min-h-9 items-center gap-1 rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand"
+              >
+                {brandFilter}
+                <X size={12} />
+              </button>
+            )}
+            {categoryFilter !== "전체" && (
+              <button
+                type="button"
+                onClick={() => onCategoryChange("전체")}
+                className="inline-flex min-h-9 items-center gap-1 rounded-pill bg-brand-soft px-3 text-[12px] font-extrabold text-brand"
+              >
+                {categoryFilter}
+                <X size={12} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onResetFilters}
+              className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-pill bg-surface-soft px-3 text-[12px] font-extrabold text-text-body transition-colors hover:text-brand"
+            >
+              <X size={12} />
+              초기화
+            </button>
+          </div>
         )}
       </div>
 

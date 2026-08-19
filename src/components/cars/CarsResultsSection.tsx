@@ -134,7 +134,7 @@ export function CarsResultsSection({
             <span className="text-[12px] font-semibold text-text-muted">개</span>
           </div>
           {hasActiveFilters && (
-            <div className="hidden items-center gap-1.5 sm:flex">
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
               {brandFilter !== "전체" && (
                 <button
                   type="button"
@@ -186,6 +186,26 @@ export function CarsResultsSection({
               <p className="mb-5 text-[14px] leading-relaxed text-text-muted">
                 조건을 조금 바꾸면 더 많은 차량을 볼 수 있어요.
               </p>
+              <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+                {brandFilter !== "전체" && (
+                  <button
+                    type="button"
+                    onClick={onBrandReset}
+                    className="inline-flex min-h-10 items-center rounded-pill bg-brand-soft px-4 text-[13px] font-extrabold text-brand"
+                  >
+                    브랜드 범위를 넓혀보세요
+                  </button>
+                )}
+                {categoryFilter !== "전체" && (
+                  <button
+                    type="button"
+                    onClick={onCategoryReset}
+                    className="inline-flex min-h-10 items-center rounded-pill bg-brand-soft px-4 text-[13px] font-extrabold text-brand"
+                  >
+                    차종 조건을 풀어보세요
+                  </button>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={onClearAll}

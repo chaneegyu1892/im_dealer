@@ -15,7 +15,10 @@ import {
   publicListThumbnailProjectionSelect,
   resolvePublicListThumbnailUrl,
 } from "@/lib/vehicle-images/public";
-import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
+import {
+  filterLatestPublicTrims,
+  PUBLIC_TRIM_WHERE,
+} from "@/lib/vehicle-visibility-policy";
 import { createPageMetadata } from "@/lib/site-config";
 import { parseCarsBrowseState } from "@/lib/cars-browse-state";
 import { trimLooksHybrid } from "@/lib/vehicle-quick-filters";
@@ -61,6 +64,8 @@ async function getVehicles(): Promise<VehicleListItem[]> {
           engineType: true,
           fuelEfficiency: true,
           specs: true,
+          isVisible: true,
+          lineup: { select: { name: true, isVisible: true } },
         },
       },
       recConfigs: {
@@ -96,7 +101,7 @@ async function getVehicles(): Promise<VehicleListItem[]> {
     spotlightVehicles.map((v) => ({
       vehicleId: v.id,
       vehicleSurchargeRate: v.surchargeRate,
-      trims: v.trims.map((t) => ({
+      trims: filterLatestPublicTrims(v.trims).map((t) => ({
         trimId: t.id,
         vehiclePrice: t.price,
         discountPrice: t.discountPrice,
@@ -105,7 +110,8 @@ async function getVehicles(): Promise<VehicleListItem[]> {
   );
 
   return vehicles.map((v) => {
-    const defaultTrim = v.trims[0];
+    const publicTrims = filterLatestPublicTrims(v.trims);
+    const defaultTrim = publicTrims[0];
     const representativeQuotes = quotesByVehicle.get(v.id) ?? [];
     const monthlyFrom = lowestMonthly(representativeQuotes);
     const hasAvailableInventory = availableVehicleIds.has(v.id);
@@ -117,9 +123,9 @@ async function getVehicles(): Promise<VehicleListItem[]> {
       brand: v.brand,
       category: v.category as VehicleListItem["category"],
       basePrice: v.basePrice,
-      hasEv: v.trims.some((trim) => trim.engineType === "EV"),
-      hasHev: v.trims.some((trim) => trimLooksHybrid(trim)),
-      evSubsidyRange: subsidyRangeFromTrims(v.trims),
+      hasEv: publicTrims.some((trim) => trim.engineType === "EV"),
+      hasHev: publicTrims.some((trim) => trimLooksHybrid(trim)),
+      evSubsidyRange: subsidyRangeFromTrims(publicTrims),
       thumbnailUrl: resolvePublicListThumbnailUrl(v),
       isPopular: v.isPopular,
       isSpotlight: v.isSpotlight,

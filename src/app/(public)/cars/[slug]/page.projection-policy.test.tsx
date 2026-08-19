@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ findUnique: vi.fn() }));
 
-vi.mock("@/lib/prisma", () => ({ prisma: { vehicle: { findUnique: mocks.findUnique } } }));
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    vehicle: { findUnique: mocks.findUnique },
+    inventory: { findFirst: vi.fn(async () => null) },
+  },
+}));
 vi.mock("@/lib/representative-quote-query", () => ({
   getRepresentativeQuotesByVehicle: vi.fn(async () => new Map()),
 }));
