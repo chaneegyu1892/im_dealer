@@ -18,6 +18,7 @@ import {
   Settings,
   ClipboardList,
   Send,
+  UserPlus,
   MessageSquare,
   ShieldCheck,
   LogOut,
@@ -64,6 +65,7 @@ const NAV: NavGroup[] = [
       { href: "/admin/finance", label: "견적 산출 로직 관리", icon: Building2 },
       { href: "/admin/ai", label: "AI관리", icon: Sparkles },
       { href: "/admin/coupons", label: "쿠폰 관리", icon: Ticket },
+      { href: "/admin/referrals", label: "추천인 원장", icon: UserPlus },
     ],
   },
   {

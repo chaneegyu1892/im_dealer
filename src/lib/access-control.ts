@@ -45,6 +45,8 @@ export const PAGE_ACCESS = {
   "/admin/audit-logs": ["admin", "superadmin"],
   // 알림톡 큐 상태는 시스템 진단 화면이라 admin 이상만.
   "/admin/alimtalk-queue": ["admin", "superadmin"],
+  // 추천 원장의 차단 해제·보상 철회는 보상 회수급 처리라 admin 이상만.
+  "/admin/referrals": ["admin", "superadmin"],
   "/admin/settings": ["admin", "superadmin"],
   "/admin/recovery-rates": ["admin", "superadmin"],
   // 회원 전용 (라우트 그룹용)
