@@ -22,25 +22,45 @@ describe("CI 워크플로", () => {
     }
   });
 
-  it("네트워크 설치 명령을 재시도로 감싼다", () => {
-    // Given apt 미러가 멈추면 잡 타임아웃까지 매달린다 (2026-08-19 E2E 2잡 소실)
-    const fragile = WORKFLOW.split("\n").filter(
-      (line) => /\bapt-get\b/.test(line) || /playwright install\b/.test(line)
-    );
+  it("네트워크 설치 명령이 무한정 매달리지 않는다", () => {
+    // Given apt 미러가 멈추면 잡 타임아웃까지 매달린다 (2026-08-19 E2E 2잡 소실).
+    // 재시도(retry.sh)든 단발 timeout 이든, 상한 없는 호출이 하나도 없어야 한다.
+    // 주석과 echo 문구는 명령이 아니다 (경고 메시지에도 명령 이름이 들어간다).
+    const fragile = WORKFLOW.split("\n")
+      .map((line) => line.trim())
+      .filter((line) => !line.startsWith("#") && !line.startsWith("echo "))
+      .filter((line) => /\bapt-get\b/.test(line) || /playwright install\b/.test(line));
 
     // When 네트워크에 의존하는 설치 호출을 모으면
-    // Then 전부 retry.sh 를 거친다
+    // Then 전부 시간 상한을 갖는다
     expect(fragile.length).toBeGreaterThan(0);
     for (const line of fragile) {
-      expect(line).toContain("retry.sh");
+      expect(line).toMatch(/retry\.sh|timeout --kill-after/);
+    }
+  });
+
+  it("apt 재시도에 락 정리를 물려 둔다", () => {
+    // Given 중단된 apt 가 락을 쥔 채 남으면 이후 재시도가 전부 lock 오류로 즉사한다.
+    // 실제로 2026-08-19 에 재시도 2·3 회가 이렇게 무의미해졌다.
+    const aptRetrySteps = WORKFLOW.split(/^      - /m).filter(
+      (step) => step.includes("apt-get") && step.includes("retry.sh")
+    );
+
+    // When apt 를 재시도하는 스텝을 모으면
+    // Then 정리 훅이 걸려 있다
+    expect(aptRetrySteps.length).toBeGreaterThan(0);
+    for (const step of aptRetrySteps) {
+      expect(step).toContain("RETRY_CLEANUP");
     }
   });
 
   it("설치 스텝에 시간 상한이 걸려 있다", () => {
     // Given 상한이 없으면 멈춘 스텝이 잡 예산을 통째로 먹는다
-    const steps = WORKFLOW.split(/^      - /m).filter((s) => s.includes("retry.sh"));
+    const steps = WORKFLOW.split(/^      - /m).filter(
+      (step) => step.includes("retry.sh") || /playwright install\b/.test(step)
+    );
 
-    // When retry.sh 를 쓰는 스텝을 모으면
+    // When 네트워크 설치를 하는 스텝을 모으면
     // Then 각각 timeout-minutes 를 갖는다
     expect(steps.length).toBeGreaterThan(0);
     for (const step of steps) {

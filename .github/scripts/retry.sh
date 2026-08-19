@@ -7,6 +7,9 @@
 # 다시 시도할 수 있다.
 #
 # 사용법: retry.sh <시도당_제한초> <명령...>
+#
+# 환경변수 RETRY_CLEANUP 를 주면 재시도 사이에 실행한다. 중단된 명령이 락 같은
+# 잔재를 남기는 경우(apt) 이걸 치우지 않으면 이후 시도가 전부 같은 이유로 깨진다.
 set -uo pipefail
 
 if [ "$#" -lt 2 ]; then
@@ -35,5 +38,9 @@ for attempt in $(seq 1 "$max_attempts"); do
   fi
 
   echo "::warning::실패(종료코드 ${status}) — ${backoff_seconds}초 후 재시도 ${attempt}/${max_attempts}: $*"
+  if [ -n "${RETRY_CLEANUP:-}" ]; then
+    echo "재시도 전 정리: ${RETRY_CLEANUP}"
+    eval "$RETRY_CLEANUP" || true
+  fi
   sleep "$backoff_seconds"
 done
