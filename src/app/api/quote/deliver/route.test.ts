@@ -13,12 +13,19 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   getAccessToken: vi.fn(),
   sendMemo: vi.fn(),
+  enqueueAlimtalk: vi.fn(),
+  findNotification: vi.fn(),
+  createNotification: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     savedQuote: { findFirst: mocks.findSavedQuote },
     quoteDelivery: { create: mocks.createDelivery, update: mocks.updateDelivery },
+    adminNotification: {
+      findFirst: mocks.findNotification,
+      create: mocks.createNotification,
+    },
   },
 }));
 
@@ -40,6 +47,9 @@ vi.mock("@/lib/quote-delivery/store", () => ({
 }));
 vi.mock("@/lib/kakao/token", () => ({ getKakaoAccessToken: mocks.getAccessToken }));
 vi.mock("@/lib/kakao/memo", () => ({ sendQuoteMemo: mocks.sendMemo }));
+vi.mock("@/lib/alimtalk/enqueue", () => ({
+  enqueueAlimtalk: mocks.enqueueAlimtalk,
+}));
 vi.mock("@/lib/rate-limit", () => ({
   strictRateLimit: {},
   checkRateLimit: vi.fn(async () => null),
@@ -128,7 +138,13 @@ describe("POST /api/quote/deliver", () => {
     vi.stubEnv("NEXT_PUBLIC_KAKAO_SYNC", "true");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://imdealer.example");
     mocks.requireActiveUser.mockResolvedValue({
-      user: { id: "user-1", supabaseId: "sb-1", email: "a@b.com" },
+      user: {
+        id: "user-1",
+        supabaseId: "sb-1",
+        email: "a@b.com",
+        name: "홍길동",
+        phone: "01012345678",
+      },
       error: null,
     });
     mocks.findSavedQuote.mockResolvedValue(savedQuote);
@@ -140,6 +156,9 @@ describe("POST /api/quote/deliver", () => {
     mocks.createDelivery.mockResolvedValue({ id: "delivery-1" });
     mocks.updateDelivery.mockResolvedValue({});
     mocks.sendMemo.mockResolvedValue({ ok: true, reason: null });
+    mocks.enqueueAlimtalk.mockResolvedValue({ ok: true, id: "alim-1" });
+    mocks.findNotification.mockResolvedValue(null);
+    mocks.createNotification.mockResolvedValue({ id: "notif-1" });
   });
 
   afterEach(() => {
@@ -318,5 +337,101 @@ describe("POST /api/quote/deliver", () => {
     expect(mocks.upload).not.toHaveBeenCalled();
     expect(mocks.createDelivery).not.toHaveBeenCalled();
     expect(mocks.sendMemo).not.toHaveBeenCalled();
+  });
+
+  it("알림톡 적재가 실패해도 전달은 성공하고 어드민 알림을 남긴다", async () => {
+    mocks.enqueueAlimtalk.mockResolvedValue({ ok: false, reason: "invalid_phone" });
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, data: { deliveryId: "delivery-1" } });
+    expect(mocks.createNotification).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: "SYSTEM",
+        title: "알림톡 적재 실패",
+        content: expect.stringContaining("유효한 전화번호 없음"),
+        linkUrl: "/admin/quotations?id=quote-1&notice=alimtalk-enqueue",
+      }),
+    });
+    const payload = mocks.createNotification.mock.calls[0][0].data as {
+      content: string;
+    };
+    expect(payload.content).not.toContain("01012345678");
+  });
+
+  it("알림톡 적재 예외도 전달 응답을 바꾸지 않고 어드민 알림을 남긴다", async () => {
+    mocks.enqueueAlimtalk.mockRejectedValue(new Error("alimtalk table unavailable"));
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(200);
+    expect(mocks.createNotification).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: "SYSTEM",
+        title: "알림톡 적재 실패",
+        linkUrl: "/admin/quotations?id=quote-1&notice=alimtalk-enqueue",
+      }),
+    });
+  });
+
+  it("알림톡이 꺼져 있으면 적재 실패 알림을 만들지 않는다", async () => {
+    mocks.enqueueAlimtalk.mockResolvedValue({ ok: false, reason: "disabled" });
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(200);
+    expect(mocks.createNotification).not.toHaveBeenCalled();
+  });
+
+  it("같은 견적의 알림톡 적재 실패 알림은 재시도해도 한 건만 만든다", async () => {
+    mocks.enqueueAlimtalk.mockResolvedValue({ ok: false, reason: "no_template_code" });
+    mocks.findNotification
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "notif-1" });
+
+    const first = await POST(request());
+    const second = await POST(request());
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(mocks.createNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.findNotification).toHaveBeenCalledWith({
+      where: {
+        type: "SYSTEM",
+        linkUrl: "/admin/quotations?id=quote-1&notice=alimtalk-enqueue",
+      },
+      select: { id: true },
+    });
+  });
+
+  it("알림 생성이 실패해도 견적서 전달 성공 응답은 유지한다", async () => {
+    mocks.enqueueAlimtalk.mockResolvedValue({ ok: false, reason: "invalid_phone" });
+    mocks.createNotification.mockRejectedValue(new Error("notification insert failed"));
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, data: { deliveryId: "delivery-1" } });
+  });
+
+  it("카카오 발송 실패 시 견적 상세로 연결되는 어드민 알림을 남긴다", async () => {
+    mocks.sendMemo.mockResolvedValue({ ok: false, reason: "HTTP 403 insufficient scope" });
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(502);
+    expect(mocks.createNotification).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: "SYSTEM",
+        title: "견적서 전송 실패",
+        content: expect.stringContaining("서버 쏘렌토"),
+        linkUrl: "/admin/quotations?id=quote-1&notice=deliver-failed",
+      }),
+    });
+    const payload = mocks.createNotification.mock.calls[0][0].data as {
+      content: string;
+    };
+    expect(payload.content).not.toContain("01012345678");
   });
 });

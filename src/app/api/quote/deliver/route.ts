@@ -20,6 +20,10 @@ import {
   buildQuoteDeliveredButtons,
   buildQuoteDeliveredMessage,
 } from "@/lib/alimtalk/templates";
+import {
+  notifyAlimtalkEnqueueFailed,
+  notifyQuoteDeliverFailed,
+} from "@/lib/admin-notification";
 import type { PDFQuoteData } from "@/lib/quote-pdf-template";
 
 export const runtime = "nodejs";
@@ -144,6 +148,10 @@ export async function POST(req: NextRequest) {
       await markDeliveryFailed(delivery.id, reason);
       await removeUploadedQuote(path);
       console.error("[quote/deliver] kakao send failed:", result.reason);
+      await notifyQuoteDeliverFailed({
+        savedQuoteId: savedQuote.id,
+        vehicleName: imageData.vehicleName,
+      });
       return NextResponse.json(
         { error: "카카오톡 전송에 실패했습니다. 다시 시도하거나 상담하기를 이용해 주세요." },
         { status: 502 }
@@ -170,6 +178,10 @@ export async function POST(req: NextRequest) {
       await markDeliveryFailed(delivery.id, error.message.slice(0, 500));
     }
     if (uploadedPath) await removeUploadedQuote(uploadedPath);
+    await notifyQuoteDeliverFailed({
+      savedQuoteId: savedQuote.id,
+      vehicleName: imageData.vehicleName,
+    });
     return NextResponse.json({ error: "견적서 전송에 실패했습니다." }, { status: 500 });
   }
 }
@@ -223,10 +235,20 @@ async function enqueueQuoteAlimtalk(params: {
     });
     if (!result.ok && result.reason !== "disabled") {
       console.warn(`[quote/deliver] 알림톡 적재 건너뜀: ${result.reason}`);
+      await notifyAlimtalkEnqueueFailed({
+        savedQuoteId,
+        vehicleName: imageData.vehicleName,
+        reason: result.reason,
+      });
     }
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     console.error("[quote/deliver] 알림톡 적재 실패:", error);
+    await notifyAlimtalkEnqueueFailed({
+      savedQuoteId,
+      vehicleName: imageData.vehicleName,
+      reason: "error",
+    });
   }
 }
 

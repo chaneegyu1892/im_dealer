@@ -9,10 +9,18 @@ const mocks = vi.hoisted(() => ({
   createReview: vi.fn(),
   updateToken: vi.fn(),
   markUploads: vi.fn(),
+  findNotification: vi.fn(),
+  createNotification: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { $transaction: mocks.transaction },
+  prisma: {
+    $transaction: mocks.transaction,
+    adminNotification: {
+      findFirst: mocks.findNotification,
+      create: mocks.createNotification,
+    },
+  },
 }));
 
 vi.mock("@/lib/review-token", () => ({
@@ -51,7 +59,7 @@ describe("POST /api/reviews/submit/[token] image ownership", () => {
       data: {
         id: "token-row-1",
         savedQuoteId: "quote-1",
-        customerName: "고객",
+        customerName: "홍길동",
         vehicleId: "vehicle-1",
         vehicleName: "테스트 차량",
         quoteCreatedAt: null,
@@ -68,6 +76,8 @@ describe("POST /api/reviews/submit/[token] image ownership", () => {
       },
       review: { create: mocks.createReview },
     }));
+    mocks.findNotification.mockResolvedValue(null);
+    mocks.createNotification.mockResolvedValue({ id: "notif-review-1" });
   });
 
   it("rejects a public review image URL that is not in this token's upload ledger", async () => {
@@ -122,5 +132,79 @@ describe("POST /api/reviews/submit/[token] image ownership", () => {
       data: { usedAt: expect.any(Date) },
     });
     expect(mocks.createReview).toHaveBeenCalled();
+    expect(mocks.createNotification).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: "NEW_REVIEW",
+        title: "새로운 고객 후기",
+        content: "홍○○님이 테스트 차량 후기를 제출했습니다. (5점)",
+        linkUrl: "/admin/reviews?id=review-1",
+      }),
+    });
+  });
+
+  it("creates a NEW_REVIEW notification after a successful submit", async () => {
+    mocks.findUploads.mockResolvedValue([]);
+    mocks.claimToken.mockResolvedValue({ count: 1 });
+    mocks.createReview.mockResolvedValue({ id: "review-1" });
+    mocks.updateToken.mockResolvedValue({});
+
+    const response = await POST(
+      request([]),
+      { params: Promise.resolve({ token: "review-token" }) },
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({
+      success: true,
+      data: { reviewId: "review-1" },
+    });
+    expect(mocks.createNotification).toHaveBeenCalledTimes(1);
+    const payload = mocks.createNotification.mock.calls[0][0].data as {
+      content: string;
+    };
+    expect(payload.content).not.toContain("홍길동");
+    expect(payload.content).not.toMatch(/01\d/);
+  });
+
+  it("does not notify again when the used token is retried", async () => {
+    mocks.findUploads.mockResolvedValue([]);
+    mocks.claimToken
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+    mocks.createReview.mockResolvedValue({ id: "review-1" });
+    mocks.updateToken.mockResolvedValue({});
+
+    const first = await POST(
+      request([]),
+      { params: Promise.resolve({ token: "review-token" }) },
+    );
+    const second = await POST(
+      request([]),
+      { params: Promise.resolve({ token: "review-token" }) },
+    );
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(410);
+    expect(mocks.createNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.createReview).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the submit success response when the admin notification insert fails", async () => {
+    mocks.findUploads.mockResolvedValue([]);
+    mocks.claimToken.mockResolvedValue({ count: 1 });
+    mocks.createReview.mockResolvedValue({ id: "review-1" });
+    mocks.updateToken.mockResolvedValue({});
+    mocks.createNotification.mockRejectedValue(new Error("notification insert failed"));
+
+    const response = await POST(
+      request([]),
+      { params: Promise.resolve({ token: "review-token" }) },
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({
+      success: true,
+      data: { reviewId: "review-1" },
+    });
   });
 });

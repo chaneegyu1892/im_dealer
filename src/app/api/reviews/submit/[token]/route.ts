@@ -7,6 +7,7 @@ import {
   REVIEW_TOKEN_REASON_MESSAGE,
 } from "@/lib/review-token";
 import { isReviewImagePublicUrl } from "@/lib/supabase/storage";
+import { notifyReviewSubmitted } from "@/lib/admin-notification";
 import type { ReviewWriteContext } from "@/types/review";
 
 const submitSchema = z.object({
@@ -85,7 +86,7 @@ export async function POST(
     );
   }
 
-  const { id: tokenId, savedQuoteId, vehicleId, customerName } = resolved.data;
+  const { id: tokenId, savedQuoteId, vehicleId, customerName, vehicleName } = resolved.data;
   const authorRealName = customerName?.trim() || "고객";
 
   try {
@@ -153,6 +154,13 @@ export async function POST(
       }
 
       return created;
+    });
+
+    await notifyReviewSubmitted({
+      reviewId: review.id,
+      authorDisplayName: maskAuthorName(authorRealName),
+      vehicleName,
+      rating: parsed.data.rating,
     });
 
     return NextResponse.json(
