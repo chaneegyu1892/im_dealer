@@ -171,6 +171,42 @@ describe("POST /api/cron/purge-pii", () => {
     });
   });
 
+  it("deletes stale document rows before marking PII expired (image-first ordering)", async () => {
+    await POST(
+      new NextRequest("https://example.com/api/cron/purge-pii", {
+        method: "POST",
+        headers: { authorization: "Bearer cron-secret" },
+      })
+    );
+
+    // 문서 원본(contentEnc) 행 삭제는 불가역 작업이므로 PII 만료 마킹(updateMany)보다
+    // 먼저 성공해야 한다. 마킹이 먼저 커밋된 뒤 삭제가 실패하면 "마킹됐지만 원본이
+    // 남은" 부분 상태가 된다.
+    const docDeleteOrder = mocks.deleteIncompleteDocuments.mock.invocationCallOrder[0];
+    const verificationPurgeOrder = mocks.purgeVerification.mock.invocationCallOrder[0];
+    const documentPurgeOrder = mocks.purgeDocuments.mock.invocationCallOrder[0];
+    expect(docDeleteOrder).toBeLessThan(verificationPurgeOrder);
+    expect(docDeleteOrder).toBeLessThan(documentPurgeOrder);
+  });
+
+  it("does not mark PII expired when the stale document deletion fails", async () => {
+    mocks.deleteIncompleteDocuments.mockRejectedValueOnce(new Error("delete failed"));
+
+    const response = await POST(
+      new NextRequest("https://example.com/api/cron/purge-pii", {
+        method: "POST",
+        headers: { authorization: "Bearer cron-secret" },
+      })
+    );
+
+    expect(response.status).toBe(500);
+    expect(mocks.purgeVerification).not.toHaveBeenCalled();
+    expect(mocks.purgeDocuments).not.toHaveBeenCalled();
+    expect(mocks.captureException).toHaveBeenCalledWith(expect.any(Error), {
+      tags: { cron: "purge-pii" },
+    });
+  });
+
   it("preserves cron authentication and reports purge failures", async () => {
     mocks.timingSafeEqualString.mockReturnValueOnce(false);
     const unauthorized = await POST(

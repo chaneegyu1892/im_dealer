@@ -68,6 +68,7 @@ async function handleSweep(request: NextRequest) {
         status: "FAILED",
         failReason: `재시도 한도(${ALIMTALK_MAX_ATTEMPTS}회) 초과 — 아웃바운드 스윕 데드레터`,
         leaseToken: null,
+        resultAt: now,
       },
     });
 

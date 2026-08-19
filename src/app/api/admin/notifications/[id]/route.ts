@@ -33,10 +33,27 @@ export async function PATCH(
         { status: 404 }
       );
     }
-    const updated = await prisma.adminNotification.update({
-      where: { id },
-      data: { isRead: parsed.data.isRead },
-    });
+
+    // 읽음은 관리자별로 기록한다(AdminNotificationRead SSOT). 전역 isRead 컬럼은
+    // 하위 호환으로 남아 있을 뿐 더 이상 갱신하지 않는다 — 1명이 읽어도 다른 관리자의
+    // 읽지 않음 상태가 사라지지 않는다. (notificationId, adminUserId) 복합유니크 upsert
+    // 이므로 동시 요청(더블클릭·동시 다중 관리자)에서도 경합 없이 수렴한다.
+    const now = new Date();
+    if (parsed.data.isRead) {
+      await prisma.adminNotificationRead.upsert({
+        where: {
+          notificationId_adminUserId: { notificationId: id, adminUserId: session.id },
+        },
+        create: { notificationId: id, adminUserId: session.id, readAt: now },
+        update: { readAt: now },
+      });
+    } else {
+      await prisma.adminNotificationRead.deleteMany({
+        where: { notificationId: id, adminUserId: session.id },
+      });
+    }
+
+    const updated = { ...before, isRead: parsed.data.isRead };
 
     await logAdminAction({
       request,
@@ -46,6 +63,7 @@ export async function PATCH(
       targetId: id,
       before,
       after: updated,
+      meta: { perAdminRead: true, adminUserId: session.id, readAt: now.toISOString() },
     });
 
     return NextResponse.json({ success: true, data: updated });

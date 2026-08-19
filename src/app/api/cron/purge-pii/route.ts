@@ -47,6 +47,13 @@ async function handlePurge(request: NextRequest) {
   );
 
   try {
+    // 1) 미완료 문서 행(스캔 원본) 삭제 — 불가역 삭제를 만료 마킹보다 먼저 실행한다.
+    //    삭제가 실패하면 아래 만료 마킹(updateMany)도 실행하지 않고 다음 크론에 전체
+    //    재시도한다(마킹만 커밋되고 원본이 남는 부분 상태를 만들지 않는다).
+    const incompleteDocResult = await prisma.verificationDocument.deleteMany({
+      where: { issuedAt: null, updatedAt: { lt: incompleteCutoff } },
+    });
+
     const result = await prisma.customerVerification.updateMany({
       where: {
         verifiedAt: { lt: successCutoff },
@@ -86,10 +93,9 @@ async function handlePurge(request: NextRequest) {
       },
     });
 
-    // 실패·대기 문서는 마지막 활동 7일 후 행 자체를 삭제해 상태/파일 메타도 남기지 않는다.
-    const incompleteDocResult = await prisma.verificationDocument.deleteMany({
-      where: { issuedAt: null, updatedAt: { lt: incompleteCutoff } },
-    });
+    // 미완료 인증 삭제는 만료 마킹 다음에 그대로 둔다. 만료 마킹이 issued 문서의
+    // updatedAt 을 끌어올려 “최근 활동 문서가 있는 부모는 보존” 조건에 걸리는
+    // 기존 상호작용을 그대로 유지하기 위함이다.
 
     // 완료되지 않은 인증도 7일 후 행 자체를 삭제한다. 최근 문서 활동이 있으면 부모를
     // 보존해 진행 중인 간편인증을 끊지 않으며, 삭제 시 남은 문서는 FK cascade로 제거된다.

@@ -103,6 +103,7 @@ describe("/api/cron/outbound-sweep", () => {
         status: "FAILED",
         failReason: expect.stringContaining("재시도 한도"),
         leaseToken: null,
+        resultAt: NOW,
       },
     });
   });

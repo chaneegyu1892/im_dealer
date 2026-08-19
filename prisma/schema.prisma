@@ -700,6 +700,7 @@ model User {
   coupons         IssuedCoupon[]
   referralsGiven  Referral[]      @relation("ReferralsGiven")
   referralReceived Referral?      @relation("ReferralReceived")
+  adminNotificationReads AdminNotificationRead[]
 
   @@index([role, isActive])
   @@index([email])
@@ -925,11 +926,30 @@ model AdminNotification {
   title     String
   content   String
   linkUrl   String?
+  // 하위 호환 컬럼. 읽음 판정 SSOT 는 AdminNotificationRead(관리자별)이다.
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  reads AdminNotificationRead[]
+
   @@index([isRead])
   @@index([createdAt])
+}
+
+// 관리자별 알림 읽음 기록 — 읽음 판정 SSOT.
+// 어드민 계정은 User(role 기반) 이므로 adminUserId 는 User.id 를 가리킨다.
+// 1명이 읽어도 다른 관리자의 읽지 않음 상태가 유지된다(전역 isRead 대체).
+model AdminNotificationRead {
+  id             String   @id @default(cuid())
+  notificationId String
+  adminUserId    String
+  readAt         DateTime @default(now())
+
+  notification AdminNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  adminUser    User              @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, adminUserId])
+  @@index([adminUserId])
 }
 
 // 스크래핑 작업 큐 (어드민이 생성 → 로컬 워커가 폴링/클레임/완료)

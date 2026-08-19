@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
 
 export async function GET(request: NextRequest) {
-  const { error } = await requireRoleAtLeast("staff");
+  const { admin, error } = await requireRoleAtLeast("staff");
   if (error) return error;
 
   try {
@@ -13,9 +13,21 @@ export async function GET(request: NextRequest) {
     const notifications = await prisma.adminNotification.findMany({
       orderBy: { createdAt: "desc" },
       take: limit,
+      include: {
+        // 읽음 판정 SSOT 는 AdminNotificationRead(관리자별). 요청한 관리자의 행만 붙인다.
+        reads: { where: { adminUserId: admin.id }, select: { readAt: true } },
+      },
     });
 
-    return NextResponse.json({ success: true, data: notifications });
+    // AdminNotification.isRead(전역) 컬럼은 하위 호환으로 스키마에만 남아 있고
+    // 응답의 isRead 는 관리자별 읽음 기록으로 판정한다(1인 읽음→전원 소실 방지).
+    const data = notifications.map(({ reads, ...notification }) => ({
+      ...notification,
+      isRead: reads.length > 0,
+      readAt: reads[0]?.readAt ?? null,
+    }));
+
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error("[GET /api/admin/notifications]", error);
     return NextResponse.json(
