@@ -86,6 +86,18 @@ describe("GET /auth/callback", () => {
     vi.unstubAllEnvs();
   });
 
+  it("sets the referral cookie when the callback carries ?ref=", async () => {
+    const response = await GET(
+      callbackRequest("?code=code-1&next=/mypage/coupons&ref=k4821"),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://app.example/mypage/coupons",
+    );
+    expect(response.headers.get("set-cookie")).toContain("referral_code=K4821");
+  });
+
   it("completes a normal callback and keeps the exchanged session", async () => {
     const response = await GET(callbackRequest("?code=code-1&next=/mypage"));
 

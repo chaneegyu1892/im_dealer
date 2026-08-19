@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Check, Copy, Link2, Share2, Users } from "lucide-react";
 import type { ReferralProgressItem } from "@/lib/referral/progress";
+import { REFERRAL_REDEEM_PATH } from "@/lib/referral/pending-code";
 import { ReferralProgress } from "./ReferralProgress";
 
 interface ReferralClientProps {
@@ -148,7 +150,16 @@ export function ReferralClient({
           <li>친구가 추천 링크 또는 코드로 가입을 완료하면 쿠폰이 지급됩니다.</li>
           <li>자기 자신 추천은 인정되지 않습니다.</li>
           <li>추천인은 월 최대 {monthCap}회까지 인정됩니다. (한국 시간 기준)</li>
-          <li>이미 가입한 회원에게 코드를 적용할 수 없습니다.</li>
+          <li>
+            이미 가입한 회원은{" "}
+            <Link
+              href={REFERRAL_REDEEM_PATH}
+              className="font-extrabold text-brand underline-offset-4 hover:underline"
+            >
+              쿠폰함에서 입력
+            </Link>
+            해 주세요.
+          </li>
         </ul>
       </section>
     </div>

@@ -5,6 +5,7 @@ import {
   REFERRAL_COOKIE_NAME,
 } from "@/lib/referral/attribution";
 import { normalizeReferralCode } from "@/lib/referral/code";
+import { REFERRAL_REDEEM_PATH } from "@/lib/referral/pending-code";
 
 type RouteContext = {
   params: Promise<{ code: string }>;
@@ -39,7 +40,10 @@ export async function GET(request: Request, context: RouteContext) {
     return NextResponse.redirect(`${redirectBase}/?ref=invalid`);
   }
 
-  const response = NextResponse.redirect(`${redirectBase}/login?ref=${code}`);
+  const login = new URL("/login", redirectBase);
+  login.searchParams.set("ref", code);
+  login.searchParams.set("next", REFERRAL_REDEEM_PATH);
+  const response = NextResponse.redirect(login);
   response.cookies.set(REFERRAL_COOKIE_NAME, code, {
     httpOnly: true,
     sameSite: "lax",

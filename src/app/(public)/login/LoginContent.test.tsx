@@ -2,12 +2,17 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LoginContent from "./LoginContent";
 
+type OAuthStart = {
+  readonly provider: string;
+  readonly options?: { readonly redirectTo?: string };
+};
+
 const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   getSession: vi.fn(async () => ({
     data: { session: null as { user: { id: string } } | null },
   })),
-  signInWithOAuth: vi.fn(async () => ({
+  signInWithOAuth: vi.fn(async (_params: OAuthStart) => ({
     data: { provider: "kakao", url: null },
     error: null,
   })),
@@ -92,6 +97,23 @@ describe("LoginContent Kakao OAuth", () => {
         },
       },
     });
+  });
+
+  it("forwards login ?ref= onto the auth callback URL", async () => {
+    navigation.searchParams = new URLSearchParams(
+      "next=%2Fmypage%2Fcoupons&ref=k4821",
+    );
+    render(<LoginContent />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "카카오 로그인" }));
+
+    await waitFor(() => expect(mocks.signInWithOAuth).toHaveBeenCalledTimes(1));
+    const redirectTo =
+      mocks.signInWithOAuth.mock.calls.at(-1)?.[0]?.options?.redirectTo ?? "";
+    expect(new URL(redirectTo).searchParams.get("ref")).toBe("K4821");
+    expect(
+      window.sessionStorage.getItem("imdealer:pending-referral-code"),
+    ).toBe("K4821");
   });
 
   it("does not pass an external next URL into the OAuth callback", async () => {

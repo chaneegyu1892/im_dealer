@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Ticket } from "lucide-react";
 import { REFERRAL_CODE_PATTERN } from "@/lib/referral/code";
+import { readPendingReferralCode } from "@/lib/referral/pending-code";
 
 interface ReferralCodeEntryCardProps {
   /** 창구 마감일 (KST, 예: 2026.08.25) */
@@ -21,6 +22,11 @@ export function ReferralCodeEntryCard({ deadlineLabel }: ReferralCodeEntryCardPr
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const refreshTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    const pending = readPendingReferralCode();
+    if (pending) setCode(pending);
+  }, []);
 
   useEffect(() => {
     return () => {

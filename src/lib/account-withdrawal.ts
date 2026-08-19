@@ -89,6 +89,12 @@ export async function withdrawLocalMember(
       data: { userId: null },
     });
 
+    // 탈퇴 회원 본인 쿠폰·추천 슬롯만 지운다. 상대방 REWARDED 행/쿠폰은 남긴다.
+    // 피추천인 탈퇴: 추천인 IssuedCoupon(REFERRAL_GIVEN) 은 userId 가 추천인이라 삭제하지 않는다.
+    //   Referral 행은 지워지고 IssuedCoupon.referralId 는 onDelete: SetNull.
+    //   이미 지급(PAID)된 추천인 쿠폰을 회수하지 않는다.
+    // 추천인 탈퇴: 피추천인 IssuedCoupon(REFERRAL_RECEIVED) 은 피추천인 userId 라 남고,
+    //   추천인 본인 쿠폰만 deleteMany 된다. 지급 완료분도 본인 행이므로 함께 삭제(본인 PII 파기).
     await tx.issuedCoupon.deleteMany({ where: { userId: member.id } });
     await tx.referral.deleteMany({
       where: { OR: [{ referrerId: member.id }, { refereeId: member.id }] },

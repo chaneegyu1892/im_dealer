@@ -10,6 +10,10 @@ import { createClient } from "@/lib/supabase/client";
 import { getSafeInternalPath } from "@/lib/auth/redirect";
 import { startKakaoLogin } from "@/lib/kakao/client-auth";
 import { useKakaoTalkInApp } from "@/hooks/useKakaoTalkInApp";
+import {
+  persistPendingReferralCode,
+  resolveReferralLoginNext,
+} from "@/lib/referral/pending-code";
 
 // 같은 탭에서 자동 로그인을 한 번만 시도하기 위한 플래그.
 // 탭을 닫으면 사라지므로 다음 방문에는 다시 한 번 시도한다.
@@ -54,7 +58,10 @@ function markAutoLoginAttempted(): boolean {
 export default function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = getSafeInternalPath(params?.get("next"));
+  const { next, referralCode } = resolveReferralLoginNext(
+    getSafeInternalPath(params?.get("next")),
+    params?.get("ref"),
+  );
   const [isStartingLogin, setIsStartingLogin] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const { isInApp, escapeUrl } = useKakaoTalkInApp();
@@ -73,7 +80,7 @@ export default function LoginContent() {
     setIsStartingLogin(true);
     setLoginError(null);
     try {
-      await startKakaoLogin({ next });
+      await startKakaoLogin({ next, ref: referralCode });
     } catch (error) {
       if (!(error instanceof Error)) throw error;
       setLoginError("카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
@@ -81,7 +88,11 @@ export default function LoginContent() {
       setIsStartingLogin(false);
       isLoggingInRef.current = false;
     }
-  }, [next]);
+  }, [next, referralCode]);
+
+  useEffect(() => {
+    persistPendingReferralCode(referralCode);
+  }, [referralCode]);
 
   useEffect(() => {
     let cancelled = false;

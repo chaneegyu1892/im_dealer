@@ -2,7 +2,9 @@
 export const revalidate = 600;
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
+import { ReferralLandingNotice } from "@/components/referral/ReferralLandingNotice";
 import { getHomeTopLikedReviews } from "@/lib/admin-queries";
 import { HeroSectionV2 } from "@/components/home/HeroSectionV2";
 import { CustomerReviewsSection } from "@/components/home/CustomerReviewsSection";
@@ -238,6 +240,9 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: homeStructuredDataJson }}
       />
       <div className="bg-white text-text-body">
+        <Suspense fallback={null}>
+          <ReferralLandingNotice />
+        </Suspense>
         <HeroSectionV2 featuredVehicle={popularVehicles[0]} />
         {popularVehicles.length > 0 && (
           <PopularCarsSectionV2 vehicles={popularVehicles} />

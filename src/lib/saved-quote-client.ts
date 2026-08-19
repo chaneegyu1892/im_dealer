@@ -24,6 +24,20 @@ export const savedQuoteResponseSchema = z.object({
   data: savedQuoteClientDataSchema,
 });
 
+/** 저장 401/403 후보 URL. 호출부가 세션 없음을 확인한 뒤에만 따른다. */
+export function quoteSaveLoginRedirect(input: {
+  readonly status: number;
+  readonly returnPath: string;
+  readonly code?: string;
+}): string | null {
+  const loginRequired =
+    input.status === 401 ||
+    input.status === 403 ||
+    input.code === "LOGIN_REQUIRED";
+  if (!loginRequired) return null;
+  return `/login?next=${encodeURIComponent(input.returnPath)}`;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>

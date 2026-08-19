@@ -3,22 +3,35 @@
 import { createClient } from "@/lib/supabase/client";
 import { getSafeInternalPath } from "@/lib/auth/redirect";
 import { getKakaoScopes, isKakaoSyncEnabled } from "@/lib/kakao/scopes";
+import {
+  persistPendingReferralCode,
+  readPendingReferralCode,
+} from "@/lib/referral/pending-code";
 
 type KakaoLoginRequest = {
   readonly next: string;
+  readonly ref?: string | null;
 };
 
 export class KakaoOAuthStartError extends Error {
   readonly name = "KakaoOAuthStartError";
 }
 
-export async function startKakaoLogin({ next }: KakaoLoginRequest): Promise<void> {
+export async function startKakaoLogin({
+  next,
+  ref,
+}: KakaoLoginRequest): Promise<void> {
   const safeNext = getSafeInternalPath(next);
+  const referralCode =
+    persistPendingReferralCode(ref) ?? readPendingReferralCode();
   const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim();
   const redirectOrigin = configuredOrigin
     ? configuredOrigin.replace(/\/+$/, "")
     : window.location.origin;
-  const redirectTo = `${redirectOrigin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+  const callback = new URL(`${redirectOrigin}/auth/callback`);
+  callback.searchParams.set("next", safeNext);
+  if (referralCode) callback.searchParams.set("ref", referralCode);
+  const redirectTo = callback.toString();
   const scope = getKakaoScopes();
   // 카카오싱크 동의창에 "카카오톡 채널 추가"를 함께 노출시킨다 — 최초 로그인 한 번으로
   // 가입 + 채널추가가 끝난다. 콘솔 간편가입 설정만으로도 노출되지만, 채널을 명시하면

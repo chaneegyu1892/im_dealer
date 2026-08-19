@@ -91,6 +91,9 @@ describe("account withdrawal", () => {
     expect(mocks.couponDeleteMany).toHaveBeenCalledWith({
       where: { userId: "local-1" },
     });
+    expect(mocks.referralDeleteMany).toHaveBeenCalledWith({
+      where: { OR: [{ referrerId: "local-1" }, { refereeId: "local-1" }] },
+    });
     expect(mocks.auditUpdateMany).toHaveBeenCalledWith({
       where: { actorId: "local-1" },
       data: {

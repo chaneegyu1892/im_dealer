@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { QuoteResponse } from "@/types/api";
 import {
   applySavedQuoteAmountsToDisplay,
+  quoteSaveLoginRedirect,
   toSavedQuoteClientData,
 } from "./saved-quote-client";
 
@@ -124,5 +125,39 @@ describe("applySavedQuoteAmountsToDisplay", () => {
     });
 
     expect(next.requiresConsultation).toBe(true);
+  });
+});
+
+describe("quoteSaveLoginRedirect", () => {
+  const returnPath = "/quote?vehicle=sorento&restore=1";
+
+  it("sends a 401 save to login with the resume return path", () => {
+    expect(quoteSaveLoginRedirect({ status: 401, returnPath })).toBe(
+      `/login?next=${encodeURIComponent(returnPath)}`,
+    );
+  });
+
+  it("sends a 403 logout-resume save to login with the resume return path", () => {
+    expect(quoteSaveLoginRedirect({ status: 403, returnPath })).toBe(
+      `/login?next=${encodeURIComponent(returnPath)}`,
+    );
+  });
+
+  it("honors an explicit LOGIN_REQUIRED payload the client already parses", () => {
+    expect(
+      quoteSaveLoginRedirect({
+        status: 403,
+        code: "LOGIN_REQUIRED",
+        returnPath,
+      }),
+    ).toBe(`/login?next=${encodeURIComponent(returnPath)}`);
+  });
+
+  it("does not treat a validation failure as a login gate", () => {
+    expect(quoteSaveLoginRedirect({ status: 400, returnPath })).toBeNull();
+  });
+
+  it("does not treat a server fault as a login gate", () => {
+    expect(quoteSaveLoginRedirect({ status: 500, returnPath })).toBeNull();
   });
 });

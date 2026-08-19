@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DOCK_BOTTOM_PADDING_CLASS } from "@/components/layout/dock";
+import { CHANNEL_TALK_STATUS_ATTR } from "@/lib/channel-talk-status";
 import { QuoteClientPageV2 } from "./QuoteClientPageV2";
 import {
   createUnlockedCalculatedQuoteResult,
@@ -82,6 +83,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete window.ChannelIO;
+  document.documentElement.removeAttribute(CHANNEL_TALK_STATUS_ATTR);
   window.localStorage.clear();
   // 자동 재개 1회 예산은 sessionStorage 에 있다 — 테스트 간 누수 금지.
   window.sessionStorage.clear();
@@ -760,7 +762,8 @@ describe("QuoteClientPageV2 consultation fallback", () => {
 
   it("does not route to verification when the review-request coming-soon modal is opened", async () => {
     writeCalculatedRestore();
-    vi.stubGlobal("fetch", createFetchMock(500));
+    const fetchMock = createFetchMock(500);
+    vi.stubGlobal("fetch", fetchMock);
 
     render(<QuoteClientPageV2 vehicles={vehicles} />);
 
@@ -769,6 +772,9 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       screen.getByRole("dialog", { name: "서류 심사 서비스는 준비 중이에요" }),
     ).toBeInTheDocument();
     expect(navigationMock.router.push).not.toHaveBeenCalled();
+    const requestedUrls = fetchMock.mock.calls.map(([input]) => input.toString());
+    expect(requestedUrls.some((url) => url === "/api/quote/save")).toBe(false);
+    expect(requestedUrls.some((url) => url === "/api/quote/deliver")).toBe(false);
   });
 
   it("keeps the AI source through the member-gate login round trip", async () => {

@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
 describe("ReferralCodeEntryCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -23,7 +24,16 @@ describe("ReferralCodeEntryCard", () => {
   });
 
   afterEach(() => {
+    window.sessionStorage.clear();
     vi.unstubAllGlobals();
+  });
+
+  it("랜딩에서 붙잡아 둔 코드를 입력란에 채운다", async () => {
+    window.sessionStorage.setItem("imdealer:pending-referral-code", "K4821");
+    render(<ReferralCodeEntryCard deadlineLabel="2026.08.25" />);
+    await waitFor(() => {
+      expect(screen.getByLabelText("추천인 코드")).toHaveValue("K4821");
+    });
   });
 
   it("마감일 안내와 입력란을 보여준다", () => {

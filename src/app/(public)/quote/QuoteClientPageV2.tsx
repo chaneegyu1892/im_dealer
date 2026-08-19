@@ -66,6 +66,7 @@ import {
 import { successfulCalculatedQuoteResponseSchema } from "@/lib/quote-response-schema";
 import {
   applySavedQuoteAmountsToDisplay,
+  quoteSaveLoginRedirect,
   savedQuoteResponseSchema,
 } from "@/lib/saved-quote-client";
 import type { VehicleColorPublic } from "@/components/quote/ColorSelector";
@@ -74,11 +75,9 @@ import {
   type TrimChoice,
 } from "@/components/quote/LineupTrimPicker";
 import {
-  QUOTE_DRAFT_STORAGE_PREFIX,
   readQuoteImageRestore,
   saveQuoteImageRestore,
   type QuoteImageRestoreState,
-  type QuoteDraft,
 } from "@/lib/quote-draft";
 import { Step2ConditionV2, type TrimDataV2 } from "./Step2ConditionV2";
 import { InitialCostPanelV2, type CostMode } from "./InitialCostPanelV2";
@@ -379,7 +378,6 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isApplying, setIsApplying] = useState(false);
   const [isConsultationSubmitting, setIsConsultationSubmitting] = useState(false);
   const [consultationError, setConsultationError] = useState<string | null>(null);
 
@@ -995,6 +993,23 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     const savedQuoteResult = savedQuoteResponseSchema.safeParse(responsePayload);
     if (!saveRes.ok || !savedQuoteResult.success) {
       const apiErrorResult = apiErrorSchema.safeParse(responsePayload);
+      const loginHref = quoteSaveLoginRedirect({
+        status: saveRes.status,
+        code: apiErrorResult.success ? apiErrorResult.data.code : undefined,
+        returnPath:
+          typeof window !== "undefined"
+            ? `${window.location.pathname}${window.location.search}`
+            : "/quote",
+      });
+      if (loginHref) {
+        const {
+          data: { user },
+        } = await createClient().auth.getUser();
+        if (!user) {
+          router.push(loginHref);
+          throw new Error("로그인이 필요합니다.");
+        }
+      }
       throw new Error(
         apiErrorResult.success && apiErrorResult.data.error
           ? apiErrorResult.data.error
@@ -1020,6 +1035,7 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     getEffectiveSelectedColorIds,
     draftSource,
     flushPendingQuoteRecalculation,
+    router,
   ]);
 
   const handleConsultationRequest = useCallback(async () => {
@@ -1055,59 +1071,6 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     saveCurrentQuote,
     selectedVehicle,
     contractCategory,
-  ]);
-
-  // ─── 견적 초안 저장 + /verify 이동 (v1 계약 그대로) ────
-  const handleContractApply = useCallback(async () => {
-    if (!quoteResult || isApplying) return;
-    setIsApplying(true);
-    try {
-      const quoteDraft: QuoteDraft = {
-        schemaVersion: 1,
-        sessionId: quoteSessionId,
-        vehicleSlug: quoteResult.vehicleSlug,
-        trimId: quoteResult.trimId,
-        selectedOptionIds: getEffectiveSelectedOptionIds(),
-        contractMonths: quoteResult.contractMonths,
-        annualMileage: quoteResult.annualMileage,
-        contractType: "반납형",
-        productType: contractCategory,
-        customerType,
-        scenarios: quoteResult.scenarios,
-        optionsTotalPrice: quoteResult.optionsTotalPrice,
-        totalVehiclePrice: quoteResult.totalVehiclePrice,
-        customRates,
-        ...getEffectiveSelectedColorIds(),
-        source: draftSource,
-      };
-      localStorage.setItem(
-        `${QUOTE_DRAFT_STORAGE_PREFIX}${quoteSessionId}`,
-        JSON.stringify(quoteDraft)
-      );
-
-      setError(null);
-      try {
-        await saveCurrentQuote();
-      } catch {
-        setError("견적 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
-        return;
-      }
-
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      const target = `/verify?sessionId=${quoteSessionId}&vehicle=${selectedVehicle?.slug ?? ""}&customerType=${customerType}`;
-      if (!user) {
-        router.push(`/login?next=${encodeURIComponent(target)}`);
-        return;
-      }
-      router.push(target);
-    } finally {
-      setIsApplying(false);
-    }
-  }, [
-    router, quoteSessionId, selectedVehicle?.slug, quoteResult, customerType,
-    getEffectiveSelectedOptionIds, getEffectiveSelectedColorIds, contractCategory, customRates, draftSource,
-    isApplying, saveCurrentQuote,
   ]);
 
   // ─── 카카오톡으로 견적서 전송 ─────────────────────────────

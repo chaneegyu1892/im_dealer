@@ -206,6 +206,16 @@ describe("applyReferralOnProfileComplete", () => {
     expect(result).toEqual({ applied: false, reason: "SELF_REFERRAL" });
   });
 
+  it("서로 다른 피추천인은 월 한도 count 를 잠그지 않는다 (T18 잔여)", async () => {
+    mocks.referralCount.mockResolvedValue(9);
+    const [a, b] = await Promise.all([
+      applyReferralOnProfileComplete(input({ inviteeUserId: "user-a" }), db),
+      applyReferralOnProfileComplete(input({ inviteeUserId: "user-b" }), db),
+    ]);
+    expect([a, b].every((result) => result.applied)).toBe(true);
+    expect(mocks.referralCreate).toHaveBeenCalledTimes(2);
+  });
+
   it("refereeId 외 유니크 위반(쿠폰 code 등)은 그대로 throw 된다", async () => {
     mocks.referralCreate.mockRejectedValue(codeUniqueViolation());
 

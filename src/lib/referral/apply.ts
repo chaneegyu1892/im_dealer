@@ -88,6 +88,12 @@ export async function applyReferralOnProfileComplete(
     select: { id: true },
   });
 
+  // 월 한도 count 는 호출부 트랜잭션(tx) 안에서 읽는다.
+  // T18: redeem-code / complete-profile 가 prisma.$transaction((tx) => apply(..., tx)).
+  // refereeId @unique + create P2002→ALREADY_ATTRIBUTED 가 피추천인 슬롯을 직렬화한다.
+  // 서로 다른 피추천인 동시 적용은 READ COMMITTED 에서 count 가 둘 다 9를 읽을 수 있다.
+  // MONTHLY_CAP 은 BLOCKED 를 남기지 않으므로(T18) 초과분은 원장 감사로 회수한다.
+  // User FOR UPDATE 는 T18 직렬화 계약을 바꾸므로 넣지 않는다.
   const { start, end } = kstMonthRange();
   const monthCount = inviter
     ? await db.referral.count({
