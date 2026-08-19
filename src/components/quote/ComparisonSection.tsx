@@ -78,6 +78,34 @@ interface ComparisonSectionProps {
   allVehicles: VehicleListItem[];
   /** 비회원 게이트의 로그인 CTA 클릭 시 호출 — 견적 화면 상태를 저장 후 /login 으로 이동 */
   onMemberLogin?: () => void;
+  /**
+   * 메인 견적의 보증/선납. 있으면 비교표 초기 조건과 기준 문구를 맞춘다.
+   * 부모(견적 페이지)가 아직 안 넘기면 무보증·무선납 + 그 기준을 명시한다.
+   */
+  primaryRates?: { depositRate: number; prepayRate: number };
+}
+
+function exclusiveRates(
+  rates?: { depositRate: number; prepayRate: number },
+): { depositRate: number; prepayRate: number } {
+  const depositRate = rates?.depositRate ?? 0;
+  const prepayRate = rates?.prepayRate ?? 0;
+  if (depositRate > 0 && prepayRate > 0) return { depositRate: 0, prepayRate: 0 };
+  return { depositRate, prepayRate };
+}
+
+export function comparisonRateBasisLabel(rates: {
+  depositRate: number;
+  prepayRate: number;
+}): string {
+  const exclusive = exclusiveRates(rates);
+  if (exclusive.depositRate > 0) {
+    return `비교 월납입금은 보증금 ${exclusive.depositRate}% 기준입니다`;
+  }
+  if (exclusive.prepayRate > 0) {
+    return `비교 월납입금은 선납금 ${exclusive.prepayRate}% 기준입니다`;
+  }
+  return "비교 월납입금은 보증금·선납금 없이 계산한 기준입니다";
 }
 
 // ─── 초기비용 컨트롤 ─────────────────────────────────────────
@@ -330,6 +358,7 @@ export function ComparisonSection({
   conditions,
   allVehicles,
   onMemberLogin,
+  primaryRates,
 }: ComparisonSectionProps) {
   // '이전'으로 돌아갔다 와도 비교 차량 설정이 유지되도록 sessionStorage 저장본을 1회 읽는다.
   // (트림/옵션/색상은 비동기 로드 후 적용해야 하므로 ref 에 담아 로드 effect 에서 소비)
@@ -385,8 +414,13 @@ export function ComparisonSection({
   const [compareError, setCompareError] = useState<string | null>(null);
 
   // ── 공유 초기비용 (결과 표시 후 슬라이더) ───────────────────
-  const [sharedRates, setSharedRates] = useState({ depositRate: 0, prepayRate: 0 });
+  const [sharedRates, setSharedRates] = useState(() => exclusiveRates(primaryRates));
   const hasResults = !!(primaryResult && compResult);
+
+  // 메인 견적 조건이 바뀌면 비교 기준도 같이 맞춘다(표기·초기 계산 정합).
+  useEffect(() => {
+    setSharedRates(exclusiveRates(primaryRates));
+  }, [primaryRates?.depositRate, primaryRates?.prepayRate]);
 
   // ── 모바일 탭 ────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"primary" | "comparison">("primary");
@@ -508,7 +542,7 @@ export function ComparisonSection({
       setP1ProductType(conditions.productType);
       setPrimaryResult(null);
       setCompResult(null);
-      setSharedRates({ depositRate: 0, prepayRate: 0 });
+      setSharedRates(exclusiveRates(primaryRates));
       setCompareError(null);
     }
     setIsOpen((v) => !v);
@@ -784,6 +818,9 @@ export function ComparisonSection({
             </button>
             <p className="text-[11px] text-ink-caption text-center">
               계약 {conditions.contractMonths}개월 · 연 {(conditions.annualMileage / 10000).toFixed(0)}만km · {conditions.contractType} · {productTypeLabel(conditions.productType)}
+            </p>
+            <p className="text-[11px] text-ink-caption text-center">
+              {comparisonRateBasisLabel(sharedRates)}
             </p>
           </div>
 
