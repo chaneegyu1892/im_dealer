@@ -12,6 +12,10 @@ const SLUG_WAIT_MS = 15_000;
 
 const CONSULTATION_TRIM_ID = "e2e-quote-save-trim";
 
+/** Step2ConditionV2 CTA after a trim is selected (or trim list is empty). */
+const CALCULATE_CTA_NAME =
+  /월 납입금 확인하기|선택 조건 확인하기|상담 필요 견적 확인하기/;
+
 function isQuoteSavePost(request: Request): boolean {
   return request.method() === "POST" && request.url().includes(SAVE_URL_FRAGMENT);
 }
@@ -180,6 +184,66 @@ async function stubQuoteSaveHeld(page: Page, release: Promise<void>): Promise<vo
   });
 }
 
+async function pickFirstSheetOption(page: Page, sheetTitle: string): Promise<void> {
+  const sheet = page.getByRole("dialog", { name: sheetTitle });
+  await expect(sheet).toBeVisible({ timeout: SLUG_WAIT_MS });
+  const firstOption = sheet.getByRole("button").filter({ hasNotText: /^닫기$/ }).first();
+  await expect(firstOption).toBeVisible({ timeout: SLUG_WAIT_MS });
+  await firstOption.click();
+  await expect(sheet).toBeHidden({ timeout: SLUG_WAIT_MS });
+}
+
+async function ensureCalculateCtaReady(page: Page): Promise<void> {
+  const calculateButton = page.getByRole("button", { name: CALCULATE_CTA_NAME });
+  const trimTrigger = page.locator("#trim-select");
+  const lineupTrigger = page.locator("#lineup-select");
+  const skipReady = page.getByText("트림 정보 등록 준비중");
+  const trimError = page.getByText("트림 정보를 불러오지 못했어요");
+
+  await expect(page.getByRole("heading", { name: "트림 선택" })).toBeVisible({
+    timeout: SLUG_WAIT_MS,
+  });
+
+  // Initial trimsLoading is false; wait until fetch settled into a usable UI.
+  await expect
+    .poll(
+      async () => {
+        if (await calculateButton.isEnabled().catch(() => false)) return "ready";
+        if (await trimTrigger.isVisible().catch(() => false)) return "pick";
+        if (await skipReady.isVisible().catch(() => false)) return "ready";
+        if (await trimError.isVisible().catch(() => false)) return "error";
+        return "wait";
+      },
+      { timeout: SLUG_WAIT_MS },
+    )
+    .not.toBe("wait");
+
+  if (await calculateButton.isEnabled().catch(() => false)) return;
+
+  if (await trimError.isVisible().catch(() => false)) {
+    await page.getByRole("button", { name: "다시 불러오기" }).click();
+    await expect(trimError).toBeHidden({ timeout: SLUG_WAIT_MS });
+    await expect(trimTrigger.or(skipReady).or(calculateButton)).toBeVisible({
+      timeout: SLUG_WAIT_MS,
+    });
+    if (await calculateButton.isEnabled().catch(() => false)) return;
+  }
+
+  // ?trim= is ignored when the id is not in the loaded list, or when a second
+  // loadVehicleDetails reset wins the race after hasPrefilled is set.
+  if ((await lineupTrigger.count()) > 0) {
+    await expect(lineupTrigger).toBeEnabled({ timeout: SLUG_WAIT_MS });
+    await lineupTrigger.click();
+    await pickFirstSheetOption(page, "라인업 선택");
+  }
+
+  await expect(trimTrigger).toBeEnabled({ timeout: SLUG_WAIT_MS });
+  await trimTrigger.click();
+  await pickFirstSheetOption(page, "트림 선택");
+
+  await expect(calculateButton).toBeEnabled({ timeout: SLUG_WAIT_MS });
+}
+
 test.describe("견적 저장 더블클릭", () => {
   test("sends a single /api/quote/save request when the quote save control is double-clicked", async ({
     page,
@@ -200,6 +264,7 @@ test.describe("견적 저장 더블클릭", () => {
     await stubQuoteSaveHeld(page, saveReleased);
     await page.addInitScript(() => {
       window.ChannelIO = () => undefined;
+      document.documentElement.setAttribute("data-channel-talk-status", "ready");
     });
 
     await page.goto(
@@ -207,9 +272,8 @@ test.describe("견적 저장 더블클릭", () => {
       { waitUntil: "domcontentloaded" },
     );
 
-    const calculateButton = page.getByRole("button", { name: "월 납입금 확인하기" });
-    await expect(calculateButton).toBeEnabled({ timeout: SLUG_WAIT_MS });
-    await calculateButton.click();
+    await ensureCalculateCtaReady(page);
+    await page.getByRole("button", { name: CALCULATE_CTA_NAME }).click();
 
     const saveButton = page.getByRole("button", { name: "선택 조건으로 상담 요청하기" });
     await expect(saveButton).toBeVisible({ timeout: SLUG_WAIT_MS });
