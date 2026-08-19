@@ -1,4 +1,4 @@
-import { act, render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigation = vi.hoisted(() => ({ pathname: "/" }));
@@ -34,6 +34,8 @@ vi.mock("@/lib/supabase/client", () => ({
   }),
 }));
 
+import { ChannelTalkButton } from "@/components/quote/ChannelTalkButton";
+import { CHANNEL_TALK_STATUS_ATTR } from "@/lib/channel-talk-status";
 import { CHANNEL_TALK_IDENTITY_RETRY_MS, ChannelTalk } from "./ChannelTalk";
 const MEMBER_IDENTITY = {
   anonymous: false as const,
@@ -85,6 +87,7 @@ afterEach(() => {
   loadedPluginScripts().forEach((script) => script.remove());
   delete window.ChannelIO;
   delete window.ChannelIOInitialized;
+  document.documentElement.removeAttribute(CHANNEL_TALK_STATUS_ATTR);
 });
 
 describe("ChannelTalk third-party script boundary", () => {
@@ -217,5 +220,36 @@ describe("ChannelTalk identity boot recovery", () => {
         profile: { name: "김재현" },
       }),
     ]);
+  });
+});
+
+describe("ChannelTalk SDK load failure surface", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(jsonResponse(true, MEMBER_IDENTITY));
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  it("marks the document failed and disables consult buttons when the plugin script errors", async () => {
+    render(
+      <>
+        <ChannelTalk />
+        <ChannelTalkButton label="상담하기" />
+      </>
+    );
+
+    await waitFor(() => expect(loadedPluginScripts()).toHaveLength(1));
+    const script = loadedPluginScripts()[0];
+    expect(script).toBeDefined();
+    fireEvent.error(script as HTMLScriptElement);
+
+    await waitFor(() => {
+      expect(document.documentElement.getAttribute(CHANNEL_TALK_STATUS_ATTR)).toBe("failed");
+    });
+    const consult = screen.getByRole("button", { name: "채팅 준비 중" });
+    expect(consult).toBeDisabled();
+    expect(consult).toHaveAttribute("title", "잠시 후 다시");
   });
 });

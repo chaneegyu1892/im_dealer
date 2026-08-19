@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion, type Transition } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openChannelTalk } from "@/lib/channel-talk";
+import {
+  isChannelTalkEnabled,
+  useChannelTalkStatus,
+} from "@/lib/channel-talk-status";
 import { cn } from "@/lib/utils";
 import { CarFront, ClipboardCheck, Home, Menu, MessageCircle, type LucideIcon } from "lucide-react";
 import {
@@ -78,6 +82,7 @@ function clearStackOffset() {
 export function BottomNav() {
   const pathname = usePathname() ?? "";
   const isHome = pathname === "/";
+  const channelTalkEnabled = isChannelTalkEnabled(useChannelTalkStatus());
   const prefersReducedMotion = useReducedMotion();
   const [collapsed, setCollapsed] = useState(false);
   const collapsedRef = useRef(false);
@@ -268,7 +273,9 @@ export function BottomNav() {
                       key="channeltalk"
                       type="button"
                       className={wrapperClass}
-                      aria-label={label}
+                      aria-label={channelTalkEnabled ? label : "채팅 준비 중"}
+                      title={channelTalkEnabled ? undefined : "잠시 후 다시"}
+                      disabled={!channelTalkEnabled}
                       onClick={openChannelTalk}
                     >
                       {inner}

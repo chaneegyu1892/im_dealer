@@ -65,9 +65,10 @@ function quote(overrides: Partial<AdminSavedQuote> = {}): AdminSavedQuote {
   };
 }
 
-function ok(data: AdminSavedQuote[]) {
+function ok(data: unknown) {
+  const rows = Array.isArray(data) ? data : [];
   return new Response(
-    JSON.stringify({ success: true, data, meta: { total: data.length, page: 1, limit: 100 } }),
+    JSON.stringify({ success: true, data, meta: { total: rows.length, page: 1, limit: 100 } }),
     { status: 200, headers: { "content-type": "application/json" } }
   );
 }
@@ -162,5 +163,50 @@ describe("QuotationsPage delivery status column", () => {
       expect(screen.getByText("카카오톡 미가입")).toBeInTheDocument();
       expect(screen.getByText("3019 톡 유저 아님")).toBeInTheDocument();
     });
+  });
+});
+
+describe("QuotationsPage unknown CRM status fallback", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  it("renders WAT and missing status as muted 미정의 without throwing", async () => {
+    fetchMock.mockResolvedValue(
+      ok([
+        {
+          ...quote({
+            id: "quote-wat",
+            vehicleName: "미정의 WAT 차량",
+          }),
+          status: "WAT",
+        },
+        {
+          ...quote({
+            id: "quote-empty",
+            vehicleName: "상태없음 차량",
+          }),
+          status: undefined,
+        },
+      ])
+    );
+
+    expect(() => render(<QuotationsPage />)).not.toThrow();
+
+    expect(await screen.findByText("미정의 WAT 차량")).toBeInTheDocument();
+    expect(screen.getByText("상태없음 차량")).toBeInTheDocument();
+    const fallbacks = screen.getAllByText("미정의");
+    expect(fallbacks).toHaveLength(2);
+    for (const badge of fallbacks) {
+      expect(badge.className).toMatch(/text-\[#9BA4C0\]/);
+      expect(badge.closest("td")).not.toBeNull();
+    }
+    const waitingInRows = screen
+      .getAllByText("상담대기")
+      .filter((node) => node.closest("td"));
+    expect(waitingInRows).toHaveLength(0);
   });
 });

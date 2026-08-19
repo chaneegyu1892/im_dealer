@@ -24,6 +24,7 @@ import { formatQuoteForClipboard } from "@/lib/admin/quote-clipboard";
 import { productTypeLabel } from "@/constants/product-type";
 
 type UIQuoteStatus = "상담대기" | "상담중" | "계약완료" | "계약취소" | "연락완료";
+type DisplayQuoteStatus = UIQuoteStatus | "미정의";
 
 const STATUS_MAP: Record<string, UIQuoteStatus> = {
   NEW: "상담대기",
@@ -33,6 +34,11 @@ const STATUS_MAP: Record<string, UIQuoteStatus> = {
   LOST: "계약취소",
 };
 
+function displayStatusOf(status: string | undefined): DisplayQuoteStatus {
+  if (!status) return "미정의";
+  return STATUS_MAP[status] ?? "미정의";
+}
+
 const DB_STATUS_MAP: Record<UIQuoteStatus, string> = {
   "상담대기": "NEW",
   "연락완료": "CONTACTED",
@@ -41,12 +47,13 @@ const DB_STATUS_MAP: Record<UIQuoteStatus, string> = {
   "계약취소": "LOST",
 };
 
-const STATUS_STYLE: Record<UIQuoteStatus, { bg: string; text: string; icon: React.ElementType }> = {
+const STATUS_STYLE: Record<DisplayQuoteStatus, { bg: string; text: string; icon: React.ElementType }> = {
   상담대기: { bg: "bg-[#E5E5FA]", text: "text-[#000666]", icon: Clock },
   연락완료: { bg: "bg-[#E8EAF2]", text: "text-[#5A5D80]", icon: Phone },
   상담중:   { bg: "bg-[#E5E5FA]", text: "text-[#6066EE]", icon: MessageSquare },
   계약완료: { bg: "bg-[#E8F8EF]", text: "text-[#1FC26B]", icon: CheckCircle2 },
   계약취소: { bg: "bg-[#FFECEF]", text: "text-[#E23B4A]", icon: AlertCircle },
+  미정의:   { bg: "bg-[#F8F9FC]", text: "text-[#9BA4C0]", icon: AlertCircle },
 };
 
 const STATUS_LIST: UIQuoteStatus[] = ["상담대기", "연락완료", "상담중", "계약완료", "계약취소"];
@@ -203,7 +210,7 @@ function QuotationsContent() {
     return quotes.filter(q => {
       const name = q.customerName || "고객";
       const matchSearch = name.includes(search) || q.vehicleName.includes(search) || (q.phone || "").includes(search);
-      const uiStatus = STATUS_MAP[q.status];
+      const uiStatus = displayStatusOf(q.status);
       const matchStatus = statusFilter === "전체" || uiStatus === statusFilter;
       const matchUserType = userTypeFilter === "전체" || q.userType === userTypeFilter;
       const matchQuoteType = quoteTypeFilter === "전체" || q.quoteType === quoteTypeFilter;
@@ -682,9 +689,9 @@ function QuotationsContent() {
                 <tr><td colSpan={10} className="py-20 text-center text-[13px] text-[#9BA4C0]">해당하는 견적 데이터가 없습니다.</td></tr>
               ) : filteredQuotes.map(q => {
               const isSelected = selectedIds.has(q.id);
-              const uiStatus = STATUS_MAP[q.status] || "상담대기";
+              const uiStatus = displayStatusOf(q.status);
               const SStyle = STATUS_STYLE[uiStatus];
-              const SIcon = SStyle?.icon || Clock;
+              const SIcon = SStyle.icon;
               return (
                 <tr
                   key={q.id}
@@ -749,7 +756,7 @@ function QuotationsContent() {
                     </div>
                   </td>
                   <td className="py-4 px-4">
-                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", SStyle?.bg || "bg-gray-100", SStyle?.text || "text-gray-600")}>
+                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold", SStyle.bg, SStyle.text)}>
                       <SIcon size={11} strokeWidth={2.5} /> {uiStatus}
                     </div>
                   </td>
@@ -837,15 +844,18 @@ function QuotationsContent() {
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-[13px] font-bold text-[#1A1A2E] flex items-center gap-1.5"><User size={14} className="text-[#000666]" /> 고객 & 진행</h4>
                     <select
-                      value={STATUS_MAP[drawerQuote.status]}
+                      value={displayStatusOf(drawerQuote.status)}
                       onChange={e => {
                         const s = e.target.value as UIQuoteStatus;
                         const name = drawerQuote.userType === "Member" ? drawerQuote.customerName : "비회원";
                         logActivity(`[상담 상태 변경] ${name || "고객"}님의 상태를 '${s}'(으)로 변경했습니다.`, 'update');
                         updateQuoteStatus(drawerQuote.id, s);
                       }}
-                      className={cn("px-2 py-1 text-[11px] font-bold rounded-[4px] outline-none cursor-pointer border", STATUS_STYLE[STATUS_MAP[drawerQuote.status]].bg, STATUS_STYLE[STATUS_MAP[drawerQuote.status]].text, "border-transparent")}
+                      className={cn("px-2 py-1 text-[11px] font-bold rounded-[4px] outline-none cursor-pointer border", STATUS_STYLE[displayStatusOf(drawerQuote.status)].bg, STATUS_STYLE[displayStatusOf(drawerQuote.status)].text, "border-transparent")}
                     >
+                      {displayStatusOf(drawerQuote.status) === "미정의" ? (
+                        <option value="미정의" disabled>미정의</option>
+                      ) : null}
                       {STATUS_LIST.map(st => <option key={st} value={st}>{st}</option>)}
                     </select>
                   </div>

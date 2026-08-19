@@ -1,9 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { CHANNEL_TALK_STATUS_ATTR } from "@/lib/channel-talk-status";
 import { ChannelTalkButton } from "./ChannelTalkButton";
 
 afterEach(() => {
   delete window.ChannelIO;
+  document.documentElement.removeAttribute(CHANNEL_TALK_STATUS_ATTR);
 });
 
 describe("ChannelTalkButton", () => {

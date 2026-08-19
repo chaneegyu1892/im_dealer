@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { isChannelTalkSuppressedPath } from '@/lib/channel-talk';
+import { clearChannelTalkStatus, setChannelTalkStatus } from '@/lib/channel-talk-status';
 
 declare global {
   interface Window {
@@ -32,11 +33,19 @@ export function ChannelTalk() {
       window.ChannelIO?.('shutdown');
       delete window.ChannelIO;
       delete window.ChannelIOInitialized;
+      clearChannelTalkStatus();
       return;
     }
 
     const pluginKey = process.env.NEXT_PUBLIC_CHANNEL_TALK_PLUGIN_KEY;
-    if (!pluginKey || window.ChannelIO) return;
+    if (!pluginKey) {
+      setChannelTalkStatus('failed');
+      return;
+    }
+    if (window.ChannelIO) {
+      setChannelTalkStatus('ready');
+      return;
+    }
 
     const ch: NonNullable<Window['ChannelIO']> = function (...args: unknown[]) {
       ch.q!.push(args);
@@ -46,11 +55,19 @@ export function ChannelTalk() {
       ch.q!.push(args);
     };
     window.ChannelIO = ch;
+    setChannelTalkStatus('loading');
 
+    let cancelled = false;
     const script = document.createElement('script');
     script.type = 'text/javascript';
     script.async = true;
     script.src = 'https://cdn.channel.io/plugin/ch-plugin-web.js';
+    script.onload = () => {
+      if (!cancelled) setChannelTalkStatus('ready');
+    };
+    script.onerror = () => {
+      if (!cancelled) setChannelTalkStatus('failed');
+    };
     document.head.appendChild(script);
 
     // 로그인 회원이면 memberId·memberHash·profile 을 실어 boot, 아니면 익명 boot.
@@ -68,8 +85,6 @@ export function ChannelTalk() {
         profile: identity.profile,
       });
     }
-
-    let cancelled = false;
     // 마지막으로 부팅한 신원 키. 토큰 리프레시로 SIGNED_IN 이 반복돼도 불필요한 재부팅을 막는다.
     // 'anonymous' 는 확정 익명이다. 이후 member identity 가 오면 같은 키라도 재부팅한다.
     let bootedKey: string | null = null;
@@ -141,6 +156,7 @@ export function ChannelTalk() {
       window.ChannelIO?.('shutdown');
       delete window.ChannelIO;
       delete window.ChannelIOInitialized;
+      clearChannelTalkStatus();
     };
   }, [suppressed]);
 

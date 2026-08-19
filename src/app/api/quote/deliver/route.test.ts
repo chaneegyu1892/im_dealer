@@ -415,6 +415,36 @@ describe("POST /api/quote/deliver", () => {
     expect(await res.json()).toEqual({ success: true, data: { deliveryId: "delivery-1" } });
   });
 
+  it("memo 성공 후 SENT 기록이 실패하면 같은 mark-failed 경로로 FAILED 를 남긴다", async () => {
+    mocks.updateDelivery
+      .mockRejectedValueOnce(new Error("sent write failed"))
+      .mockResolvedValueOnce({});
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(500);
+    expect(mocks.sendMemo).toHaveBeenCalledTimes(1);
+    expect(mocks.updateDelivery).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { id: "delivery-1" },
+        data: expect.objectContaining({ status: "SENT" }),
+      })
+    );
+    expect(mocks.updateDelivery).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { id: "delivery-1" },
+        data: expect.objectContaining({
+          status: "FAILED",
+          failReason: "sent write failed",
+        }),
+      })
+    );
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.enqueueAlimtalk).not.toHaveBeenCalled();
+  });
+
   it("카카오 발송 실패 시 견적 상세로 연결되는 어드민 알림을 남긴다", async () => {
     mocks.sendMemo.mockResolvedValue({ ok: false, reason: "HTTP 403 insufficient scope" });
 

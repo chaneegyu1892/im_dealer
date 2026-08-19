@@ -2,6 +2,10 @@
 
 import { MessageCircle } from "lucide-react";
 import { openChannelTalk } from "@/lib/channel-talk";
+import {
+  isChannelTalkEnabled,
+  useChannelTalkStatus,
+} from "@/lib/channel-talk-status";
 import { cn } from "@/lib/utils";
 
 interface ChannelTalkButtonProps {
@@ -21,7 +25,10 @@ export function ChannelTalkButton({
   onClick,
   loading = false,
 }: ChannelTalkButtonProps) {
+  const channelTalkStatus = useChannelTalkStatus();
+  const enabled = isChannelTalkEnabled(channelTalkStatus);
   const handleClick = () => {
+    if (!enabled) return;
     if (onClick) {
       onClick();
       return;
@@ -35,12 +42,13 @@ export function ChannelTalkButton({
     <button
       type="button"
       onClick={handleClick}
-      disabled={loading}
+      disabled={loading || !enabled}
       aria-busy={loading}
+      title={enabled ? undefined : "잠시 후 다시"}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-btn font-bold",
         "bg-text-strong text-surface transition-opacity duration-200 hover:opacity-90",
-        loading && "cursor-wait opacity-70",
+        (loading || !enabled) && "cursor-wait opacity-70",
         size === "md" ? "px-6 py-3 text-sm w-full" : "px-4 py-2 text-[13px]",
         className
       )}
@@ -50,7 +58,11 @@ export function ChannelTalkButton({
       ) : (
         <MessageCircle size={size === "md" ? 16 : 14} />
       )}
-      {loading ? "요청 저장 중…" : label ?? (vehicleName ? `${vehicleName} 상담하기` : "전문가와 상담하기")}
+      {!enabled
+        ? "채팅 준비 중"
+        : loading
+          ? "요청 저장 중…"
+          : label ?? (vehicleName ? `${vehicleName} 상담하기` : "전문가와 상담하기")}
     </button>
   );
 }

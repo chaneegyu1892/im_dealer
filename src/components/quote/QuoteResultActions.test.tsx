@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DOCK_BOTTOM_PADDING_CLASS } from "@/components/layout/dock";
+import { CHANNEL_TALK_STATUS_ATTR } from "@/lib/channel-talk-status";
 import { QuoteResultActions } from "./QuoteResultActions";
 
 const props = {
@@ -18,6 +19,7 @@ const props = {
 describe("QuoteResultActions", () => {
   afterEach(() => {
     delete window.ChannelIO;
+    document.documentElement.removeAttribute(CHANNEL_TALK_STATUS_ATTR);
     vi.restoreAllMocks();
   });
 

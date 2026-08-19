@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
 
   let delivery: { id: string } | null = null;
   let uploadedPath: string | null = null;
+  let memoDelivered = false;
   try {
     const png = await renderQuoteImageBuffer(imageData);
     if (png.byteLength > KAKAO_IMAGE_MAX_BYTES) {
@@ -158,6 +159,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    memoDelivered = true;
     await markDeliverySent(delivery.id);
 
     // 알림톡은 "나에게 보내기"의 대체가 아니라 보강이다. 회원이 카톡을 안 켜도
@@ -177,7 +179,7 @@ export async function POST(req: NextRequest) {
     if (delivery) {
       await markDeliveryFailed(delivery.id, error.message.slice(0, 500));
     }
-    if (uploadedPath) await removeUploadedQuote(uploadedPath);
+    if (uploadedPath && !memoDelivered) await removeUploadedQuote(uploadedPath);
     await notifyQuoteDeliverFailed({
       savedQuoteId: savedQuote.id,
       vehicleName: imageData.vehicleName,
@@ -261,6 +263,7 @@ async function markDeliverySent(deliveryId: string): Promise<void> {
   } catch (error) {
     if (!(error instanceof Error)) throw error;
     console.error("[quote/deliver] sent status update failed:", error);
+    throw error;
   }
 }
 

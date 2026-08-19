@@ -5,6 +5,10 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { CarFront, ClipboardCheck, Home, Info, MessageCircle } from "lucide-react";
 import { isChannelTalkSuppressedPath, openChannelTalk } from "@/lib/channel-talk";
+import {
+  isChannelTalkEnabled,
+  useChannelTalkStatus,
+} from "@/lib/channel-talk-status";
 import { cn } from "@/lib/utils";
 import { HeaderCallButton } from "@/components/layout/HeaderCallButton";
 import { MyMenuButton } from "@/components/layout/MyMenuButton";
@@ -20,6 +24,7 @@ export function Header() {
   const pathname = usePathname() ?? "";
   const isHome = pathname === "/";
   const channelTalkSuppressed = isChannelTalkSuppressedPath(pathname);
+  const channelTalkEnabled = isChannelTalkEnabled(useChannelTalkStatus());
 
   function isActive(href: string, exact: boolean) {
     if (exact) return pathname === href;
@@ -81,10 +86,12 @@ export function Header() {
               <button
                 type="button"
                 onClick={openChannelTalk}
-                className="inline-flex min-h-11 items-center gap-2 rounded-pill px-4 text-[14px] font-bold text-text-body transition-all duration-state hover:bg-surface hover:text-text-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98]"
+                disabled={!channelTalkEnabled}
+                title={channelTalkEnabled ? undefined : "잠시 후 다시"}
+                className="inline-flex min-h-11 items-center gap-2 rounded-pill px-4 text-[14px] font-bold text-text-body transition-all duration-state hover:bg-surface hover:text-text-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:scale-[0.98] disabled:cursor-wait disabled:opacity-70"
               >
                 <MessageCircle size={17} strokeWidth={2} />
-                상담
+                {channelTalkEnabled ? "상담" : "채팅 준비 중"}
               </button>
             )}
           </nav>
