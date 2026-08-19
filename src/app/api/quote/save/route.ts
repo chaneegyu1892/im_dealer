@@ -47,12 +47,42 @@ function attachVerificationCapability<T>(
   return response;
 }
 
+type SavedQuoteAccessRow = {
+  userId: string | null;
+  deletedAt: Date | null;
+  verificationCapabilityHash?: string | null;
+};
+
+async function denySavedQuoteAccess(
+  existing: SavedQuoteAccessRow,
+  callerSupabaseId: string | null | undefined,
+  sessionId: string,
+): Promise<NextResponse | null> {
+  if (existing.deletedAt) {
+    return NextResponse.json({ error: "삭제된 견적입니다." }, { status: 410 });
+  }
+  if (existing.userId && existing.userId !== callerSupabaseId) {
+    return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
+  }
+  if (existing.userId === null) {
+    const capability = (await cookies())
+      .get(verificationCapabilityCookieName(sessionId))
+      ?.value;
+    if (!capability || !matchesVerificationCapability(existing.verificationCapabilityHash, capability)) {
+      return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
+    }
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   const user = await getActiveUser();
+  let sessionId: string | null = null;
 
   try {
     const body = await request.json();
     const input = saveQuoteSchema.parse(body);
+    sessionId = input.sessionId;
 
     const vehicle = await prisma.vehicle.findUnique({
       where: { slug: input.vehicleSlug },
@@ -106,11 +136,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (existing?.deletedAt) {
-      return NextResponse.json({ error: "삭제된 견적입니다." }, { status: 410 });
-    }
-    if (existing?.userId && existing.userId !== user?.supabaseId) {
-      return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
+    if (existing) {
+      const denied = await denySavedQuoteAccess(existing, user?.supabaseId, input.sessionId);
+      if (denied) return denied;
     }
 
     const activeUserId = user?.supabaseId ?? null;
@@ -118,12 +146,6 @@ export async function POST(request: NextRequest) {
     let verificationCapabilityHash: string | null = null;
 
     if (existing?.userId === null) {
-      const capability = (await cookies())
-        .get(verificationCapabilityCookieName(input.sessionId))
-        ?.value;
-      if (!capability || !matchesVerificationCapability(existing.verificationCapabilityHash, capability)) {
-        return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
-      }
       verificationCapabilityHash = activeUserId ? null : existing.verificationCapabilityHash;
     } else if (!existing && !activeUserId) {
       issuedVerificationCapability = createVerificationCapability();
@@ -479,6 +501,35 @@ export async function POST(request: NextRequest) {
         { error: "입력값이 올바르지 않습니다.", details: error.flatten() },
         { status: 400 }
       );
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const existingQuote = sessionId
+        ? await prisma.savedQuote.findUnique({
+            where: { sessionId },
+            select: {
+              id: true,
+              sessionId: true,
+              userId: true,
+              deletedAt: true,
+              status: true,
+              monthlyPayment: true,
+              totalCost: true,
+              pricingStatus: true,
+              depositRate: true,
+              prepayRate: true,
+              breakdown: true,
+              verificationCapabilityHash: true,
+            },
+          })
+        : null;
+      if (existingQuote && sessionId) {
+        const denied = await denySavedQuoteAccess(existingQuote, user?.supabaseId, sessionId);
+        if (denied) return denied;
+        return NextResponse.json({
+          success: true,
+          data: toSavedQuoteClientData(existingQuote),
+        });
+      }
     }
     console.error("[POST /api/quote/save]", error);
     Sentry.captureException(error, { tags: { route: "quote/save" } });

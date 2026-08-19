@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
@@ -689,6 +690,218 @@ describe("POST /api/quote/save", () => {
     expect(payload.error).toContain("선루프 ↔ 파노라마");
     expect(mocks.upsertSavedQuote).not.toHaveBeenCalled();
     expect(mocks.calculate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed payload with Zod 400", async () => {
+    const malformed = new NextRequest("https://example.com/api/quote/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "session-1",
+        vehicleSlug: "test-car",
+      }),
+    });
+
+    const response = await POST(malformed);
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toBe("입력값이 올바르지 않습니다.");
+    expect(payload.details).toBeDefined();
+    expect(mocks.upsertSavedQuote).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 with the saved quote id on a successful write", async () => {
+    const response = await POST(request());
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(payload.data.id).toBe("quote-1");
+  });
+
+  it("returns 200 with the existing quote id when Prisma raises P2002", async () => {
+    mocks.transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed on the fields: (`sessionId`)",
+        {
+          code: "P2002",
+          clientVersion: "5.22.0",
+          meta: { target: ["sessionId"] },
+        },
+      ),
+    );
+    mocks.findSavedQuote
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "existing-quote-id",
+        sessionId: "session-1",
+        monthlyPayment: 650_000,
+        totalCost: 39_000_000,
+        pricingStatus: "CALCULATED",
+        depositRate: 0,
+        prepayRate: 30,
+        breakdown: {
+          bestFinanceCompany: "테스트캐피탈",
+          quoteBreakdown: { depositAmount: 0, prepayAmount: 12_000_000 },
+        },
+      });
+
+    const response = await POST(request());
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(payload.data.id).toBe("existing-quote-id");
+  });
+
+  it("does not leak another owner's quote amounts when Prisma raises P2002", async () => {
+    mocks.getActiveUser.mockResolvedValue(null);
+    mocks.transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed on the fields: (`sessionId`)",
+        {
+          code: "P2002",
+          clientVersion: "5.22.0",
+          meta: { target: ["sessionId"] },
+        },
+      ),
+    );
+    mocks.findSavedQuote
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "owned-quote-id",
+        sessionId: "session-1",
+        userId: "other-supabase-user",
+        deletedAt: null,
+        status: "NEW",
+        monthlyPayment: 1_234_567,
+        totalCost: 74_074_020,
+        pricingStatus: "CALCULATED",
+        depositRate: 20,
+        prepayRate: 0,
+        breakdown: {
+          bestFinanceCompany: "유출캐피탈",
+          quoteBreakdown: { depositAmount: 9_000_000, prepayAmount: 0 },
+        },
+      });
+
+    const response = await POST(request());
+    const payload = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(payload.error).toBe("접근 권한이 없습니다.");
+    expect(payload.data).toBeUndefined();
+    expect(JSON.stringify(payload)).not.toContain("1234567");
+    expect(JSON.stringify(payload)).not.toContain("9000000");
+    expect(JSON.stringify(payload)).not.toContain("유출캐피탈");
+  });
+
+  it("returns 410 when Prisma raises P2002 against a soft-deleted quote", async () => {
+    mocks.getActiveUser.mockResolvedValue({
+      id: "member-db-1",
+      supabaseId: "member-1",
+      name: "카카오회원",
+      phone: "010-1234-5678",
+    });
+    mocks.transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed on the fields: (`sessionId`)",
+        {
+          code: "P2002",
+          clientVersion: "5.22.0",
+          meta: { target: ["sessionId"] },
+        },
+      ),
+    );
+    mocks.findSavedQuote
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "deleted-quote-id",
+        sessionId: "session-1",
+        userId: "member-1",
+        deletedAt: new Date("2026-01-01T00:00:00.000Z"),
+        status: "NEW",
+        monthlyPayment: 650_000,
+        totalCost: 39_000_000,
+        pricingStatus: "CALCULATED",
+        depositRate: 0,
+        prepayRate: 30,
+        breakdown: {
+          bestFinanceCompany: "테스트캐피탈",
+          quoteBreakdown: { depositAmount: 0, prepayAmount: 12_000_000 },
+        },
+      });
+
+    const response = await POST(request());
+    const payload = await response.json();
+
+    expect(response.status).toBe(410);
+    expect(payload.error).toBe("삭제된 견적입니다.");
+    expect(payload.data).toBeUndefined();
+  });
+
+  it("still returns 200 with the existing id when the owner resubmits and Prisma raises P2002", async () => {
+    mocks.getActiveUser.mockResolvedValue({
+      id: "member-db-1",
+      supabaseId: "member-1",
+      name: "카카오회원",
+      phone: "010-1234-5678",
+    });
+    mocks.transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed on the fields: (`sessionId`)",
+        {
+          code: "P2002",
+          clientVersion: "5.22.0",
+          meta: { target: ["sessionId"] },
+        },
+      ),
+    );
+    mocks.findSavedQuote
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "owner-quote-id",
+        sessionId: "session-1",
+        userId: "member-1",
+        deletedAt: null,
+        status: "NEW",
+        monthlyPayment: 650_000,
+        totalCost: 39_000_000,
+        pricingStatus: "CALCULATED",
+        depositRate: 10,
+        prepayRate: 0,
+        breakdown: {
+          bestFinanceCompany: "테스트캐피탈",
+          quoteBreakdown: { depositAmount: 4_000_000, prepayAmount: 0 },
+        },
+      });
+
+    const response = await POST(request());
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.success).toBe(true);
+    expect(payload.data.id).toBe("owner-quote-id");
+    expect(payload.data.monthlyPayment).toBe(650_000);
+  });
+
+  it("still returns 500 for other Prisma errors", async () => {
+    mocks.findSavedQuote.mockReset();
+    mocks.findSavedQuote.mockResolvedValue(null);
+    mocks.transaction.mockReset();
+    mocks.transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Record not found", {
+        code: "P2025",
+        clientVersion: "5.22.0",
+      }),
+    );
+
+    const response = await POST(request());
+    const payload = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(payload.error).toBe("견적 저장 중 오류가 발생했습니다.");
   });
 });
 
