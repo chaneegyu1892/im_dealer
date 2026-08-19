@@ -195,4 +195,27 @@ describe("review image upload ledger", () => {
       },
     });
   });
+
+  it("does not decrement quota again when the reservation is already gone", async () => {
+    mocks.findUpload.mockResolvedValue(null);
+
+    await releaseReviewImageUpload("upload-1");
+
+    expect(mocks.deleteUpload).not.toHaveBeenCalled();
+    expect(mocks.updateToken).not.toHaveBeenCalled();
+  });
+
+  it("does not decrement quota when a concurrent release already deleted the row", async () => {
+    mocks.findUpload.mockResolvedValue({
+      id: "upload-1",
+      reviewRequestTokenId: "token-row-1",
+      byteSize: 5,
+      usedAt: null,
+    });
+    mocks.deleteUpload.mockResolvedValue({ count: 0 });
+
+    await releaseReviewImageUpload("upload-1");
+
+    expect(mocks.updateToken).not.toHaveBeenCalled();
+  });
 });

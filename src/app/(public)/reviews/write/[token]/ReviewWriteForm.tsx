@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Star, CheckCircle2 } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import { Button } from "@/components/ui/Button";
@@ -13,22 +13,82 @@ interface ReviewWriteFormProps {
   customerDisplayName: string;
 }
 
+interface PendingReviewImage {
+  id: string;
+  url: string;
+}
+
 const MIN_LEN = 10;
 const MAX_LEN = 1000;
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
 
+function releaseEndpoint(token: string) {
+  return `/api/reviews/submit/${token}/image/release`;
+}
+
+function takePendingIds(
+  pending: PendingReviewImage[],
+  claimed: Set<string>,
+  ids?: readonly string[],
+): string[] {
+  const target = ids ? new Set(ids) : null;
+  const next: string[] = [];
+  for (const image of pending) {
+    if (target && !target.has(image.id)) continue;
+    if (claimed.has(image.id)) continue;
+    claimed.add(image.id);
+    next.push(image.id);
+  }
+  return next;
+}
+
+function releaseReservedImages(token: string, uploadIds: string[], unload: boolean) {
+  if (uploadIds.length === 0) return;
+
+  const url = releaseEndpoint(token);
+  const body = JSON.stringify({ uploadIds });
+
+  if (unload && typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+    try {
+      const queued = navigator.sendBeacon(
+        url,
+        new Blob([body], { type: "application/json" }),
+      );
+      if (queued) return;
+    } catch (error) {
+      console.error("[ReviewWriteForm] sendBeacon release failed", error);
+    }
+  }
+
+  void fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch((error) => {
+    console.error("[ReviewWriteForm] image quota release failed", error);
+  });
+}
+
 export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: ReviewWriteFormProps) {
   const [rating, setRating] = useState(5);
   const [hover, setHover] = useState<number | null>(null);
   const [content, setContent] = useState("");
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [images, setImages] = useState<PendingReviewImage[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imagesRef = useRef<PendingReviewImage[]>([]);
+  const submittedRef = useRef(false);
+  const claimedReleaseIdsRef = useRef<Set<string>>(new Set());
+
+  imagesRef.current = images;
+  submittedRef.current = submitted;
+  const imageUrls = images.map((image) => image.url);
 
   const length = content.length;
   const tooShort = length > 0 && length < MIN_LEN;
@@ -41,7 +101,7 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
     rating >= 1 &&
     rating <= 5;
 
-  async function uploadOne(file: File): Promise<string | null> {
+  async function uploadOne(file: File): Promise<PendingReviewImage | null> {
     if (!ALLOWED_MIME.includes(file.type)) {
       setError(`'${file.name}'은(는) 지원하지 않는 형식입니다. (JPG/PNG/WEBP)`);
       return null;
@@ -73,11 +133,11 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
       body: fd,
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok || !json?.success) {
+    if (!res.ok || !json?.success || typeof json?.data?.id !== "string" || typeof json?.data?.url !== "string") {
       setError(json?.error ?? "이미지 업로드에 실패했습니다.");
       return null;
     }
-    return json.data.url as string;
+    return { id: json.data.id as string, url: json.data.url as string };
   }
 
   async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -86,15 +146,15 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
     setError(null);
     setUploading(true);
     try {
-      const slots = MAX_IMAGES - imageUrls.length;
+      const slots = MAX_IMAGES - imagesRef.current.length;
       const accept = Array.from(files).slice(0, slots);
-      const uploaded: string[] = [];
+      const uploaded: PendingReviewImage[] = [];
       for (const f of accept) {
-        const url = await uploadOne(f);
-        if (url) uploaded.push(url);
+        const image = await uploadOne(f);
+        if (image) uploaded.push(image);
       }
       if (uploaded.length > 0) {
-        setImageUrls((prev) => [...prev, ...uploaded]);
+        setImages((prev) => [...prev, ...uploaded]);
       }
     } finally {
       setUploading(false);
@@ -103,8 +163,29 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
   }
 
   function removeImage(idx: number) {
-    setImageUrls((prev) => prev.filter((_, i) => i !== idx));
+    const target = imagesRef.current[idx];
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+    if (!target) return;
+    const uploadIds = takePendingIds(imagesRef.current, claimedReleaseIdsRef.current, [target.id]);
+    releaseReservedImages(token, uploadIds, false);
   }
+
+  useEffect(() => {
+    const releaseUnused = (unload: boolean) => {
+      if (submittedRef.current) return;
+      const uploadIds = takePendingIds(imagesRef.current, claimedReleaseIdsRef.current);
+      releaseReservedImages(token, uploadIds, unload);
+    };
+
+    const onBeforeUnload = () => releaseUnused(true);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("pagehide", onBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", onBeforeUnload);
+      releaseUnused(false);
+    };
+  }, [token]);
 
   async function onSubmit() {
     if (!canSubmit) return;
@@ -124,6 +205,9 @@ export function ReviewWriteForm({ token, vehicleName, customerDisplayName }: Rev
       if (!res.ok) {
         setError(data?.error ?? "후기 제출 중 오류가 발생했습니다.");
         return;
+      }
+      for (const image of imagesRef.current) {
+        claimedReleaseIdsRef.current.add(image.id);
       }
       setSubmitted(true);
     } catch (submitError: unknown) {
