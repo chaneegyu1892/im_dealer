@@ -50,6 +50,13 @@ describe("BasicInfoTab", () => {
     );
   });
 
+  it("keeps an unknown stored brand selected so the brand field hydrates", () => {
+    render(<BasicInfoTab vehicle={{ ...vehicle, brand: "E2E" }} onOpenImages={vi.fn()} />);
+
+    expect(screen.getByRole("combobox", { name: /브랜드/ })).toHaveValue("E2E");
+    expect(screen.getByRole("option", { name: "E2E" })).toBeInTheDocument();
+  });
+
   it("saves edited non-image basic information", async () => {
     render(<BasicInfoTab vehicle={vehicle} onOpenImages={vi.fn()} />);
     fireEvent.change(screen.getByDisplayValue("쏘렌토"), {

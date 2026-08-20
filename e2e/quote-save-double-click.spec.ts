@@ -271,9 +271,14 @@ test.describe("견적 저장 더블클릭", () => {
       `/quote?vehicle=${vehicleSlug}&customerType=individual&trim=${CONSULTATION_TRIM_ID}`,
       { waitUntil: "domcontentloaded" },
     );
+    await page.evaluate(() => {
+      window.ChannelIO = window.ChannelIO ?? (() => undefined);
+      document.documentElement.setAttribute("data-channel-talk-status", "ready");
+    });
 
     await ensureCalculateCtaReady(page);
     await page.getByRole("button", { name: CALCULATE_CTA_NAME }).click();
+    await expect(page.getByText("별도 상담 필요")).toBeVisible({ timeout: SLUG_WAIT_MS });
 
     const saveButton = page.getByRole("button", { name: "선택 조건으로 상담 요청하기" });
     await expect(saveButton).toBeVisible({ timeout: SLUG_WAIT_MS });
