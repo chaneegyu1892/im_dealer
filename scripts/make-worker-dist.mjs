@@ -21,7 +21,14 @@ import { zipSync } from "fflate";
 const ROOT = process.cwd();
 const OUT_DIR = join(ROOT, "worker-dist");
 const WORKER_DIR = "scripts/scraper-worker";
-const ROOT_FILES = ["package.json", "pnpm-lock.yaml", "tsconfig.json", "prisma/schema.prisma"];
+const ROOT_FILES = [
+  "package.json",
+  "pnpm-lock.yaml",
+  // pnpm 11 은 allowBuilds 승인 목록이 없으면 install 이 ERR_PNPM_IGNORED_BUILDS 로 실패한다.
+  "pnpm-workspace.yaml",
+  "tsconfig.json",
+  "prisma/schema.prisma",
+];
 
 // 접속 정보·로컬 산출물은 절대 담지 않는다. 폰트는 견적서 PDF 렌더링용 — 워커에 불필요한 최대 용량.
 const EXCLUDE = /(^|[\\/])(\.env[^\\/]*|node_modules|\.next|worker-dist)([\\/]|$)|\.(ttf|woff2?)$/;

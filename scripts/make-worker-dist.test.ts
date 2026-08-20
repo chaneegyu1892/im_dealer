@@ -19,6 +19,7 @@ describe("워커 배포 zip 범위", () => {
       "src/lib/scraper/worker-version.ts", // 버전 비교 기준
       "package.json",
       "pnpm-lock.yaml",
+      "pnpm-workspace.yaml", // pnpm 11 빌드 승인 목록 — 없으면 install 이 ERR_PNPM_IGNORED_BUILDS 로 실패
       "tsconfig.json",
       "prisma/schema.prisma", // postinstall 의 prisma generate 가 읽는다
     ];
