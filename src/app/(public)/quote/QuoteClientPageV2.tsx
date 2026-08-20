@@ -64,6 +64,7 @@ import {
   resolveQuoteResultScenario,
 } from "@/lib/quote-scenario-selection";
 import { successfulCalculatedQuoteResponseSchema } from "@/lib/quote-response-schema";
+import { trackQuoteRequestConversion } from "@/lib/google-ads";
 import {
   applySavedQuoteAmountsToDisplay,
   quoteSaveLoginRedirect,
@@ -1024,6 +1025,9 @@ export function QuoteClientPageV2({ vehicles }: { vehicles: VehicleListItem[] })
     // 덮어졌으므로 "새 조건이 아니"라는 재계산 실패 안내는 이제 사실이 아니다.
     // 「다시 계산하지 못했어요」와 「보냈어요」가 함께 뜨는 모순을 없앤다.
     setRecalculationError(null);
+    // Google Ads '견적 요청' 전환. 상담 요청·카톡 전송이 모두 이 저장을 거치므로
+    // 여기 한 곳에서 발사하고, 같은 견적 ID 는 내부에서 한 번만 집계된다.
+    trackQuoteRequestConversion({ quoteId: savedQuote.id });
     return savedQuote;
   }, [
     quoteResult,

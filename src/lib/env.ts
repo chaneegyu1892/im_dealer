@@ -46,6 +46,21 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 
+  // Google Ads 전환추적 (광고 대행사 발급). 전환 ID 만 있어도 전체 사이트 태그는
+  // 실려 gclid 를 수집하고, '견적 요청' 전환 발사에는 라벨까지 함께 필요하다.
+  // 미설정 시 태그가 아예 로드되지 않아 로컬·프리뷰가 운영 지표를 오염시키지 않는다.
+  NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID: z
+    .string()
+    .regex(/^AW-\d{6,}$/, "NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID 는 'AW-숫자' 형식이어야 합니다.")
+    .optional(),
+  NEXT_PUBLIC_GOOGLE_ADS_QUOTE_REQUEST_LABEL: z
+    .string()
+    .regex(
+      /^[A-Za-z0-9_-]{6,}$/,
+      "NEXT_PUBLIC_GOOGLE_ADS_QUOTE_REQUEST_LABEL 는 구글이 발급한 전환 라벨이어야 합니다."
+    )
+    .optional(),
+
   // 보안 설정
   TRUST_PROXY: z.enum(["true", "false"]).default("false"),
 

@@ -84,6 +84,7 @@ beforeEach(() => {
 afterEach(() => {
   delete window.ChannelIO;
   document.documentElement.removeAttribute(CHANNEL_TALK_STATUS_ATTR);
+  delete window.gtag;
   window.localStorage.clear();
   // 자동 재개 1회 예산은 sessionStorage 에 있다 — 테스트 간 누수 금지.
   window.sessionStorage.clear();
@@ -925,6 +926,64 @@ describe("QuoteClientPageV2 consultation fallback", () => {
       })],
       ["showMessenger"],
     ]);
+  });
+
+  it("fires the Google Ads quote-request conversion once per saved quote", async () => {
+    writeConsultationRestore();
+    vi.stubEnv("NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID", "AW-18396038759");
+    vi.stubEnv(
+      "NEXT_PUBLIC_GOOGLE_ADS_QUOTE_REQUEST_LABEL",
+      "rWy3CKr3i-QcEOeM9cNE"
+    );
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    window.ChannelIO = () => {};
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = input.toString();
+      if (url.endsWith("/colors") || url.endsWith("/trims")) {
+        return Response.json({ success: true, data: [] });
+      }
+      if (url === "/api/quote/save") {
+        return Response.json({
+          success: true,
+          data: savedQuoteSuccessData({
+            id: "consultation-quote-1",
+            sessionId: "consultation-session-1",
+            requiresConsultation: true,
+            monthlyPayment: 0,
+            totalCost: 0,
+            pricingStatus: "CONSULTATION_REQUIRED",
+          }),
+        });
+      }
+      return Response.json({ success: false, error: "unexpected request" }, { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<QuoteClientPageV2 vehicles={vehicles} />);
+
+    const requestButton = await screen.findByRole("button", {
+      name: "선택 조건으로 상담 요청하기",
+    });
+    fireEvent.click(requestButton);
+
+    await waitFor(() => {
+      expect(gtag).toHaveBeenCalledWith("event", "conversion", {
+        send_to: "AW-18396038759/rWy3CKr3i-QcEOeM9cNE",
+        transaction_id: "consultation-quote-1",
+      });
+    });
+
+    // 같은 견적을 다시 요청해도 전환은 한 번만 집계돼야 광고 최적화가 왜곡되지 않는다.
+    fireEvent.click(requestButton);
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.filter(
+        ([input]) => input.toString() === "/api/quote/save"
+      ).length).toBe(2);
+    });
+    expect(gtag).toHaveBeenCalledTimes(1);
   });
 
   it("replaces the on-screen monthly payment with the amount persisted by save", async () => {

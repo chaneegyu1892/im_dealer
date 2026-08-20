@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { requireAccess } from "@/lib/require-access";
 import { Header } from "@/components/layout/Header";
 import { ChannelTalk } from "@/components/layout/ChannelTalk";
+import { GoogleAdsTag } from "@/components/layout/GoogleAdsTag";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false, nocache: true },
@@ -22,6 +23,7 @@ export default async function MemberLayout({
   await requireAccess(pathname);
   return (
     <>
+      <GoogleAdsTag />
       <ChannelTalk />
       <Header />
       {children}

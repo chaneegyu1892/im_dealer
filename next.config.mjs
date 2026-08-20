@@ -62,11 +62,17 @@ const nextConfig = {
     const reportUri = sentryCspReportUri();
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.sentry.io",
+      // googletagmanager: Google Ads 전체 사이트 태그(gtag.js) 로더.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.sentry.io *.googletagmanager.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self' *.supabase.co *.sentry.io *.upstash.io",
+      // google* / doubleclick: gtag 가 전환을 비콘으로 전송하는 대상.
+      // 구글은 지역 도메인(google.co.kr 등)으로도 핑을 보낸다 — 누락분은
+      // Report-Only 위반 리포트로 드러나므로 enforce 전환 전에 보완한다.
+      "connect-src 'self' *.supabase.co *.sentry.io *.upstash.io *.google-analytics.com *.googletagmanager.com *.googleadservices.com *.google.com *.doubleclick.net",
+      // frame-src 미선언 시 default-src 'self' 로 떨어져 전환 링커 iframe 이 막힌다.
+      "frame-src 'self' *.doubleclick.net *.googletagmanager.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -3,6 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ChannelTalk } from "@/components/layout/ChannelTalk";
+import { GoogleAdsTag } from "@/components/layout/GoogleAdsTag";
 
 export default function PublicLayout({
   children,
@@ -11,6 +12,7 @@ export default function PublicLayout({
 }) {
   return (
     <div className="home-showroom-scope flex min-h-[100dvh] flex-col bg-app-bg text-text-body">
+      <GoogleAdsTag />
       <ChannelTalk />
       <Suspense
         fallback={
