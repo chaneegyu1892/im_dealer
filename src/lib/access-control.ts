@@ -33,6 +33,7 @@ export const PAGE_ACCESS = {
   "/admin/users": ["staff", "admin", "superadmin"],
   "/admin/vehicles": ["staff", "admin", "superadmin"],
   "/admin/inventory": ["staff", "admin", "superadmin"],
+  "/admin/immediate-delivery": ["staff", "admin", "superadmin"],
   "/admin/reviews": ["staff", "admin", "superadmin"],
   "/admin/memo": ["staff", "admin", "superadmin"],
   "/admin/notifications": ["staff", "admin", "superadmin"],

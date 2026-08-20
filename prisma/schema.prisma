@@ -1159,3 +1159,43 @@ model AlimtalkMessage {
   @@index([userId, createdAt])
   @@index([refType, refId])
 }
+
+// 즉시출고 재고 업로드 배치 — 브랜드별 엑셀 1회 업로드 = 1배치. 적용 시 같은 브랜드의 이전 배치·행 전체 교체(스냅샷).
+model ImmediateDeliveryBatch {
+  id          String                   @id @default(cuid())
+  brand       String // "기아" | "현대" | "르노" (파서 추가 시 확장)
+  fileName    String
+  rowCount    Int
+  vehicleCount Int // quantity 합계
+  warnings    Json? // 파싱 경고 (스킵된 시트/행 등)
+  createdById String
+  createdAt   DateTime                 @default(now())
+  rows        ImmediateDeliveryStock[]
+
+  @@index([brand, createdAt])
+}
+
+// 즉시출고 가능 차량 — 제조사 재고리스트 엑셀의 통합 정규화 행. 브랜드별 최신 배치의 행만 존재.
+model ImmediateDeliveryStock {
+  id            String                 @id @default(cuid())
+  batchId       String
+  brand         String // "기아" | "현대" | "르노"
+  model         String // 시트명 기반 모델명 (카니발, 싼타페, 그랑콜레오스 등)
+  stockType     String // "NORMAL"(정상) | "LIMITED"(한정/조건)
+  salesCode     String? // 판매코드 (르노는 모델코드)
+  trimName      String // 차종 상세
+  optionText    String?
+  exteriorColor String?
+  interiorColor String?
+  price         Int?
+  discount      Int? // 판매조건계(원). 르노는 시트명의 한정액
+  quantity      Int    @default(1) // 기아·현대 한정 시트는 1행 = 1대
+  location      String? // 출하지/출고센터 등
+  extra         Json? // 브랜드 특화 필드 (생산번호, 생산일, 할인 세부내역 등)
+  createdAt     DateTime               @default(now())
+  batch         ImmediateDeliveryBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([brand, model])
+  @@index([brand, stockType])
+}
