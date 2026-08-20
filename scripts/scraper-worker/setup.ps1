@@ -99,6 +99,26 @@ if ($browserPath) {
 # ── 4. 접속 정보 ────────────────────────────────────────────
 Write-Step 4 "접속 정보 입력"
 
+# 수집 PC 이름(SCRAPER_WORKER_ID) — 관리자 페이지에서 수집을 시킬 때 이 이름을
+# 입력해야 이 PC 로 작업이 온다. 형식은 서버(WORKER_ID_PATTERN)와 동일하게 검증.
+function Get-DefaultWorkerId {
+    $clean = ("$env:COMPUTERNAME".ToLower() -replace '[^A-Za-z0-9_-]', '-').Trim('-')
+    if (-not $clean) { $clean = "worker" }
+    if ($clean.Length -gt 32) { $clean = $clean.Substring(0, 32) }
+    return $clean
+}
+
+function Read-WorkerId {
+    $default = Get-DefaultWorkerId
+    while ($true) {
+        $entered = Read-Host "  4) 수집 PC 이름 (엔터 = $default)"
+        if (-not $entered) { $entered = $default }
+        $entered = $entered.Trim()
+        if ($entered -match '^[A-Za-z0-9가-힣_-]{1,32}$') { return $entered }
+        Write-Host "     영문/숫자/한글/밑줄(_)/하이픈(-) 1~32자로 다시 입력해 주세요." -ForegroundColor Yellow
+    }
+}
+
 $keepExisting = $false
 if (Test-Path $EnvPath) {
     Write-Host "  이미 설정된 접속 정보가 있습니다."
@@ -121,6 +141,11 @@ if (-not $keepExisting) {
     $piiKey = Read-Host "  3) 암호화 키" -AsSecureString
     if ($piiKey.Length -eq 0) { Stop-WithMessage "암호화 키를 입력해야 합니다." }
 
+    Write-Host ""
+    Write-Host "  이 PC 를 구분할 이름을 정합니다. 관리자 페이지에서 수집을 시킬 때" -ForegroundColor Yellow
+    Write-Host "  같은 이름을 입력하므로, 정한 이름을 개발 담당자에게 알려주세요." -ForegroundColor Yellow
+    $workerId = Read-WorkerId
+
     $workerSecretPointer = [IntPtr]::Zero
     $piiKeyPointer = [IntPtr]::Zero
     try {
@@ -131,6 +156,7 @@ if (-not $keepExisting) {
             "WORKER_API_BASE=$($apiBase.Trim())",
             "SCRAPER_WORKER_SECRET=$([Runtime.InteropServices.Marshal]::PtrToStringBSTR($workerSecretPointer).Trim())",
             "PII_ENCRYPTION_KEY=$([Runtime.InteropServices.Marshal]::PtrToStringBSTR($piiKeyPointer).Trim())",
+            "SCRAPER_WORKER_ID=$workerId",
             "PUPPETEER_EXECUTABLE_PATH=$browserPath",
             "SCRAPER_HEADFUL=true"
         )
@@ -145,6 +171,15 @@ if (-not $keepExisting) {
         }
     }
     Write-Ok "접속 정보를 저장했습니다."
+}
+
+# 예전 설치본의 .env 에는 수집 PC 이름이 없을 수 있다 — 이 경우에만 추가로 묻는다.
+if ($keepExisting -and (Get-Content $EnvPath -Raw) -notmatch '(?m)^\s*SCRAPER_WORKER_ID\s*=') {
+    Write-Host ""
+    Write-Host "  기존 접속 정보에 수집 PC 이름이 없어 추가합니다." -ForegroundColor Yellow
+    $workerId = Read-WorkerId
+    Add-Content -Path $EnvPath -Value "SCRAPER_WORKER_ID=$workerId" -Encoding UTF8
+    Write-Ok "수집 PC 이름을 저장했습니다: $workerId"
 }
 
 # 다음에 새 버전 zip 으로 덮어써도 잃지 않도록 폴더 밖에 사본을 남긴다.
