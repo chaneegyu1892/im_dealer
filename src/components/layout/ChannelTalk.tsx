@@ -38,12 +38,14 @@ export function ChannelTalk() {
     }
 
     const pluginKey = process.env.NEXT_PUBLIC_CHANNEL_TALK_PLUGIN_KEY;
-    if (!pluginKey) {
-      setChannelTalkStatus('failed');
-      return;
-    }
+    // A host-provided ChannelIO (E2E stub or an already-booted widget) is ready
+    // even when the plugin key is unset — do not overwrite that with `failed`.
     if (window.ChannelIO) {
       setChannelTalkStatus('ready');
+      return;
+    }
+    if (!pluginKey) {
+      setChannelTalkStatus('failed');
       return;
     }
 

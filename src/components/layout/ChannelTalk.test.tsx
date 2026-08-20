@@ -232,6 +232,29 @@ describe("ChannelTalk SDK load failure surface", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
+  it("keeps a host-provided ChannelIO ready when the plugin key is unset", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CHANNEL_TALK_PLUGIN_KEY", "");
+    window.ChannelIO = () => undefined;
+
+    render(<ChannelTalk />);
+
+    await waitFor(() => {
+      expect(document.documentElement.getAttribute(CHANNEL_TALK_STATUS_ATTR)).toBe("ready");
+    });
+    expect(loadedPluginScripts()).toHaveLength(0);
+  });
+
+  it("marks failed when the plugin key is unset and ChannelIO is absent", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CHANNEL_TALK_PLUGIN_KEY", "");
+
+    render(<ChannelTalk />);
+
+    await waitFor(() => {
+      expect(document.documentElement.getAttribute(CHANNEL_TALK_STATUS_ATTR)).toBe("failed");
+    });
+    expect(loadedPluginScripts()).toHaveLength(0);
+  });
+
   it("marks the document failed and disables consult buttons when the plugin script errors", async () => {
     render(
       <>

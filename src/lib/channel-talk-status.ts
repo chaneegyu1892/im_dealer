@@ -35,7 +35,11 @@ export function isChannelTalkEnabled(status: ChannelTalkStatus | null): boolean 
 }
 
 export function useChannelTalkStatus(): ChannelTalkStatus | null {
-  const [status, setStatus] = useState<ChannelTalkStatus | null>(readChannelTalkStatus);
+  // Always start null so SSR and the first client render emit the same text.
+  // Header sits behind Suspense (`usePathname`); if this hook read the DOM
+  // during a late hydrate, ChannelTalk may already have written `failed`
+  // and the consult label would mismatch ("상담" vs "채팅 준비 중") — React #418.
+  const [status, setStatus] = useState<ChannelTalkStatus | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;

@@ -51,6 +51,22 @@ export function vehicleImageFixtureFromPrefix(prefix: string): AdminVehicleImage
   return { prefix, vehicleId, slug, coverId, mainId, hiddenId, trashedId, coverUrl: url("cover"), mainUrl: url("main"), frozenSessionId, frozenBytes: JSON.stringify(frozen) };
 }
 
+export async function resolveVehicleImageFixture(
+  prefix: string,
+  prebuilt: boolean,
+): Promise<AdminVehicleImageFixture> {
+  if (!prebuilt) return seedVehicleImageFixture(prefix);
+  const fromPrefix = vehicleImageFixtureFromPrefix(prefix);
+  const existing = await prisma.recommendationLog.findFirst({
+    where: { sessionId: fromPrefix.frozenSessionId },
+    select: { id: true },
+  });
+  // Playwright retries reuse VEHICLE_IMAGE_E2E_PREFIX after fixture cleanup
+  // deleted the frozen log. Re-seed instead of reading a missing row.
+  if (existing) return fromPrefix;
+  return seedVehicleImageFixture(prefix);
+}
+
 export async function seedVehicleImageFixture(prefix: string, adminEmail = process.env.E2E_ADMIN_EMAIL): Promise<AdminVehicleImageFixture> {
   const runtime = assertVehicleImageE2ERuntime(process.env);
   const fixture = vehicleImageFixtureFromPrefix(prefix);
@@ -217,7 +233,7 @@ export const test = base.extend<Fixtures>({
     const prefix = prebuiltPrefix ?? `vi-e2e-${testInfo.workerIndex}-${randomUUID()}`;
     let fixture: AdminVehicleImageFixture | null = null;
     try {
-      const seeded = prebuiltPrefix ? vehicleImageFixtureFromPrefix(prefix) : await seedVehicleImageFixture(prefix);
+      const seeded = await resolveVehicleImageFixture(prefix, Boolean(prebuiltPrefix));
       fixture = { ...seeded, frozenBytes: await readRecommendationBytes(seeded.frozenSessionId) };
       await installNoLinkPrefetch(page);
       const login = await page.request.post("/api/e2e/vehicle-image-admin-login", { data: { email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD } });

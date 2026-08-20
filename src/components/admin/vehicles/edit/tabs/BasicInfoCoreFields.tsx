@@ -33,6 +33,10 @@ const SELECT_CLASS = `${INPUT_CLASS} cursor-pointer appearance-none`;
 const BRANDS = ["현대", "기아", "제네시스", "KGM", "쉐보레", "르노"] as const;
 const CATEGORIES = ["세단", "SUV", "밴", "트럭"] as const;
 
+function brandSelectOptions(current: string): readonly string[] {
+  return (BRANDS as readonly string[]).includes(current) ? BRANDS : [current, ...BRANDS];
+}
+
 export function BasicInfoCoreFields({ data, setData }: BasicInfoCoreFieldsProps) {
   const [tagInput, setTagInput] = useState("");
 
@@ -60,7 +64,7 @@ export function BasicInfoCoreFields({ data, setData }: BasicInfoCoreFieldsProps)
         </Field>
         <Field id="vehicle-brand" label="브랜드" required>
           <select id="vehicle-brand" value={data.brand} onChange={(event) => setData((current) => ({ ...current, brand: event.target.value }))} className={SELECT_CLASS}>
-            {BRANDS.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+            {brandSelectOptions(data.brand).map((brand) => <option key={brand} value={brand}>{brand}</option>)}
           </select>
         </Field>
       </div>
