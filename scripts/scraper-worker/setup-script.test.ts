@@ -19,6 +19,18 @@ describe("scraper worker setup script", () => {
     expect(nodeGuard).not.toContain("$nodeMajor");
   });
 
+  it("collects the worker id with server-matching validation and writes it to the env file", async () => {
+    // Given the PowerShell setup script used on worker PCs
+    const source = await readFile(SETUP_SCRIPT, "utf8");
+
+    // Then it prompts for the worker id (doctor requires it), validates with the
+    // same pattern as WORKER_ID_PATTERN, and persists it alongside the secrets
+    expect(source).toContain("SCRAPER_WORKER_ID=$workerId");
+    expect(source).toContain("'^[A-Za-z0-9가-힣_-]{1,32}$'");
+    // And existing installs whose .env predates the worker-id prompt get asked too
+    expect(source).toMatch(/\$keepExisting -and .*SCRAPER_WORKER_ID/);
+  });
+
   it("masks both secrets and clears native plaintext buffers after writing the env file", async () => {
     // Given the PowerShell setup script used to collect worker credentials
     const source = await readFile(SETUP_SCRIPT, "utf8");
