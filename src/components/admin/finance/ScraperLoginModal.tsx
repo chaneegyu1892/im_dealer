@@ -14,6 +14,8 @@ interface Props {
    */
   requiresHuman?: boolean;
   submitting?: boolean;
+  /** 작업 생성 API 가 거부한 사유(수집 PC 오프라인 등) — 모달 안에 바로 보여준다. */
+  serverError?: string | null;
   onClose: () => void;
   onSubmit: (username: string, password: string, workerId: string) => void;
 }
@@ -29,6 +31,7 @@ export default function ScraperLoginModal({
   financeCompanyName,
   requiresHuman = false,
   submitting = false,
+  serverError = null,
   onClose,
   onSubmit,
 }: Props) {
@@ -142,7 +145,11 @@ export default function ScraperLoginModal({
           </p>
         </div>
 
-        {error && <p className="mt-3 text-xs font-medium text-red-500">{error}</p>}
+        {(error || serverError) && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium leading-relaxed text-red-600">
+            {error || serverError}
+          </div>
+        )}
 
         <div className="mt-5 flex gap-2">
           <button

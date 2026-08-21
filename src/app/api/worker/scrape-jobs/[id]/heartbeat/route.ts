@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireWorker } from "@/lib/worker-auth";
 import { workerHeartbeatSchema } from "@/lib/validations/admin";
 import { getScrapeJobLeaseToken, isTerminalScrapeJobStatus } from "@/lib/scraper/job-state";
-import { markWorkerSeen } from "@/lib/scraper/worker-presence";
+import { markNamedWorkerSeen, markWorkerSeen } from "@/lib/scraper/worker-presence";
 
 const ACTIVE_STATUSES = ["running", "needs_human"];
 
@@ -30,8 +30,12 @@ export async function POST(
     const body = workerHeartbeatSchema.parse(await request.json().catch(() => ({})));
     const db = prisma;
 
-    const job = await db.scrapeJob.findUnique({ where: { id }, select: { status: true } });
+    const job = await db.scrapeJob.findUnique({ where: { id }, select: { status: true, workerId: true } });
     if (!job) return NextResponse.json({ error: "없는 작업" }, { status: 404 });
+
+    // 작업 실행 중에는 워커가 claim 폴링을 멈추므로, 이름별 생존 신호도 여기서 이어간다.
+    // 이 신호는 작업 생성 가드의 판정 근거라, 응답 후 유실(서버리스 조기 동결)되지 않게 기다린다.
+    if (job.workerId) await markNamedWorkerSeen(job.workerId).catch(() => undefined);
 
     if (isTerminalScrapeJobStatus(job.status)) {
       return NextResponse.json({ status: job.status, ignored: true });

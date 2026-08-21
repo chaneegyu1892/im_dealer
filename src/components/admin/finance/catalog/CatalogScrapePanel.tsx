@@ -238,7 +238,7 @@ export default function CatalogScrapePanel({ financeCompanyId, financeCompanyNam
                   />
                   <button
                     type="button"
-                    onClick={() => setPending("models")}
+                    onClick={() => { setStartError(null); setPending("models"); }}
                     disabled={isRunning || starting}
                     title="캐피탈사 사이트에서 차량 목록만 가져옵니다 (브랜드당 수 초)"
                     className="rounded-lg border border-[#6066EE] px-2.5 py-1 text-[11px] font-bold text-[#6066EE] hover:bg-[#F0F1FA] disabled:opacity-40"
@@ -386,7 +386,7 @@ export default function CatalogScrapePanel({ financeCompanyId, financeCompanyNam
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => setPending("catalog")}
+                onClick={() => { setStartError(null); setPending("catalog"); }}
                 disabled={!canCollect || isRunning || starting}
                 className="rounded-lg bg-[#6066EE] px-4 py-2 text-sm font-bold text-white hover:bg-[#4F55D8] disabled:opacity-40"
               >
@@ -398,7 +398,9 @@ export default function CatalogScrapePanel({ financeCompanyId, financeCompanyNam
             </div>
           </>
         )}
-        {startError && <p className="mt-2 text-xs font-medium text-red-500">{startError}</p>}
+        {startError && !pending && (
+          <p className="mt-2 text-xs font-medium text-red-500">{startError}</p>
+        )}
       </div>
 
       {/* 진행/결과 카드 */}
@@ -492,6 +494,7 @@ export default function CatalogScrapePanel({ financeCompanyId, financeCompanyNam
           financeCompanyName={financeCompanyName}
           requiresHuman={resolveCapitalConnection(financeCompanyName)?.requiresHuman ?? false}
           submitting={starting}
+          serverError={startError}
           onClose={() => setPending(null)}
           onSubmit={submitLogin}
         />

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   financeCompanyFindUnique: vi.fn(),
   scrapeJobFindFirst: vi.fn(),
   scrapeJobCreate: vi.fn(),
+  workerPresenceFindUnique: vi.fn(),
   encryptString: vi.fn(),
   resolveCapitalConnection: vi.fn(),
   audit: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock("@/lib/prisma", () => ({
       findFirst: mocks.scrapeJobFindFirst,
       create: mocks.scrapeJobCreate,
     },
+    scrapeWorkerPresence: { findUnique: mocks.workerPresenceFindUnique },
   },
 }));
 vi.mock("@/lib/pii", () => ({ encryptString: mocks.encryptString }));
@@ -48,6 +50,13 @@ describe("POST /api/admin/scrape-jobs credential retention", () => {
     vi.clearAllMocks();
     mocks.financeCompanyFindUnique.mockResolvedValue({ name: "오릭스캐피탈" });
     mocks.scrapeJobFindFirst.mockResolvedValue(null);
+    // 기본값: 이름을 지정한 워커는 방금 신호를 남긴 것으로 본다(온라인)
+    mocks.workerPresenceFindUnique.mockImplementation(
+      async ({ where }: { where: { workerId: string } }) => ({
+        workerId: where.workerId,
+        lastSeenAt: new Date(),
+      })
+    );
     mocks.scrapeJobCreate.mockImplementation(async ({ data }: { data: { id?: string; status: string } }) => ({
       id: data.id ?? "job-1",
       status: data.status,
@@ -156,6 +165,93 @@ describe("POST /api/admin/scrape-jobs credential retention", () => {
     expect(mocks.scrapeJobFindFirst).toHaveBeenCalledWith({
       where: expect.objectContaining({ financeCompanyId: "fc-1", workerId: "kim" }),
     });
+  });
+
+  it("warns instead of creating a job when the named collection PC has never been seen", async () => {
+    // 이름을 잘못 입력했거나 그 PC 에서 워커를 켠 적이 없는 경우 — 신호가 아예 없다
+    mocks.workerPresenceFindUnique.mockResolvedValue(null);
+
+    const response = await POST(
+      request({
+        jobType: "catalog",
+        financeCompanyId: "fc-1",
+        productType: "장기렌트",
+        weekOf: "2026-07-27",
+        brands: [{ brandCd: "CA100001", name: "현대" }],
+        username: "operator",
+        password: "secret",
+        workerId: "hong",
+      })
+    );
+
+    expect(response.status).toBe(409);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toContain("'hong' 수집 PC");
+    expect(mocks.scrapeJobCreate).not.toHaveBeenCalled();
+  });
+
+  it("warns when the named collection PC's last signal is older than the TTL", async () => {
+    // 워커를 껐다 — 마지막 신호가 91초 전 (TTL 90초 초과)
+    mocks.workerPresenceFindUnique.mockResolvedValue({
+      workerId: "hong",
+      lastSeenAt: new Date(Date.now() - 91_000),
+    });
+
+    const response = await POST(
+      request({
+        jobType: "catalog",
+        financeCompanyId: "fc-1",
+        productType: "장기렌트",
+        weekOf: "2026-07-27",
+        brands: [{ brandCd: "CA100001", name: "현대" }],
+        username: "operator",
+        password: "secret",
+        workerId: "hong",
+      })
+    );
+
+    expect(response.status).toBe(409);
+    expect(mocks.scrapeJobCreate).not.toHaveBeenCalled();
+  });
+
+  it("fails open when the presence check itself errors, so job creation is never blocked by it", async () => {
+    // 프레즌스 테이블 미생성 등 인프라 문제 — 경고는 부가 기능이므로 생성을 막지 않는다
+    mocks.workerPresenceFindUnique.mockRejectedValue(new Error("table missing"));
+
+    const response = await POST(
+      request({
+        jobType: "catalog",
+        financeCompanyId: "fc-1",
+        productType: "장기렌트",
+        weekOf: "2026-07-27",
+        brands: [{ brandCd: "CA100001", name: "현대" }],
+        username: "operator",
+        password: "secret",
+        workerId: "hong",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.scrapeJobCreate).toHaveBeenCalled();
+  });
+
+  it("skips the presence check entirely when no collection PC is named", async () => {
+    mocks.workerPresenceFindUnique.mockResolvedValue(null);
+
+    const response = await POST(
+      request({
+        jobType: "catalog",
+        financeCompanyId: "fc-1",
+        productType: "장기렌트",
+        weekOf: "2026-07-27",
+        brands: [{ brandCd: "CA100001", name: "현대" }],
+        username: "operator",
+        password: "secret",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.workerPresenceFindUnique).not.toHaveBeenCalled();
   });
 
   it("rejects a collection PC name that could not have come from a worker", async () => {

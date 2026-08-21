@@ -43,8 +43,11 @@ describe("scraper worker setup script", () => {
     // Then neither value is echoed and both native buffers are zeroed after conversion
     expect(secretPrompts).toHaveLength(2);
     expect(secretPrompts.every((line) => line.includes("-AsSecureString"))).toBe(true);
-    expect(source).toContain("SecureStringToBSTR");
     expect(source).toContain("PtrToStringBSTR");
-    expect(source.match(/ZeroFreeBSTR/g)).toHaveLength(2);
+    // 확보한 BSTR 버퍼 수만큼 반드시 zero-free 한다 — 호출 횟수 자체는 구현 세부사항이다
+    const bstrAllocs = source.match(/SecureStringToBSTR/g) ?? [];
+    const bstrFrees = source.match(/ZeroFreeBSTR/g) ?? [];
+    expect(bstrAllocs.length).toBeGreaterThanOrEqual(1);
+    expect(bstrFrees).toHaveLength(bstrAllocs.length);
   });
 });

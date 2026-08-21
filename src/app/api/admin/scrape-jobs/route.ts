@@ -5,6 +5,7 @@ import { requireRoleAtLeast } from "@/lib/require-admin";
 import { logAdminAction } from "@/lib/audit";
 import { encryptString } from "@/lib/pii";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
+import { isNamedWorkerOnline } from "@/lib/scraper/worker-presence";
 import { getScrapeCredentialExpiry } from "@/lib/scraper/credential-retention";
 import { ORIX_BRAND_CD } from "@/lib/scraper/orix-brands";
 import {
@@ -75,6 +76,20 @@ export async function POST(request: NextRequest) {
     // 같은 수집 PC 가 같은 캐피탈사에 이미 물려 있으면 중복 세션 방지.
     // PC 가 다르면 각자 다른 캐피탈 계정으로 붙으므로 동시에 돌아도 된다.
     const workerId = catalogInput?.workerId ?? modelsInput?.workerId ?? input?.workerId ?? null;
+
+    // 이름을 지정했는데 그 워커가 켜져 있지 않으면, 작업이 영원히 대기하므로
+    // 만들지 않고 바로 알려준다. 판정 자체가 실패하면 생성을 막지 않는다.
+    if (workerId) {
+      const online = await isNamedWorkerOnline(workerId).catch(() => true);
+      if (!online) {
+        return NextResponse.json(
+          {
+            error: `'${workerId}' 수집 PC 가 접속돼 있지 않습니다. 그 PC 에서 '수집 시작' 프로그램이 켜져 있는지, 수집 PC 이름이 정확한지 확인하세요.`,
+          },
+          { status: 409 }
+        );
+      }
+    }
     const inFlight = await db.scrapeJob.findFirst({
       where: { financeCompanyId, status: { in: IN_FLIGHT }, workerId },
     });
