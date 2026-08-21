@@ -5,7 +5,7 @@ import { requireWorker } from "@/lib/worker-auth";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
 import { buildClaimLeaseWhere, buildClaimWorkerWhere, getClaimWorkerId } from "@/lib/scraper/job-state";
 import { SCRAPE_JOB_STALE_HEARTBEAT_MS } from "@/lib/scraper/credential-retention";
-import { markWorkerSeen } from "@/lib/scraper/worker-presence";
+import { markNamedWorkerSeen, markWorkerSeen } from "@/lib/scraper/worker-presence";
 import { WORKER_PROTOCOL_VERSION } from "@/lib/scraper/worker-version";
 
 const STALE_MS = SCRAPE_JOB_STALE_HEARTBEAT_MS; // 하트비트 3분 초과 시 워커가 죽은 것으로 보고 재클레임
@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
   // 워커가 유휴 상태일 때도 이 라우트를 주기적으로 호출하므로, 여기서 생존 신호를 남긴다.
   // 실패해도 클레임 자체를 막지 않는다(상태 표시는 부가 기능).
   await markWorkerSeen().catch(() => undefined);
+  const claimWorkerId = getClaimWorkerId(request);
+  if (claimWorkerId) await markNamedWorkerSeen(claimWorkerId).catch(() => undefined);
 
   const workerProtocolVersion = request.headers.get("x-worker-protocol-version");
   if (workerProtocolVersion === null) {
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
     const candidate = await db.scrapeJob.findFirst({
       where: {
         AND: [
-          buildClaimWorkerWhere(getClaimWorkerId(request)),
+          buildClaimWorkerWhere(claimWorkerId),
           {
             OR: [
               { status: "pending" },

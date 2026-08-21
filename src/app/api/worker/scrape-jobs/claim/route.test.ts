@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   updateMany: vi.fn(),
   financeCompanyFindUnique: vi.fn(),
   markWorkerSeen: vi.fn(),
+  markNamedWorkerSeen: vi.fn(),
 }));
 
 vi.mock("@/lib/worker-auth", () => ({ requireWorker: () => ({ error: null }) }));
@@ -16,7 +17,10 @@ vi.mock("@/lib/prisma", () => ({
     financeCompany: { findUnique: mocks.financeCompanyFindUnique },
   },
 }));
-vi.mock("@/lib/scraper/worker-presence", () => ({ markWorkerSeen: mocks.markWorkerSeen }));
+vi.mock("@/lib/scraper/worker-presence", () => ({
+  markWorkerSeen: mocks.markWorkerSeen,
+  markNamedWorkerSeen: mocks.markNamedWorkerSeen,
+}));
 
 import { POST } from "./route";
 
@@ -44,6 +48,7 @@ describe("POST /api/worker/scrape-jobs/claim", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.markWorkerSeen.mockResolvedValue(undefined);
+    mocks.markNamedWorkerSeen.mockResolvedValue(undefined);
   });
 
   it("guides a headerless legacy worker to upgrade without allowing a claim", async () => {

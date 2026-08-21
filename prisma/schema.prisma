@@ -968,6 +968,14 @@ model ScrapeJob {
   @@index([financeCompanyId, status])
 }
 
+// 이름 있는 수집 PC(SCRAPER_WORKER_ID)의 마지막 생존 신호.
+// 워커의 claim 폴링(5초)·heartbeat(30초)마다 갱신되며, 작업 생성 시
+// "그 이름의 워커가 지금 켜져 있는지"를 판정해 잘못된 이름의 무한 대기를 막는다.
+model ScrapeWorkerPresence {
+  workerId   String   @id
+  lastSeenAt DateTime
+}
+
 // 캐피탈사 원본 카탈로그 — 캐피탈사에 등록된 트림 단위 견적(월납입금 9칸)의 최신본.
 // (financeCompanyId, productType, mdelCd) 당 1행 upsert. 주별 이력은 반영 후 CapitalRateSheet 가 담당.
 // 캐피탈사 브랜드별 차량(모델) 목록.

@@ -4,6 +4,7 @@
 // 별도 정리 작업이나 DB 테이블이 필요 없고, 서버리스에서 프로세스 메모리를 못 쓰는 문제도 피한다.
 
 import { Redis } from "@upstash/redis";
+import { prisma } from "@/lib/prisma";
 
 const KEY = "scraper:worker:last-seen";
 // 신호는 두 곳에서 온다: 유휴 시 claim(기본 5초 주기), 작업 중 heartbeat(30초 주기).
@@ -37,4 +38,27 @@ export async function getWorkerPresence(): Promise<WorkerPresence> {
 
   const lastSeenAt = await redis.get<string>(KEY);
   return { online: lastSeenAt !== null, lastSeenAt: lastSeenAt ?? null, unknown: false };
+}
+
+// ── 이름 있는 수집 PC 별 생존 신호 (DB 기반) ──────────────────────
+// 작업 생성 시 "그 이름의 워커가 지금 켜져 있는지"를 판정하는 데 쓴다.
+// Redis 가 없는 배포 환경에서도 동작해야 하므로 위 전역 신호와 달리 DB 에 기록한다.
+
+/** 이름별 판정 유효 시간 — heartbeat 주기(30초)의 3배로, 일시적 지연에 깜빡이지 않게 한다. */
+export const NAMED_WORKER_TTL_MS = 90_000;
+
+/** 이름을 밝힌 워커의 생존 신호를 남긴다. claim 폴링·heartbeat 에서 호출. */
+export async function markNamedWorkerSeen(workerId: string): Promise<void> {
+  const now = new Date();
+  await prisma.scrapeWorkerPresence.upsert({
+    where: { workerId },
+    create: { workerId, lastSeenAt: now },
+    update: { lastSeenAt: now },
+  });
+}
+
+/** 해당 이름의 워커가 최근(TTL 이내)에 신호를 남겼는지. 신호가 아예 없으면 오프라인. */
+export async function isNamedWorkerOnline(workerId: string): Promise<boolean> {
+  const row = await prisma.scrapeWorkerPresence.findUnique({ where: { workerId } });
+  return row !== null && Date.now() - row.lastSeenAt.getTime() <= NAMED_WORKER_TTL_MS;
 }
