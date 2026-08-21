@@ -6,6 +6,10 @@ import {
   buildQuoteDeliveredMessage,
   buildReviewRequestButtons,
   buildReviewRequestMessage,
+  SIGNUP_COMPLETED_DRAFT,
+  SIGNUP_COMPLETED_MYPAGE_URL,
+  buildSignupCompletedButtons,
+  buildSignupCompletedMessage,
 } from "./templates";
 
 const VARS = {
@@ -84,5 +88,51 @@ describe("buildReviewRequestButtons", () => {
     expect(button?.url_mobile).toBe(REVIEW_VARS.링크);
     expect(button?.url_pc).toBe(REVIEW_VARS.링크);
     expect(button?.url_mobile.startsWith("https://")).toBe(true);
+  });
+});
+
+const SIGNUP_VARS = {
+  고객명: "홍길동",
+  // 2026-08-21 14:00 KST
+  가입일: new Date("2026-08-21T05:00:00.000Z"),
+  추천코드: "K4821",
+} as const;
+
+describe("buildSignupCompletedMessage", () => {
+  it("등록 원문의 변수만 치환한 결과와 일치한다", () => {
+    const expected = SIGNUP_COMPLETED_DRAFT.replace("#{고객명}", "홍길동")
+      .replace("#{가입일}", "2026년 8월 21일")
+      .replace("#{추천코드}", "K4821");
+
+    expect(buildSignupCompletedMessage(SIGNUP_VARS)).toBe(expected);
+  });
+
+  it("미치환 변수가 남지 않는다", () => {
+    expect(buildSignupCompletedMessage(SIGNUP_VARS)).not.toMatch(/#{/);
+  });
+
+  // 서버 TZ 가 UTC 라도 고객이 보는 가입일은 KST 기준이어야 한다.
+  it("가입일을 KST 로 표기한다", () => {
+    const message = buildSignupCompletedMessage({
+      ...SIGNUP_VARS,
+      가입일: new Date("2026-08-21T15:30:00.000Z"),
+    });
+    expect(message).toContain("가입일: 2026년 8월 22일");
+  });
+
+  it("본문이 1300자를 넘지 않는다", () => {
+    expect(buildSignupCompletedMessage(SIGNUP_VARS).length).toBeLessThanOrEqual(1300);
+  });
+});
+
+describe("buildSignupCompletedButtons", () => {
+  // 변수 없는 고정 링크로 등록하므로 등록 링크와 글자 단위로 같아야 한다.
+  it("등록 링크와 동일한 고정 https URL 이다", () => {
+    const [button] = buildSignupCompletedButtons();
+    expect(button?.type).toBe("WL");
+    expect(button?.name).toBe("마이페이지 바로가기");
+    expect(button?.url_mobile).toBe(SIGNUP_COMPLETED_MYPAGE_URL);
+    expect(button?.url_pc).toBe(SIGNUP_COMPLETED_MYPAGE_URL);
+    expect(SIGNUP_COMPLETED_MYPAGE_URL.startsWith("https://")).toBe(true);
   });
 });

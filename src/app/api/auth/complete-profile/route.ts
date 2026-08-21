@@ -9,6 +9,7 @@ import { ensureUserReferralCode } from "@/lib/referral/ensure-code";
 import { normalizeReferralCode } from "@/lib/referral/code";
 import { signupIpHashFromRequest } from "@/lib/referral/signup-ip";
 import { reconcileUserCoupons } from "@/lib/coupons/reconcile";
+import { sendSignupCompletedAlimtalk } from "@/lib/signup-completed-alimtalk";
 
 // 간편가입 완료: 로그인 회원의 이름·전화(필수)와 마케팅 동의(선택)를 저장하고
 // profileCompleted 를 true 로 표시한다. /welcome 폼에서 호출한다.
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
   }
 
   const wasProfileCompleted = user.profileCompleted;
+  const completedAt = new Date();
   const referralFromCookie = request.cookies.get(REFERRAL_COOKIE_NAME)?.value ?? null;
 
   // 이미 가입 완료된 회원의 재호출에서는 코드가 어차피 인정될 수 없으므로 검증하지 않는다.
@@ -90,6 +92,7 @@ export async function POST(request: NextRequest) {
     typedReferralCode = check.code;
   }
 
+  let ownReferralCode = "";
   try {
     await prisma.user.update({
       where: { id: user.id },
@@ -99,12 +102,12 @@ export async function POST(request: NextRequest) {
         marketingConsent: parsed.data.marketingConsent,
         profileCompleted: true,
         // 추천 코드 사후 입력 창구(7일)의 기준 시각. 최초 완료 때만 기록한다.
-        ...(!wasProfileCompleted ? { profileCompletedAt: new Date() } : {}),
+        ...(!wasProfileCompleted ? { profileCompletedAt: completedAt } : {}),
       },
     });
 
     // 본인 추천 코드 확보 (추천인 페이지·공유용)
-    await ensureUserReferralCode(user.id, prisma);
+    ownReferralCode = await ensureUserReferralCode(user.id, prisma);
 
     // 기존 SIGNUP 쿠폰 등 동기화
     if (user.supabaseId) {
@@ -148,6 +151,21 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       referralApplyFailed = true;
       console.error("[complete-profile] referral apply failed:", err);
+    }
+  }
+
+  // 회원가입 완료 알림톡. 최초 완료 때만 보내고, 적재 실패가 가입 성공을 되돌리면 안 된다.
+  if (!wasProfileCompleted) {
+    try {
+      await sendSignupCompletedAlimtalk({
+        userId: user.id,
+        name: parsed.data.name,
+        phone,
+        referralCode: ownReferralCode,
+        signedUpAt: completedAt,
+      });
+    } catch (err) { // no-excuse-ok: catch — 알림톡 실패가 가입 완료를 되돌리면 안 됨
+      console.error("[complete-profile] signup alimtalk enqueue failed:", err);
     }
   }
 
