@@ -119,6 +119,35 @@ function Read-WorkerId {
     }
 }
 
+# 입력은 화면에 * 로 가려 받되, 저장·검증을 위해 바로 평문으로 되돌린다.
+function ConvertFrom-SecureInput([System.Security.SecureString]$secure) {
+    $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr).Trim() }
+    finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
+}
+
+# 안내문의 가림 표시(* 등)를 실제 값으로 오인해 입력하는 사고가 있었다.
+# 형식이 맞을 때까지 그 자리에서 되물어, 잘못된 값이 저장되는 일을 막는다.
+function Read-WorkerSecret {
+    while ($true) {
+        $entered = ConvertFrom-SecureInput (Read-Host "  2) 워커 비밀키" -AsSecureString)
+        if ($entered.Length -ge 16) { return $entered }
+        Write-Host "     너무 짧습니다($($entered.Length)자). 화면의 * 는 가림 표시일 뿐이니," -ForegroundColor Yellow
+        Write-Host "     담당자에게 받은 실제 값 전체를 그대로 붙여넣어 주세요." -ForegroundColor Yellow
+    }
+}
+
+function Read-PiiKey {
+    while ($true) {
+        $entered = ConvertFrom-SecureInput (Read-Host "  3) 암호화 키" -AsSecureString)
+        $bytes = $null
+        try { $bytes = [Convert]::FromBase64String($entered) } catch { }
+        if ($null -ne $bytes -and $bytes.Length -eq 32) { return $entered }
+        Write-Host "     암호화 키 형식이 아닙니다. 담당자에게 받은 실제 값(영문·숫자 44자, 끝이 =)을" -ForegroundColor Yellow
+        Write-Host "     따옴표나 공백 없이 그대로 붙여넣어 주세요." -ForegroundColor Yellow
+    }
+}
+
 $keepExisting = $false
 if (Test-Path $EnvPath) {
     Write-Host "  이미 설정된 접속 정보가 있습니다."
@@ -135,41 +164,25 @@ if (-not $keepExisting) {
     $apiBase = Read-Host "  1) 서버 주소"
     if (-not $apiBase) { Stop-WithMessage "서버 주소를 입력해야 합니다." }
 
-    $workerSecret = Read-Host "  2) 워커 비밀키" -AsSecureString
-    if ($workerSecret.Length -eq 0) { Stop-WithMessage "워커 비밀키를 입력해야 합니다." }
-
-    $piiKey = Read-Host "  3) 암호화 키" -AsSecureString
-    if ($piiKey.Length -eq 0) { Stop-WithMessage "암호화 키를 입력해야 합니다." }
+    $workerSecret = Read-WorkerSecret
+    $piiKey = Read-PiiKey
 
     Write-Host ""
     Write-Host "  이 PC 를 구분할 이름을 정합니다. 관리자 페이지에서 수집을 시킬 때" -ForegroundColor Yellow
     Write-Host "  같은 이름을 입력하므로, 정한 이름을 개발 담당자에게 알려주세요." -ForegroundColor Yellow
     $workerId = Read-WorkerId
 
-    $workerSecretPointer = [IntPtr]::Zero
-    $piiKeyPointer = [IntPtr]::Zero
-    try {
-        $workerSecretPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($workerSecret)
-        $piiKeyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($piiKey)
-        $lines = @(
-            "# 이 파일에는 비밀키가 들어 있습니다. 다른 사람에게 보내지 마세요.",
-            "WORKER_API_BASE=$($apiBase.Trim())",
-            "SCRAPER_WORKER_SECRET=$([Runtime.InteropServices.Marshal]::PtrToStringBSTR($workerSecretPointer).Trim())",
-            "PII_ENCRYPTION_KEY=$([Runtime.InteropServices.Marshal]::PtrToStringBSTR($piiKeyPointer).Trim())",
-            "SCRAPER_WORKER_ID=$workerId",
-            "PUPPETEER_EXECUTABLE_PATH=$browserPath",
-            "SCRAPER_HEADFUL=true"
-        )
-        Set-Content -Path $EnvPath -Value $lines -Encoding UTF8
-    } finally {
-        $lines = $null
-        if ($workerSecretPointer -ne [IntPtr]::Zero) {
-            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($workerSecretPointer)
-        }
-        if ($piiKeyPointer -ne [IntPtr]::Zero) {
-            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($piiKeyPointer)
-        }
-    }
+    $lines = @(
+        "# 이 파일에는 비밀키가 들어 있습니다. 다른 사람에게 보내지 마세요.",
+        "WORKER_API_BASE=$($apiBase.Trim())",
+        "SCRAPER_WORKER_SECRET=$workerSecret",
+        "PII_ENCRYPTION_KEY=$piiKey",
+        "SCRAPER_WORKER_ID=$workerId",
+        "PUPPETEER_EXECUTABLE_PATH=$browserPath",
+        "SCRAPER_HEADFUL=true"
+    )
+    Set-Content -Path $EnvPath -Value $lines -Encoding UTF8
+    $lines = $null
     Write-Ok "접속 정보를 저장했습니다."
 }
 
