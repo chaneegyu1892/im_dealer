@@ -13,7 +13,7 @@ import { createCatalogResultBuffer } from "./catalog-buffer";
 import { resolveAdapter } from "./adapters/registry";
 import { AuthError } from "./adapters/types";
 import type { AdapterContext } from "./adapters/types";
-import { claimJob, getCollectedMdelCds, heartbeat, postCatalogResults, postModelResults, postResult, type ClaimedJob, type ClaimedCredential } from "./api-client";
+import { createApiClient, parseApiBases, type ApiClient, type ClaimedJob, type ClaimedCredential } from "./api-client";
 import { shouldApplyJobCooldown, type JobOutcome } from "./job-outcome";
 import { SAFE_PACE } from "./pace";
 
@@ -87,23 +87,22 @@ function requireEnv(): void {
  * 통과하면 true. 실패 시 즉시 exit 하지 않고 false 를 돌려 main 이 정상 종료하게 한다
  * (열린 fetch 핸들 위에서 process.exit 하면 Windows 에서 libuv assertion 이 뜬다).
  */
-async function preflight(): Promise<boolean> {
-  const base = (process.env.WORKER_API_BASE ?? "").replace(/\/+$/, "");
+async function preflight(base: string): Promise<boolean> {
   try {
     const res = await fetch(`${base}/api/worker/preflight`, {
       headers: { authorization: `Bearer ${process.env.SCRAPER_WORKER_SECRET}` },
     });
 
     if (res.status === 404) {
-      console.warn("[worker] preflight 라우트 없음(구버전 백엔드) — 점검을 건너뜁니다.");
+      console.warn(`[worker] ${base}: preflight 라우트 없음(구버전 백엔드) — 점검을 건너뜁니다.`);
       return true;
     }
     if (res.status === 401) {
-      console.error("[worker] 인증 실패: SCRAPER_WORKER_SECRET 이 백엔드 값과 다릅니다.");
+      console.error(`[worker] ${base}: 인증 실패 — SCRAPER_WORKER_SECRET 이 이 서버 값과 다릅니다.`);
       return false;
     }
     if (!res.ok) {
-      console.error(`[worker] preflight 실패: HTTP ${res.status}`);
+      console.error(`[worker] ${base}: preflight 실패 — HTTP ${res.status}`);
       return false;
     }
 
@@ -115,7 +114,7 @@ async function preflight(): Promise<boolean> {
 
     if (expectedWorkerVersion !== undefined && expectedWorkerVersion !== WORKER_PROTOCOL_VERSION) {
       console.error(
-        `[worker] 프로그램이 오래되었습니다 (이 프로그램 v${WORKER_PROTOCOL_VERSION} / 서버 요구 v${expectedWorkerVersion}).\n` +
+        `[worker] ${base}: 프로그램이 오래되었습니다 (이 프로그램 v${WORKER_PROTOCOL_VERSION} / 서버 요구 v${expectedWorkerVersion}).\n` +
           "        '수집 시작.bat' 을 다시 실행하면 자동으로 업데이트됩니다.\n" +
           "        접속 정보는 유지되므로 다시 입력하지 않아도 됩니다."
       );
@@ -124,13 +123,13 @@ async function preflight(): Promise<boolean> {
 
     if (serverKey && localKey && serverKey !== localKey) {
       console.error(
-        `[worker] PII_ENCRYPTION_KEY 불일치 (워커 ${localKey} ≠ 백엔드 ${serverKey}).\n` +
+        `[worker] ${base}: PII_ENCRYPTION_KEY 불일치 (워커 ${localKey} ≠ 백엔드 ${serverKey}).\n` +
           "        이대로 실행하면 job 을 받아도 자격증명 복호화에 실패합니다.\n" +
           "        백엔드의 PII_ENCRYPTION_KEY 를 그대로 복사해 넣으세요. (`pnpm scraper:doctor` 로 재점검)"
       );
       return false;
     }
-    console.log(`[worker] preflight 통과 (키 지문 ${localKey ?? "?"})`);
+    console.log(`[worker] ${base}: preflight 통과 (키 지문 ${localKey ?? "?"})`);
     return true;
   } catch (error) {
     console.error(
@@ -142,7 +141,7 @@ async function preflight(): Promise<boolean> {
   }
 }
 
-async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<JobOutcome> {
+async function runJob(job: ClaimedJob, credential: ClaimedCredential, api: ApiClient): Promise<JobOutcome> {
   const log = (msg: string) => console.log(`[job ${job.id}] ${msg}`);
 
   // requiresHuman 캐피탈사(키패드·SMS)는 어댑터가 자격증명을 쓰지 않고 사람에게 로그인을 넘긴다.
@@ -153,7 +152,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
   if (!credential.requiresHuman && (!username || !password)) {
     // 암호문 유무로 원인을 갈라 준다. 둘을 같은 메시지로 뭉뚱그리면
     // 실제로는 워커가 옛 코드인데 키 문제로 오진하게 된다.
-    await postResult(job.id, job.leaseToken, {
+    await api.postResult(job.id, job.leaseToken, {
       ok: false,
       error: hasCiphertext
         ? "자격증명 복호화 실패 (PII_ENCRYPTION_KEY 불일치 가능)"
@@ -164,7 +163,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
 
   const adapter = resolveAdapter(credential.config, credential.loginUrl);
   if (!adapter) {
-    await postResult(job.id, job.leaseToken, { ok: false, error: "해당 캐피탈사에 맞는 어댑터가 없습니다." });
+    await api.postResult(job.id, job.leaseToken, { ok: false, error: "해당 캐피탈사에 맞는 어댑터가 없습니다." });
     return "failed";
   }
 
@@ -177,7 +176,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
       ? modelsJobParamsSchema.safeParse(job.params)
       : scrapeJobParamsSchema.safeParse(job.params);
   if (!paramsResult.success) {
-    await postResult(job.id, job.leaseToken, { ok: false, error: "작업 파라미터가 올바르지 않습니다." });
+    await api.postResult(job.id, job.leaseToken, { ok: false, error: "작업 파라미터가 올바르지 않습니다." });
     return "failed";
   }
   const params: CatalogJobParams | ModelsJobParams | ScrapeJobParams = paramsResult.data;
@@ -195,7 +194,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
 
   const heartbeatTimer = setInterval(async () => {
     try {
-      const status = await heartbeat(job.id, job.leaseToken, currentProgress ? { progress: currentProgress } : undefined);
+      const status = await api.heartbeat(job.id, job.leaseToken, currentProgress ? { progress: currentProgress } : undefined);
       if (status === "canceled") canceled = true;
     } catch (e) {
       log(`하트비트 오류: ${(e as Error).message}`);
@@ -216,13 +215,13 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
       isCanceled: () => canceled,
       waitForHuman: async (prompt: string) => {
         log(`사람 개입 대기: ${prompt}`);
-        await heartbeat(job.id, job.leaseToken, { status: "needs_human", humanPrompt: prompt });
+        await api.heartbeat(job.id, job.leaseToken, { status: "needs_human", humanPrompt: prompt });
         // 어드민이 [재개] → running 으로 바뀔 때까지 폴링
         for (;;) {
           await sleep(3000);
           let status: string;
           try {
-            status = await heartbeat(job.id, job.leaseToken);
+            status = await api.heartbeat(job.id, job.leaseToken);
           } catch {
             continue;
           }
@@ -260,7 +259,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
     if (job.jobType === "models") {
       // ── 차량(모델) 목록만 동기화: 트림 견적 없이 목록만 — 브랜드당 수 초 ──
       if (!adapter.listModels) {
-        await postResult(job.id, job.leaseToken, { ok: false, error: "이 캐피탈사 어댑터는 차량 목록 조회를 지원하지 않습니다." });
+        await api.postResult(job.id, job.leaseToken, { ok: false, error: "이 캐피탈사 어댑터는 차량 목록 조회를 지원하지 않습니다." });
         return "failed";
       }
       if (!("mode" in params) || params.mode !== "models") {
@@ -274,7 +273,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
         summary = await adapter.listModels(ctx, {
           brands: mParams.brands,
           onBrandModels: async (brand, models) => {
-            await postModelResults({
+            await api.postModelResults({
               jobId: job.id, leaseToken: job.leaseToken, financeCompanyId: job.financeCompanyId,
               productType: mParams.productType, brandCd: brand.brandCd, brandName: brand.name, models,
             });
@@ -284,7 +283,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
         pageBusy = false;
       }
       if (canceled) throw new CanceledError();
-      await postResult(job.id, job.leaseToken, {
+      await api.postResult(job.id, job.leaseToken, {
         ok: true,
         modelsSummary: { mode: "models", ...summary, finishedAt: new Date().toISOString() },
       });
@@ -292,7 +291,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
     } else if (job.jobType === "catalog") {
       // ── 카탈로그 전량 수집: 어댑터가 순회, 워커가 버퍼링/증분 flush ──
       if (!adapter.scrapeCatalog) {
-        await postResult(job.id, job.leaseToken, { ok: false, error: "이 캐피탈사 어댑터는 카탈로그 수집을 지원하지 않습니다." });
+        await api.postResult(job.id, job.leaseToken, { ok: false, error: "이 캐피탈사 어댑터는 카탈로그 수집을 지원하지 않습니다." });
         return "failed";
       }
       if (!("mode" in params) || params.mode !== "catalog") {
@@ -300,7 +299,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
       }
       const cParams = params;
       // 재개 지원: 이번주 이미 수집된 외부 트림코드는 스킵
-      const collected = new Set(await getCollectedMdelCds(
+      const collected = new Set(await api.getCollectedMdelCds(
         job.id,
         job.leaseToken,
         job.financeCompanyId,
@@ -310,7 +309,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
       if (collected.size > 0) log(`이번주 기수집 ${collected.size}건 — 스킵하고 이어서 수집`);
 
       const resultBuffer = createCatalogResultBuffer<CatalogTrimEntry>(async (entries) => {
-          const { ignored } = await postCatalogResults({
+          const { ignored } = await api.postCatalogResults({
             jobId: job.id, leaseToken: job.leaseToken, financeCompanyId: job.financeCompanyId,
             productType: cParams.productType, weekOf: cParams.weekOf, entries,
           });
@@ -352,7 +351,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
         await flush(true);
       }
       if (canceled) throw new CanceledError();
-      await postResult(job.id, job.leaseToken, {
+      await api.postResult(job.id, job.leaseToken, {
         ok: true,
         catalogSummary: {
           mode: "catalog",
@@ -387,7 +386,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
         job.productType,
         new Date().toISOString()
       );
-      await postResult(job.id, job.leaseToken, { ok: true, draft });
+      await api.postResult(job.id, job.leaseToken, { ok: true, draft });
       log(`완료 — 트림 ${results.length}건, 경고 ${draft.warnings.length}건`);
     }
     return "completed";
@@ -400,7 +399,7 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
     const authFailed = e instanceof AuthError; // 자격증명 오류 → 차단기 작동(재시도 금지·자격증명 비활성화)
     log(authFailed ? `[차단기] 인증 실패 — 자격증명 비활성화 요청: ${msg}` : `실패: ${msg}`);
     try {
-      await postResult(job.id, job.leaseToken, { ok: false, error: msg.slice(0, 500), ...(authFailed ? { authFailed: true } : {}) });
+      await api.postResult(job.id, job.leaseToken, { ok: false, error: msg.slice(0, 500), ...(authFailed ? { authFailed: true } : {}) });
     } catch {
       /* 보고 실패는 무시 */
     }
@@ -414,61 +413,81 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
 
 async function main(): Promise<void> {
   requireEnv();
-  if (!(await preflight())) {
+
+  // WORKER_API_BASE 는 쉼표로 여러 서버를 받을 수 있다(운영·테스트 동시 서빙).
+  // preflight 실패한 서버는 경고 후 제외하고 나머지로 계속한다 — 전부 실패면 종료.
+  const bases = parseApiBases(process.env.WORKER_API_BASE);
+  const passed: string[] = [];
+  for (const base of bases) {
+    if (await preflight(base)) passed.push(base);
+    else console.error(`[worker] ${base} 는 이번 실행에서 제외합니다.`);
+  }
+  if (passed.length === 0) {
     process.exitCode = 1;
     return;
   }
+
+  // 서버별 클라이언트 + 상태. staleWarned 는 같은 안내를 매 폴링마다 도배하지 않기 위한 1회 플래그.
+  const targets = passed.map((base) => ({ base, api: createApiClient(base), staleWarned: false }));
+
   const workerId = process.env.SCRAPER_WORKER_ID?.trim();
   console.log(
-    `[worker] 시작 — API=${process.env.WORKER_API_BASE} poll=${POLL_MS}ms headful=${HEADFUL} pace=${SAFE_PACE ? "safe" : "fast"} v${WORKER_PROTOCOL_VERSION}`
+    `[worker] 시작 — API=${passed.join(", ")} poll=${POLL_MS}ms headful=${HEADFUL} pace=${SAFE_PACE ? "safe" : "fast"} v${WORKER_PROTOCOL_VERSION}`
   );
   console.log(
     workerId
       ? `[worker] 이 수집 PC 이름: ${workerId} — 수집 화면에 이 이름을 그대로 입력하세요.`
       : "[worker] 수집 PC 이름 없음 — 이름이 지정된 작업은 받지 않습니다. (.env 의 SCRAPER_WORKER_ID)"
   );
-  // 같은 안내를 매 폴링마다 도배하지 않도록 한 번만 출력한다.
-  let staleWarned = false;
+
+  // 시작 순번을 매 폴링 회전시켜 특정 서버가 항상 먼저 잡아가는 편향을 없앤다.
+  // 잡은 한 번에 하나만 수행한다(전 서버 공통) — 캐피탈사 사이트 페이싱·IP 보호가 우선.
+  let rotation = 0;
   for (;;) {
-    try {
-      const claimed = await claimJob();
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[(rotation + i) % targets.length];
+      try {
+        const claimed = await target.api.claimJob();
 
-      // 백엔드가 새 규약을 기대하는데 이 워커는 옛 zip 이라면, 작업을 가져가면 안 된다.
-      // 옛 코드로 처리하면 엉뚱한 이유로 실패하고 원인 추적이 어려워진다.
-      if (
-        claimed.expectedWorkerVersion !== undefined &&
-        claimed.expectedWorkerVersion !== WORKER_PROTOCOL_VERSION
-      ) {
-        if (!staleWarned) {
-          console.error(
-            "\n" +
-              "=".repeat(62) +
-              `\n 프로그램이 오래되어 수집을 시작할 수 없습니다.\n` +
-              `   (이 프로그램 v${WORKER_PROTOCOL_VERSION} / 서버 요구 v${claimed.expectedWorkerVersion})\n\n` +
-              " '수집 시작.bat' 을 다시 실행하면 자동으로 업데이트됩니다.\n" +
-              " 접속 정보는 그대로 유지되니 다시 입력하지 않아도 됩니다.\n" +
-              "=".repeat(62) +
-              "\n"
-          );
-          staleWarned = true;
+        // 백엔드가 새 규약을 기대하는데 이 워커는 옛 zip 이라면, 작업을 가져가면 안 된다.
+        // 옛 코드로 처리하면 엉뚱한 이유로 실패하고 원인 추적이 어려워진다.
+        if (
+          claimed.expectedWorkerVersion !== undefined &&
+          claimed.expectedWorkerVersion !== WORKER_PROTOCOL_VERSION
+        ) {
+          if (!target.staleWarned) {
+            console.error(
+              "\n" +
+                "=".repeat(62) +
+                `\n 프로그램이 오래되어 수집을 시작할 수 없습니다. (${target.base})\n` +
+                `   (이 프로그램 v${WORKER_PROTOCOL_VERSION} / 서버 요구 v${claimed.expectedWorkerVersion})\n\n` +
+                " '수집 시작.bat' 을 다시 실행하면 자동으로 업데이트됩니다.\n" +
+                " 접속 정보는 그대로 유지되니 다시 입력하지 않아도 됩니다.\n" +
+                "=".repeat(62) +
+                "\n"
+            );
+            target.staleWarned = true;
+          }
+          continue;
         }
-        await sleep(POLL_MS);
-        continue;
-      }
-      staleWarned = false;
+        target.staleWarned = false;
 
-      if (claimed.job && claimed.credential) {
-        console.log(`[worker] 작업 클레임: ${claimed.job.id} (캐피탈사 ${claimed.job.financeCompanyId})`);
-        const outcome = await runJob(claimed.job, claimed.credential);
-        // 정상 완료 후에만 버스트 완화 쿨다운(분산) — 사람처럼 간격을 둠.
-        // 취소/실패는 실제 수집이 없었으므로 쿨다운을 건너뛰고 즉시 다음 작업(예: 재시작한 수집)을 잡는다.
-        if (shouldApplyJobCooldown(outcome)) {
-          await sleep(jitter(JOB_COOLDOWN_MS));
+        if (claimed.job && claimed.credential) {
+          console.log(`[worker] 작업 클레임: ${claimed.job.id} (캐피탈사 ${claimed.job.financeCompanyId}, 서버 ${target.base})`);
+          const outcome = await runJob(claimed.job, claimed.credential, target.api);
+          // 정상 완료 후에만 버스트 완화 쿨다운(분산) — 사람처럼 간격을 둠.
+          // 취소/실패는 실제 수집이 없었으므로 쿨다운을 건너뛰고 즉시 다음 작업(예: 재시작한 수집)을 잡는다.
+          if (shouldApplyJobCooldown(outcome)) {
+            await sleep(jitter(JOB_COOLDOWN_MS));
+          }
+          break; // 한 사이클에 잡 하나만 — 나머지 서버는 다음 폴링에서 (회전으로) 먼저 본다
         }
+      } catch (e) {
+        // 서버 하나가 죽어도 다른 서버 폴링은 계속한다.
+        console.error(`[worker] 루프 오류 (${target.base}): ${(e as Error).message}`);
       }
-    } catch (e) {
-      console.error(`[worker] 루프 오류: ${(e as Error).message}`);
     }
+    rotation = (rotation + 1) % targets.length;
     await sleep(POLL_MS);
   }
 }

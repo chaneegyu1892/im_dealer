@@ -46,7 +46,8 @@ if ($env:IMDEALER_WORKER_UPDATED -ne "1") {
             if ($line -match '^\s*([A-Z_]+)\s*=\s*(.*)$') { $envMap[$Matches[1]] = $Matches[2].Trim().Trim('"') }
         }
         # PowerShell 5.1 호환 — ?? 연산자 금지
-        $apiBase = ([string]$envMap["WORKER_API_BASE"]).TrimEnd('/')
+        # 서버 주소가 쉼표 목록이면(운영·테스트 동시 서빙) 업데이트 확인은 첫 번째 서버로만 한다.
+        $apiBase = ((([string]$envMap["WORKER_API_BASE"]) -split ',')[0]).Trim().TrimEnd('/')
         $secret = [string]$envMap["SCRAPER_WORKER_SECRET"]
 
         $verFile = Join-Path $RepoRoot "src\lib\scraper\worker-version.ts"
