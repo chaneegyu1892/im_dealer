@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), updateMany: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  findUnique: vi.fn(),
+  updateMany: vi.fn(),
+  markWorkerSeen: vi.fn(),
+  markNamedWorkerSeen: vi.fn(),
+}));
 vi.mock("@/lib/worker-auth", () => ({ requireWorker: () => ({ error: null }) }));
+vi.mock("@/lib/scraper/worker-presence", () => ({
+  markWorkerSeen: mocks.markWorkerSeen,
+  markNamedWorkerSeen: mocks.markNamedWorkerSeen,
+}));
 vi.mock("@/lib/prisma", () => ({
   prisma: { scrapeJob: { findUnique: mocks.findUnique, updateMany: mocks.updateMany } },
 }));
@@ -24,7 +33,35 @@ function request(leaseToken = CURRENT_LEASE): NextRequest {
 }
 
 describe("POST /api/worker/scrape-jobs/[id]/heartbeat", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.markWorkerSeen.mockResolvedValue(undefined);
+    mocks.markNamedWorkerSeen.mockResolvedValue(undefined);
+  });
+
+  it("records the job's named-worker presence before responding", async () => {
+    // 이 신호는 작업 생성 가드(온라인 판정)의 근거다. 응답 후로 밀리면
+    // 서버리스에서 유실돼 실행 중인 PC 가 오프라인으로 오판된다.
+    mocks.findUnique.mockResolvedValue({ status: "running", workerId: "hong", leaseToken: CURRENT_LEASE });
+    mocks.updateMany.mockResolvedValue({ count: 1 });
+    let presenceSettled = false;
+    mocks.markNamedWorkerSeen.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      presenceSettled = true;
+    });
+
+    await POST(request(), { params: Promise.resolve({ id: "job-1" }) });
+
+    expect(mocks.markNamedWorkerSeen).toHaveBeenCalledWith("hong");
+    expect(presenceSettled).toBe(true);
+  });
+
+  it("skips named presence for a job without a worker name", async () => {
+    mocks.findUnique.mockResolvedValue({ status: "completed", workerId: null });
+    await POST(request(), { params: Promise.resolve({ id: "job-1" }) });
+
+    expect(mocks.markNamedWorkerSeen).not.toHaveBeenCalled();
+  });
 
   it("does not mutate a completed job", async () => {
     mocks.findUnique.mockResolvedValue({ status: "completed" });

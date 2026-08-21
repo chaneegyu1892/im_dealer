@@ -748,7 +748,8 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setScrapeStatus("failed");
+        // 작업이 만들어지지 않았으므로 실패한 "작업"처럼 표시하지 않는다.
+        // 사유는 열려 있는 로그인 모달 안(serverError)에 표시된다.
         setScrapeError(data.error ?? "수집 작업 생성에 실패했습니다.");
         return;
       }
@@ -1279,6 +1280,11 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                   })}
                 </div>
               </div>
+            )}
+
+            {/* 작업 생성 거부 사유 — 모달을 닫은 뒤에도 확인할 수 있게 */}
+            {scrapeError && !showLoginModal && !scrapeStatus && (
+              <p className="text-xs font-medium text-red-500">{scrapeError}</p>
             )}
 
             {/* 자동 수집 상태 (차량 단위) */}
