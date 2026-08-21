@@ -1,0 +1,120 @@
+// 즉시출고 재고 엑셀 파서 진입점 — 브랜드 자동 감지 + 파서 레지스트리.
+// 새 브랜드(KGM 등)는 parse-<brand>.ts 작성 후 PARSERS에 등록하면 된다.
+import * as XLSX from "xlsx";
+import type { ImmediateDeliveryBrand, ParsedImmediateStock } from "./types";
+import { parseKiaWorkbook } from "./parse-kia";
+import { parseHyundaiWorkbook } from "./parse-hyundai";
+import { parseRenaultWorkbook } from "./parse-renault";
+import { findHeaderRow, labelCols, sheetRows } from "./parse-common";
+
+export type { ImmediateDeliveryBrand, ImmediateStockRow, ImmediateStockType, ParsedImmediateStock } from "./types";
+export { IMMEDIATE_DELIVERY_BRANDS } from "./types";
+
+interface BrandParser {
+  brand: ImmediateDeliveryBrand;
+  detect: (wb: XLSX.WorkBook) => boolean;
+  parse: (wb: XLSX.WorkBook) => ParsedImmediateStock;
+}
+
+/** 기아/현대 공용 보조 감지 — 시트명 접미가 없는 파일 대비 헤더 구조로 판별 */
+function scanPancodeSheets(wb: XLSX.WorkBook, pred: (rows: unknown[][], hi: number) => boolean): boolean {
+  for (const name of wb.SheetNames) {
+    const rows = sheetRows(wb.Sheets[name]);
+    const hi = findHeaderRow(rows, "판매코드");
+    if (hi >= 0 && pred(rows, hi)) return true;
+  }
+  return false;
+}
+
+const PARSERS: BrandParser[] = [
+  {
+    brand: "르노",
+    detect: (wb) => wb.SheetNames.some((n) => /(정상재고|한정재고)/.test(n)),
+    parse: parseRenaultWorkbook,
+  },
+  {
+    brand: "현대",
+    detect: (wb) =>
+      wb.SheetNames.some((n) => n.endsWith("(조건)")) ||
+      // 정상 시트의 출고센터 와이드 열("○○출고") 또는 조건 시트의 파츠코드 열
+      scanPancodeSheets(wb, (rows, hi) => {
+        const cols = labelCols(rows[hi]);
+        if (cols.has("파츠코드")) return true;
+        return [...cols.keys()].some((k) => /출고$|배송$/.test(k) && k !== "출고");
+      }),
+    parse: parseHyundaiWorkbook,
+  },
+  {
+    brand: "기아",
+    detect: (wb) =>
+      wb.SheetNames.some((n) => n.endsWith("(한정)")) ||
+      // 정상 시트 집계 서브헤더의 "감가" 열은 기아 양식에만 있다
+      scanPancodeSheets(wb, (rows, hi) => labelCols(rows[hi + 1] ?? []).has("감가")),
+    parse: parseKiaWorkbook,
+  },
+];
+
+export function detectImmediateDeliveryBrand(wb: XLSX.WorkBook): ImmediateDeliveryBrand | null {
+  return PARSERS.find((p) => p.detect(wb))?.brand ?? null;
+}
+
+/**
+ * 재고리스트 워크북 파싱. brandHint를 주면 감지를 건너뛰고 해당 파서를 강제한다.
+ * 감지 실패 시 throw.
+ */
+export function parseImmediateDeliveryWorkbook(
+  buf: Buffer | ArrayBuffer,
+  brandHint?: ImmediateDeliveryBrand,
+): ParsedImmediateStock {
+  const wb = XLSX.read(buf, { type: buf instanceof Buffer ? "buffer" : "array" });
+  const parser = brandHint
+    ? PARSERS.find((p) => p.brand === brandHint)
+    : PARSERS.find((p) => p.detect(wb));
+  if (!parser) {
+    throw new Error(
+      `재고리스트 브랜드를 감지하지 못했습니다. 지원 브랜드(${PARSERS.map((p) => p.brand).join("/")}) 파일인지 확인하거나 브랜드를 직접 선택하세요. (시트: ${wb.SheetNames.slice(0, 5).join(", ")}${wb.SheetNames.length > 5 ? " …" : ""})`,
+    );
+  }
+  return parser.parse(wb);
+}
+
+export interface ImmediateStockSummary {
+  brand: ImmediateDeliveryBrand;
+  rowCount: number;
+  vehicleCount: number; // quantity 합계
+  models: { model: string; stockType: string; rows: number; quantity: number }[];
+  warnings: string[];
+  skippedSheets: string[];
+}
+
+/** 파싱 결과 → 미리보기/응답용 요약 (모델×재고구분 단위). */
+export function summarizeImmediateStock(parsed: ParsedImmediateStock): ImmediateStockSummary {
+  const byModel = new Map<string, { model: string; stockType: string; rows: number; quantity: number }>();
+  let vehicleCount = 0;
+  for (const r of parsed.rows) {
+    const key = `${r.model}\u0000${r.stockType}`;
+    const cur = byModel.get(key) ?? { model: r.model, stockType: r.stockType, rows: 0, quantity: 0 };
+    cur.rows++;
+    cur.quantity += r.quantity;
+    byModel.set(key, cur);
+    vehicleCount += r.quantity;
+  }
+  return {
+    brand: parsed.brand,
+    rowCount: parsed.rows.length,
+    vehicleCount,
+    models: [...byModel.values()],
+    warnings: parsed.warnings,
+    skippedSheets: parsed.skippedSheets,
+  };
+}
+
+/** 파일명에서 스냅샷 날짜 추출 — "260819_..." → "2026-08-19". 없으면 null. */
+export function snapshotDateFromFileName(fileName: string): string | null {
+  const m = fileName.match(/(?:^|\D)(\d{2})(\d{2})(\d{2})\D/);
+  if (!m) return null;
+  const [, yy, mm, dd] = m;
+  const month = Number(mm), day = Number(dd);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return `20${yy}-${mm}-${dd}`;
+}

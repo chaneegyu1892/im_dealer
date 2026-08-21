@@ -42,6 +42,11 @@ const envSchema = z.object({
   CODEF_CLIENT_SECRET: z.string().optional(),
   CODEF_SANDBOX: z.string().optional(),
   GOOGLE_GENAI_API_KEY: z.string().optional(),
+  // 즉시출고 재고 → 구글 시트 동기화 (서비스 계정). 셋 모두 있어야 동작하며
+  // 하나라도 없으면 기능이 조용히 비활성화된다(업로드/삭제는 정상 동작).
+  GOOGLE_SHEETS_CLIENT_EMAIL: z.string().optional(),
+  GOOGLE_SHEETS_PRIVATE_KEY: z.string().optional(),
+  IMMEDIATE_DELIVERY_SHEET_ID: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
