@@ -6,7 +6,10 @@
 
 import type { AlimtalkButton } from "./types";
 
-export type AlimtalkTemplateKey = "QUOTE_DELIVERED" | "REVIEW_REQUEST";
+export type AlimtalkTemplateKey =
+  | "QUOTE_DELIVERED"
+  | "REVIEW_REQUEST"
+  | "SIGNUP_COMPLETED";
 
 /** 비즈톡센터에 등록할 원문. 검수 접수 시 이 문자열을 그대로 붙여넣는다. */
 export const QUOTE_DELIVERED_DRAFT = `[아임딜러] 견적서 도착 안내
@@ -85,6 +88,62 @@ ${v.고객명}님, 계약이 완료되었습니다.
 
 export function buildReviewRequestButtons(linkUrl: string): AlimtalkButton[] {
   return [{ name: "후기 작성하기", type: "WL", url_mobile: linkUrl, url_pc: linkUrl }];
+}
+
+/** 비즈톡센터에 등록할 원문. 검수 접수 시 이 문자열을 그대로 붙여넣는다. */
+export const SIGNUP_COMPLETED_DRAFT = `[아임딜러] 회원가입 완료 안내
+
+#{고객명}님, 아임딜러 회원가입이 완료되었습니다.
+
+■ 가입일: #{가입일}
+■ 회원 추천코드: #{추천코드}
+
+아래 버튼에서 내 견적 내역과 회원 정보를 확인하실 수 있습니다.
+
+※ 본 메시지는 회원가입을 완료하신 고객님께 발송되는 안내입니다.`;
+
+export type SignupCompletedVars = {
+  readonly 고객명: string;
+  readonly 가입일: Date;
+  readonly 추천코드: string;
+};
+
+const kstDate = (d: Date) =>
+  new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(d);
+
+export function buildSignupCompletedMessage(v: SignupCompletedVars): string {
+  return `[아임딜러] 회원가입 완료 안내
+
+${v.고객명}님, 아임딜러 회원가입이 완료되었습니다.
+
+■ 가입일: ${kstDate(v.가입일)}
+■ 회원 추천코드: ${v.추천코드}
+
+아래 버튼에서 내 견적 내역과 회원 정보를 확인하실 수 있습니다.
+
+※ 본 메시지는 회원가입을 완료하신 고객님께 발송되는 안내입니다.`;
+}
+
+/**
+ * 버튼 링크는 변수 없는 고정 링크로 등록한다. 등록 링크와 발송 링크가 다르면
+ * 링크 검증에 걸려 1030 으로 실패하므로 이 상수를 단일 소스로 쓴다.
+ */
+export const SIGNUP_COMPLETED_MYPAGE_URL = "https://www.imdealer.co.kr/mypage";
+
+export function buildSignupCompletedButtons(): AlimtalkButton[] {
+  return [
+    {
+      name: "마이페이지 바로가기",
+      type: "WL",
+      url_mobile: SIGNUP_COMPLETED_MYPAGE_URL,
+      url_pc: SIGNUP_COMPLETED_MYPAGE_URL,
+    },
+  ];
 }
 
 /**
