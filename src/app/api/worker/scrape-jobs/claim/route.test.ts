@@ -20,15 +20,24 @@ vi.mock("@/lib/scraper/worker-presence", () => ({ markWorkerSeen: mocks.markWork
 
 import { POST } from "./route";
 
-function claimRequest(workerProtocolVersion: string | null = String(WORKER_PROTOCOL_VERSION)) {
+function claimRequest(
+  workerProtocolVersion: string | null = String(WORKER_PROTOCOL_VERSION),
+  workerId?: string
+) {
   const headers = new Headers();
   if (workerProtocolVersion !== null) {
     headers.set("x-worker-protocol-version", workerProtocolVersion);
   }
+  if (workerId !== undefined) headers.set("x-worker-id", workerId);
   return new NextRequest("http://localhost/api/worker/scrape-jobs/claim", {
     method: "POST",
     headers,
   });
+}
+
+/** findFirst 에 실린 워커 범위 조건만 꺼낸다. */
+function claimedWorkerScope() {
+  return mocks.findFirst.mock.calls[0][0].where.AND[0];
 }
 
 describe("POST /api/worker/scrape-jobs/claim", () => {
@@ -131,6 +140,53 @@ describe("POST /api/worker/scrape-jobs/claim", () => {
         leaseToken: expect.any(String),
       },
     });
+  });
+
+  it("leaves another tester's assigned job alone and takes only its own or unassigned work", async () => {
+    // Given a worker that identifies itself as the 'hong' collection PC
+    mocks.findFirst.mockResolvedValue(null);
+
+    // When it polls for a claim
+    await POST(claimRequest(String(WORKER_PROTOCOL_VERSION), "hong"));
+
+    // Then jobs pinned to a different PC are outside the query entirely
+    expect(claimedWorkerScope()).toEqual({ OR: [{ workerId: "hong" }, { workerId: null }] });
+  });
+
+  it("keeps a nameless worker away from jobs that were pinned to a collection PC", async () => {
+    // Given a worker that sends no name (SCRAPER_WORKER_ID unset)
+    mocks.findFirst.mockResolvedValue(null);
+
+    // When it polls for a claim
+    await POST(claimRequest());
+
+    // Then it can only ever see unassigned jobs
+    expect(claimedWorkerScope()).toEqual({ workerId: null });
+  });
+
+  it("ignores a malformed worker name rather than trusting it as a pin", async () => {
+    // Given a name that violates the collection PC naming rule
+    mocks.findFirst.mockResolvedValue(null);
+
+    // When it polls for a claim
+    await POST(claimRequest(String(WORKER_PROTOCOL_VERSION), "hong; drop table"));
+
+    // Then the worker is treated as nameless instead of matching an arbitrary pin
+    expect(claimedWorkerScope()).toEqual({ workerId: null });
+  });
+
+  it("still recovers a stale lease only for the PC the job was pinned to", async () => {
+    // Given a job that a named worker had claimed and then went silent on
+    mocks.findFirst.mockResolvedValue({ id: "job-1", status: "running" });
+    mocks.updateMany.mockResolvedValue({ count: 1, ...{} });
+    mocks.financeCompanyFindUnique.mockResolvedValue(null);
+
+    // When that same PC comes back and polls
+    await POST(claimRequest(String(WORKER_PROTOCOL_VERSION), "hong"));
+
+    // Then stale recovery is scoped the same way — a dead worker's job never migrates
+    // to a colleague's PC, where their capital credentials would be decrypted.
+    expect(claimedWorkerScope()).toEqual({ OR: [{ workerId: "hong" }, { workerId: null }] });
   });
 
   it("does not overwrite an admin cancellation while marking an invalid lease failed", async () => {

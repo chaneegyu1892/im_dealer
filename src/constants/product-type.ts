@@ -4,14 +4,16 @@
 // 기록되므로 바꾸면 기존 데이터가 전부 어긋난다. 고객·어드민에게 보여주는 표기만
 // 이 파일에서 매핑한다 — "리스" 저장값은 "운용리스"로 노출한다.
 
-/** DB·API·스냅샷에 기록되는 상품 유형 저장값. 절대 변경 금지. */
-export const PRODUCT_TYPE_VALUES = ["장기렌트", "리스"] as const;
+/** DB·API·스냅샷에 기록되는 상품 유형 저장값. 절대 변경 금지(추가만 가능). */
+export const PRODUCT_TYPE_VALUES = ["장기렌트", "리스", "금융리스", "할부"] as const;
 
 export type ProductTypeValue = (typeof PRODUCT_TYPE_VALUES)[number];
 
 const PRODUCT_TYPE_LABELS: Record<ProductTypeValue, string> = {
   장기렌트: "장기렌트",
   리스: "운용리스",
+  금융리스: "금융리스",
+  할부: "할부",
 };
 
 /** 화면·PDF·이미지 등 사용자에게 노출되는 상품 유형 표기. */

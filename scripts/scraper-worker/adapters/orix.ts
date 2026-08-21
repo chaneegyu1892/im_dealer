@@ -1,10 +1,12 @@
 import { AuthError } from "./types";
-import type { AdapterContext, CatalogScrapeOptions, CatalogScrapeResult, SiteAdapter } from "./types";
+import type { AdapterContext, CatalogScrapeOptions, CatalogScrapeResult, ModelListOptions, ModelListResult, SiteAdapter } from "./types";
 import type { CatalogTrimEntry, TrimScrapeResult, TrimMatchConfidence } from "../../../src/types/scraper";
 import { matchTrim, findModelIndex, type CatalogCandidate } from "../../../src/lib/scraper/trim-match";
 import { brandOrigin } from "../../../src/lib/scraper/standard-conditions";
 import { RATE_KEYS } from "../mapping";
 import { assertHttpUrl } from "../safe-url";
+import { cellConcurrency, mapPool, rand, reqDelay as paceDelay, sleep } from "../pace";
+import { pickModels } from "../model-filter";
 
 /**
  * 오릭스(ORIX) 캐피탈 렌터카 월납입금 수집 어댑터 — 내부 JSON API(/SIT0001.act) 직접 호출 방식.
@@ -29,13 +31,8 @@ const CONST = {
 };
 const MT_DIST_CODE: Record<string, string> = { "10000": "LH120001", "20000": "LH120002", "30000": "LH120003" };
 const ceil10 = (n: number) => Math.ceil(n / 10) * 10;
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-const rand = (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo));
-/** 호출 간 지연(ms) — 사람 속도 + 랜덤 지터로 자동화 트래픽 패턴을 흐림(계정 탐지 footprint 완화). */
-function reqDelay(config: Record<string, unknown> | null): number {
-  const base = cfg(config, "requestDelayMs", 700); // 기본 0.7s (기존 150ms → 사람 속도)
-  return base + rand(0, Math.floor(base * 0.7)); // +0~70% 랜덤 지터
-}
+/** 호출 간 지연(ms). 기본은 빠름 — SCRAPER_PACE=safe 면 0.7s(사람 속도)로 복귀. */
+const reqDelay = (config: Record<string, unknown> | null): number => paceDelay(config, 700);
 
 // ── 취득원가(lsAmount) 부대비 상수/도착지 — ORIX 견적화면 calcLsAmountCar() 재현 ──
 //   lsAmount = 공급가(LOAD_AMT) + 취득세(GET_TAX) + 부대비합/1.1 − 보조금
@@ -203,6 +200,27 @@ export const orixAdapter: SiteAdapter = {
     return { trimId: ourTrimId, matchConfidence: resolved.confidence ?? "exact", externalTrimLabel: resolved.label ?? t.MDEL_NAME2, vehiclePrice: carAmt, baseRates, depositRate36_10000, prepayRate36_10000, warnings };
   },
 
+  // 선택 브랜드의 차량(모델) 목록만 (models 잡). 브랜드당 API 1회 — 트림 견적은 긁지 않는다.
+  async listModels(ctx: AdapterContext, opts: ModelListOptions): Promise<ModelListResult> {
+    const { config, log } = ctx;
+    const lsWork = cfg(config, "lsWorkKubun", "CF100006");
+    let total = 0;
+    const brandSummaries: ModelListResult["brands"] = [];
+
+    for (const brand of opts.brands) {
+      if (ctx.isCanceled()) break;
+      const list = (await api(ctx, { txGbCd: "CAR_COMBO_1", LS_WORK_KUBUN: lsWork, BRAND_CD: brand.brandCd, PRE_ADC_YN: "N" })).LIST || [];
+      const models = list
+        .map((m: any) => ({ modelCd: String(m.MDL_CD ?? ""), modelName: String(m.MDL_NM ?? "") }))
+        .filter((m: { modelCd: string }) => m.modelCd);
+      log(`[차량목록] ${brand.name}(${brand.brandCd}) — ${models.length}개`);
+      await opts.onBrandModels(brand, models);
+      total += models.length;
+      brandSummaries.push({ brandCd: brand.brandCd, name: brand.name, models: models.length });
+    }
+    return { total, brands: brandSummaries };
+  },
+
   // 선택 브랜드의 ORIX 등록 전 모델·전 트림 수집 (catalog 잡). 우리 트림 매칭 없이 원본 그대로.
   async scrapeCatalog(ctx: AdapterContext, opts: CatalogScrapeOptions): Promise<CatalogScrapeResult> {
     const { config, log } = ctx;
@@ -217,8 +235,9 @@ export const orixAdapter: SiteAdapter = {
       if (brandOrigin(brand.name) !== "domestic") {
         log(`[카탈로그] ${brand.name}: 국산(특판) 채널로 확인되지 않은 브랜드 — 특판출고 조건이 부적합할 수 있음 (표준조건: 수입=비제휴)`);
       }
-      const models = (await api(ctx, { txGbCd: "CAR_COMBO_1", LS_WORK_KUBUN: lsWork, BRAND_CD: brand.brandCd, PRE_ADC_YN: "N" })).LIST || [];
-      log(`[카탈로그] 브랜드 ${brand.name}(${brand.brandCd}) — 모델 ${models.length}개`);
+      const allModels = (await api(ctx, { txGbCd: "CAR_COMBO_1", LS_WORK_KUBUN: lsWork, BRAND_CD: brand.brandCd, PRE_ADC_YN: "N" })).LIST || [];
+      const models = pickModels(allModels, brand.modelCds, (m: any) => String(m.MDL_CD));
+      log(`[카탈로그] 브랜드 ${brand.name}(${brand.brandCd}) — 모델 ${models.length}개${brand.modelCds?.length ? ` (차량 선택 수집 / 전체 ${allModels.length}개)` : ""}`);
       let brandTrims = 0;
 
       for (let mi = 0; mi < models.length; mi++) {
@@ -372,44 +391,55 @@ async function collectBaseRates(ctx: AdapterContext, t: any, lsWork: string, opt
   const baseRates: Record<string, number> = {};
   let depositRate36_10000: number | undefined;
   let prepayRate36_10000: number | undefined;
-  for (const keyk of RATE_KEYS) {
+  // 셀은 서로 독립(CAL_LSRYOW 는 파라미터만으로 계산) → 동시 처리. 순차 복귀는 SCRAPER_PACE=safe.
+  type Cell = { key: string | null; ls: number; deposit?: number; prepay?: number; warnings: string[] };
+  const cellResults = await mapPool(RATE_KEYS, cellConcurrency(config), async (keyk): Promise<Cell> => {
+    const cellWarnings: string[] = [];
     const [months, dist] = keyk.split("_");
     const rate = rvBy[`${months}_${dist}`];
-    if (!(rate > 0)) { warnings.push(`${keyk}: 잔존율 없음`); continue; } // 빈 잔존율(Number("")=0)도 제외
+    if (!(rate > 0)) { cellWarnings.push(`${keyk}: 잔존율 없음`); return { key: null, ls: 0, warnings: cellWarnings }; } // 빈 잔존율(Number("")=0)도 제외
     const notRvAmt = Math.ceil((carAmt / 1.1) * (rate / 100) / 1000) * 1000;
     const calBody: Record<string, unknown> = {
       txGbCd: "CAL_LSRYOW", CAR_INSU_KUBUN: t.CAR_INSU_KUBUN, CAR_MT_KUBUN: t.CAR_MT_KUBUN, RT_MT_RATE: t.RT_MT_RATE, RT_SELF_CAR_RATE: t.RT_SELF_CAR_RATE, OPER_RV_KUBUN: t.OPER_RV_KUBUN, IMPDOM_KUBUN: t.IMPDOM_KUBUN, MDEL_CD: t.MDEL_CD, LS_WORK_KUBUN: lsWork, ...CONST, SHIPMENT_KUBUN: shipment,
       LEASE_KIKAN: months, MT_DIST: MT_DIST_CODE[dist], LOAD_AMT: String(LOAD_AMT), lsAmount: String(lsAmount), notRvAmt: String(notRvAmt), NOT_WRNT_RV: String(rate), ADDON_SPEND_W: String(ceil10(SPECIFIC_TAX / Number(months))), ADDON_CAR_TAX: String(ADDON_CAR_TAX),
     };
+    if (ctx.isCanceled()) return { key: null, ls: 0, warnings: cellWarnings };
     const res = await api(ctx, calBody);
     const ls = Number(res.LSRYO);
-    if (ls > 0) baseRates[keyk] = ls;
-    else warnings.push(`${keyk}: 월납입금 산출 실패 (${res.APP_HEADER?.respMsg ?? "?"})`);
+    if (!(ls > 0)) cellWarnings.push(`${keyk}: 월납입금 산출 실패 (${res.APP_HEADER?.respMsg ?? "?"})`);
 
     // 36개월·1만km 셀에 한해 보증금10%·선납금10% 견적도 수집 (캡처로 검증된 공식)
     //  - 보증금10%: PAYMENT_PER=10 + lsAmount·notRvAmt 에서 보증금(차량가×10%) 차감 → CAL 결과 그대로
     //  - 선납금10%: PAYMENT_PER=10(금액 유지) → CAL gross 에서 회차균등배분(선납금/기간) 차감
+    let deposit: number | undefined;
+    let prepay: number | undefined;
     if (keyk === "36_10000" && ls > 0 && !opts?.skipDepositPrepay) {
       const dep = Math.round(carAmt * 0.1); // 보증금/선납금 = 차량가 10%
       try {
         await sleep(reqDelay(config));
         const depRes = await api(ctx, { ...calBody, PAYMENT_PER: "10", lsAmount: String(lsAmount - dep), notRvAmt: String(notRvAmt - dep) });
         const depLs = Number(depRes.LSRYO);
-        if (depLs > 0) depositRate36_10000 = depLs;
-        else warnings.push(`보증10%: 산출 실패 (${depRes.APP_HEADER?.respMsg ?? "?"})`);
+        if (depLs > 0) deposit = depLs;
+        else cellWarnings.push(`보증10%: 산출 실패 (${depRes.APP_HEADER?.respMsg ?? "?"})`);
 
         await sleep(reqDelay(config));
         const preRes = await api(ctx, { ...calBody, PAYMENT_PER: "10" }); // 금액 유지(선납은 회차균등배분으로 차감)
         const preGross = Number(preRes.LSRYO);
-        if (preGross > 0) prepayRate36_10000 = preGross - ceil10(dep / Number(months));
-        else warnings.push(`선납10%: 산출 실패 (${preRes.APP_HEADER?.respMsg ?? "?"})`);
+        if (preGross > 0) prepay = preGross - ceil10(dep / Number(months));
+        else cellWarnings.push(`선납10%: 산출 실패 (${preRes.APP_HEADER?.respMsg ?? "?"})`);
       } catch (e) {
-        warnings.push(`선납/보증 수집 오류: ${(e as Error).message.slice(0, 40)}`);
+        cellWarnings.push(`선납/보증 수집 오류: ${(e as Error).message.slice(0, 40)}`);
       }
     }
+    return { key: keyk, ls, deposit, prepay, warnings: cellWarnings };
+  });
 
-    if (ctx.isCanceled()) break;
-    await sleep(reqDelay(config));
+  for (const r of cellResults) {
+    warnings.push(...r.warnings);
+    if (!r.key) continue;
+    if (r.ls > 0) baseRates[r.key] = r.ls;
+    if (r.deposit !== undefined) depositRate36_10000 = r.deposit;
+    if (r.prepay !== undefined) prepayRate36_10000 = r.prepay;
   }
   return { baseRates, warnings, depositRate36_10000, prepayRate36_10000 };
 }

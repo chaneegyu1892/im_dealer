@@ -115,4 +115,64 @@ describe("POST /api/admin/scrape-jobs credential retention", () => {
     });
     expect(mocks.encryptString).not.toHaveBeenCalled();
   });
+
+  it("pins the job to the collection PC the tester named", async () => {
+    const response = await POST(
+      request({
+        jobType: "catalog",
+        financeCompanyId: "fc-1",
+        productType: "장기렌트",
+        weekOf: "2026-07-27",
+        brands: [{ brandCd: "CA100001", name: "현대" }],
+        username: "operator",
+        password: "secret",
+        workerId: "hong",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.scrapeJobCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ workerId: "hong" }),
+    });
+  });
+
+  it("scopes the in-flight guard per collection PC so testers do not block each other", async () => {
+    // Given another tester already collecting from the same capital company on their own PC
+    await POST(
+      request({
+        jobType: "catalog",
+        financeCompanyId: "fc-1",
+        productType: "장기렌트",
+        weekOf: "2026-07-27",
+        brands: [{ brandCd: "CA100001", name: "현대" }],
+        username: "operator",
+        password: "secret",
+        workerId: "kim",
+      })
+    );
+
+    // Then the duplicate-session guard only looks at that same PC's jobs — 'kim' running
+    // ORIX does not make 'hong' wait, because each tester uses their own capital account.
+    expect(mocks.scrapeJobFindFirst).toHaveBeenCalledWith({
+      where: expect.objectContaining({ financeCompanyId: "fc-1", workerId: "kim" }),
+    });
+  });
+
+  it("rejects a collection PC name that could not have come from a worker", async () => {
+    const response = await POST(
+      request({
+        jobType: "catalog",
+        financeCompanyId: "fc-1",
+        productType: "장기렌트",
+        weekOf: "2026-07-27",
+        brands: [{ brandCd: "CA100001", name: "현대" }],
+        username: "operator",
+        password: "secret",
+        workerId: "hong drop table",
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.scrapeJobCreate).not.toHaveBeenCalled();
+  });
 });

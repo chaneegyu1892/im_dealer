@@ -6,23 +6,25 @@ import { z } from "zod";
 import { decryptString } from "../../src/lib/pii";
 import { keyFingerprint } from "../../src/lib/scraper/key-fingerprint";
 import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
-import type { CatalogJobParams, CatalogProgress, CatalogTrimEntry, ScrapeJobParams, TrimScrapeResult } from "../../src/types/scraper";
+import type { CatalogJobParams, CatalogProgress, CatalogTrimEntry, ModelsJobParams, ScrapeJobParams, TrimScrapeResult } from "../../src/types/scraper";
 import { buildDraftFromTrimResults } from "./mapping";
 import { buildBrowserLaunchArgs } from "./browser-launch";
 import { createCatalogResultBuffer } from "./catalog-buffer";
 import { resolveAdapter } from "./adapters/registry";
 import { AuthError } from "./adapters/types";
 import type { AdapterContext } from "./adapters/types";
-import { claimJob, getCollectedMdelCds, heartbeat, postCatalogResults, postResult, type ClaimedJob, type ClaimedCredential } from "./api-client";
+import { claimJob, getCollectedMdelCds, heartbeat, postCatalogResults, postModelResults, postResult, type ClaimedJob, type ClaimedCredential } from "./api-client";
 import { shouldApplyJobCooldown, type JobOutcome } from "./job-outcome";
+import { SAFE_PACE } from "./pace";
 
 const POLL_MS = Number(process.env.SCRAPER_POLL_MS ?? 5000);
 const HEADFUL = process.env.SCRAPER_HEADFUL === "true";
 const KEEPALIVE_MS = Number(process.env.SCRAPER_KEEPALIVE_MS ?? 120000); // 2분
 // 하트비트 겸 취소 감지 주기. 짧을수록 [취소] 후 브라우저를 더 빨리 닫고 다음 작업을 잡는다.
 const HEARTBEAT_MS = Number(process.env.SCRAPER_HEARTBEAT_MS ?? 10000);
-const REQUEST_DELAY_MS = Number(process.env.SCRAPER_REQUEST_DELAY_MS ?? 2000); // 트림 간 지연(기본 2s)
-const JOB_COOLDOWN_MS = Number(process.env.SCRAPER_JOB_COOLDOWN_MS ?? 30000); // 작업 간 쿨다운(기본 30s) — 볼륨 집중/버스트 완화
+// 트림 간 지연·작업 간 쿨다운. 기본은 빠름 — SCRAPER_PACE=safe 면 예전 값(2s/30s)으로 복귀한다.
+const REQUEST_DELAY_MS = Number(process.env.SCRAPER_REQUEST_DELAY_MS ?? (SAFE_PACE ? 2000 : 300));
+const JOB_COOLDOWN_MS = Number(process.env.SCRAPER_JOB_COOLDOWN_MS ?? (SAFE_PACE ? 30000 : 5000)); // 볼륨 집중/버스트 완화
 // 사람 속도 모사 + 탐지 footprint 완화용 랜덤 지터: base ~ base*1.6
 const jitter = (base: number) => base + Math.floor(Math.random() * base * 0.6);
 
@@ -39,8 +41,20 @@ const scrapeJobParamsSchema = z.object({
 
 const catalogJobParamsSchema = z.object({
   mode: z.literal("catalog"),
-  brands: z.array(z.object({ brandCd: z.string().min(1), name: z.string().min(1) })),
+  brands: z.array(
+    z.object({
+      brandCd: z.string().min(1),
+      name: z.string().min(1),
+      modelCds: z.array(z.string().min(1)).optional(), // 있으면 그 모델만 수집
+    })
+  ),
   weekOf: z.string().min(1),
+  productType: z.string().min(1),
+});
+
+const modelsJobParamsSchema = z.object({
+  mode: z.literal("models"),
+  brands: z.array(z.object({ brandCd: z.string().min(1), name: z.string().min(1) })),
   productType: z.string().min(1),
 });
 
@@ -159,12 +173,14 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
   let currentProgress: CatalogProgress | null = null; // catalog 잡 진행률 (하트비트에 동봉)
   const paramsResult = job.jobType === "catalog"
     ? catalogJobParamsSchema.safeParse(job.params)
-    : scrapeJobParamsSchema.safeParse(job.params);
+    : job.jobType === "models"
+      ? modelsJobParamsSchema.safeParse(job.params)
+      : scrapeJobParamsSchema.safeParse(job.params);
   if (!paramsResult.success) {
     await postResult(job.id, job.leaseToken, { ok: false, error: "작업 파라미터가 올바르지 않습니다." });
     return "failed";
   }
-  const params: CatalogJobParams | ScrapeJobParams = paramsResult.data;
+  const params: CatalogJobParams | ModelsJobParams | ScrapeJobParams = paramsResult.data;
 
   const headless = !(credential.requiresHuman || HEADFUL);
   log(`브라우저 실행 (headless=${headless})`);
@@ -241,13 +257,45 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
     pageBusy = false;
     if (canceled) throw new CanceledError();
 
-    if (job.jobType === "catalog") {
+    if (job.jobType === "models") {
+      // ── 차량(모델) 목록만 동기화: 트림 견적 없이 목록만 — 브랜드당 수 초 ──
+      if (!adapter.listModels) {
+        await postResult(job.id, job.leaseToken, { ok: false, error: "이 캐피탈사 어댑터는 차량 목록 조회를 지원하지 않습니다." });
+        return "failed";
+      }
+      if (!("mode" in params) || params.mode !== "models") {
+        throw new Error("차량 목록 작업 파라미터 종류가 일치하지 않습니다.");
+      }
+      const mParams = params;
+
+      pageBusy = true; // 어댑터가 세션을 계속 사용 — API 호출 자체가 세션 활동
+      let summary;
+      try {
+        summary = await adapter.listModels(ctx, {
+          brands: mParams.brands,
+          onBrandModels: async (brand, models) => {
+            await postModelResults({
+              jobId: job.id, leaseToken: job.leaseToken, financeCompanyId: job.financeCompanyId,
+              productType: mParams.productType, brandCd: brand.brandCd, brandName: brand.name, models,
+            });
+          },
+        });
+      } finally {
+        pageBusy = false;
+      }
+      if (canceled) throw new CanceledError();
+      await postResult(job.id, job.leaseToken, {
+        ok: true,
+        modelsSummary: { mode: "models", ...summary, finishedAt: new Date().toISOString() },
+      });
+      log(`차량 목록 완료 — ${summary.total}개 (브랜드 ${summary.brands.length}개)`);
+    } else if (job.jobType === "catalog") {
       // ── 카탈로그 전량 수집: 어댑터가 순회, 워커가 버퍼링/증분 flush ──
       if (!adapter.scrapeCatalog) {
         await postResult(job.id, job.leaseToken, { ok: false, error: "이 캐피탈사 어댑터는 카탈로그 수집을 지원하지 않습니다." });
         return "failed";
       }
-      if (!("mode" in params)) {
+      if (!("mode" in params) || params.mode !== "catalog") {
         throw new Error("카탈로그 작업 파라미터 종류가 일치하지 않습니다.");
       }
       const cParams = params;
@@ -262,10 +310,12 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
       if (collected.size > 0) log(`이번주 기수집 ${collected.size}건 — 스킵하고 이어서 수집`);
 
       const resultBuffer = createCatalogResultBuffer<CatalogTrimEntry>(async (entries) => {
-          await postCatalogResults({
+          const { ignored } = await postCatalogResults({
             jobId: job.id, leaseToken: job.leaseToken, financeCompanyId: job.financeCompanyId,
             productType: cParams.productType, weekOf: cParams.weekOf, entries,
           });
+          // 취소된 잡의 마지막 flush 는 서버가 버린다 — "저장됨"으로 오인하지 않게 명시한다.
+          if (ignored) log(`저장 무시됨(작업이 이미 종료 상태) — ${entries.length}건은 저장되지 않았습니다`);
       });
       const flush = async (required: boolean): Promise<void> => {
         const count = resultBuffer.size();
@@ -274,6 +324,10 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
         if (!saved) log(`증분 저장 실패(${resultBuffer.size()}건 보류) — 다음 flush에서 재시도`);
       };
 
+      // 완료 요약용: 이번 실행에서 실제 수집된 차량별 트림 수 (스킵분 제외).
+      // 어댑터를 건드리지 않고 entry 스트림에서 집계한다 — entry 에 브랜드·모델명이 실려 온다.
+      const modelCounts = new Map<string, { brandName: string; modelName: string; trims: number }>();
+
       pageBusy = true; // 어댑터가 세션을 계속 사용 — keepAlive 불필요(API 호출 자체가 세션 활동)
       let summary;
       try {
@@ -281,8 +335,14 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
           brands: cParams.brands,
           isCollected: (mdelCd) => collected.has(mdelCd),
           onTrimResult: async (entry) => {
+            const key = `${entry.brandName} ${entry.modelName}`;
+            const m = modelCounts.get(key) ?? { brandName: entry.brandName, modelName: entry.modelName, trims: 0 };
+            m.trims++;
+            modelCounts.set(key, m);
             resultBuffer.add(entry);
-            if (resultBuffer.size() >= 20) await flush(false);
+            // 5건마다 저장 — 트림당 수 분 걸리는 날(느린 우리금융 등)엔 20건을 모으면
+            // 중단 시 손실이 크고 화면에도 한참 아무것도 안 보인다.
+            if (resultBuffer.size() >= 5) await flush(false);
           },
           onModelDone: async () => flush(false),
           onProgress: (p) => { currentProgress = p; },
@@ -294,7 +354,12 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential): Promise<J
       if (canceled) throw new CanceledError();
       await postResult(job.id, job.leaseToken, {
         ok: true,
-        catalogSummary: { mode: "catalog", ...summary, finishedAt: new Date().toISOString() },
+        catalogSummary: {
+          mode: "catalog",
+          ...summary,
+          models: [...modelCounts.values()],
+          finishedAt: new Date().toISOString(),
+        },
       });
       log(`카탈로그 완료 — 수집 ${summary.total}건, 스킵 ${summary.skipped}건, 실패 ${summary.failed}건`);
     } else {
@@ -353,8 +418,14 @@ async function main(): Promise<void> {
     process.exitCode = 1;
     return;
   }
+  const workerId = process.env.SCRAPER_WORKER_ID?.trim();
   console.log(
-    `[worker] 시작 — API=${process.env.WORKER_API_BASE} poll=${POLL_MS}ms headful=${HEADFUL} v${WORKER_PROTOCOL_VERSION}`
+    `[worker] 시작 — API=${process.env.WORKER_API_BASE} poll=${POLL_MS}ms headful=${HEADFUL} pace=${SAFE_PACE ? "safe" : "fast"} v${WORKER_PROTOCOL_VERSION}`
+  );
+  console.log(
+    workerId
+      ? `[worker] 이 수집 PC 이름: ${workerId} — 수집 화면에 이 이름을 그대로 입력하세요.`
+      : "[worker] 수집 PC 이름 없음 — 이름이 지정된 작업은 받지 않습니다. (.env 의 SCRAPER_WORKER_ID)"
   );
   // 같은 안내를 매 폴링마다 도배하지 않도록 한 번만 출력한다.
   let staleWarned = false;

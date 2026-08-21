@@ -58,7 +58,9 @@ export async function POST(request: NextRequest) {
     }));
 
     const suggestions = vehicle.trims.map((t) => {
-      const ourName = `${t.lineup?.name ?? ""} ${t.name}`.trim();
+      // 차량명을 반드시 포함한다 — HEV/EV 차량은 라인업명이 "가솔린 1.6 터보"처럼 적혀 있어
+      // 차량명을 빼면 연료가 가솔린으로 오판되어 엉뚱한 연료 트림에 매핑된다(실측 94건).
+      const ourName = `${vehicle.name} ${t.lineup?.name ?? ""} ${t.name}`.trim();
       const m = matchTrim(ourName, candList);
       const hit = m ? candidates[m.index] : undefined;
       return {

@@ -19,7 +19,7 @@ const capitalRatePostSchema = z
     financeCompanyId: z.string().min(1),
     trimId: z.string().min(1).optional(),
     trimIds: z.array(z.string().min(1)).optional(),
-    productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
+    productType: z.enum(["장기렌트", "리스", "금융리스", "할부"]).default("장기렌트"),
     weekOf: z
       .string()
       .min(1)

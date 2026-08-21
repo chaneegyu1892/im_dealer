@@ -104,12 +104,33 @@ function applyDeposit(
   return { monthly, depositAmount, discount };
 }
 
+/** 선납 조정율 수집 샘플 기준 개월수 — calcPrepayAdjustRate 가 36개월/1만km 샘플에서 도출. */
+const PREPAY_SAMPLE_MONTHS = 36;
+/** 10% 선납 1스텝의 월할 상각분(VAT 포함) — 캐피탈 견적기의 선납렌트료 이중차감 구조에서 유도. */
+const PREPAY_STEP_AMORT = 0.1 * 1.1;
+
+/**
+ * 선납 조정율 기간 보정.
+ *
+ * 엑셀 수집 조정율은 36개월 샘플의 원리금균등(PMT) 효과라 rate ≈ −0.11×연금계수(i,36).
+ * 이를 48/60개월에 그대로 곱하면 실제 PMT 효과(연금계수가 1/n 만큼 기간에 반비례)보다
+ * 과대 할인되어 월 대여료가 음수까지 떨어진다. 연금계수의 이자 성분은 기간에 거의 불변이므로
+ * rate_n = rate36 + 0.11×(1/36 − 1/n) 로 보정 (엑셀 실측 대비 오차 수백원 수준).
+ *
+ * 임계값 −0.11/36(무이자 상각 하한)보다 절대값이 작은 음수·양수는 수기 입력 휴리스틱
+ * (예: −0.0002 = 스텝당 0.02% 할인)으로 보고 기존 선형 동작을 유지한다.
+ */
+function termAdjustedPrepayRate(prepayAdjustRate: number, contractMonths: number): number {
+  if (prepayAdjustRate > -PREPAY_STEP_AMORT / PREPAY_SAMPLE_MONTHS) return prepayAdjustRate;
+  return prepayAdjustRate + PREPAY_STEP_AMORT * (1 / PREPAY_SAMPLE_MONTHS - 1 / contractMonths);
+}
+
 /**
  * 선납금 적용 월 대여료 계산
  *
  * - 선납금 분할 차감(prepayAmount / months)은 실제로 미리 낸 돈이므로 항상 차감.
  * - prepayAdjustRate 항(`차량가 × rate × 단위수`)은 부호 그대로 반영.
- *   양수면 가산, 음수면 할인.
+ *   양수면 가산, 음수면 할인. 엑셀 수집 스케일의 음수 rate 는 기간 보정 후 적용.
  */
 function applyPrepay(
   vehiclePrice: number,
@@ -121,14 +142,29 @@ function applyPrepay(
   const steps = prepayRate / 10;
   const prepayAmount = Math.round(vehiclePrice * (prepayRate / 100));
   const prepayDeduction = prepayAmount / contractMonths;
-  const adjustAmount = vehiclePrice * prepayAdjustRate * steps;
+  const adjustAmount = vehiclePrice * termAdjustedPrepayRate(prepayAdjustRate, contractMonths) * steps;
   const monthly = baseMonthly - prepayDeduction + adjustAmount;
   return { monthly, prepayAmount, adjust: -prepayDeduction + adjustAmount };
 }
 
 // ─── 다중 금융사 견적 계산 (메인 함수) ──────────────────
 
-export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult[] {
+/** 견적 불가로 제외된 금융사 정보 — 관리자 시뮬레이터 표시용 */
+export interface UnavailableQuote {
+  financeCompanyId: string;
+  financeCompanyName: string;
+  /** 가산 전 계산상 월대여료 (0 이하) */
+  monthlyBeforeSurcharge: number;
+}
+
+/**
+ * @param unavailableOut 전달 시, 월대여료 ≤ 0 으로 제외된 금융사 정보가 push 됨.
+ *   고객 노출 경로는 전달하지 않아 기존 동작(조용히 제외) 유지.
+ */
+export function calculateMultiFinanceQuote(
+  input: CalcInput,
+  unavailableOut?: UnavailableQuote[]
+): FinanceQuoteResult[] {
   const {
     vehiclePrice,
     contractMonths,
@@ -176,6 +212,17 @@ export function calculateMultiFinanceQuote(input: CalcInput): FinanceQuoteResult
       prepayAdjust = result.adjust;
     } else {
       monthlyBeforeSurcharge = baseMonthly;
+    }
+
+    // 월대여료가 0 이하로 나오는 조합(단기+고선납 등)은 캐피탈사 견적이 성립하지 않는 조건
+    // (메리츠 엑셀도 음수 출력) → 해당 금융사를 결과에서 제외.
+    if (monthlyBeforeSurcharge <= 0) {
+      unavailableOut?.push({
+        financeCompanyId: cfg.financeCompanyId,
+        financeCompanyName: cfg.financeCompanyName,
+        monthlyBeforeSurcharge,
+      });
+      continue;
     }
 
     intermediates.push({
@@ -292,6 +339,8 @@ export function calculateScenarios(
 
   const conserv = applyDeposit(vehiclePrice, rate, 20, rateConfig.depositDiscountRate);
   const aggress = applyPrepay(vehiclePrice, baseMonthly, contractMonths, 30, rateConfig.prepayAdjustRate);
+  // 선납 30%로 월대여료가 0 이하면 해당 조건 견적 불성립 → 0원 표기(calculate 라우트의 불가 컨벤션과 동일).
+  const aggressUnavailable = aggress.monthly <= 0;
 
   return {
     conservative: {
@@ -311,9 +360,9 @@ export function calculateScenarios(
       contractType: "반납형",
     },
     aggressive: {
-      monthlyPayment: aggress.monthly,
+      monthlyPayment: aggressUnavailable ? 0 : aggress.monthly,
       depositAmount: 0,
-      prepayAmount: aggress.prepayAmount,
+      prepayAmount: aggressUnavailable ? 0 : aggress.prepayAmount,
       contractMonths,
       annualMileage,
       contractType: "반납형",

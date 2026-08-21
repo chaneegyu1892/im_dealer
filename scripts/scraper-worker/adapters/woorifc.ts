@@ -1,8 +1,10 @@
 import zlib from "node:zlib";
 import { AuthError } from "./types";
-import type { AdapterContext, CatalogScrapeOptions, CatalogScrapeResult, SiteAdapter } from "./types";
+import type { AdapterContext, CatalogScrapeOptions, CatalogScrapeResult, ModelListOptions, ModelListResult, SiteAdapter } from "./types";
 import type { CatalogTrimEntry, TrimScrapeResult } from "../../../src/types/scraper";
 import { assertHttpUrl } from "../safe-url";
+import { cellConcurrency, mapPool, rand, reqDelay as paceDelay, sleep } from "../pace";
+import { pickModels } from "../model-filter";
 
 /**
  * 우리금융캐피탈(WOORIFC) 장기렌트 월납입금 수집 어댑터 — 내부 GET JSON API(/apiw/...) 직접 호출.
@@ -23,12 +25,7 @@ const RATE_CELLS: { month: number; km: number; dist: number }[] = [
   { month: 60, km: 7, dist: 10000 }, { month: 60, km: 2, dist: 20000 }, { month: 60, km: 3, dist: 30000 },
 ];
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-const rand = (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo));
-function reqDelay(config: Record<string, unknown> | null): number {
-  const base = cfg(config, "requestDelayMs", 500);
-  return base + rand(0, Math.floor(base * 0.6));
-}
+const reqDelay = (config: Record<string, unknown> | null): number => paceDelay(config, 500);
 function cfg<T>(config: Record<string, unknown> | null, key: string, fallback: T): T {
   const v = config?.[key];
   return v === undefined || v === null ? fallback : (v as T);
@@ -44,6 +41,39 @@ let sess: SessionState | null = null;
 
 class SessionExpired extends Error {}
 
+/**
+ * 2026-08 서버 사용량 제한(WAF) 차단 응답. 임계 초과 시 200 + 70바이트
+ * `<meta http-equiv="refresh" ...url=https://m.ajucapital.co.kr>` 를 돌려준다.
+ * 쿨다운은 재시도 중엔 8분+ 지속(측정) — 잡 내 대기로는 못 풀므로 즉시 중단이 답.
+ */
+class RateLimited extends Error {
+  constructor() {
+    super("우리금융 사용량 제한(차단 페이지) 응답");
+    this.name = "RateLimited";
+  }
+}
+
+/**
+ * /apiw/woori/* 계산 엔드포인트 최소 호출 간격(ms).
+ * 차단 트리거는 속도가 아니라 세션당 rentRemain 4번째 호출임을 실측 확정(2026-08-20).
+ * costData 는 직렬 0.5초 유휴 간격 326연속(146+60+120)에도 무사(2026-08-21 실측) — 동시 버스트(옛 fast 페이스)만 피하면 된다.
+ * config.calcIntervalMs 로 조정 가능 — tarpit(응답 행 걸림/타임아웃) 재발 시 2500 으로 되돌릴 것.
+ */
+const CALC_INTERVAL_MS = 1000;
+let lastCalcAt = 0;
+let calcChain: Promise<void> = Promise.resolve();
+/** 계산 호출 직렬 게이트 — 동시 셀 처리여도 시작 시각을 interval 간격으로 벌린다. */
+function calcGate(ctx: AdapterContext): Promise<void> {
+  const interval = cfg<number>(ctx.config, "calcIntervalMs", CALC_INTERVAL_MS);
+  const p = calcChain.then(async () => {
+    const wait = lastCalcAt + interval + rand(0, 800) - Date.now();
+    if (wait > 0) await sleep(wait);
+    lastCalcAt = Date.now();
+  });
+  calcChain = p.catch(() => {});
+  return p;
+}
+
 // WOORIFC endpoints return small per-model/rate JSON documents. Keep a generous
 // per-response ceiling so a compromised upstream cannot synchronously materialize
 // an arbitrarily large deflate stream in the worker.
@@ -58,6 +88,8 @@ function inflate(b64: string): string {
 }
 export function decodeWoorifcResponse(raw: string): any {
   const t = raw.trim();
+  // `<meta http-equiv=refresh ...ajucapital...` = 사용량 제한 차단 페이지 (doctype 없이 meta 단독으로 온다)
+  if (t.startsWith("<") && /ajucapital|http-equiv=["']?refresh/i.test(t.slice(0, 300))) throw new RateLimited();
   if (/^<(!doctype|html)/i.test(t)) throw new SessionExpired(); // 세션 만료 시 견적 페이지 HTML 반환
   if (t.startsWith("{") || t.startsWith("[")) {
     const j = JSON.parse(t);
@@ -80,13 +112,21 @@ async function trimBigCookies(ctx: AdapterContext): Promise<void> {
 
 async function rawGet(ctx: AdapterContext, path: string): Promise<string> {
   return ctx.page.evaluate(async (u) => {
-    const r = await fetch(u, { credentials: "include", headers: { "X-Requested-With": "XMLHttpRequest" } });
+    // 응답 없는 요청에 무한정 매달리지 않는다 — 20초 넘으면 끊고 상위(apiGet)가 1회 재시도.
+    // 타임아웃 없이는 서버가 응답을 안 줄 때 잡 전체가 조용히 멈춘다(하트비트만 살아있는 행).
+    const r = await fetch(u, {
+      credentials: "include",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+      signal: AbortSignal.timeout(20_000),
+    });
     return await r.text();
   }, path).catch((e: Error) => `__FETCHERR__${e.message}`);
 }
 
 /** 페이지 컨텍스트에서 /apiw GET → 디코드. HTML(헤더초과) 시 큰 쿠키 정리 후 1회 재요청. */
 async function apiGet(ctx: AdapterContext, path: string, _retried = false): Promise<any> {
+  // 계산 엔드포인트만 사용량 제한 대상(모델 목록 등은 빠른 페이스로도 무사) — 여기만 간격 게이트.
+  if (path.startsWith("/apiw/woori/")) await calcGate(ctx);
   const raw = await rawGet(ctx, path);
   if (raw.startsWith("__FETCHERR__")) {
     if (!_retried) { await sleep(1200); return apiGet(ctx, path, true); }
@@ -139,30 +179,43 @@ function costUrl(ctx: AdapterContext, o: {
 
 interface CollectResult { baseRates: Record<string, number>; warnings: string[]; depositRate36_10000?: number; prepayRate36_10000?: number }
 
+/**
+ * 잔존율(rentRemain) 모델 단위 캐시 — 세션당 rentRemain 3회 제한(4번째에 차단) 우회의 핵심.
+ * 가격이 다른 트림 3개의 remain 행렬·goodsKind·ship 이 완전 동일함을 실측 확인(2026-08-21)
+ * → 모델당 1회만 호출하면 트림 수와 무관하게 예산 안에서 수집 가능. 로그인 시 비운다.
+ */
+const rrCache = new Map<string, any>();
+
 /** 트림 1건의 9칸 월납입금 + 36/1만 보증10%·선납10% 수집. */
 async function collectTrim(ctx: AdapterContext, mc: { brand: string; model: string; trim: string }, price: number, modelYear: string, evcost: string, opts?: { skipDepositPrepay?: boolean }): Promise<CollectResult> {
   const warnings: string[] = [];
   const baseRates: Record<string, number> = {};
 
-  // 잔존율 매트릭스 (+ goodsKind/ship 획득)
-  const rr = await apiGet(ctx, `/apiw/woori/rentRemain?goods=rent&token=${tok()}&brand=${mc.brand}&model=${mc.model}&trim=${mc.trim}&evcost=${evcost}&takeType=10`);
-  if (rr?.rspn_cd !== "0000" || !rr.remain) { warnings.push(`잔존율 조회 실패(${rr?.rspn_cd ?? "?"})`); return { baseRates, warnings }; }
+  // 잔존율 매트릭스 (+ goodsKind/ship 획득) — 모델 단위로 동일하므로 모델당 1회만 호출
+  const rrKey = `${mc.brand}:${mc.model}`;
+  let rr = rrCache.get(rrKey);
+  if (!rr) {
+    rr = await apiGet(ctx, `/apiw/woori/rentRemain?goods=rent&token=${tok()}&brand=${mc.brand}&model=${mc.model}&trim=${mc.trim}&evcost=${evcost}&takeType=10`);
+    if (rr?.rspn_cd !== "0000" || !rr.remain) { warnings.push(`잔존율 조회 실패(${rr?.rspn_cd ?? "?"})`); return { baseRates, warnings }; }
+    rrCache.set(rrKey, rr);
+  }
   const goodsKind = String(rr.goodsKind ?? "");
   const deliveryShip = String(rr.ship ?? "12");
 
   let depositRate36_10000: number | undefined;
   let prepayRate36_10000: number | undefined;
 
-  for (let i = 0; i < RATE_CELLS.length; i++) {
-    const c = RATE_CELLS[i];
+  // 셀은 서로 독립(각 셀이 fNo·잔존율까지 실어 보내는 단발 계산) → 동시 처리. 순차 복귀는 SCRAPER_PACE=safe.
+  const cells = await mapPool(RATE_CELLS, cellConcurrency(ctx.config), async (c, i) => {
     const rV = Number(rr.remain?.[String(c.month)]?.[String(c.km)] ?? 0);
     const url = costUrl(ctx, { fNo: i + 1, ...mc, price, modelYear, goodsKind, deliveryShip, month: c.month, km: c.km, prepayR: 0, prepay: 0, depositR: 0, deposit: 0, remainR: rV, remain: remainAmt(price, rV) });
     const cd = await apiGet(ctx, url);
-    const pay = Number(cd?.cost?.pymt_amt ?? 0);
-    if (pay > 0) baseRates[`${c.month}_${c.dist}`] = pay;
+    return Number(cd?.cost?.pymt_amt ?? 0);
+  });
+  RATE_CELLS.forEach((c, i) => {
+    if (cells[i] > 0) baseRates[`${c.month}_${c.dist}`] = cells[i];
     else warnings.push(`${c.month}/${c.dist} 산출 실패`);
-    await sleep(reqDelay(ctx.config));
-  }
+  });
 
   // 36개월/1만km 보증금10%·선납금10%
   if (!opts?.skipDepositPrepay && baseRates["36_10000"]) {
@@ -177,6 +230,7 @@ async function collectTrim(ctx: AdapterContext, mc: { brand: string; model: stri
       const pv = Number(pre?.cost?.pymt_amt ?? 0);
       if (pv > 0) prepayRate36_10000 = pv;
     } catch (e) {
+      if (e instanceof RateLimited) throw e; // 차단은 경고로 삼키지 않고 잡 중단으로 올린다
       warnings.push(`보증/선납 수집 오류: ${(e as Error).message.slice(0, 40)}`);
     }
   }
@@ -206,7 +260,13 @@ export const woorifcAdapter: SiteAdapter = {
     const estUrl = new URL(credentials.loginUrl);
     estUrl.pathname = cfg(ctx.config, "estimatePath", "/newcar/estimate/rent");
     estUrl.search = "";
-    await page.goto(estUrl.toString(), { waitUntil: "networkidle2", timeout: 45000 });
+    try {
+      await page.goto(estUrl.toString(), { waitUntil: "networkidle2", timeout: 45000 });
+    } catch {
+      // 일시 지연으로 45초 초과 시 1회 재시도 — 여기서 실패하면 사람 로그인부터 다시 해야 해 비용이 크다.
+      log("견적 페이지 이동 지연 — 재시도");
+      await page.goto(estUrl.toString(), { waitUntil: "networkidle2", timeout: 45000 });
+    }
     await sleep(1500);
     const info = await page.evaluate(() => {
       const w = window as Window & {
@@ -220,6 +280,7 @@ export const woorifcAdapter: SiteAdapter = {
     });
     if (!info.token) throw new AuthError("우리금융 세션 토큰을 찾지 못했습니다(로그인 미완료 추정).");
     sess = { token: info.token, branchShop: info.branch || cfg(ctx.config, "branchShop", "C240") };
+    rrCache.clear(); // 새 세션 — 잔존율 캐시 초기화 (주간 갱신 가능성 대비)
     log(`세션 확보 (branchShop=${sess.branchShop})`);
   },
 
@@ -231,6 +292,44 @@ export const woorifcAdapter: SiteAdapter = {
   async scrapeTrim(_ctx: AdapterContext, ourTrimId: string): Promise<TrimScrapeResult> {
     // 우리금융은 카탈로그 수집(scrapeCatalog) 중심. trim_rates 지정 수집은 미구현.
     return { trimId: ourTrimId, matchConfidence: "unmatched", externalTrimLabel: "(WOORIFC trim_rates 미지원 — 카탈로그 수집 사용)", vehiclePrice: 0, baseRates: {}, warnings: ["WOORIFC 는 카탈로그 수집만 지원합니다."] };
+  },
+
+  // 선택 브랜드의 차량(모델) 목록만 (models 잡).
+  // 여기만 모델명이 모델별 응답에 들어 있어 렌트 지원(use=Y) 모델에 한해 1회씩 더 부른다 —
+  // 그래도 트림 견적을 도는 카탈로그 수집보다는 훨씬 짧다.
+  async listModels(ctx: AdapterContext, opts: ModelListOptions): Promise<ModelListResult> {
+    const { log } = ctx;
+    let total = 0;
+    const brandSummaries: ModelListResult["brands"] = [];
+
+    const modelList = await apiGet(ctx, `/apiw/auto/modelList_search?token=${tok()}`);
+    const financeModels = await apiGet(ctx, `/apiw/finance/woorifc_models?token=${tok()}`);
+
+    for (const brand of opts.brands) {
+      if (ctx.isCanceled()) break;
+      const ids = String(modelList?.brand?.[brand.brandCd]?.modelList ?? "").split(",").filter(Boolean);
+      const fmBrand = financeModels?.[brand.brandCd] ?? {};
+      const models: { modelCd: string; modelName: string }[] = [];
+
+      for (const modelId of ids) {
+        if (ctx.isCanceled()) break;
+        if (fmBrand[modelId]?.use !== "Y") continue; // 렌트 미지원 모델 스킵
+        let modelData: any;
+        try {
+          modelData = await apiGet(ctx, `/apiw/auto/modelData_${modelId}?token=${tok()}`);
+        } catch (e) {
+          log(`[차량목록] 모델 ${modelId} 로드 실패: ${(e as Error).message.slice(0, 50)}`);
+          continue;
+        }
+        models.push({ modelCd: modelId, modelName: String(modelData?.model?.[modelId]?.name ?? modelId) });
+        await sleep(reqDelay(ctx.config));
+      }
+      log(`[차량목록] ${brand.name}(${brand.brandCd}) — ${models.length}개`);
+      await opts.onBrandModels(brand, models);
+      total += models.length;
+      brandSummaries.push({ brandCd: brand.brandCd, name: brand.name, models: models.length });
+    }
+    return { total, brands: brandSummaries };
   },
 
   async scrapeCatalog(ctx: AdapterContext, opts: CatalogScrapeOptions): Promise<CatalogScrapeResult> {
@@ -245,9 +344,10 @@ export const woorifcAdapter: SiteAdapter = {
     for (let bi = 0; bi < opts.brands.length; bi++) {
       const brand = opts.brands[bi];
       if (ctx.isCanceled()) break;
-      const modelIds = String(modelList?.brand?.[brand.brandCd]?.modelList ?? "").split(",").filter(Boolean);
+      const allModelIds = String(modelList?.brand?.[brand.brandCd]?.modelList ?? "").split(",").filter(Boolean);
+      const modelIds = pickModels(allModelIds, brand.modelCds, (id) => id);
       const fmBrand = financeModels?.[brand.brandCd] ?? {};
-      log(`[카탈로그] 브랜드 ${brand.name}(${brand.brandCd}) — 모델 ${modelIds.length}개`);
+      log(`[카탈로그] 브랜드 ${brand.name}(${brand.brandCd}) — 모델 ${modelIds.length}개${brand.modelCds?.length ? ` (차량 선택 수집 / 전체 ${allModelIds.length}개)` : ""}`);
       let brandTrims = 0;
 
       for (let mi = 0; mi < modelIds.length; mi++) {
@@ -301,8 +401,16 @@ export const woorifcAdapter: SiteAdapter = {
             await opts.onTrimResult(entry);
             total++; brandTrims++;
           } catch (e) {
+            if (e instanceof RateLimited) {
+              // 쿨다운이 잡 내 대기로 안 풀리는 수준(8분+) — 즉시 중단. 수집분은 증분 저장돼 있고,
+              // 재실행 시 기수집 트림은 스킵되므로 이어서 수집된다.
+              throw new Error(`우리금융 사용량 제한 감지 — "${trimLabel}" 에서 중단(이번 실행 수집 ${total}건은 저장됨). 10분 이상 뒤에 다시 실행하면 이어서 수집합니다.`);
+            }
             failed++; log(`[카탈로그] ${trimLabel} 수집 실패: ${(e as Error).message.slice(0, 60)}`);
           }
+          // 트림마다 진행률 갱신 — 모델 단위로만 올리면 트림당 수 분 걸리는 날엔
+          // 화면이 몇 분째 0으로 보여 멈춘 것으로 오인된다.
+          opts.onProgress({ phase: "scraping", brandIdx: bi + 1, brandCount: opts.brands.length, brandName: brand.name, modelIdx: mi + 1, modelCount: modelIds.length, modelName, trimsDone, trimsTotal, skipped, updatedAt: new Date().toISOString() });
           await sleep(reqDelay(ctx.config));
         }
         await opts.onModelDone(modelId);

@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { WORKER_ID_PATTERN } from "@/lib/scraper/job-state";
+
+/** 수집 PC 이름은 사람마다 고정이라 한 번 입력하면 이 브라우저에 기억해 둔다. */
+const WORKER_ID_STORAGE_KEY = "scraper.workerId";
 
 interface Props {
   financeCompanyName: string;
@@ -11,7 +15,7 @@ interface Props {
   requiresHuman?: boolean;
   submitting?: boolean;
   onClose: () => void;
-  onSubmit: (username: string, password: string) => void;
+  onSubmit: (username: string, password: string, workerId: string) => void;
 }
 
 /**
@@ -30,19 +34,34 @@ export default function ScraperLoginModal({
 }: Props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [workerId, setWorkerId] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setWorkerId(localStorage.getItem(WORKER_ID_STORAGE_KEY) ?? "");
+  }, []);
 
   const submit = () => {
     setError("");
+    const worker = workerId.trim();
+    if (!worker) {
+      setError("수집 PC 이름을 입력하세요. (수집 시작 창에 표시된 이름)");
+      return;
+    }
+    if (!WORKER_ID_PATTERN.test(worker)) {
+      setError("수집 PC 이름은 영문·숫자·한글·_·- 로 32자까지만 됩니다.");
+      return;
+    }
+    localStorage.setItem(WORKER_ID_STORAGE_KEY, worker);
     if (requiresHuman) {
-      onSubmit("", "");
+      onSubmit("", "", worker);
       return;
     }
     if (!username.trim() || !password.trim()) {
       setError("로그인 ID · 비밀번호를 입력하세요.");
       return;
     }
-    onSubmit(username.trim(), password);
+    onSubmit(username.trim(), password, worker);
   };
 
   return (
@@ -104,10 +123,26 @@ export default function ScraperLoginModal({
                 onKeyDown={(e) => e.key === "Enter" && submit()}
                 className="w-full rounded-lg border border-[#E8EAF2] px-3 py-2 text-sm focus:border-[#6066EE] focus:outline-none"
               />
-              {error && <p className="text-xs font-medium text-red-500">{error}</p>}
             </div>
           </>
         )}
+
+        <div className="mt-4 space-y-1">
+          <input
+            type="text"
+            value={workerId}
+            onChange={(e) => setWorkerId(e.target.value)}
+            placeholder="수집 PC 이름"
+            autoComplete="off"
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            className="w-full rounded-lg border border-[#E8EAF2] px-3 py-2 text-sm focus:border-[#6066EE] focus:outline-none"
+          />
+          <p className="text-[11px] leading-relaxed text-[#B0B8D0]">
+            &lsquo;수집 시작&rsquo; 창에 표시된 이름을 그대로 입력하세요. 그 PC 로만 이 작업이 갑니다.
+          </p>
+        </div>
+
+        {error && <p className="mt-3 text-xs font-medium text-red-500">{error}</p>}
 
         <div className="mt-5 flex gap-2">
           <button

@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
-import { productTypeLabel } from "@/constants/product-type";
+import { PRODUCT_TYPE_VALUES, productTypeLabel, type ProductTypeValue } from "@/constants/product-type";
 import { isExcelCapital } from "@/lib/scraper/excel-capitals";
-import type { CatalogProgress, CatalogScrapeSummary, ScrapeJobStatus } from "@/types/scraper";
+import type { CatalogProgress, CatalogScrapeSummary, ModelsJobSummary, ScrapeJobStatus, ScrapeJobType } from "@/types/scraper";
 import CatalogScrapePanel from "./CatalogScrapePanel";
 import CatalogUploadPanel from "./CatalogUploadPanel";
 import CatalogBrowser from "./CatalogBrowser";
@@ -29,14 +29,16 @@ interface Props {
 
 export interface CatalogJobState {
   jobId: string | null;
+  jobType: ScrapeJobType | null;
   status: ScrapeJobStatus | null;
   progress: CatalogProgress | null;
-  summary: CatalogScrapeSummary | null;
+  // catalog 잡은 CatalogScrapeSummary, models 잡은 ModelsJobSummary — mode 로 구분한다.
+  summary: CatalogScrapeSummary | ModelsJobSummary | null;
   error: string | null;
   humanPrompt: string | null;
 }
 
-const EMPTY_JOB: CatalogJobState = { jobId: null, status: null, progress: null, summary: null, error: null, humanPrompt: null };
+const EMPTY_JOB: CatalogJobState = { jobId: null, jobType: null, status: null, progress: null, summary: null, error: null, humanPrompt: null };
 const TERMINAL: ScrapeJobStatus[] = ["completed", "failed", "canceled"];
 
 /**
@@ -46,7 +48,7 @@ const TERMINAL: ScrapeJobStatus[] = ["completed", "failed", "canceled"];
 export default function CapitalCatalogManager({ financeCompanies, vehicles }: Props) {
   const supported = financeCompanies.filter((f) => isSupportedCapital(f.name));
   const [selectedFcId, setSelectedFcId] = useState<string>(supported[0]?.id ?? "");
-  const [productType, setProductType] = useState<"장기렌트" | "리스">("장기렌트");
+  const [productType, setProductType] = useState<ProductTypeValue>("장기렌트");
   const [subTab, setSubTab] = useState<"collect" | "browse" | "map">("collect");
   const [job, setJob] = useState<CatalogJobState>(EMPTY_JOB);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -70,7 +72,7 @@ export default function CapitalCatalogManager({ financeCompanies, vehicles }: Pr
         jobId,
         status: j.status,
         progress: (j.progress as CatalogProgress | null) ?? prev.progress,
-        summary: j.status === "completed" ? ((j.draft as CatalogScrapeSummary | null) ?? null) : prev.summary,
+        summary: j.status === "completed" ? ((j.draft as CatalogScrapeSummary | ModelsJobSummary | null) ?? null) : prev.summary,
         error: j.error ?? null,
         humanPrompt: j.humanPrompt ?? null,
       }));
@@ -81,9 +83,9 @@ export default function CapitalCatalogManager({ financeCompanies, vehicles }: Pr
   }, [stopPolling]);
 
   const watchJob = useCallback(
-    (jobId: string) => {
+    (jobId: string, jobType: ScrapeJobType) => {
       stopPolling();
-      setJob({ ...EMPTY_JOB, jobId, status: "pending" });
+      setJob({ ...EMPTY_JOB, jobId, jobType, status: "pending" });
       void pollOnce(jobId);
       pollRef.current = setInterval(() => void pollOnce(jobId), 5000);
     },
@@ -128,7 +130,7 @@ export default function CapitalCatalogManager({ financeCompanies, vehicles }: Pr
           </select>
         </div>
         <div className="flex items-center gap-1 rounded-lg border border-[#E8EAF2] p-0.5">
-          {(["장기렌트", "리스"] as const).map((pt) => (
+          {PRODUCT_TYPE_VALUES.map((pt) => (
             <button
               key={pt}
               type="button"
@@ -168,7 +170,6 @@ export default function CapitalCatalogManager({ financeCompanies, vehicles }: Pr
               <CatalogUploadPanel
                 financeCompanyId={selectedFcId}
                 financeCompanyName={selectedFc.name}
-                productType={productType}
               />
             ) : (
               <CatalogScrapePanel

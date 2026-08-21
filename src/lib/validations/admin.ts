@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { overlapProfileSchema } from "@/lib/recommend/overlap-profile";
+import { WORKER_ID_PATTERN } from "@/lib/scraper/job-state";
 
 // ─── Vehicle ────────────────────────────────────────────
 export const scraperRefsSchema = z.record(
@@ -254,6 +255,8 @@ export const scrapeJobCreateSchema = z.object({
   // requiresHuman 캐피탈사(키패드·SMS)는 워커가 자격증명을 쓰지 못하므로 생략한다 — 라우트에서 검증.
   username: z.string().optional(),
   password: z.string().optional(),
+  // 이 작업을 처리할 수집 PC 이름. 비우면 아무 워커나 집는다.
+  workerId: z.string().regex(WORKER_ID_PATTERN, "수집 PC 이름 형식이 올바르지 않습니다").optional(),
 });
 
 // 카탈로그 전량 수집 작업 생성 (POST /api/admin/scrape-jobs, body.jobType === "catalog")
@@ -263,11 +266,34 @@ export const catalogJobCreateSchema = z.object({
   productType: z.string().min(1).default("장기렌트"),
   weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "weekOf 형식은 YYYY-MM-DD"),
   brands: z
+    .array(
+      z.object({
+        brandCd: z.string().min(1),
+        name: z.string().min(1),
+        // 차량(모델) 단위 수집 — 비우면 브랜드 전량. 브랜드 전량은 수십 분 걸려 부분 재수집용으로 필요.
+        modelCds: z.array(z.string().min(1)).optional(),
+      })
+    )
+    .min(1, "브랜드를 1개 이상 선택하세요"),
+  // requiresHuman 캐피탈사는 생략 가능 — 위 scrapeJobCreateSchema 주석 참고.
+  username: z.string().optional(),
+  password: z.string().optional(),
+  workerId: z.string().regex(WORKER_ID_PATTERN, "수집 PC 이름 형식이 올바르지 않습니다").optional(),
+});
+
+// 차량(모델) 목록 동기화 작업 생성 (POST /api/admin/scrape-jobs, body.jobType === "models")
+// 트림 견적을 긁지 않고 목록만 가져온다 — 수집 대상 차량 선택 전에 브랜드당 한 번 돌린다.
+export const modelsJobCreateSchema = z.object({
+  jobType: z.literal("models"),
+  financeCompanyId: z.string().min(1),
+  productType: z.string().min(1).default("장기렌트"),
+  brands: z
     .array(z.object({ brandCd: z.string().min(1), name: z.string().min(1) }))
     .min(1, "브랜드를 1개 이상 선택하세요"),
   // requiresHuman 캐피탈사는 생략 가능 — 위 scrapeJobCreateSchema 주석 참고.
   username: z.string().optional(),
   password: z.string().optional(),
+  workerId: z.string().regex(WORKER_ID_PATTERN, "수집 PC 이름 형식이 올바르지 않습니다").optional(),
 });
 
 // 트림 매핑 upsert (POST /api/admin/capital-catalog/mappings)
@@ -283,7 +309,7 @@ export const catalogMappingUpsertSchema = z.object({
 // 카탈로그 → 정확값 시트 반영 (POST /api/admin/capital-rates/apply-catalog)
 export const applyCatalogSchema = z.object({
   financeCompanyId: z.string().min(1),
-  productType: z.enum(["장기렌트", "리스"]).default("장기렌트"),
+  productType: z.enum(["장기렌트", "리스", "금융리스", "할부"]).default("장기렌트"),
   weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "weekOf 형식은 YYYY-MM-DD"),
   trimIds: z.array(z.string().min(1)).min(1, "트림을 1개 이상 선택하세요"),
 });
@@ -301,14 +327,28 @@ export const catalogScrapeSummarySchema = z.object({
   skipped: z.number().int().min(0),
   failed: z.number().int().min(0),
   brands: z.array(z.object({ brandCd: z.string(), name: z.string(), trims: z.number().int().min(0) })),
+  // 이번 실행에서 수집된 차량별 트림 수 (구버전 워커 결과엔 없음)
+  models: z
+    .array(z.object({ brandName: z.string(), modelName: z.string(), trims: z.number().int().min(0) }))
+    .optional(),
+  finishedAt: z.string(),
+});
+
+// models 잡 완료 요약 (워커 → ScrapeJob.draft 저장)
+export const modelsJobSummarySchema = z.object({
+  mode: z.literal("models"),
+  total: z.number().int().min(0),
+  brands: z.array(z.object({ brandCd: z.string(), name: z.string(), models: z.number().int().min(0) })),
   finishedAt: z.string(),
 });
 
 export const workerJobResultSchema = z.discriminatedUnion("ok", [
   z.object({
     ok: z.literal(true),
-    // trim_rates 잡은 draft, catalog 잡은 catalogSummary — 라우트가 jobType 에 맞게 하나를 요구한다.
+    // trim_rates 잡은 draft, catalog 잡은 catalogSummary, models 잡은 modelsSummary —
+    // 라우트가 jobType 에 맞게 하나를 요구한다.
     catalogSummary: catalogScrapeSummarySchema.optional(),
+    modelsSummary: modelsJobSummarySchema.optional(),
     draft: z.object({
       scrapedAt: z.string(),
       productType: z.string(),
@@ -351,6 +391,17 @@ export const workerHeartbeatSchema = z.object({
 });
 
 // 워커 카탈로그 증분 저장 (POST /api/worker/catalog/results)
+// 워커 → 백엔드 차량(모델) 목록 저장 (POST /api/worker/catalog/models)
+export const workerModelResultsSchema = z.object({
+  jobId: z.string().min(1),
+  financeCompanyId: z.string().min(1),
+  productType: z.string().min(1),
+  brandCd: z.string().min(1),
+  brandName: z.string().min(1),
+  // 브랜드에 등록 차량이 하나도 없을 수 있어 빈 배열을 허용한다(그 경우 기존 목록만 정리된다).
+  models: z.array(z.object({ modelCd: z.string().min(1), modelName: z.string().min(1) })),
+});
+
 export const workerCatalogResultsSchema = z.object({
   jobId: z.string().min(1),
   financeCompanyId: z.string().min(1),

@@ -1,7 +1,9 @@
 import { AuthError } from "./types";
-import type { AdapterContext, CatalogScrapeOptions, CatalogScrapeResult, SiteAdapter } from "./types";
+import type { AdapterContext, CatalogScrapeOptions, CatalogScrapeResult, ModelListOptions, ModelListResult, SiteAdapter } from "./types";
 import type { CatalogTrimEntry, TrimScrapeResult } from "../../../src/types/scraper";
 import { assertHttpUrl } from "../safe-url";
+import { rand, reqDelay as paceDelay, sleep } from "../pace";
+import { pickModels } from "../model-filter";
 
 /**
  * JB우리캐피탈(JBWOORI) 장기렌트 월납입금 수집 어댑터 — **DOM 자동화** 방식.
@@ -28,16 +30,11 @@ const RATE_CELLS: { month: number; distCode: string; dist: number }[] = [
   { month: 60, distCode: "16", dist: 10000 }, { month: 60, distCode: "02", dist: 20000 }, { month: 60, distCode: "03", dist: 30000 },
 ];
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-const rand = (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo));
 function cfg<T>(config: Record<string, unknown> | null, key: string, fallback: T): T {
   const v = config?.[key];
   return v === undefined || v === null ? fallback : (v as T);
 }
-function reqDelay(config: Record<string, unknown> | null): number {
-  const base = cfg(config, "requestDelayMs", 400);
-  return base + rand(0, Math.floor(base * 0.6));
-}
+const reqDelay = (config: Record<string, unknown> | null): number => paceDelay(config, 400);
 /** "14,930,000원" → 14930000 */
 const num = (s: unknown): number => Number(String(s ?? "").replace(/[^\d.-]/g, "")) || 0;
 
@@ -121,17 +118,32 @@ async function loadTrim(ctx: AdapterContext, t: TrimRow, modelName: string): Pro
   }, t, modelName);
 
   // 2) 견적페이지 리로드 → 견적폼이 스토리지 vhclData 로 초기화
+  //    고정 대기 대신 견적폼에 트림명이 실제로 반영될 때까지 폴링 — 확인 조건은 같고(3번 검사와 동일)
+  //    대개 훨씬 빨리 끝난다. domReloadWaitMs 는 이제 '최대 대기'로 동작.
   await page.goto(ESTIMATE_URL, { waitUntil: "networkidle2", timeout: 45000 });
-  await sleep(cfg(config, "domReloadWaitMs", 4000));
+  const loaded = await page
+    .waitForFunction(
+      (name: string) => {
+        const txt = (document.getElementById("vhclCmdtNm")?.textContent || "").trim();
+        return txt && txt.includes(name) ? txt : null;
+      },
+      { timeout: cfg(config, "domReloadWaitMs", 8000), polling: 200 },
+      t.cmdtDtlsNm
+    )
+    .then((h) => h.jsonValue() as Promise<string>)
+    .catch(() => "");
 
   // 3) 로드 확인 + 색상/잔존율 init
-  const loaded = await page.evaluate(() => (document.getElementById("vhclCmdtNm")?.textContent || "").trim());
-  if (!loaded || !loaded.includes(t.cmdtDtlsNm)) throw new Error(`트림 로드 확인 실패(표시="${loaded.slice(0, 30)}")`);
+  if (!loaded) {
+    const shown = await page.evaluate(() => (document.getElementById("vhclCmdtNm")?.textContent || "").trim()).catch(() => "");
+    throw new Error(`트림 로드 확인 실패(표시="${shown.slice(0, 30)}")`);
+  }
   await page.evaluate(() => {
     if (!window.jsalrnt0155) throw new Error("JBWOORI 견적 초기화 API를 찾지 못했습니다.");
     window.jsalrnt0155.lfVhclInitInfo(1);
   });
-  await sleep(cfg(config, "domInitWaitMs", 4000));
+  // init 이 내는 색상·잔존율 호출이 끝날 때까지 — 네트워크가 조용해지면 진행(최대 domInitWaitMs).
+  await page.waitForNetworkIdle({ idleTime: 500, timeout: cfg(config, "domInitWaitMs", 4000) }).catch(() => null);
 
   // 4) 정비제외 선택 (imprvGdsCd_01 옵션 텍스트 '정비제외')
   const imprvOk = await page.evaluate(() => {
@@ -145,7 +157,7 @@ async function loadTrim(ctx: AdapterContext, t: TrimRow, modelName: string): Pro
     return true;
   });
   if (!imprvOk) throw new Error("정비제외 옵션을 찾지 못함");
-  await sleep(cfg(config, "domResidualWaitMs", 2000));
+  await page.waitForNetworkIdle({ idleTime: 400, timeout: cfg(config, "domResidualWaitMs", 2000) }).catch(() => null);
 }
 
 /**
@@ -166,16 +178,30 @@ async function computeCell(ctx: AdapterContext, month: number, distCode: string)
   }, { month, distCode });
   await residual;
   // 라디오·셀렉트가 각각 잔존율 호출을 내므로 마지막 호출·콜백(estmData 반영)까지 settle.
-  await sleep(cfg(config, "domResidualSettleMs", 1600));
+  // 고정 sleep 대신 네트워크가 조용해질 때까지 — 두 번째 호출도 함께 기다리고 최대치는 종전과 같다.
+  await page.waitForNetworkIdle({ idleTime: 400, timeout: cfg(config, "domResidualSettleMs", 1600) }).catch(() => null);
   // lfEstm() → getResultRent. 응답 완료 후 콜백이 #popEstm01RentfeArea 갱신.
+  const prev = await page.evaluate(() => (document.getElementById("popEstm01RentfeArea")?.textContent || "").trim());
   const result = page.waitForResponse((r) => /getResultRent\.do/.test(r.url()), { timeout: 20000 }).catch(() => null);
   await page.evaluate(() => {
     if (!window.jsalrnt0155) throw new Error("JBWOORI 견적 계산 API를 찾지 못했습니다.");
     window.jsalrnt0155.lfEstm();
   });
   await result;
-  await sleep(cfg(config, "domCalcSettleMs", 900));
-  const txt = await page.evaluate(() => (document.getElementById("popEstm01RentfeArea")?.textContent || "").trim());
+  // 콜백이 결과영역을 갱신할 때까지 폴링(최대 domCalcSettleMs — 종전 고정 대기와 같은 상한).
+  // 직전 셀과 값이 같으면 폴링이 못 잡으므로 상한까지 기다린 뒤 현재 값을 읽는다(= 종전 동작).
+  const changed = await page
+    .waitForFunction(
+      (p: string) => {
+        const s = (document.getElementById("popEstm01RentfeArea")?.textContent || "").trim();
+        return s && s !== p ? s : null;
+      },
+      { timeout: cfg(config, "domCalcSettleMs", 900), polling: 100 },
+      prev
+    )
+    .then((h) => h.jsonValue() as Promise<string>)
+    .catch(() => null);
+  const txt = changed ?? (await page.evaluate(() => (document.getElementById("popEstm01RentfeArea")?.textContent || "").trim()));
   return num(txt);
 }
 
@@ -230,6 +256,32 @@ export const jbwooriAdapter: SiteAdapter = {
     return { trimId: ourTrimId, matchConfidence: "unmatched", externalTrimLabel: "(JBWOORI trim_rates 미지원 — 카탈로그 수집 사용)", vehiclePrice: 0, baseRates: {}, warnings: ["JBWOORI 은 카탈로그 수집만 지원합니다."] };
   },
 
+  // 선택 브랜드의 차량(모델=클래스) 목록만 (models 잡). 브랜드당 요청 1회 — 차종·트림은 긁지 않는다.
+  async listModels(ctx: AdapterContext, opts: ModelListOptions): Promise<ModelListResult> {
+    const { log } = ctx;
+    let total = 0;
+    const brandSummaries: ModelListResult["brands"] = [];
+
+    for (const brand of opts.brands) {
+      if (ctx.isCanceled()) break;
+      let classes: any[];
+      try {
+        classes = rows((await apiPost(ctx, `${RNT}/getVhclClssList.do`, { chnlGdsDvcd: "T", makrCd: brand.brandCd, dmdmImrtDvcd: "1", straBuynKncrYn: "", credRelfCmdtYn: "" }))?.vhclClssList).filter((c) => c.makrSeqno);
+      } catch (e) {
+        log(`[차량목록] ${brand.name} 로드 실패: ${(e as Error).message.slice(0, 50)}`);
+        brandSummaries.push({ brandCd: brand.brandCd, name: brand.name, models: 0 });
+        continue;
+      }
+      const models = classes.map((c) => ({ modelCd: String(c.makrSeqno), modelName: String(c.modlNm ?? c.makrSeqno) }));
+      log(`[차량목록] ${brand.name}(${brand.brandCd}) — ${models.length}개`);
+      await opts.onBrandModels(brand, models);
+      total += models.length;
+      brandSummaries.push({ brandCd: brand.brandCd, name: brand.name, models: models.length });
+      await sleep(reqDelay(ctx.config));
+    }
+    return { total, brands: brandSummaries };
+  },
+
   async scrapeCatalog(ctx: AdapterContext, opts: CatalogScrapeOptions): Promise<CatalogScrapeResult> {
     const { log } = ctx;
     let total = 0, skipped = 0, failed = 0, trimsDone = 0, trimsTotal = 0;
@@ -240,11 +292,12 @@ export const jbwooriAdapter: SiteAdapter = {
       if (ctx.isCanceled()) break;
       // 계층: 제조사 → 클래스(모델시리즈, getVhclClssList) → 차종(getVhclKncrLis) → 트림(getVhclDtlList).
       // makrSeqno 는 클래스별 값이라 반드시 클래스 순회로 필터해야 함(""=전체 164 반환 → 브랜드 오귀속).
-      let classes: any[];
+      let allClasses: any[];
       try {
-        classes = rows((await apiPost(ctx, `${RNT}/getVhclClssList.do`, { chnlGdsDvcd: "T", makrCd: brand.brandCd, dmdmImrtDvcd: "1", straBuynKncrYn: "", credRelfCmdtYn: "" }))?.vhclClssList).filter((c) => c.makrSeqno);
+        allClasses = rows((await apiPost(ctx, `${RNT}/getVhclClssList.do`, { chnlGdsDvcd: "T", makrCd: brand.brandCd, dmdmImrtDvcd: "1", straBuynKncrYn: "", credRelfCmdtYn: "" }))?.vhclClssList).filter((c) => c.makrSeqno);
       } catch (e) { failed++; log(`[카탈로그] 브랜드 ${brand.name} 클래스 로드 실패: ${(e as Error).message.slice(0, 50)}`); brandSummaries.push({ brandCd: brand.brandCd, name: brand.name, trims: 0 }); continue; }
-      log(`[카탈로그] 브랜드 ${brand.name}(${brand.brandCd}) — 모델 ${classes.length}개`);
+      const classes = pickModels(allClasses, brand.modelCds, (c) => String(c.makrSeqno));
+      log(`[카탈로그] 브랜드 ${brand.name}(${brand.brandCd}) — 모델 ${classes.length}개${brand.modelCds?.length ? ` (차량 선택 수집 / 전체 ${allClasses.length}개)` : ""}`);
       let brandTrims = 0;
 
       for (let ci = 0; ci < classes.length; ci++) {

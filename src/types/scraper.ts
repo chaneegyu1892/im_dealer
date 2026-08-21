@@ -15,7 +15,7 @@ export type ScrapeJobStatus =
 
 export type TrimMatchConfidence = "exact" | "fuzzy" | "unmatched";
 
-export type ScrapeJobType = "trim_rates" | "catalog";
+export type ScrapeJobType = "trim_rates" | "catalog" | "models";
 
 /** trim_rates 잡: 어드민이 작업 생성 시 넘기고, 워커가 수집 대상으로 사용하는 파라미터. */
 export interface ScrapeJobParams {
@@ -33,9 +33,36 @@ export interface ScrapeJobParams {
 /** catalog 잡: 선택 브랜드의 캐피탈사 등록 전 모델·전 트림을 원본 그대로 수집. */
 export interface CatalogJobParams {
   mode: "catalog";
-  brands: { brandCd: string; name: string }[];
+  /** modelCds 를 주면 그 모델만, 비우면 브랜드 전량. */
+  brands: { brandCd: string; name: string; modelCds?: string[] }[];
   weekOf: string; // "YYYY-MM-DD"
   productType: string;
+}
+
+/**
+ * models 잡: 선택 브랜드의 차량(모델) 목록만 가져온다.
+ * 트림 견적을 긁지 않아 브랜드당 수 초면 끝난다 — 수집 대상 차량을 고르기 전에 한 번 돌린다.
+ */
+export interface ModelsJobParams {
+  mode: "models";
+  brands: { brandCd: string; name: string }[];
+  productType: string;
+}
+
+/** models 잡이 가져온 차량 1건 — CapitalCatalogModel 에 upsert 된다. */
+export interface CatalogModelEntry {
+  brandCd: string;
+  brandName: string;
+  modelCd: string;
+  modelName: string;
+}
+
+/** models 잡 결과 요약. */
+export interface ModelsJobSummary {
+  mode: "models";
+  total: number;
+  brands: { brandCd: string; name: string; models: number }[];
+  finishedAt: string;
 }
 
 /** 카탈로그 수집 트림 1건 — 워커가 증분 저장 라우트로 보내고 CapitalCatalogTrim 에 upsert 된다. */
@@ -78,6 +105,8 @@ export interface CatalogScrapeSummary {
   skipped: number;
   failed: number;
   brands: { brandCd: string; name: string; trims: number }[];
+  /** 이번 실행에서 실제 수집된 차량별 트림 수 — 워커가 entry 스트림에서 집계(스킵분 제외). 구버전 워커 결과엔 없다. */
+  models?: { brandName: string; modelName: string; trims: number }[];
   finishedAt: string; // ISO
 }
 

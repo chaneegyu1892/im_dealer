@@ -6,6 +6,7 @@ import {
   getRateFromMatrix,
   type RateConfigData,
   type CalcInput,
+  type UnavailableQuote,
 } from "./quote-calculator";
 import type { RateSheetRaw } from "@/types/admin";
 
@@ -114,6 +115,81 @@ describe("quote-calculator", () => {
       // 선납금 조정액: 3천만원 * 0.0006 = +18,000원
       // 최종 = 420,000 - 187,500 + 18,000 = 250,500원
       expect(quote.baseMonthly).toBe(250500);
+    });
+  });
+
+  describe("선납 조정율 기간 보정 (엑셀 수집 스케일)", () => {
+    // 엑셀 파이프라인이 36개월 샘플에서 도출하는 조정율(≈ −0.11×연금계수)은
+    // 그대로 60개월에 곱하면 과대 할인 → 음수 월대여료. rate_n = rate36 + 0.11×(1/36 − 1/n) 보정.
+    const excelScaleConfig: RateConfigData = { ...mockRateConfig, prepayAdjustRate: -0.0033 };
+
+    it("60개월에서는 기간 보정된 조정율이 적용되어 음수로 떨어지지 않는다", () => {
+      const input: CalcInput = {
+        ...defaultInput,
+        contractMonths: 60,
+        prepayRate: 30,
+        rateConfigs: [excelScaleConfig],
+      };
+      const quote = calculateMultiFinanceQuote(input)[0];
+      // 기본: 3천만 × 0.012 = 360,000 / 차감: 900만/60 = 150,000
+      // 보정 조정율: -0.0033 + 0.11×(1/36 - 1/60) = -0.00207778
+      // 조정액: 3천만 × (-0.00207778) × 3 = -187,000
+      // 최종 = 360,000 - 150,000 - 187,000 = 23,000 (보정 전 선형이면 -87,000)
+      expect(quote.monthlyPayment).toBe(23000);
+    });
+
+    it("36개월(샘플 기준점)에서는 조정율이 그대로 적용된다", () => {
+      const input: CalcInput = {
+        ...defaultInput,
+        contractMonths: 36,
+        prepayRate: 10,
+        rateConfigs: [excelScaleConfig],
+      };
+      const quote = calculateMultiFinanceQuote(input)[0];
+      // 기본: 3천만 × 0.016 = 480,000 / 차감: 300만/36 = 83,333.33
+      // 조정액: 3천만 × (-0.0033) × 1 = -99,000 → 최종 297,666.67
+      expect(quote.monthlyPayment).toBe(297667);
+    });
+
+    it("월대여료가 0 이하로 계산되는 조합은 견적 불가로 결과에서 제외된다", () => {
+      const input: CalcInput = {
+        ...defaultInput,
+        contractMonths: 36,
+        prepayRate: 30,
+        rateConfigs: [excelScaleConfig],
+      };
+      // 기본: 3천만 × 0.016 = 480,000 / 차감: 900만/36 = 250,000
+      // 조정액(36개월 무보정): 3천만 × (-0.0033) × 3 = -297,000 → -67,000 (음수)
+      expect(calculateMultiFinanceQuote(input)).toHaveLength(0);
+    });
+
+    it("unavailableOut 을 전달하면 제외된 금융사와 계산상 음수 월대여료를 수집한다", () => {
+      const input: CalcInput = {
+        ...defaultInput,
+        contractMonths: 36,
+        prepayRate: 30,
+        rateConfigs: [excelScaleConfig],
+      };
+      const excluded: UnavailableQuote[] = [];
+      const results = calculateMultiFinanceQuote(input, excluded);
+
+      expect(results).toHaveLength(0);
+      expect(excluded).toHaveLength(1);
+      expect(excluded[0].financeCompanyId).toBe(excelScaleConfig.financeCompanyId);
+      // 480,000 - 250,000 - 297,000 = -67,000
+      expect(Math.round(excluded[0].monthlyBeforeSurcharge)).toBe(-67000);
+    });
+
+    it("수기 입력 스케일(임계값 미만 절대값)의 음수 rate 는 60개월에서도 기존 선형 유지", () => {
+      const input: CalcInput = {
+        ...defaultInput,
+        contractMonths: 60,
+        prepayRate: 30,
+        rateConfigs: [mockRateConfig], // prepayAdjustRate: -0.0002
+      };
+      const quote = calculateMultiFinanceQuote(input)[0];
+      // 360,000 - 150,000 + 3천만×(-0.0002)×3 = 192,000
+      expect(quote.monthlyPayment).toBe(192000);
     });
   });
 

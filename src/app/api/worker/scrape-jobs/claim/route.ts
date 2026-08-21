@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireWorker } from "@/lib/worker-auth";
 import { resolveCapitalConnection } from "@/lib/scraper/connections";
-import { buildClaimLeaseWhere } from "@/lib/scraper/job-state";
+import { buildClaimLeaseWhere, buildClaimWorkerWhere, getClaimWorkerId } from "@/lib/scraper/job-state";
 import { SCRAPE_JOB_STALE_HEARTBEAT_MS } from "@/lib/scraper/credential-retention";
 import { markWorkerSeen } from "@/lib/scraper/worker-presence";
 import { WORKER_PROTOCOL_VERSION } from "@/lib/scraper/worker-version";
@@ -41,12 +41,19 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     const staleCutoff = new Date(now.getTime() - STALE_MS);
 
-    // pending 우선, 없으면 하트비트가 끊긴 running/needs_human(=죽은 워커) 회수
+    // pending 우선, 없으면 하트비트가 끊긴 running/needs_human(=죽은 워커) 회수.
+    // workerId 가 지정된 작업은 그 워커만 집는다 — 남의 캐피탈 계정이 내 PC 에서
+    // 복호화·로그인되는 일을 막는다. 지정이 없으면 아무 워커나 집는다(기존 동작).
     const candidate = await db.scrapeJob.findFirst({
       where: {
-        OR: [
-          { status: "pending" },
-          { status: { in: ["running", "needs_human"] }, heartbeatAt: { lt: staleCutoff } },
+        AND: [
+          buildClaimWorkerWhere(getClaimWorkerId(request)),
+          {
+            OR: [
+              { status: "pending" },
+              { status: { in: ["running", "needs_human"] }, heartbeatAt: { lt: staleCutoff } },
+            ],
+          },
         ],
       },
       orderBy: { createdAt: "asc" },

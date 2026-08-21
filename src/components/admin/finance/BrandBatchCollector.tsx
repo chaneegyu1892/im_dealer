@@ -25,6 +25,13 @@ interface Props {
   vehicles: VehicleLite[];
   productType: string;
   onSaved: () => void; // 저장 후 활성시트 갱신
+  /** 지정 시 브랜드 선택 없이 이 차량들만 순차 수집한다 (좌측 차량 다중 선택 수집). */
+  presetVehicles?: VehicleLite[];
+  /**
+   * 실행 상태 통지 — preset 모드에서 부모가 차량 선택을 잠그는 데 쓴다.
+   * 실행 중 선택이 바뀌면 이 패널이 unmount 되어 진행 표시를 잃는다.
+   */
+  onRunningChange?: (running: boolean) => void;
 }
 
 function emptyRates(): RateSheetRaw {
@@ -110,7 +117,7 @@ function groupByLineup(draft: ScrapeDraft, detail: any): PerLineupResult[] {
   return out;
 }
 
-export default function BrandBatchCollector({ financeCompanyId, financeCompanyName, vehicles, productType, onSaved }: Props) {
+export default function BrandBatchCollector({ financeCompanyId, financeCompanyName, vehicles, productType, onSaved, presetVehicles, onRunningChange }: Props) {
   const brands = useMemo(() => Array.from(new Set(vehicles.map((v) => v.brand))).sort(), [vehicles]);
   const [brand, setBrand] = useState("");
   const [running, setRunning] = useState(false);
@@ -123,24 +130,62 @@ export default function BrandBatchCollector({ financeCompanyId, financeCompanyNa
   const stopRef = useRef(false);
   // 되돌리기용: 직전 실행이 건드린 트림 + 그 전 활성 시트(트림→시트id) 스냅샷
   const lastRunRef = useRef<{ touchedTrimIds: string[]; prevActive: Record<string, string> } | null>(null);
+  // 사람 인증 대기(needs_human) — [재개] 버튼을 띄우기 위해 폴링 중 감지한다.
+  const [human, setHuman] = useState<{ jobId: string; prompt: string } | null>(null);
+  // [중지] 시 서버 잡도 취소하기 위한 현재 잡 id. 안 하면 잡이 needs_human 으로 영영 남는다.
+  const activeJobRef = useRef<string | null>(null);
+
+  const connection = resolveCapitalConnection(financeCompanyName);
 
   const brandVehicles = useMemo(() => vehicles.filter((v) => v.brand === brand), [vehicles, brand]);
+  // preset 모드(차량 다중 선택)면 그 차량들, 아니면 브랜드 전체(기존 동작)
+  const targetVehicles = presetVehicles ?? brandVehicles;
+  const isPreset = presetVehicles !== undefined;
   const weekOf = weekOfMonday();
   const headers = { "Content-Type": "application/json" };
 
   async function pollJob(jobId: string): Promise<any> {
+    activeJobRef.current = jobId;
     const deadline = Date.now() + 30 * 60 * 1000; // 차량당 최대 30분
-    for (;;) {
-      if (stopRef.current) return { status: "canceled" };
-      if (Date.now() > deadline) return { status: "failed", error: "타임아웃(30분)" };
-      await sleep(3000);
-      try {
-        const data = await (await fetch(`/api/admin/scrape-jobs/${jobId}`)).json();
-        const job = data.job;
-        if (job && ["completed", "failed", "canceled"].includes(job.status)) return job;
-        if (job) setCur((c) => ({ ...c, step: `수집 중 (${job.status})` }));
-      } catch { /* 일시 오류 무시, 재시도 */ }
+    try {
+      for (;;) {
+        if (stopRef.current) return { status: "canceled" };
+        if (Date.now() > deadline) return { status: "failed", error: "타임아웃(30분)" };
+        await sleep(3000);
+        try {
+          const data = await (await fetch(`/api/admin/scrape-jobs/${jobId}`)).json();
+          const job = data.job;
+          if (job && ["completed", "failed", "canceled"].includes(job.status)) return job;
+          if (job) {
+            setCur((c) => ({ ...c, step: `수집 중 (${job.status})` }));
+            // 사람 인증 대기 — [재개] 버튼 노출 (신한·JB 등 헤드풀 로그인 캐피탈사)
+            if (job.status === "needs_human") {
+              setHuman({ jobId, prompt: job.humanPrompt ?? "워커 브라우저에서 인증을 완료한 뒤 [재개]를 누르세요." });
+            } else {
+              setHuman(null);
+            }
+          }
+        } catch { /* 일시 오류 무시, 재시도 */ }
+      }
+    } finally {
+      setHuman(null);
+      activeJobRef.current = null;
     }
+  }
+
+  /** [중지] — 로컬 루프 중단 + 서버의 현재 잡도 취소(안 하면 needs_human 으로 영영 남는다). */
+  function stopBatch() {
+    stopRef.current = true;
+    const id = activeJobRef.current;
+    if (id) void fetch(`/api/admin/scrape-jobs/${id}`, { method: "PATCH", headers, body: JSON.stringify({ action: "cancel" }) });
+  }
+
+  /** needs_human 잡 재개 — 워커 브라우저에서 인증을 마친 뒤 누른다. */
+  function resumeHuman() {
+    const id = human?.jobId;
+    if (!id) return;
+    void fetch(`/api/admin/scrape-jobs/${id}`, { method: "PATCH", headers, body: JSON.stringify({ action: "resume" }) });
+    setHuman(null); // 다음 폴링에서 다시 needs_human 이면 재노출된다
   }
 
   async function saveLineup(r: PerLineupResult): Promise<{ ok: boolean; error?: string }> {
@@ -152,7 +197,7 @@ export default function BrandBatchCollector({ financeCompanyId, financeCompanyNa
         minBaseRates: r.minBaseRates, maxBaseRates: r.maxBaseRates,
         minDepositRates: r.minDepositRates, minPrepayRates: r.minPrepayRates,
         maxDepositRates: r.maxDepositRates, maxPrepayRates: r.maxPrepayRates,
-        memo: "자동 수집(브랜드 일괄)",
+        memo: isPreset ? "자동 수집(차량 선택)" : "자동 수집(브랜드 일괄)",
       }),
     });
     if (res.ok) return { ok: true };
@@ -161,12 +206,13 @@ export default function BrandBatchCollector({ financeCompanyId, financeCompanyNa
     return { ok: false, error: `${r.lineupName}: ${error}` };
   }
 
-  async function runBatch(username: string, password: string) {
-    if (!financeCompanyId || brandVehicles.length === 0) return;
+  async function runBatch(username: string, password: string, workerId: string) {
+    if (!financeCompanyId || targetVehicles.length === 0) return;
     setShowLogin(false);
 
     stopRef.current = false;
     setRunning(true);
+    onRunningChange?.(true);
     setResults([]);
     setSummary(null);
     // 되돌리기용 스냅샷: 배치 전 활성 시트(트림→시트id)
@@ -176,7 +222,7 @@ export default function BrandBatchCollector({ financeCompanyId, financeCompanyNa
     const touchedTrimIds: string[] = [];
     let okVeh = 0, okTrims = 0, clearedTotal = 0, failVeh = 0;
 
-    const list = brandVehicles;
+    const list = targetVehicles;
     for (let i = 0; i < list.length; i++) {
       if (stopRef.current) break;
       const v = list[i];
@@ -189,7 +235,7 @@ export default function BrandBatchCollector({ financeCompanyId, financeCompanyNa
         const prices = (detail.trims ?? []).filter((t: any) => t.lineupId).map((t: any) => t.discountPrice ?? t.price);
 
         setCur((c) => ({ ...c, step: "수집 잡 생성" }));
-        const createBody = JSON.stringify({ financeCompanyId, productType, weekOf, trimIds, vehicleId: v.id, lineupIds, minVehiclePrice: Math.min(...prices), maxVehiclePrice: Math.max(...prices), username, password });
+        const createBody = JSON.stringify({ financeCompanyId, productType, weekOf, trimIds, vehicleId: v.id, lineupIds, minVehiclePrice: Math.min(...prices), maxVehiclePrice: Math.max(...prices), username, password, workerId });
         const doCreate = () => fetch("/api/admin/scrape-jobs", { method: "POST", headers, body: createBody });
         let createRes = await doCreate();
         let createData = await readCreateJobResponse(createRes);
@@ -253,6 +299,7 @@ export default function BrandBatchCollector({ financeCompanyId, financeCompanyNa
     lastRunRef.current = { touchedTrimIds, prevActive };
     setSummary({ savedVehicles: okVeh, savedTrims: okTrims, cleared: clearedTotal, failed: failVeh });
     setRunning(false);
+    onRunningChange?.(false);
     onSaved();
   }
 
@@ -279,26 +326,55 @@ export default function BrandBatchCollector({ financeCompanyId, financeCompanyNa
   return (
     <div className="bg-white rounded-2xl border border-[#E8EAF0] shadow-sm">
       <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between px-4 py-3 text-left">
-        <span className="text-sm font-bold text-[#1A1A2E]">브랜드 일괄 수집 <span className="font-normal text-[#9BA4C0]">— 한 브랜드 전체 차량 순차 수집·자동 저장</span></span>
+        <span className="text-sm font-bold text-[#1A1A2E]">
+          {isPreset ? (
+            <>선택 차량 일괄 수집 <span className="font-normal text-[#9BA4C0]">— 고른 {targetVehicles.length}대의 전 트림 순차 수집·자동 저장</span></>
+          ) : (
+            <>브랜드 일괄 수집 <span className="font-normal text-[#9BA4C0]">— 한 브랜드 전체 차량 순차 수집·자동 저장</span></>
+          )}
+        </span>
         <span className="text-[#9BA4C0] text-xs">{open ? "▲" : "▼"}</span>
       </button>
 
-      {open && (
+      {/* 카탈로그 전용 캐피탈사(신한 등): 트림 지정 수집이 빈 결과만 내므로 아예 막는다 */}
+      {open && connection?.catalogOnly && (
+        <div className="px-4 pb-4 border-t border-[#F0F1FA] pt-3">
+          <p className="rounded-lg bg-[#FFF7E6] px-3 py-2.5 text-sm text-[#8A6D1F]">
+            <b>{financeCompanyName}</b>는 차량·트림 지정 수집을 지원하지 않습니다(사이트 특성상 카탈로그 수집 전용).
+            <br />
+            <b>캐피탈사 데이터 → 카탈로그 수집</b> 탭에서 브랜드를 고르고 [차량 목록 가져오기] 후 원하는 차량만 골라 수집하세요 —
+            로그인 1회로 여러 차량을 한 세션에 수집합니다.
+          </p>
+        </div>
+      )}
+      {open && !connection?.catalogOnly && (
         <div className="px-4 pb-4 border-t border-[#F0F1FA] pt-3 flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <select value={brand} onChange={(e) => setBrand(e.target.value)} disabled={running || reverting} className="rounded-lg border border-[#D7DBF0] px-3 py-2 text-sm">
-              <option value="">브랜드 선택…</option>
-              {brands.map((b) => (<option key={b} value={b}>{b} ({vehicles.filter((v) => v.brand === b).length}대)</option>))}
-            </select>
+            {!isPreset && (
+              <select value={brand} onChange={(e) => setBrand(e.target.value)} disabled={running || reverting} className="rounded-lg border border-[#D7DBF0] px-3 py-2 text-sm">
+                <option value="">브랜드 선택…</option>
+                {brands.map((b) => (<option key={b} value={b}>{b} ({vehicles.filter((v) => v.brand === b).length}대)</option>))}
+              </select>
+            )}
             {!running ? (
-              <button type="button" onClick={() => setShowLogin(true)} disabled={!brand || !financeCompanyId || reverting} className="rounded-lg bg-[#6066EE] px-4 py-2 text-sm font-bold text-white hover:bg-[#4F55D8] disabled:opacity-40">
-                수집 시작 {brand && `(${brandVehicles.length}대)`}
+              <button type="button" onClick={() => setShowLogin(true)} disabled={targetVehicles.length === 0 || !financeCompanyId || reverting} className="rounded-lg bg-[#6066EE] px-4 py-2 text-sm font-bold text-white hover:bg-[#4F55D8] disabled:opacity-40">
+                수집 시작 {targetVehicles.length > 0 && `(${targetVehicles.length}대)`}
               </button>
             ) : (
-              <button type="button" onClick={() => { stopRef.current = true; }} className="rounded-lg border border-[#C0392B] px-4 py-2 text-sm font-bold text-[#C0392B] hover:bg-red-50">중지</button>
+              <button type="button" onClick={stopBatch} className="rounded-lg border border-[#C0392B] px-4 py-2 text-sm font-bold text-[#C0392B] hover:bg-red-50">중지</button>
             )}
-            <span className="text-[11px] text-[#B0B8D0]">워커 실행 중이어야 함 · ORIX 미보유 연식은 &lsquo;데이터 없음&rsquo; 처리(이력 보존) · 계정 안전상 브랜드 단위 권장</span>
+            <span className="text-[11px] text-[#B0B8D0]">워커 실행 중이어야 함 · ORIX 미보유 연식은 &lsquo;데이터 없음&rsquo; 처리(이력 보존){!isPreset && " · 계정 안전상 브랜드 단위 권장"}</span>
           </div>
+
+          {/* 사람 인증 대기 (신한·JB 등 헤드풀 로그인) — 워커 브라우저에서 인증 후 재개 */}
+          {human && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="font-semibold text-amber-700">✋ {human.prompt}</span>
+              <button type="button" onClick={resumeHuman} className="rounded-lg bg-[#6066EE] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#4F55D8]">
+                재개
+              </button>
+            </div>
+          )}
 
           {(running || reverting) && (
             <div className="rounded-lg border border-[#D7DBF0] bg-[#F0F1FA] px-3 py-2 text-sm">
@@ -348,11 +424,11 @@ export default function BrandBatchCollector({ financeCompanyId, financeCompanyNa
 
       {showLogin && (
         <ScraperLoginModal
-          financeCompanyName={brand ? `${brand} · ${running ? "" : "일괄"} 수집` : "일괄 수집"}
-          requiresHuman={resolveCapitalConnection(financeCompanyName)?.requiresHuman ?? false}
+          financeCompanyName={isPreset ? `선택 차량 ${targetVehicles.length}대 · 일괄 수집` : brand ? `${brand} · ${running ? "" : "일괄"} 수집` : "일괄 수집"}
+          requiresHuman={connection?.requiresHuman ?? false}
           submitting={running}
           onClose={() => setShowLogin(false)}
-          onSubmit={(username, password) => void runBatch(username, password)}
+          onSubmit={(username, password, workerId) => void runBatch(username, password, workerId)}
         />
       )}
     </div>

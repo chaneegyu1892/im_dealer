@@ -4,6 +4,8 @@ export interface CapitalConnection {
   adapter: string; // 워커 어댑터 코드 (scripts/scraper-worker/adapters/registry.ts)
   loginUrl: string;
   requiresHuman: boolean; // 휴대폰인증·키보드보안 등 사람 개입 필요 → 헤드풀
+  /** 어댑터가 트림 지정 수집(scrapeTrim)을 지원하지 않아 카탈로그 수집만 가능한 곳. */
+  catalogOnly?: boolean;
 }
 
 // 캐피탈사명(부분일치) → 접속 설정. 캐피탈사가 늘면 여기 추가한다.
@@ -19,8 +21,9 @@ const CONNECTIONS: { match: (name: string) => boolean; conn: CapitalConnection }
   },
   {
     // 신한카드 — nProtect 키패드 → 헤드풀 사람 로그인.
+    // 어댑터가 카탈로그 수집 전용(scrapeTrim 미지원) — 트림 지정/일괄 수집을 걸면 빈 결과만 나온다.
     match: (n) => n.includes("신한"),
-    conn: { adapter: "SHINHAN", loginUrl: "https://mycar.shinhancard.com/adp/ADPFM860N/ADPFM860R20.shc", requiresHuman: true },
+    conn: { adapter: "SHINHAN", loginUrl: "https://mycar.shinhancard.com/adp/ADPFM860N/ADPFM860R20.shc", requiresHuman: true, catalogOnly: true },
   },
   {
     // JB우리캐피탈 — RaonSecure 키패드 + SMS 2차인증 → 헤드풀 사람 로그인.
