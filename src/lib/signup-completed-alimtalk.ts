@@ -14,7 +14,7 @@ export type SignupCompletedTarget = {
 
 export type SignupCompletedAlimtalkResult =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: "disabled" };
+  | { readonly ok: false; readonly reason: "disabled" | "no_template_code" };
 
 export class SignupCompletedEnqueueError extends Error {
   readonly name = "SignupCompletedEnqueueError";
@@ -46,8 +46,10 @@ export async function sendSignupCompletedAlimtalk(
 
   switch (result.reason) {
     case "disabled":
-      return { ok: false, reason: "disabled" };
+    // 템플릿 검수 승인 전(ALIMTALK_ENABLED=true + 코드 미설정)은 예정된 상태다.
+    // 던지면 가입마다 에러 로그가 쌓이므로 disabled 와 같이 조용히 건너뛴다.
     case "no_template_code":
+      return { ok: false, reason: result.reason };
     case "invalid_phone":
       throw new SignupCompletedEnqueueError(result.reason);
     default: {

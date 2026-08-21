@@ -66,6 +66,17 @@ describe("sendSignupCompletedAlimtalk", () => {
     });
   });
 
+  // 운영에서 알림톡이 켜져 있어도, 이 템플릿의 검수 승인 전에는 가입마다
+  // 에러 로그가 쌓이면 안 된다 — 조용히 건너뛴 사실만 돌려준다.
+  it("템플릿 코드 미등록이면 던지지 않고 건너뛴다", async () => {
+    mocks.enqueueAlimtalk.mockResolvedValue({ ok: false, reason: "no_template_code" });
+
+    await expect(sendSignupCompletedAlimtalk(target)).resolves.toEqual({
+      ok: false,
+      reason: "no_template_code",
+    });
+  });
+
   it("전화번호가 유효하지 않으면 던진다", async () => {
     mocks.enqueueAlimtalk.mockResolvedValue({ ok: false, reason: "invalid_phone" });
 
