@@ -16,7 +16,7 @@ import ScrapeJobStatus from "./ScrapeJobStatus";
 import ScrapeReviewPanel, { type PerLineupResult } from "./ScrapeReviewPanel";
 import BrandBatchCollector from "./BrandBatchCollector";
 import { useBrandSignals } from "@/lib/use-brand-signals";
-import { productTypeLabel } from "@/constants/product-type";
+import { PRODUCT_TYPE_VALUES, productTypeLabel, type ProductTypeValue } from "@/constants/product-type";
 import { buildRateGroupMarkers } from "./rate-group-markers";
 import type { ScrapeDraft, ScrapeJobStatus as JobStatus } from "@/types/scraper";
 import type { RateSheetRaw } from "@/types/admin";
@@ -109,7 +109,11 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   const [companyError, setCompanyError] = useState("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+  // 차량 다중 선택(선택 순서 유지). 정확히 1대일 때만 라인업·트림 상세 흐름(부분 재수집)이 열리고,
+  // 2대 이상이면 전 트림 일괄 수집 모드가 된다 — 파생 selectedVehicleId 가 "" 이 되면서
+  // 기존 상세 로드·수집 상태 effect 들이 자연히 초기화된다.
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
+  const selectedVehicleId = selectedVehicleIds.length === 1 ? selectedVehicleIds[0] : "";
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
   const { comparator: brandComparator } = useBrandSignals();
 
@@ -132,15 +136,35 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
       return next;
     });
   }, []);
+
   const [vehicleDetail, setVehicleDetail] = useState<VehicleWithLineups | null>(null);
   const [selectedLineupIds, setSelectedLineupIds] = useState<Set<string>>(new Set());
   // 트림 단위 선택(시범 차량 한정): 선택된 라인업 내에서 개별 해제한 트림 ID. 비대상 차량은 항상 빈 집합 → 기존 동작 동일.
   const [deselectedTrimIds, setDeselectedTrimIds] = useState<Set<string>>(new Set());
-  const [selectedProductType, setSelectedProductType] = useState<"장기렌트" | "리스">("장기렌트");
+  const [selectedProductType, setSelectedProductType] = useState<ProductTypeValue>("장기렌트");
   const [activeSheets, setActiveSheets] = useState<CapitalRateSheet[]>([]);
   const [historySheets, setHistorySheets] = useState<CapitalRateSheet[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // 체크박스 토글 — 여러 대를 모아 한 번에 수집할 때 쓴다.
+  const toggleVehicleCheck = useCallback((id: string) => {
+    setSelectedVehicleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setShowHistory(false);
+  }, []);
+
+  // 다중 선택(2대 이상) 차량 — 선택한 순서 그대로 우측 일괄 수집 패널에 넘긴다.
+  const multiSelectedVehicles = useMemo(
+    () =>
+      selectedVehicleIds.length >= 2
+        ? selectedVehicleIds
+            .map((id) => vehicles.find((v) => v.id === id))
+            .filter((v): v is AdminVehicleLite => v !== undefined)
+        : [],
+    [selectedVehicleIds, vehicles]
+  );
+  // 일괄 수집 실행 중에는 선택 변경을 잠근다 — 선택이 바뀌면 수집 패널이 unmount 되어 진행 표시를 잃는다.
+  const [batchRunning, setBatchRunning] = useState(false);
   const [isWritingSession, setIsWritingSession] = useState(false);
   const [sessionSavedTrims, setSessionSavedTrims] = useState<SessionSavedTrim[]>([]);
 
@@ -693,7 +717,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
     return d.toISOString().slice(0, 10);
   };
 
-  const createScrapeJob = useCallback(async (username: string, password: string) => {
+  const createScrapeJob = useCallback(async (username: string, password: string, workerId: string) => {
     if (!selectedFcId || targetTrimIds.length === 0 || !vehicleDetail) return;
     const prices = vehicleDetail.trims
       .filter((t) => targetTrimIds.includes(t.id))
@@ -719,6 +743,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
           maxVehiclePrice: maxP,
           username,
           password,
+          workerId,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1002,7 +1027,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
           <div className="flex flex-col gap-0.5">
             {Array.from(vehiclesByBrand.entries()).map(([brand, brandVehicles]) => {
               const isExpanded = expandedBrands.has(brand);
-              const hasSelected = brandVehicles.some((v) => v.id === selectedVehicleId);
+              const hasSelected = brandVehicles.some((v) => selectedVehicleIds.includes(v.id));
               return (
                 <div key={brand}>
                   <button
@@ -1020,28 +1045,46 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
                     <div className="ml-2 flex flex-col gap-0.5 mt-0.5">
                       {brandVehicles.map((v) => {
                         const savedCount = sessionSavedByVehicle.get(v.id)?.length ?? 0;
+                        const isChecked = selectedVehicleIds.includes(v.id);
+                        const isSingleActive = selectedVehicleId === v.id;
                         return (
-                        <button
+                        <div
                           key={v.id}
-                          onClick={() => {
-                            setSelectedVehicleId(v.id);
-                            setShowHistory(false);
-                          }}
-                          className={`text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center justify-between gap-2 ${
-                            selectedVehicleId === v.id
+                          className={`flex items-center gap-1.5 rounded-lg transition-colors ${
+                            isSingleActive
                               ? "bg-[#6066EE] text-white font-medium"
-                              : "text-[#1A1A2E] hover:bg-[#F8F9FC]"
+                              : isChecked
+                                ? "bg-[#F0F1FA] text-[#1A1A2E]"
+                                : "text-[#1A1A2E] hover:bg-[#F8F9FC]"
                           }`}
                         >
-                          <span className="truncate">{v.name}</span>
-                          {isWritingSession && savedCount > 0 && (
-                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                              selectedVehicleId === v.id ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-600"
-                            }`}>
-                              트림 {savedCount}개 저장
-                            </span>
-                          )}
-                        </button>
+                          {/* 체크 = 다중 선택에 담기 / 이름 클릭 = 이 차량 하나만(기존 상세 흐름) */}
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleVehicleCheck(v.id)}
+                            disabled={batchRunning}
+                            title="체크해서 여러 대를 모으면 한 번에 수집합니다"
+                            className={`ml-2.5 h-3.5 w-3.5 shrink-0 cursor-pointer disabled:cursor-not-allowed ${isSingleActive ? "accent-white" : "accent-[#6066EE]"}`}
+                          />
+                          <button
+                            onClick={() => {
+                              if (batchRunning) return; // 일괄 수집 중 선택 변경 잠금
+                              setSelectedVehicleIds([v.id]);
+                              setShowHistory(false);
+                            }}
+                            className="flex-1 min-w-0 text-left px-1.5 py-1.5 text-sm flex items-center justify-between gap-2"
+                          >
+                            <span className="truncate">{v.name}</span>
+                            {isWritingSession && savedCount > 0 && (
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                isSingleActive ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-600"
+                              }`}>
+                                트림 {savedCount}개 저장
+                              </span>
+                            )}
+                          </button>
+                        </div>
                         );
                       })}
                     </div>
@@ -1066,7 +1109,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
           </div>
           <div className="flex items-center gap-3">
             <div className="flex bg-[#F8F9FC] p-1 rounded-xl border border-[#E8EAF0]">
-              {(["장기렌트", "리스"] as const).map((pt) => (
+              {PRODUCT_TYPE_VALUES.map((pt) => (
                 <button
                   key={pt}
                   onClick={() => setSelectedProductType(pt)}
@@ -1333,6 +1376,44 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
               </div>
             )}
           </>
+        ) : multiSelectedVehicles.length >= 2 ? (
+          /* ── 다중 선택: 고른 차량들의 전 트림 일괄 수집 ── */
+          <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
+            <div className="bg-white rounded-xl border border-[#E8EAF2] p-4">
+              <p className="text-sm font-bold text-[#1A1A2E]">선택 차량 {multiSelectedVehicles.length}대 — 전 트림 일괄 수집</p>
+              <p className="text-xs text-[#9BA4C0] mt-1">
+                고른 차량의 모든 라인업·트림을 순차 수집해 자동 저장합니다. 라인업·트림을 골라 수집하려면 한 대만 선택하세요.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {multiSelectedVehicles.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => toggleVehicleCheck(v.id)}
+                    disabled={batchRunning}
+                    title="클릭하면 선택에서 뺍니다"
+                    className="rounded-full border border-[#6066EE] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#3A41C8] hover:bg-[#F0F1FA] disabled:opacity-40"
+                  >
+                    <span className="text-[#9BA4C0]">{v.brand}</span> {v.name} ✕
+                  </button>
+                ))}
+              </div>
+            </div>
+            <BrandBatchCollector
+              financeCompanyId={selectedFcId}
+              financeCompanyName={selectedFc?.name ?? ""}
+              vehicles={vehicles}
+              productType={selectedProductType}
+              presetVehicles={multiSelectedVehicles}
+              onRunningChange={setBatchRunning}
+              onSaved={() => {
+                fetch(`/api/admin/capital-rates?financeCompanyId=${selectedFcId}`)
+                  .then((r) => r.json())
+                  .then((res) => setActiveSheets(res.data ?? []))
+                  .catch(console.error);
+              }}
+            />
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-[#9BA4C0] text-sm">
             좌측에서 차량을 선택해 주세요
@@ -1346,7 +1427,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
           requiresHuman={resolveCapitalConnection(selectedFc.name)?.requiresHuman ?? false}
           submitting={scrapeStarting}
           onClose={() => setShowLoginModal(false)}
-          onSubmit={(username, password) => void createScrapeJob(username, password)}
+          onSubmit={(username, password, workerId) => void createScrapeJob(username, password, workerId)}
         />
       )}
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Loader2, TrendingUp, Search } from "lucide-react";
-import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput } from "@/lib/quote-calculator";
+import { calculateMultiFinanceQuote, type RateConfigData, type CalcInput, type UnavailableQuote } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult } from "@/types/quote";
 import { useBrandSignals } from "@/lib/use-brand-signals";
 import { productTypeLabel } from "@/constants/product-type";
@@ -41,6 +41,7 @@ export default function QuoteLogicSimulator() {
   const [depositRate, setDepositRate] = useState(0);
   const [prepayRate, setPrepayRate] = useState(0);
   const [results, setResults] = useState<FinanceQuoteResult[]>([]);
+  const [unavailable, setUnavailable] = useState<UnavailableQuote[]>([]);
   const [rankRates, setRankRates] = useState<number[]>([1, 1.5, 2, 2.5]);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
@@ -162,6 +163,7 @@ export default function QuoteLogicSimulator() {
       setSelectedLineupId(lineupsOfSelected[0].id);
     }
     setResults([]);
+    setUnavailable([]);
     setCalcError("");
   }, [selectedVehicleId, lineupsOfSelected, selectedLineupId]);
 
@@ -207,6 +209,7 @@ export default function QuoteLogicSimulator() {
   const handleCalculate = async () => {
     setCalcError("");
     setResults([]);
+    setUnavailable([]);
     if (!selectedVehicle || !selectedLineupId) return;
 
     if (!selectedTrim) {
@@ -257,8 +260,10 @@ export default function QuoteLogicSimulator() {
         rateConfigs: configs,
       };
 
-      const out = calculateMultiFinanceQuote(input);
+      const excluded: UnavailableQuote[] = [];
+      const out = calculateMultiFinanceQuote(input, excluded);
       setResults(out);
+      setUnavailable(excluded);
     } catch {
       setCalcError("계산 중 오류가 발생했습니다.");
     } finally {
@@ -283,7 +288,7 @@ export default function QuoteLogicSimulator() {
             {(["장기렌트", "리스"] as const).map((pt) => (
               <button
                 key={pt}
-                onClick={() => { setProductType(pt); setResults([]); setCalcError(""); }}
+                onClick={() => { setProductType(pt); setResults([]); setUnavailable([]); setCalcError(""); }}
                 className={`flex-1 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${productType === pt ? "bg-white shadow-sm text-[#6066EE]" : "text-[#9BA4C0]"}`}
               >
                 {productTypeLabel(pt)}
@@ -430,7 +435,7 @@ export default function QuoteLogicSimulator() {
                   <p className="text-[11px] font-bold text-[#9BA4C0] ml-1 mb-1.5">트림 (기준 차량가)</p>
                   <select
                     value={selectedTrimId}
-                    onChange={(e) => { setSelectedTrimId(e.target.value); setResults([]); setCalcError(""); }}
+                    onChange={(e) => { setSelectedTrimId(e.target.value); setResults([]); setUnavailable([]); setCalcError(""); }}
                     className="w-full md:w-auto md:min-w-[320px] px-3 py-2 bg-[#F8F9FC] border border-[#E8EAF0] rounded-lg text-xs focus:outline-none focus:border-[#6066EE]"
                   >
                     {trimsOfLineup.map((t: any) => (
@@ -562,7 +567,7 @@ export default function QuoteLogicSimulator() {
             </div>
 
             {/* 시뮬레이션 결과 테이블 */}
-            {results.length > 0 && (
+            {(results.length > 0 || unavailable.length > 0) && (
               <div className="space-y-3 animate-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center justify-between px-2 flex-wrap gap-2">
                   <h3 className="text-sm font-bold text-[#1A1A2E] flex items-center gap-2">
@@ -644,9 +649,34 @@ export default function QuoteLogicSimulator() {
                           </tr>
                         );
                       })}
+                      {unavailable.map((u) => (
+                        <tr key={u.financeCompanyId} className="bg-[#F8F9FC]/70 text-[#B0B8D0]">
+                          <td className="px-3 md:px-6 py-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-5 h-5 rounded-full bg-[#D1D5DB] text-white text-[10px] flex items-center justify-center font-black shrink-0">—</span>
+                              <span className="font-bold whitespace-nowrap">{u.financeCompanyName}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 md:px-6 py-3">
+                            <p className="text-center font-mono font-medium whitespace-nowrap">{Math.round(u.monthlyBeforeSurcharge).toLocaleString()}원</p>
+                          </td>
+                          <td className="px-3 md:px-6 py-3 text-center">—</td>
+                          <td className="px-3 md:px-6 py-3 text-center">—</td>
+                          <td className="px-3 md:px-6 py-3 text-center">—</td>
+                          <td className="px-3 md:px-6 py-3 text-right">
+                            <span className="inline-block px-2.5 py-1 rounded-full bg-[#EEF0F6] text-[11px] font-bold whitespace-nowrap">견적 불가</span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
+
+                {unavailable.length > 0 && (
+                  <p className="px-2 text-[11px] text-[#9BA4C0]">
+                    견적 불가: 선택한 조건에서 기본 월대여료가 0원 이하로 계산되어(단기 계약 + 고선납 등) 고객 견적 결과에서 제외되는 금융사입니다.
+                  </p>
+                )}
               </div>
             )}
           </>

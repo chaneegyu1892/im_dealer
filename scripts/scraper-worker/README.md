@@ -61,6 +61,7 @@ corepack pnpm prisma generate
 | `WORKER_API_BASE` | 백엔드 주소 | 로컬 `http://localhost:3000`, 운영은 배포 도메인 |
 | `SCRAPER_WORKER_SECRET` | 백엔드와 동일 | 다르면 모든 요청이 401 |
 | `PII_ENCRYPTION_KEY` | 백엔드와 **바이트 단위로 동일** | 아래 경고 참고 |
+| `SCRAPER_PACE` | 비움(기본=빠름) 또는 `safe` | `safe` 는 예전 속도(요청당 0.4~0.7초·셀 순차·작업 간 30초)로 되돌립니다. 캐피탈사에서 속도 관련 경고를 받으면 이 값으로 전환 |
 
 > ⚠️ `PII_ENCRYPTION_KEY` 가 틀리면 **에러 없이 조용히 실패**합니다. 워커가 작업을 하나
 > 가져간 뒤에야 "자격증명 복호화 실패"로 끝나므로 원인을 찾기 어렵습니다.

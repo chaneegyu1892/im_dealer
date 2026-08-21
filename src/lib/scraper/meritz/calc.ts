@@ -127,6 +127,10 @@ export function computeMonthlyRent(
   const depositRate = opts.depositRate ?? 0;
   const prepayRate = opts.prepayRate ?? 0;
 
+  // 주의: 견적조건 M45 에 담보율 가산식(보증+선납 40%↑ +0.5%, 30%↑ +0.2%)이 존재하지만,
+  // 워크북 실측(보증 40% = 376,750)은 가산이 반영되지 않은 값이다 — BR34/BR35 의 상한·조건
+  // 스택이 상쇄하는 것으로 보여 재현에 넣지 않는다. 30%↑ 조합을 정밀 재현하려면 해당 조건의
+  // 워크북 캐시 실측이 먼저 필요하다.
   const baseRate = (consts.strategyBaseRate[t.strategy] ?? consts.strategyBaseRate["기본"] ?? 0.065)
     + (t.irrAdj[key(months, distKm)] ?? 0);
   const PV = computePV(t, price);
@@ -134,8 +138,12 @@ export function computeMonthlyRent(
   const deposit = roundUp(price * depositRate, -3);
   const prepay = prepayRate > 0 ? roundUp(price * prepayRate, -3) : 0; // CC21
   const financed = Math.trunc((price * finRate(t.strategy)) / 1000) * 1000;
-  // EG7 ≈ {기간}48 = ROUNDUP(PMT(baseRate/12, n, −(PV − 보증금 − 선납금 + 재무원가), FVpv − 보증금), −1)
-  const eg7 = roundUp(pmt(baseRate / 12, months, -(PV - deposit - prepay + financed), FVpv - deposit, 0), -1);
+  // M48 = ROUNDUP(PMT(baseRate/12, n, −(PV − 보증금 − 선납금 + 재무원가), FVpv − 보증금), −1)
+  const m48 = roundUp(pmt(baseRate / 12, months, -(PV - deposit - prepay + financed), FVpv - deposit, 0), -1);
+  // EG7 = M49 = 선납 회차균등액을 되더한 재정규화 값 (BR32 RATE 역산 항등 → M49 ≡ M48 + 선납/n).
+  // 이 되더하기를 빼먹으면 최종의 선납렌트료 차감(BR29)과 겹쳐 선납이 이중차감된다 —
+  // 선납 10%(255만)에 월 15.6만이 빠지는 비정상 견적의 원인이었다.
+  const eg7 = prepay > 0 ? m48 + roundDown(prepay / months, -1) : m48;
   const supply = roundUp(eg7 + feeMonthly(t, months), -2);
   const total = supply + roundDown(supply * 0.1, -1); // 공급가 + 부가세
   return prepay > 0 ? total - roundDown(prepay / months, -1) : total; // 선납렌트료 차감(BR29)

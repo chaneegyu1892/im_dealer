@@ -29,9 +29,9 @@ interface BlockCols {
   irr: Record<string, number>;
 }
 
-/** 제조사 블록의 컬럼을 row5 라벨로 매핑. */
-function mapBlock(ws: XLSX.WorkSheet, maker: string, start: number, end: number): BlockCols {
-  const label = (c: number) => str(cell(ws, 4, c)).replace(/\s+/g, ""); // row5=index4, 공백 무시(예 "제조사 할인율")
+/** 제조사 블록의 컬럼을 헤더행 라벨로 매핑(제조사 블록 row5=index4, 선구매 프로모션 블록 row4=index3). */
+function mapBlock(ws: XLSX.WorkSheet, maker: string, start: number, end: number, headerRow = 4): BlockCols {
+  const label = (c: number) => str(cell(ws, headerRow, c)).replace(/\s+/g, ""); // 공백 무시(예 "제조사 할인율")
   const find = (want: string) => { const w = want.replace(/\s+/g, ""); for (let c = start; c < end; c++) if (label(c) === w) return c; return -1; };
   const b: BlockCols = {
     maker, start,
@@ -113,6 +113,9 @@ export function parseMeritzRentWorkbook(buf: Buffer | ArrayBuffer): ParsedMeritz
     if (m) blockStarts.push({ maker: m, col: c });
   }
   const delivery = parseDelivery(wb);
+  // 탁송 시트 트림명에는 프로모션 접두어([Select 프로모션]/26MY 등)가 없어 제거 후 재조회 폴백
+  const deliveryFor = (name: string) =>
+    delivery.get(name) ?? delivery.get(name.replace(/\[[^\]]*\]/g, "").replace(/\b\d{2}MY\b/g, "").replace(/\s+/g, " ").trim()) ?? 0;
   const trims: MeritzTrim[] = [];
 
   for (let i = 0; i < blockStarts.length; i++) {
@@ -142,9 +145,56 @@ export function parseMeritzRentWorkbook(buf: Buffer | ArrayBuffer): ParsedMeritz
         mfrDiscount: numv(cell(ws, r, b.할인율)),
         rvGroup: str(cell(ws, r, b.잔가군)),
         residual, irrAdj,
-        deliveryFeeSeoul: delivery.get(name) ?? 0,
+        deliveryFeeSeoul: deliveryFor(name),
         evSubsidy: 0,
       });
+    }
+  }
+
+  // ── 선구매 프로모션 블록(row3 제목 "…선구매 프로모션…", 헤더 라벨은 row4) ──
+  // 26.07 배포분부터 활성 프로모션 트림(예: [Select 프로모션] 26MY …, 할인율 상향)이 제조사 블록이 아닌
+  // 별도 블록에 실리고 견적기 선택 목록(미러)도 이 블록을 참조 — 누락 시 구(제조사 블록) 조건으로 잘못 수집된다.
+  // 블록이 여러 개면(예: ☆NEW ~7월 이후출고☆ / ★~6월 이내출고★) "NEW" 표기 블록을 우선한다.
+  const promoStarts: { col: number; title: string }[] = [];
+  for (let c = ref.s.c; c <= ref.e.c; c++) {
+    const title = str(cell(ws, 2, c)); // row3
+    if (title.includes("선구매") && title.includes("프로모션")) promoStarts.push({ col: c, title });
+  }
+  if (promoStarts.length > 0) {
+    const chosen = promoStarts.find((p) => /NEW/i.test(p.title)) ?? promoStarts[0];
+    const idx = promoStarts.indexOf(chosen);
+    const promoEnd = idx + 1 < promoStarts.length ? promoStarts[idx + 1].col : ref.e.c + 1;
+    const b = mapBlock(ws, "현대", chosen.col, promoEnd, 3);
+    if (b.차종 >= 0) {
+      const seen = new Set(trims.map((t) => t.name));
+      let maker = "현대"; // 블록은 현대부터 시작, "■■ 기아 ■■" 구분행에서 제조사 전환
+      for (let r = 4; r <= ref.e.r; r++) {
+        const raw = str(cell(ws, r, b.차종));
+        const mk = /■/.test(raw) ? MAKERS.find((m) => raw.includes(m)) : undefined;
+        if (mk) { maker = mk; continue; }
+        if (isSeparator(raw)) continue;
+        if (seen.has(raw)) continue; // 제조사 블록에 이미 있는 일반 트림은 기존(일반출고) 조건 유지
+        const residual: Record<string, number> = {};
+        const irrAdj: Record<string, number> = {}; // 프로모션 블록엔 IRR조정 컬럼 없음
+        for (const { months, distKm } of CELLS) {
+          const rc = b.residual[`${months}_${distKm}`];
+          if (rc !== undefined) { const rv = numv(cell(ws, r, rc)); if (rv > 0) residual[`${months}_${distKm}`] = rv; }
+        }
+        if (Object.keys(residual).length === 0) continue;
+        trims.push({
+          manufacturer: maker, name: raw,
+          gaesoseK: numv(cell(ws, r, b.개소세)) || 1.1,
+          insGrade: str(cell(ws, r, b.보험등급)),
+          strategy: b.전략 >= 0 ? str(cell(ws, r, b.전략)) : "기본",
+          fuel: str(cell(ws, r, b.유종)),
+          disp: numv(cell(ws, r, b.배기량)),
+          mfrDiscount: numv(cell(ws, r, b.할인율)),
+          rvGroup: str(cell(ws, r, b.잔가군)),
+          residual, irrAdj,
+          deliveryFeeSeoul: deliveryFor(raw),
+          evSubsidy: 0,
+        });
+      }
     }
   }
   return { trims, constants: { strategyBaseRate: parseStrategyRates(wb) } };

@@ -6,6 +6,7 @@ import "./load-env";
 
 import { existsSync } from "node:fs";
 import { keyFingerprint } from "../../src/lib/scraper/key-fingerprint";
+import { WORKER_ID_PATTERN } from "../../src/lib/scraper/job-state";
 import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
 
 type Result = { ok: boolean; label: string; detail: string; fix?: string };
@@ -31,6 +32,19 @@ async function collect(): Promise<Result[]> {
     fail("SCRAPER_WORKER_SECRET", "미설정", "백엔드 .env 의 SCRAPER_WORKER_SECRET 과 같은 값을 넣으세요.");
   } else {
     pass("SCRAPER_WORKER_SECRET", `설정됨 (${SECRET.length}자)`);
+  }
+
+  const WORKER_ID = process.env.SCRAPER_WORKER_ID?.trim() ?? "";
+  if (!WORKER_ID) {
+    fail(
+      "SCRAPER_WORKER_ID",
+      "미설정",
+      "이 수집 PC 의 이름을 정해 넣으세요(예: hong). 수집 화면에서 같은 이름을 골라야 이 PC 로 작업이 옵니다."
+    );
+  } else if (!WORKER_ID_PATTERN.test(WORKER_ID)) {
+    fail("SCRAPER_WORKER_ID", `쓸 수 없는 이름: ${WORKER_ID}`, "영문·숫자·한글·_·- 로 32자까지만 됩니다.");
+  } else {
+    pass("SCRAPER_WORKER_ID", WORKER_ID);
   }
 
   const localFingerprint = keyFingerprint(PII_KEY);

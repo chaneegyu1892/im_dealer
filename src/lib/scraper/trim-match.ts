@@ -55,7 +55,17 @@ export function tokens(name: string): TrimTokens {
   const disp = n.match(/(\d\.\d)/)?.[1] ?? "";
   const seats = n.match(/(\d)\s*인승/)?.[1] ?? "";
   const drive = /4wd|awd/.test(n) ? "4wd" : /2wd|fwd/.test(n) ? "2wd" : "";
-  const engine = /하이브리드|hev/.test(n) ? "hev" : /디젤|diesel/.test(n) ? "diesel" : /lpg|엘피지/.test(n) ? "lpg" : /전기|ev\b/.test(n) ? "ev" : /가솔린|gasoline/.test(n) ? "gas" : "";
+  // LPG 는 표기가 셋: LPG(캐피탈사) = LPi(제조사/우리 DB) = (L)(MG 엑셀 축약). 전부 같은 연료로 정규화.
+  // lpi 는 단어 경계 필수 — "alpine" 같은 단어 속 우연 일치 방지.
+  // PHEV 검사가 HEV 보다 먼저다 — "phev" 문자열이 hev 검사에 걸려 플러그인↔일반 하이브리드가 뭉개진다.
+  const engine =
+    /phev|플러그인/.test(n) ? "phev"
+    : /하이브리드|hev|hybrid/.test(n) ? "hev"
+    : /디젤|diesel/.test(n) ? "diesel"
+    : /lpg|\blpi\b|엘피지|\(l\)/.test(n) ? "lpg"
+    : /전기|일렉트릭|ev\b|electric/.test(n) ? "ev"
+    : /가솔린|gasoline/.test(n) ? "gas"
+    : "";
   const grade = GRADE_DEFS.find((g) => g.keys.some((k) => nn.includes(k)))?.canon ?? "";
   const nline = /n[\s-]?line|n라인/.test(n) ? "1" : "0"; // N Line 은 가격·잔존율이 다른 별도 트림
   const range = /롱레인지|long\s*range/.test(n) ? "long" : /스탠다드|standard/.test(n) ? "std" : ""; // EV 배터리 등급

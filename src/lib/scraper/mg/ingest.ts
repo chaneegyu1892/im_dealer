@@ -5,10 +5,12 @@ import { matchMeritzTrim, type OurVehicle } from "../meritz/match";
 import { WARN_UNMATCHED, WARN_MODEL_FALLBACK } from "../excel-capitals";
 import type { MeritzCatalogEntry, MeritzIngestResult, MappedPriceByMdelCd } from "../meritz/ingest";
 
-const CELLS: { months: number; distKm: number }[] = [
-  { months: 36, distKm: 10000 }, { months: 36, distKm: 20000 }, { months: 36, distKm: 30000 },
-  { months: 48, distKm: 10000 }, { months: 48, distKm: 20000 }, { months: 48, distKm: 30000 },
-  { months: 60, distKm: 10000 }, { months: 60, distKm: 20000 }, { months: 60, distKm: 30000 },
+// MG 렌트 견적기 주행거리 드롭다운(일반상품 CV50:CV54)에는 10,000km 가 없고 17,000km 부터 시작 —
+// 회의(7/24) 14번 결정대로 1만km 셀은 17,000km 조건(calcKm)으로 산출해 저장한다(키는 시스템 공통 10000 유지).
+const CELLS: { months: number; distKm: number; calcKm: number }[] = [
+  { months: 36, distKm: 10000, calcKm: 17000 }, { months: 36, distKm: 20000, calcKm: 20000 }, { months: 36, distKm: 30000, calcKm: 30000 },
+  { months: 48, distKm: 10000, calcKm: 17000 }, { months: 48, distKm: 20000, calcKm: 20000 }, { months: 48, distKm: 30000, calcKm: 30000 },
+  { months: 60, distKm: 10000, calcKm: 17000 }, { months: 60, distKm: 20000, calcKm: 20000 }, { months: 60, distKm: 30000, calcKm: 30000 },
 ];
 
 const norm = (s: string) => s.toLowerCase().replace(/[\s()[\]/,._-]/g, "");
@@ -56,7 +58,7 @@ export function ingestMgRent(
 
     const residualRates: Record<string, number> = {};
     for (const c of CELLS) {
-      const r = residualRate(t, c.months, c.distKm);
+      const r = residualRate(t, c.months, c.calcKm);
       if (r > 0) residualRates[`${c.months}_${c.distKm}`] = r;
     }
 
@@ -65,15 +67,15 @@ export function ingestMgRent(
     let prepayRate36_10000: number | undefined;
     if (price > 0) {
       for (const c of CELLS) {
-        const v = computeMonthlyRent(t, price, c.months, c.distKm);
+        const v = computeMonthlyRent(t, price, c.months, c.calcKm);
         if (v && v > 0) baseRates[`${c.months}_${c.distKm}`] = v;
       }
       if (Object.keys(baseRates).length > 0) priced++;
-      // 보증금10%·선납금10% 샘플 — 기준셀(36/1만) 견적이 있을 때만 (보정율 산출에 base 쌍 필요)
+      // 보증금10%·선납금10% 샘플 — 기준셀(36/1만=17,000km 대체) 견적이 있을 때만 (보정율 산출에 base 쌍 필요)
       if (baseRates["36_10000"]) {
-        const dep = computeMonthlyRent(t, price, 36, 10000, { depositRate: 0.1 });
+        const dep = computeMonthlyRent(t, price, 36, 17000, { depositRate: 0.1 });
         if (dep && dep > 0) depositRate36_10000 = dep;
-        const pre = computeMonthlyRent(t, price, 36, 10000, { prepayRate: 0.1 });
+        const pre = computeMonthlyRent(t, price, 36, 17000, { prepayRate: 0.1 });
         if (pre && pre > 0) prepayRate36_10000 = pre;
       }
     }

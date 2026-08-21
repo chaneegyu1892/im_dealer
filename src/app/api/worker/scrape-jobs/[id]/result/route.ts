@@ -36,13 +36,18 @@ export async function POST(
 
     let updatedCount = 0;
     if (result.ok) {
-      // jobType 별 페이로드: trim_rates 는 draft, catalog 는 catalogSummary (draft 컬럼에 저장)
-      const payload = job.jobType === "catalog" ? result.catalogSummary : result.draft;
+      // jobType 별 페이로드 — 모두 draft 컬럼에 저장한다.
+      // trim_rates=draft / catalog=catalogSummary / models=modelsSummary
+      const required =
+        job.jobType === "catalog" ? "catalogSummary" : job.jobType === "models" ? "modelsSummary" : "draft";
+      const payload =
+        job.jobType === "catalog"
+          ? result.catalogSummary
+          : job.jobType === "models"
+            ? result.modelsSummary
+            : result.draft;
       if (!payload) {
-        return NextResponse.json(
-          { error: job.jobType === "catalog" ? "catalogSummary 가 필요합니다." : "draft 가 필요합니다." },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: `${required} 가 필요합니다.` }, { status: 400 });
       }
       // 완료 — 임시 로그인 정보 폐기
       const updated = await db.scrapeJob.updateMany({

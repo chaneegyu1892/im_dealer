@@ -1,7 +1,9 @@
 import { AuthError } from "./types";
-import type { AdapterContext, CatalogScrapeOptions, CatalogScrapeResult, SiteAdapter } from "./types";
+import type { AdapterContext, CatalogScrapeOptions, CatalogScrapeResult, ModelListOptions, ModelListResult, SiteAdapter } from "./types";
 import type { CatalogTrimEntry, TrimScrapeResult } from "../../../src/types/scraper";
 import { assertHttpUrl } from "../safe-url";
+import { pickModels } from "../model-filter";
+import { cellConcurrency, mapPool, rand, reqDelay as paceDelay, sleep } from "../pace";
 
 /**
  * 신한카드(SHINHAN) 장기렌트 월납입금 수집 어댑터 — 내부 POST `.ajax` JSON API 직접 호출.
@@ -22,12 +24,7 @@ const RATE_CELLS: { month: number; distCode: string; dist: number }[] = [
   { month: 60, distCode: "1", dist: 10000 }, { month: 60, distCode: "2", dist: 20000 }, { month: 60, distCode: "3", dist: 30000 },
 ];
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-const rand = (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo));
-function reqDelay(config: Record<string, unknown> | null): number {
-  const base = cfg(config, "requestDelayMs", 400);
-  return base + rand(0, Math.floor(base * 0.6));
-}
+const reqDelay = (config: Record<string, unknown> | null): number => paceDelay(config, 400);
 function cfg<T>(config: Record<string, unknown> | null, key: string, fallback: T): T {
   const v = config?.[key];
   return v === undefined || v === null ? fallback : (v as T);
@@ -137,25 +134,31 @@ async function collectTrim(ctx: AdapterContext, base: TrimBase, opts?: { skipDep
     return Math.round(num((rate?.rateInfo ?? rate)?.maxRuvRt) / 100);
   };
 
-  for (const c of RATE_CELLS) {
+  // 셀끼리는 서로 의존하지 않는다(calcParams 에 잔존율까지 모두 실어 보냄) → 동시 처리.
+  // 결과·경고 순서는 mapPool 이 입력 순서로 유지한다. 순차로 되돌리려면 SCRAPER_PACE=safe.
+  const cells = await mapPool(RATE_CELLS, cellConcurrency(ctx.config), async (c) => {
     try {
       const ruvRt = await ruvOf(c.month, c.distCode);
       await sleep(reqDelay(ctx.config));
       const res = await R02(ctx, calcParams({ ...base, exhQty: base.exhQty, rgAgcAfoN, cggAt, colorId, month: c.month, distCode: c.distCode, ruvRt, ppnRt: 0, gymRt: 0, gymAt: 0 }));
       const pay = num(res?.mRlPytRetAt1);
-      if (pay > 0) baseRates[`${c.month}_${c.dist}`] = pay;
-      else warnings.push(`${c.month}/${c.dist} 산출 0`);
+      return { pay, ruvRt, warn: pay > 0 ? null : `${c.month}/${c.dist} 산출 0` };
     } catch (e) {
       // 견적불가 셀(잔존율 데이터 없음 등)은 건너뛰고 나머지 칸 계속 — 트림 전체를 죽이지 않음
-      warnings.push(`${c.month}/${c.dist}: ${(e as Error).message.slice(0, 30)}`);
+      return { pay: 0, ruvRt: undefined as number | undefined, warn: `${c.month}/${c.dist}: ${(e as Error).message.slice(0, 30)}` };
     }
-    await sleep(reqDelay(ctx.config));
-  }
+  });
+  RATE_CELLS.forEach((c, i) => {
+    const r = cells[i];
+    if (r.pay > 0) baseRates[`${c.month}_${c.dist}`] = r.pay;
+    if (r.warn) warnings.push(r.warn);
+  });
 
   let depositRate36_10000: number | undefined;
   let prepayRate36_10000: number | undefined;
   if (!opts?.skipDepositPrepay && baseRates["36_10000"]) {
-    const ruvRt = await ruvOf(36, "1");
+    // 36/1만 셀에서 이미 받은 잔존율 재사용 (같은 값 — getCarRate 재호출 불필요)
+    const ruvRt = cells[0].ruvRt ?? (await ruvOf(36, "1"));
     const tenP = Math.round((base.price * 0.1) / 1000) * 1000;
     try {
       const dep = await R02(ctx, calcParams({ ...base, rgAgcAfoN, cggAt, colorId, month: 36, distCode: "1", ruvRt, ppnRt: 0, gymRt: 10, gymAt: tenP }));
@@ -203,6 +206,27 @@ export const shinhanAdapter: SiteAdapter = {
     return { trimId: ourTrimId, matchConfidence: "unmatched", externalTrimLabel: "(SHINHAN trim_rates 미지원 — 카탈로그 수집 사용)", vehiclePrice: 0, baseRates: {}, warnings: ["SHINHAN 은 카탈로그 수집만 지원합니다."] };
   },
 
+  // 선택 브랜드의 차량(모델) 목록만 (models 잡). 브랜드당 요청 1회 — 라인업·트림은 긁지 않는다.
+  async listModels(ctx: AdapterContext, opts: ModelListOptions): Promise<ModelListResult> {
+    const { log } = ctx;
+    let total = 0;
+    const brandSummaries: ModelListResult["brands"] = [];
+
+    for (const brand of opts.brands) {
+      if (ctx.isCanceled()) break;
+      const rows = zip((await P01(ctx, { selectType: "carModel", dnwaCarBrdId: brand.brandCd, dnwaCarBrdNm: brand.name }))?.carModelList);
+      const models = rows
+        .map((m) => ({ modelCd: String(m.dnwaCarMdlId ?? ""), modelName: String(m.dnwaCarMdlNm ?? m.dnwaCarMdlId ?? "") }))
+        .filter((m) => m.modelCd);
+      log(`[차량목록] ${brand.name}(${brand.brandCd}) — ${models.length}개`);
+      await opts.onBrandModels(brand, models);
+      total += models.length;
+      brandSummaries.push({ brandCd: brand.brandCd, name: brand.name, models: models.length });
+      await sleep(reqDelay(ctx.config));
+    }
+    return { total, brands: brandSummaries };
+  },
+
   async scrapeCatalog(ctx: AdapterContext, opts: CatalogScrapeOptions): Promise<CatalogScrapeResult> {
     const { log } = ctx;
     let total = 0, skipped = 0, failed = 0, trimsDone = 0, trimsTotal = 0;
@@ -211,8 +235,9 @@ export const shinhanAdapter: SiteAdapter = {
     for (let bi = 0; bi < opts.brands.length; bi++) {
       const brand = opts.brands[bi];
       if (ctx.isCanceled()) break;
-      const models = zip((await P01(ctx, { selectType: "carModel", dnwaCarBrdId: brand.brandCd, dnwaCarBrdNm: brand.name }))?.carModelList);
-      log(`[카탈로그] 브랜드 ${brand.name}(${brand.brandCd}) — 모델 ${models.length}개`);
+      const allModels = zip((await P01(ctx, { selectType: "carModel", dnwaCarBrdId: brand.brandCd, dnwaCarBrdNm: brand.name }))?.carModelList);
+      const models = pickModels(allModels, brand.modelCds, (m) => String(m.dnwaCarMdlId));
+      log(`[카탈로그] 브랜드 ${brand.name}(${brand.brandCd}) — 모델 ${models.length}개${brand.modelCds?.length ? ` (차량 선택 수집 / 전체 ${allModels.length}개)` : ""}`);
       let brandTrims = 0;
 
       for (let mi = 0; mi < models.length; mi++) {

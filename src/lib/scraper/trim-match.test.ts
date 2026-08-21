@@ -22,6 +22,25 @@ describe("tokens", () => {
     expect(tokens("하이브리드 1.6").engine).toBe("hev");
     expect(tokens("LPG 3.5").engine).toBe("lpg");
   });
+
+  it("HEV/EV 이형 표기와 PHEV 구분을 처리한다", () => {
+    // 차량명의 HEV 가 라인업의 가솔린보다 우선한다 (HEV = 가솔린 하이브리드)
+    expect(tokens("더 뉴 투싼 HEV 2026년형 가솔린 1.6 터보 모던 2WD").engine).toBe("hev");
+    // 한글 "일렉트릭"·영문 hybrid 표기
+    expect(tokens("리무진 일렉트릭 6인승 인스퍼레이션").engine).toBe("ev");
+    expect(tokens("Camry Hybrid XLE").engine).toBe("hev");
+    // PHEV 는 HEV 와 다른 연료다 ("phev" 문자열이 hev 에 걸리면 안 됨)
+    expect(tokens("XC60 PHEV 인스크립션").engine).toBe("phev");
+    expect(tokens("플러그인 하이브리드 2.0").engine).toBe("phev");
+  });
+
+  it("LPG 이형 표기(LPi · (L))를 같은 연료로 인식한다", () => {
+    // LPG(캐피탈사) = LPi(제조사/우리 DB) = (L)(MG 엑셀 축약)
+    expect(tokens("쏘나타 2.0 LPi 프리미엄").engine).toBe("lpg");
+    expect(tokens("쏘나타_2.0_(L)_프리미엄").engine).toBe("lpg");
+    // 단어 속 우연 일치는 연료로 취급하지 않는다
+    expect(tokens("르노 알파인 Alpine A110").engine).toBe("");
+  });
 });
 
 describe("matchTrim", () => {
@@ -46,6 +65,12 @@ describe("matchTrim", () => {
   it("연식이 양쪽에 있고 다르면 매칭하지 않는다", () => {
     const m = matchTrim("2025년형 가솔린 2.5 터보 AWD", catalog);
     expect(m).toBeNull();
+  });
+
+  it("LPi 표기 트림이 LPG 후보와 매칭되고 가솔린 후보는 제외한다", () => {
+    const candidates = [c("가솔린 2.0 프리미엄"), c("LPG 2.0 프리미엄")];
+    const m = matchTrim("쏘나타 2.0 LPi 프리미엄", candidates);
+    expect(m?.index).toBe(1);
   });
 
   it("연료 불일치(LPG↔가솔린)는 제외한다", () => {

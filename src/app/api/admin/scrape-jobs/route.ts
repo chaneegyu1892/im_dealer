@@ -9,6 +9,7 @@ import { getScrapeCredentialExpiry } from "@/lib/scraper/credential-retention";
 import { ORIX_BRAND_CD } from "@/lib/scraper/orix-brands";
 import {
   catalogJobCreateSchema,
+  modelsJobCreateSchema,
   scrapeJobCreateSchema,
   scraperRefsSchema,
 } from "@/lib/validations/admin";
@@ -33,9 +34,11 @@ export async function POST(request: NextRequest) {
   try {
     const raw: unknown = await request.json();
     const catalogProbe = z.object({ jobType: z.literal("catalog") }).safeParse(raw);
-    const input = catalogProbe.success ? null : scrapeJobCreateSchema.parse(raw);
+    const modelsProbe = z.object({ jobType: z.literal("models") }).safeParse(raw);
+    const input = catalogProbe.success || modelsProbe.success ? null : scrapeJobCreateSchema.parse(raw);
     const catalogInput = catalogProbe.success ? catalogJobCreateSchema.parse(raw) : null;
-    const financeCompanyId = catalogInput?.financeCompanyId ?? input?.financeCompanyId;
+    const modelsInput = modelsProbe.success ? modelsJobCreateSchema.parse(raw) : null;
+    const financeCompanyId = catalogInput?.financeCompanyId ?? modelsInput?.financeCompanyId ?? input?.financeCompanyId;
     if (!financeCompanyId) {
       return NextResponse.json({ error: "입력값이 올바르지 않습니다." }, { status: 400 });
     }
@@ -57,8 +60,8 @@ export async function POST(request: NextRequest) {
     // 자격증명은 어댑터가 실제로 쓰는 캐피탈사(ORIX 등)에만 필요하다.
     // 키패드·SMS 를 쓰는 곳(requiresHuman)은 워커가 사람에게 로그인을 넘기므로
     // 받아봐야 쓰이지 않고 폐기된다 — 아예 받지 않고 저장도 하지 않는다.
-    const username = catalogInput?.username ?? input?.username;
-    const password = catalogInput?.password ?? input?.password;
+    const username = catalogInput?.username ?? modelsInput?.username ?? input?.username;
+    const password = catalogInput?.password ?? modelsInput?.password ?? input?.password;
     if (!connection.requiresHuman && (!username?.trim() || !password?.trim())) {
       return NextResponse.json(
         { error: "이 캐피탈사는 로그인 ID·비밀번호가 필요합니다." },
@@ -69,15 +72,48 @@ export async function POST(request: NextRequest) {
     const credPasswordEnc = connection.requiresHuman ? null : encryptString(password ?? "");
     const credentialExpiresAt = connection.requiresHuman ? null : getScrapeCredentialExpiry();
 
-    // 동일 캐피탈사에 진행 중인 작업이 있으면 중복 세션 방지
+    // 같은 수집 PC 가 같은 캐피탈사에 이미 물려 있으면 중복 세션 방지.
+    // PC 가 다르면 각자 다른 캐피탈 계정으로 붙으므로 동시에 돌아도 된다.
+    const workerId = catalogInput?.workerId ?? modelsInput?.workerId ?? input?.workerId ?? null;
     const inFlight = await db.scrapeJob.findFirst({
-      where: { financeCompanyId, status: { in: IN_FLIGHT } },
+      where: { financeCompanyId, status: { in: IN_FLIGHT }, workerId },
     });
     if (inFlight) {
       return NextResponse.json(
         { error: "이미 진행 중인 수집 작업이 있습니다.", jobId: inFlight.id },
         { status: 409 }
       );
+    }
+
+    // ── models 잡: 선택 브랜드의 차량 목록만 동기화 (트림 견적 없음) ──
+    if (modelsInput) {
+      const job = await db.scrapeJob.create({
+        data: {
+          financeCompanyId,
+          jobType: "models",
+          status: "pending",
+          productType: modelsInput.productType,
+          workerId,
+          credUsernameEnc,
+          credPasswordEnc,
+          credentialExpiresAt,
+          params: {
+            mode: "models",
+            brands: modelsInput.brands,
+            productType: modelsInput.productType,
+          },
+          createdById: session.id,
+        },
+      });
+      await logAdminAction({
+        request,
+        actor: session,
+        action: "SCRAPE_JOB_CREATE",
+        resource: "ScrapeJob",
+        targetId: job.id,
+        meta: { financeCompanyId, jobType: "models", brandCount: modelsInput.brands.length },
+      });
+      return NextResponse.json({ success: true, jobId: job.id, status: job.status });
     }
 
     // ── catalog 잡: 차량 조회 없이 브랜드 목록만 params 로 전달 ──
@@ -88,6 +124,7 @@ export async function POST(request: NextRequest) {
           jobType: "catalog",
           status: "pending",
           productType: catalogInput.productType,
+          workerId,
           credUsernameEnc,
           credPasswordEnc,
           credentialExpiresAt,
@@ -133,9 +170,10 @@ export async function POST(request: NextRequest) {
     const manualRef = parsedRefs.success ? parsedRefs.data[adapterCode] : undefined;
     const scraperRef = manualRef ?? deriveScraperRef(adapterCode, vehicle?.brand, vehicle?.name);
     // 매칭 토큰(연식·연료·배기량)이 라인업명에, 구동계가 트림명에 나뉘어 있으므로 합쳐서 전달한다.
+    // 차량명도 포함 — HEV/EV 차량은 라인업명이 "가솔린 1.6 터보"라 차량명 없이는 연료가 오판된다.
     const trimNames = (vehicle?.trims ?? []).map((t) => ({
       trimId: t.id,
-      name: `${t.lineup?.name ?? ""} ${t.name}`.trim(),
+      name: `${vehicle?.name ?? ""} ${t.lineup?.name ?? ""} ${t.name}`.trim(),
     }));
 
     const job = await db.scrapeJob.create({
@@ -143,6 +181,7 @@ export async function POST(request: NextRequest) {
         financeCompanyId: input.financeCompanyId,
         status: "pending",
         productType: input.productType,
+        workerId,
         // 입력한 개인 로그인 — 암호화해 이 작업에만 임시 저장, 종료 시 폐기
         credUsernameEnc,
         credPasswordEnc,

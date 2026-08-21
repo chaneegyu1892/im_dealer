@@ -37,6 +37,13 @@ describe("WOORIFC response decoder", () => {
     expect(() => decodeWoorifcResponse(raw)).toThrow();
   });
 
+  it("detects the usage-limit block page (meta refresh to ajucapital)", () => {
+    // 실측 차단 응답: 200 + 70바이트, doctype 없이 meta 태그 단독
+    const blockPage = `<meta http-equiv="refresh" content="0;url=https://m.ajucapital.co.kr">`;
+
+    expect(() => decodeWoorifcResponse(blockPage)).toThrow(/사용량 제한/);
+  });
+
   it("rejects corrupt compressed data", () => {
     const corrupt = Buffer.from("not-a-zlib-stream", "utf8").toString("base64");
 

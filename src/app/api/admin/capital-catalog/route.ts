@@ -65,23 +65,46 @@ export async function GET(request: NextRequest) {
     }
 
     // 모델 목록 (브랜드 내)
+    // 동기화된 차량 목록(CapitalCatalogModel)이 기준이고, 기수집 트림은 트림 수를 채워준다.
+    // 목록 동기화 전에는 기수집 트림만으로 만들어진다(구버전 동작).
     if (brandCd) {
-      const models = await db.capitalCatalogTrim.groupBy({
-        by: ["modelCd", "modelName"],
-        where: { financeCompanyId, productType, brandCd },
-        _count: { _all: true },
-        _max: { scrapedAt: true },
-      });
+      const [synced, collected] = await Promise.all([
+        db.capitalCatalogModel.findMany({
+          where: { financeCompanyId, productType, brandCd },
+          select: { modelCd: true, modelName: true, syncedAt: true },
+        }),
+        db.capitalCatalogTrim.groupBy({
+          by: ["modelCd", "modelName"],
+          where: { financeCompanyId, productType, brandCd },
+          _count: { _all: true },
+          _max: { scrapedAt: true },
+        }),
+      ]);
+      const byTrims = new Map(collected.map((m) => [m.modelCd, m]));
+      const merged = new Map<string, { modelCd: string; modelName: string; trimCount: number; lastScrapedAt: Date | null }>();
+      for (const m of synced) {
+        const hit = byTrims.get(m.modelCd);
+        merged.set(m.modelCd, {
+          modelCd: m.modelCd,
+          modelName: m.modelName,
+          trimCount: hit?._count._all ?? 0,
+          lastScrapedAt: hit?._max.scrapedAt ?? null,
+        });
+      }
+      // 목록에 없지만 수집 기록은 있는 차량(동기화 전 수집분)도 남긴다 — 선택지가 사라지면 안 된다.
+      for (const m of collected) {
+        if (merged.has(m.modelCd)) continue;
+        merged.set(m.modelCd, {
+          modelCd: m.modelCd,
+          modelName: m.modelName,
+          trimCount: m._count._all,
+          lastScrapedAt: m._max.scrapedAt,
+        });
+      }
       return NextResponse.json({
         success: true,
-        models: models
-          .map((model) => ({
-            modelCd: model.modelCd,
-            modelName: model.modelName,
-            trimCount: model._count._all,
-            lastScrapedAt: model._max.scrapedAt,
-          }))
-          .sort((a, b) => a.modelName.localeCompare(b.modelName, "ko")),
+        modelsSyncedAt: synced.reduce<Date | null>((a, m) => (a && a > m.syncedAt ? a : m.syncedAt), null),
+        models: [...merged.values()].sort((a, b) => a.modelName.localeCompare(b.modelName, "ko")),
       });
     }
 

@@ -1,5 +1,5 @@
 import type { Page } from "puppeteer";
-import type { CatalogJobParams, CatalogProgress, CatalogTrimEntry, ScrapeJobParams, TrimScrapeResult } from "../../../src/types/scraper";
+import type { CatalogJobParams, CatalogProgress, CatalogTrimEntry, ModelsJobParams, ScrapeJobParams, TrimScrapeResult } from "../../../src/types/scraper";
 
 /**
  * 자격증명(ID/PW) 오류로 인한 로그인 실패.
@@ -25,7 +25,7 @@ export interface AdapterContext {
   page: Page;
   credentials: AdapterCredentials;
   config: Record<string, unknown> | null;
-  params: ScrapeJobParams | CatalogJobParams;
+  params: ScrapeJobParams | CatalogJobParams | ModelsJobParams;
   log: (msg: string) => void;
   /**
    * 사람 개입(2FA·키보드보안 등)이 필요할 때 호출.
@@ -39,7 +39,8 @@ export interface AdapterContext {
 
 /** catalog 잡 옵션 — 순회는 어댑터가, 버퍼링/flush/스킵 판정 데이터는 워커가 소유한다. */
 export interface CatalogScrapeOptions {
-  brands: { brandCd: string; name: string }[];
+  /** modelCds 가 있으면 그 모델만 순회한다(차량 단위 수집). 비어있으면 브랜드 전량. */
+  brands: { brandCd: string; name: string; modelCds?: string[] }[];
   /** 이번주 이미 수집된 외부 트림코드면 true — 어댑터는 수집을 건너뛴다(재개 지원). */
   isCollected: (mdelCd: string) => boolean;
   /** 트림 1건 수집 완료 시 호출 — 워커가 버퍼에 쌓고 모델 경계/20건마다 flush. */
@@ -48,6 +49,21 @@ export interface CatalogScrapeOptions {
   onModelDone: (modelCd: string) => Promise<void>;
   /** 진행률 갱신 — 워커가 하트비트에 동봉한다. */
   onProgress: (p: CatalogProgress) => void;
+}
+
+/** models 잡 옵션 — 트림 견적 없이 차량(모델) 목록만 모은다. */
+export interface ModelListOptions {
+  brands: { brandCd: string; name: string }[];
+  /** 브랜드 1개분 목록이 모이면 호출 — 워커가 저장하고 진행률을 갱신한다. */
+  onBrandModels: (
+    brand: { brandCd: string; name: string },
+    models: { modelCd: string; modelName: string }[]
+  ) => Promise<void>;
+}
+
+export interface ModelListResult {
+  total: number;
+  brands: { brandCd: string; name: string; models: number }[];
 }
 
 export interface CatalogScrapeResult {
@@ -71,4 +87,6 @@ export interface SiteAdapter {
   scrapeTrim(ctx: AdapterContext, ourTrimId: string): Promise<TrimScrapeResult>;
   /** 선택 브랜드의 캐피탈사 등록 전 모델·전 트림 수집 (catalog 잡). 미구현 어댑터 = 미지원. */
   scrapeCatalog?(ctx: AdapterContext, opts: CatalogScrapeOptions): Promise<CatalogScrapeResult>;
+  /** 선택 브랜드의 차량(모델) 목록만 수집 (models 잡). 미구현 어댑터 = 미지원. */
+  listModels?(ctx: AdapterContext, opts: ModelListOptions): Promise<ModelListResult>;
 }

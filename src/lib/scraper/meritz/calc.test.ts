@@ -35,12 +35,16 @@ describe("meritz rent calculator", () => {
     expect(dep).toBeGreaterThan(0);
     expect(dep).toBeLessThan(base);
   });
-  // 선납: 견적조건 M48(선납금 CC21 원금 차감) + 렌트_입력시트 BR28/BR29(선납렌트료 회차균등 차감) 수식 재현
-  it("선납 10% 월렌트료는 기본 대비 최소 선납렌트료(선납금/기간)만큼 낮다", () => {
+  // 선납: M48(원금 차감 PMT) → EG7=M49(선납/n 되더하는 RATE 역산 항등) → 최종 BR29 에서 선납/n 차감.
+  // 순효과는 1회 차감 — M49 되더하기를 빼먹으면 이중차감되어 선납 10%에 월 15만원대가 빠졌다.
+  it("선납 10% 감소폭은 선납렌트료 1회분 이상, 2회분 미만이다 (이중차감 회귀 방지)", () => {
     const base = computeMonthlyRent(SANTA, 35000000, 36, 20000, CONSTS)!;
     const pre = computeMonthlyRent(SANTA, 35000000, 36, 20000, CONSTS, { prepayRate: 0.1 })!;
     const prepayMonthly = Math.floor(3500000 / 36 / 10) * 10; // ROUNDDOWN(CC21/n, -1)
     expect(pre).toBeGreaterThan(0);
-    expect(pre).toBeLessThanOrEqual(base - prepayMonthly);
+    // 감소폭 = 선납금의 PMT 효과(원금 1회분 + 이자 절감). 최소 선납/n 이상이지만
+    // 2×선납/n 에는 못 미친다 — 이중차감이면 이 상한을 넘는다.
+    expect(base - pre).toBeGreaterThanOrEqual(prepayMonthly);
+    expect(base - pre).toBeLessThan(2 * prepayMonthly);
   });
 });

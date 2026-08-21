@@ -23,6 +23,7 @@ model FinanceCompany {
   inventories   Inventory[]
   scrapeJobs    ScrapeJob[]
   catalogTrims  CapitalCatalogTrim[]
+  catalogModels CapitalCatalogModel[]
   trimMappings  CapitalTrimMapping[]
 }
 
@@ -948,6 +949,7 @@ model ScrapeJob {
   credPasswordEnc  String? // encryptString(평문 PW) — 진행 중에만 존재, 종료 시 null
   credentialExpiresAt DateTime? // 생성 후 24시간. 활성 heartbeat 작업은 유지하고 stale 작업만 purge
   leaseToken       String?        @unique // claim 세대별 임의 토큰. stale worker 후속 쓰기 차단
+  workerId         String? // 이 작업을 처리할 워커. null 이면 아무 워커나 집는다(기존 동작)
   draft            Json? // trim_rates: ScrapeDraft / catalog: CatalogScrapeSummary (워커가 채움)
   progress         Json? // catalog 잡 진행률 (워커 하트비트가 갱신)
   error            String?
@@ -962,11 +964,33 @@ model ScrapeJob {
 
   @@index([status, createdAt])
   @@index([status, credentialExpiresAt])
+  @@index([status, workerId])
   @@index([financeCompanyId, status])
 }
 
 // 캐피탈사 원본 카탈로그 — 캐피탈사에 등록된 트림 단위 견적(월납입금 9칸)의 최신본.
 // (financeCompanyId, productType, mdelCd) 당 1행 upsert. 주별 이력은 반영 후 CapitalRateSheet 가 담당.
+// 캐피탈사 브랜드별 차량(모델) 목록.
+// 트림 견적까지 긁지 않고 목록만 동기화해 둔다 — 수집 대상 차량을 고르려면 목록이 먼저 필요한데,
+// 트림 수집으로 목록을 얻으려면 브랜드 전량(수십 분)을 한 번 돌려야 하는 모순이 있었다.
+model CapitalCatalogModel {
+  id               String         @id @default(cuid())
+  financeCompanyId String
+  productType      String         @default("장기렌트")
+  brandCd          String
+  brandName        String
+  modelCd          String
+  modelName        String
+  syncedAt         DateTime // 마지막 목록 동기화 시각
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  financeCompany   FinanceCompany @relation(fields: [financeCompanyId], references: [id], onDelete: Cascade)
+
+  // 기본 생성명이 Postgres 식별자 63자를 넘어 잘리므로 이름을 고정한다.
+  @@unique([financeCompanyId, productType, brandCd, modelCd], map: "CapitalCatalogModel_fc_pt_brand_model_key")
+  @@index([financeCompanyId, productType, brandCd], map: "CapitalCatalogModel_fc_pt_brand_idx")
+}
+
 model CapitalCatalogTrim {
   id                  String               @id @default(cuid())
   financeCompanyId    String

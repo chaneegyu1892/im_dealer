@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { RATE_KEYS } from "@/lib/quote-calculator";
+import { FRESHNESS_LEGEND, freshness } from "./freshness";
 import type { RateSheetRaw } from "@/types/admin";
 
 interface Props {
@@ -116,9 +117,20 @@ export default function CatalogBrowser({ financeCompanyId, productType }: Props)
       <div className="flex flex-col md:flex-row md:h-[560px]">
         {/* ── 좌측: 브랜드 → 모델 트리 ── */}
         <aside className="w-full md:w-72 md:flex-shrink-0 border-b md:border-b-0 md:border-r border-[#E8EAF0] flex flex-col">
-          <div className="px-3 py-2.5 border-b border-[#F0F1FA] flex items-center justify-between">
-            <span className="text-xs font-bold text-[#1A1A2E]">브랜드 · 모델</span>
-            {loadingBrands && <span className="text-[11px] text-[#9BA4C0]">로딩…</span>}
+          <div className="px-3 py-2.5 border-b border-[#F0F1FA]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-[#1A1A2E]">브랜드 · 모델</span>
+              {loadingBrands && <span className="text-[11px] text-[#9BA4C0]">로딩…</span>}
+            </div>
+            {/* 수집일 신선도 범례 — 수집 화면과 동일 규칙 */}
+            <p className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-[#B0B8D0]">
+              수집일:
+              {FRESHNESS_LEGEND.map((l) => (
+                <span key={l.label} className={`rounded border px-1 py-0.5 text-[#3A3F5C] ${l.swatch}`}>
+                  {l.label}
+                </span>
+              ))}
+            </p>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {brands.length === 0 && !loadingBrands ? (
@@ -156,11 +168,17 @@ export default function CatalogBrowser({ financeCompanyId, productType }: Props)
                                   type="button"
                                   onClick={() => void openModel(b, m)}
                                   className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-                                    active ? "bg-[#EEF0FE] text-[#4F55D8]" : "hover:bg-[#F8F9FC] text-[#5A6080]"
+                                    active
+                                      ? "bg-[#EEF0FE] text-[#4F55D8]"
+                                      : // 검은 글씨 + 신선도 배경색 — 수집 화면과 같은 규칙 (선택 행은 파란 배경 유지)
+                                        `${freshness(m.lastScrapedAt).bg} text-[#3A3F5C]`
                                   }`}
                                 >
                                   <span className={`text-[13px] ${active ? "font-bold" : "font-medium"}`}>{m.modelName}</span>
-                                  <span className="text-[11px] text-[#9BA4C0]">{m.trimCount}</span>
+                                  <span className="flex items-center gap-1.5 text-[11px]">
+                                    <span className="text-[10px] text-[#5A6080]">{freshness(m.lastScrapedAt).label}</span>
+                                    <span className="text-[#8890AC]">{m.trimCount}</span>
+                                  </span>
                                 </button>
                               </li>
                             );
