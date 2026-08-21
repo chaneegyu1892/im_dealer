@@ -10,6 +10,7 @@ import {
   snapshotDateFromFileName,
   type ImmediateDeliveryBrand,
 } from "@/lib/immediate-delivery";
+import { attemptBrandSheetSync } from "@/lib/immediate-delivery/sheets-sync";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -115,7 +116,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, batchId: batch.id, summary, snapshotDate });
+    const sheetSync = await attemptBrandSheetSync(parsed.brand);
+
+    return NextResponse.json({ success: true, batchId: batch.id, summary, snapshotDate, sheetSync });
   } catch (e) {
     console.error("[immediate-delivery upload POST]", e);
     return NextResponse.json({ error: "업로드 처리 실패" }, { status: 500 });

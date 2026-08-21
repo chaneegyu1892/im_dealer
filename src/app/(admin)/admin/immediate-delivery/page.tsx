@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { IMMEDIATE_DELIVERY_BRANDS } from "@/lib/immediate-delivery";
+import { immediateDeliverySheetUrl, sheetSyncConfig } from "@/lib/immediate-delivery/sheets-sync";
 import { ImmediateDeliveryClient } from "./ImmediateDeliveryClient";
 
 export type ModelSummary = {
@@ -72,6 +73,9 @@ async function getBrandSnapshots(): Promise<BrandSnapshot[]> {
 
 export default async function AdminImmediateDeliveryPage() {
   const snapshots = await getBrandSnapshots();
+  // 시트 URL은 ID env만 있어도 노출하되, 동기화 버튼은 인증 env까지 갖춰야 활성화
+  const sheetUrl = immediateDeliverySheetUrl();
+  const sheetSyncEnabled = sheetSyncConfig() !== null;
 
   return (
     <Suspense
@@ -81,7 +85,7 @@ export default async function AdminImmediateDeliveryPage() {
         </div>
       }
     >
-      <ImmediateDeliveryClient snapshots={snapshots} />
+      <ImmediateDeliveryClient snapshots={snapshots} sheetUrl={sheetUrl} sheetSyncEnabled={sheetSyncEnabled} />
     </Suspense>
   );
 }

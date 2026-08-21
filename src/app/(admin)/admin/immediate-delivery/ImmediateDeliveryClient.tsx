@@ -39,7 +39,15 @@ function fmtDateTime(iso: string): string {
   return new Date(iso).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
 }
 
-export function ImmediateDeliveryClient({ snapshots }: { snapshots: BrandSnapshot[] }) {
+export function ImmediateDeliveryClient({
+  snapshots,
+  sheetUrl,
+  sheetSyncEnabled,
+}: {
+  snapshots: BrandSnapshot[];
+  sheetUrl: string | null;
+  sheetSyncEnabled: boolean;
+}) {
   const router = useRouter();
   const [activeBrand, setActiveBrand] = useState<string>(
     snapshots[0]?.brand ?? IMMEDIATE_DELIVERY_BRANDS[0],
@@ -50,11 +58,14 @@ export function ImmediateDeliveryClient({ snapshots }: { snapshots: BrandSnapsho
   return (
     <div className="min-h-full bg-[#F8F9FC] p-6">
       <div className="mx-auto max-w-6xl flex flex-col gap-5">
-        <div>
-          <h1 className="text-xl font-bold text-[#1A1F36]">즉시출고 재고</h1>
-          <p className="mt-1 text-sm text-[#9BA4C0]">
-            제조사에서 받은 즉시출고 재고리스트 엑셀을 업로드하면 브랜드별 최신 스냅샷으로 통합 관리됩니다.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-[#1A1F36]">즉시출고 재고</h1>
+            <p className="mt-1 text-sm text-[#9BA4C0]">
+              제조사에서 받은 즉시출고 재고리스트 엑셀을 업로드하면 브랜드별 최신 스냅샷으로 통합 관리됩니다.
+            </p>
+          </div>
+          <SheetPanel sheetUrl={sheetUrl} syncEnabled={sheetSyncEnabled} />
         </div>
 
         <UploadPanel onApplied={(brand) => { setActiveBrand(brand); router.refresh(); }} />
@@ -95,12 +106,81 @@ export function ImmediateDeliveryClient({ snapshots }: { snapshots: BrandSnapsho
   );
 }
 
+interface SheetSyncResult {
+  status: "ok" | "disabled" | "failed";
+  error?: string;
+}
+
+/** 구글 시트 링크 + 수동 동기화 버튼. */
+function SheetPanel({ sheetUrl, syncEnabled }: { sheetUrl: string | null; syncEnabled: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const syncAll = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/immediate-delivery/sheet-sync", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "동기화 실패");
+      const failed = Object.entries(data.results as Record<string, SheetSyncResult>)
+        .filter(([, r]) => r.status === "failed")
+        .map(([brand, r]) => `${brand}: ${r.error}`);
+      setMessage(
+        failed.length === 0
+          ? { ok: true, text: "구글 시트 동기화 완료" }
+          : { ok: false, text: `일부 실패 — ${failed.join(" / ")}` },
+      );
+    } catch (e) {
+      setMessage({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!sheetUrl && !syncEnabled) return null;
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <div className="flex items-center gap-2">
+        {sheetUrl && (
+          <a
+            href={sheetUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-[#E8EAF0] bg-white px-3 py-1.5 text-xs font-bold text-[#3A41C8] hover:bg-[#EEF0FF] transition-colors"
+          >
+            구글 시트 열기 ↗
+          </a>
+        )}
+        {syncEnabled && (
+          <button
+            type="button"
+            onClick={syncAll}
+            disabled={busy}
+            className="rounded-lg bg-[#6066EE] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40 hover:bg-[#4F55DB] transition-colors"
+          >
+            {busy ? "동기화 중…" : "시트 동기화"}
+          </button>
+        )}
+      </div>
+      {message && (
+        <p className={`text-xs ${message.ok ? "text-green-600" : "text-red-500"}`}>{message.text}</p>
+      )}
+    </div>
+  );
+}
+
 /** 엑셀 업로드: 미리보기(파싱 요약 확인) → 반영(스냅샷 교체) 2단계. */
 function UploadPanel({ onApplied }: { onApplied: (brand: string) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState<"preview" | "apply" | null>(null);
   const [preview, setPreview] = useState<{ summary: PreviewSummary; snapshotDate: string | null } | null>(null);
-  const [applied, setApplied] = useState<PreviewSummary | null>(null);
+  const [applied, setApplied] = useState<{ summary: PreviewSummary; sheetSync: SheetSyncResult | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -120,7 +200,7 @@ function UploadPanel({ onApplied }: { onApplied: (brand: string) => void }) {
       if (mode === "preview") {
         setPreview({ summary: data.summary, snapshotDate: data.snapshotDate ?? null });
       } else {
-        setApplied(data.summary);
+        setApplied({ summary: data.summary, sheetSync: data.sheetSync ?? null });
         setPreview(null);
         setFile(null);
         if (inputRef.current) inputRef.current.value = "";
@@ -188,8 +268,18 @@ function UploadPanel({ onApplied }: { onApplied: (brand: string) => void }) {
       )}
 
       {applied && (
-        <div className="mt-4 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700">
-          {applied.brand} 재고 반영 완료 — {applied.rowCount.toLocaleString("ko-KR")}행 · {applied.vehicleCount.toLocaleString("ko-KR")}대
+        <div className="mt-4 flex flex-col gap-2">
+          <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700">
+            {applied.summary.brand} 재고 반영 완료 — {applied.summary.rowCount.toLocaleString("ko-KR")}행 ·{" "}
+            {applied.summary.vehicleCount.toLocaleString("ko-KR")}대
+            {applied.sheetSync?.status === "ok" && " · 구글 시트 동기화 완료"}
+          </div>
+          {applied.sheetSync?.status === "failed" && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+              구글 시트 동기화 실패: {applied.sheetSync.error} — 상단 &quot;시트 동기화&quot; 버튼으로 재시도할 수 있습니다.
+              (DB 반영은 완료된 상태입니다)
+            </div>
+          )}
         </div>
       )}
     </div>

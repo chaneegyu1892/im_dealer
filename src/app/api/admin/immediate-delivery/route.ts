@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { logAdminAction } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireRoleAtLeast } from "@/lib/require-admin";
-import { IMMEDIATE_DELIVERY_BRANDS } from "@/lib/immediate-delivery";
+import { IMMEDIATE_DELIVERY_BRANDS, type ImmediateDeliveryBrand } from "@/lib/immediate-delivery";
+import { attemptBrandSheetSync } from "@/lib/immediate-delivery/sheets-sync";
 
 export const runtime = "nodejs";
 
@@ -75,7 +76,9 @@ export async function DELETE(request: NextRequest) {
       resource: "ImmediateDeliveryBatch",
       meta: { brand, deletedBatches: deleted.count },
     });
-    return NextResponse.json({ success: true, deletedBatches: deleted.count });
+    // 삭제 후 시트에도 "데이터 없음"을 반영(실패해도 삭제는 유지)
+    const sheetSync = await attemptBrandSheetSync(brand as ImmediateDeliveryBrand);
+    return NextResponse.json({ success: true, deletedBatches: deleted.count, sheetSync });
   } catch (e) {
     console.error("[immediate-delivery DELETE]", e);
     return NextResponse.json({ error: "삭제 처리 실패" }, { status: 500 });
