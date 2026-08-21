@@ -5,6 +5,7 @@
 import "./load-env";
 
 import { existsSync } from "node:fs";
+import { parseApiBases } from "./api-client";
 import { keyFingerprint } from "../../src/lib/scraper/key-fingerprint";
 import { WORKER_ID_PATTERN } from "../../src/lib/scraper/job-state";
 import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
@@ -12,7 +13,7 @@ import { WORKER_PROTOCOL_VERSION } from "../../src/lib/scraper/worker-version";
 type Result = { ok: boolean; label: string; detail: string; fix?: string };
 
 async function collect(): Promise<Result[]> {
-  const BASE = process.env.WORKER_API_BASE?.trim() ?? "";
+  const BASES = parseApiBases(process.env.WORKER_API_BASE);
   const SECRET = process.env.SCRAPER_WORKER_SECRET?.trim() ?? "";
   const PII_KEY = process.env.PII_ENCRYPTION_KEY?.trim() ?? "";
 
@@ -22,10 +23,10 @@ async function collect(): Promise<Result[]> {
     results.push({ ok: false, label, detail, fix });
 
   // ── 1. 필수 환경변수 ──────────────────────────────────────
-  if (!BASE) {
-    fail("WORKER_API_BASE", "미설정", "scripts/scraper-worker/.env 에 백엔드 주소를 넣으세요. 로컬이면 http://localhost:3000");
+  if (BASES.length === 0) {
+    fail("WORKER_API_BASE", "미설정", "scripts/scraper-worker/.env 에 백엔드 주소를 넣으세요. 로컬이면 http://localhost:3000, 여러 서버면 쉼표로 구분");
   } else {
-    pass("WORKER_API_BASE", BASE);
+    pass("WORKER_API_BASE", BASES.join(", "));
   }
 
   if (!SECRET) {
@@ -84,62 +85,66 @@ async function collect(): Promise<Result[]> {
     }
   }
 
-  // ── 3. 백엔드 연결 + 시크릿 + 키 일치 ─────────────────────
-  if (!BASE || !SECRET) return results;
+  // ── 3. 백엔드 연결 + 시크릿 + 키 일치 (서버별) ────────────
+  if (BASES.length === 0 || !SECRET) return results;
 
-  const url = `${BASE.replace(/\/+$/, "")}/api/worker/preflight`;
-  try {
-    const res = await fetch(url, { headers: { authorization: `Bearer ${SECRET}` } });
+  for (const base of BASES) {
+    // 서버가 하나면 라벨을 예전 그대로, 여러 개면 어느 서버 결과인지 붙여 준다.
+    const tag = BASES.length > 1 ? `(${base.replace(/^https?:\/\//, "")})` : "";
+    const url = `${base}/api/worker/preflight`;
+    try {
+      const res = await fetch(url, { headers: { authorization: `Bearer ${SECRET}` } });
 
-    if (res.status === 401) {
-      fail("백엔드 인증", "401 Unauthorized", "SCRAPER_WORKER_SECRET 이 백엔드 값과 다릅니다.");
-      return results;
-    }
-    if (res.status === 404) {
-      fail("백엔드 연결", "404 — preflight 라우트 없음", "백엔드가 이 기능이 포함된 버전인지 확인하세요(배포 필요).");
-      return results;
-    }
-    if (!res.ok) {
-      fail("백엔드 연결", `HTTP ${res.status}`, "백엔드 로그를 확인하세요.");
-      return results;
-    }
+      if (res.status === 401) {
+        fail(`백엔드 인증${tag}`, "401 Unauthorized", "SCRAPER_WORKER_SECRET 이 백엔드 값과 다릅니다.");
+        continue;
+      }
+      if (res.status === 404) {
+        fail(`백엔드 연결${tag}`, "404 — preflight 라우트 없음", "백엔드가 이 기능이 포함된 버전인지 확인하세요(배포 필요).");
+        continue;
+      }
+      if (!res.ok) {
+        fail(`백엔드 연결${tag}`, `HTTP ${res.status}`, "백엔드 로그를 확인하세요.");
+        continue;
+      }
 
-    const body = (await res.json()) as {
-      keyFingerprint: string | null;
-      expectedWorkerVersion?: number;
-    };
-    pass("백엔드 연결", `${url} 응답 정상`);
+      const body = (await res.json()) as {
+        keyFingerprint: string | null;
+        expectedWorkerVersion?: number;
+      };
+      pass(`백엔드 연결${tag}`, `${url} 응답 정상`);
 
-    if (body.expectedWorkerVersion === undefined) {
-      pass("프로그램 버전", `v${WORKER_PROTOCOL_VERSION} (서버가 버전을 알리지 않음)`);
-    } else if (body.expectedWorkerVersion === WORKER_PROTOCOL_VERSION) {
-      pass("프로그램 버전", `v${WORKER_PROTOCOL_VERSION} 일치`);
-    } else {
+      if (body.expectedWorkerVersion === undefined) {
+        pass(`프로그램 버전${tag}`, `v${WORKER_PROTOCOL_VERSION} (서버가 버전을 알리지 않음)`);
+      } else if (body.expectedWorkerVersion === WORKER_PROTOCOL_VERSION) {
+        pass(`프로그램 버전${tag}`, `v${WORKER_PROTOCOL_VERSION} 일치`);
+      } else {
+        fail(
+          `프로그램 버전${tag}`,
+          `이 프로그램 v${WORKER_PROTOCOL_VERSION} ≠ 서버 요구 v${body.expectedWorkerVersion}`,
+          "'수집 시작.bat' 을 다시 실행하면 자동으로 업데이트됩니다(접속 정보 유지)."
+        );
+      }
+
+      if (!body.keyFingerprint) {
+        fail(`암호화 키 일치${tag}`, "백엔드에 PII_ENCRYPTION_KEY 가 없음", "백엔드(Vercel 또는 로컬 .env)에 키를 설정하세요.");
+      } else if (localFingerprint && body.keyFingerprint === localFingerprint) {
+        pass(`암호화 키 일치${tag}`, `지문 ${localFingerprint} 일치`);
+      } else if (localFingerprint) {
+        fail(
+          `암호화 키 일치${tag}`,
+          `워커 ${localFingerprint} ≠ 백엔드 ${body.keyFingerprint}`,
+          "키가 다릅니다. 이대로 두면 job 을 받아도 '자격증명 복호화 실패'로 끝납니다. " +
+            "백엔드의 PII_ENCRYPTION_KEY 를 그대로 복사해 넣으세요."
+        );
+      }
+    } catch (error) {
       fail(
-        "프로그램 버전",
-        `이 프로그램 v${WORKER_PROTOCOL_VERSION} ≠ 서버 요구 v${body.expectedWorkerVersion}`,
-        "'수집 시작.bat' 을 다시 실행하면 자동으로 업데이트됩니다(접속 정보 유지)."
+        `백엔드 연결${tag}`,
+        error instanceof Error ? error.message : "알 수 없는 오류",
+        `${base} 에 접속할 수 없습니다. 백엔드가 떠 있는지, 주소가 맞는지 확인하세요.`
       );
     }
-
-    if (!body.keyFingerprint) {
-      fail("암호화 키 일치", "백엔드에 PII_ENCRYPTION_KEY 가 없음", "백엔드(Vercel 또는 로컬 .env)에 키를 설정하세요.");
-    } else if (localFingerprint && body.keyFingerprint === localFingerprint) {
-      pass("암호화 키 일치", `지문 ${localFingerprint} 일치`);
-    } else if (localFingerprint) {
-      fail(
-        "암호화 키 일치",
-        `워커 ${localFingerprint} ≠ 백엔드 ${body.keyFingerprint}`,
-        "키가 다릅니다. 이대로 두면 job 을 받아도 '자격증명 복호화 실패'로 끝납니다. " +
-          "백엔드의 PII_ENCRYPTION_KEY 를 그대로 복사해 넣으세요."
-      );
-    }
-  } catch (error) {
-    fail(
-      "백엔드 연결",
-      error instanceof Error ? error.message : "알 수 없는 오류",
-      `${BASE} 에 접속할 수 없습니다. 백엔드가 떠 있는지, 주소가 맞는지 확인하세요.`
-    );
   }
 
   return results;

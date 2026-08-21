@@ -161,8 +161,10 @@ if (-not $keepExisting) {
     Write-Host "  (마우스 오른쪽 클릭으로 붙여넣기가 됩니다)" -ForegroundColor DarkGray
     Write-Host ""
 
-    $apiBase = Read-Host "  1) 서버 주소"
+    $apiBase = Read-Host "  1) 서버 주소 (여러 개면 쉼표로 구분)"
     if (-not $apiBase) { Stop-WithMessage "서버 주소를 입력해야 합니다." }
+    # 쉼표 목록 정리 — 각 주소의 공백·끝 슬래시 제거 (워커가 쉼표로 나눠 각각 접속한다)
+    $apiBase = (($apiBase -split ',') | ForEach-Object { $_.Trim().TrimEnd('/') } | Where-Object { $_ }) -join ','
 
     $workerSecret = Read-WorkerSecret
     $piiKey = Read-PiiKey
