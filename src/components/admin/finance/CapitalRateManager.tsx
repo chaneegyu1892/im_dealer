@@ -769,6 +769,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
   // 확인 모달의 "불러오기" → 개인 로그인 입력 모달
   const confirmFetch = () => {
     setShowFetchConfirm(false);
+    setScrapeError(null); // 이전 작업의 실패 사유가 새 모달에 남아 보이지 않게
     setShowLoginModal(true);
   };
 
@@ -1426,6 +1427,7 @@ export default function CapitalRateManager({ financeCompanies, vehicles }: Props
           financeCompanyName={selectedFc.name}
           requiresHuman={resolveCapitalConnection(selectedFc.name)?.requiresHuman ?? false}
           submitting={scrapeStarting}
+          serverError={scrapeError}
           onClose={() => setShowLoginModal(false)}
           onSubmit={(username, password, workerId) => void createScrapeJob(username, password, workerId)}
         />

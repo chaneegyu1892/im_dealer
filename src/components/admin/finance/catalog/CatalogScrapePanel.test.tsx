@@ -7,10 +7,19 @@ import type { CatalogJobState } from "./CapitalCatalogManager";
 vi.mock("../WorkerStatusBadge", () => ({ default: () => null }));
 // 로그인 모달 대신 제출만 흉내내 잡 생성 payload 를 검사한다.
 vi.mock("../ScraperLoginModal", () => ({
-  default: ({ onSubmit }: { onSubmit: (u: string, p: string, w: string) => void }) => (
-    <button type="button" onClick={() => onSubmit("id", "pw", "pc1")}>
-      로그인제출
-    </button>
+  default: ({
+    onSubmit,
+    serverError,
+  }: {
+    onSubmit: (u: string, p: string, w: string) => void;
+    serverError?: string | null;
+  }) => (
+    <div data-testid="login-modal">
+      <button type="button" onClick={() => onSubmit("id", "pw", "pc1")}>
+        로그인제출
+      </button>
+      {serverError && <p>{serverError}</p>}
+    </div>
   ),
 }));
 
@@ -110,6 +119,26 @@ describe("CatalogScrapePanel", () => {
     expect((posted[0].body as { jobType: string }).jobType).toBe("models");
     // 목록 잡에는 수집 범위(weekOf·modelCds)가 실리지 않는다
     expect(posted[0].body.weekOf).toBeUndefined();
+  });
+
+  it("수집 PC 오프라인 409 는 모달을 닫지 않고 그 안에 사유를 보여준다", async () => {
+    const offlineMsg = "'pc1' 수집 PC 가 접속돼 있지 않습니다.";
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return { ok: false, status: 409, json: async () => ({ error: offlineMsg }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ success: true, models: KIA_MODELS }) };
+    }));
+    render(<CatalogScrapePanel {...BASE_PROPS} />);
+    await openKia();
+
+    fireEvent.click(screen.getByRole("button", { name: /쏘렌토/ }));
+    fireEvent.click(screen.getByRole("button", { name: "수집 시작" }));
+    fireEvent.click(screen.getByRole("button", { name: "로그인제출" }));
+
+    await waitFor(() => expect(screen.getAllByText(offlineMsg)).toHaveLength(1));
+    // 모달이 열린 채 그 안에 사유가 표시된다 — 모달 뒤 패널에는 중복 표시하지 않는다
+    expect(screen.getByTestId("login-modal")).toBeTruthy();
   });
 
   it("차량 칩을 수집일 신선도 배경색으로 표시한다", async () => {
