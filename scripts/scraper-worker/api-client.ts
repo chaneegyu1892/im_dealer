@@ -22,6 +22,14 @@ export function parseApiBases(raw: string | undefined): string[] {
   )];
 }
 
+// 무타임아웃 fetch는 서버 hang 시 heartbeat 정지 → stale 재클레임 경쟁(동일 계정 이중 실행)으로 이어진다.
+const READ_TIMEOUT_MS = 15_000; // claim/heartbeat/collected 등 가벼운 조회
+const SUBMIT_TIMEOUT_MS = 30_000; // result/catalog flush 등 payload가 큰 제출
+
+function requestSignal(timeoutMs: number): AbortSignal {
+  return AbortSignal.timeout(timeoutMs);
+}
+
 function headers(leaseToken?: string) {
   return {
     "content-type": "application/json",
@@ -64,6 +72,7 @@ export function createApiClient(base: string) {
   async function claimJob(): Promise<ClaimResult> {
     const res = await fetch(`${BASE}/api/worker/scrape-jobs/claim`, {
       method: "POST",
+      signal: requestSignal(READ_TIMEOUT_MS),
       // 이름을 밝히면 자기 몫으로 지정된 작업까지 받는다. 비우면 미지정 작업만.
       // HTTP 헤더에는 한글이 못 실린다(ByteString) — percent-인코딩해 보내고 서버가 복원한다.
       headers: { ...headers(), ...(WORKER_ID ? { [SCRAPE_JOB_WORKER_ID_HEADER]: encodeURIComponent(WORKER_ID) } : {}) },
@@ -106,6 +115,7 @@ export function createApiClient(base: string) {
     const res = await fetch(`${BASE}/api/worker/scrape-jobs/${jobId}/heartbeat`, {
       method: "POST",
       headers: headers(leaseToken),
+      signal: requestSignal(READ_TIMEOUT_MS),
       body: JSON.stringify(body ?? {}),
     });
     if (!res.ok) throw new Error(`heartbeat 실패: HTTP ${res.status}`);
@@ -125,6 +135,7 @@ export function createApiClient(base: string) {
     const res = await fetch(`${BASE}/api/worker/scrape-jobs/${jobId}/result`, {
       method: "POST",
       headers: headers(leaseToken),
+      signal: requestSignal(SUBMIT_TIMEOUT_MS),
       body: JSON.stringify(result),
     });
     if (!res.ok) throw new Error(`result 실패: HTTP ${res.status}`);
@@ -143,6 +154,7 @@ export function createApiClient(base: string) {
     const res = await fetch(`${BASE}/api/worker/catalog/results`, {
       method: "POST",
       headers: headers(leaseToken),
+      signal: requestSignal(SUBMIT_TIMEOUT_MS),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`catalog results 실패: HTTP ${res.status}`);
@@ -164,6 +176,7 @@ export function createApiClient(base: string) {
     const res = await fetch(`${BASE}/api/worker/catalog/models`, {
       method: "POST",
       headers: headers(leaseToken),
+      signal: requestSignal(SUBMIT_TIMEOUT_MS),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`models results 실패: HTTP ${res.status}`);
@@ -180,6 +193,7 @@ export function createApiClient(base: string) {
     const qs = new URLSearchParams({ jobId, financeCompanyId, productType, weekOf });
     const res = await fetch(`${BASE}/api/worker/catalog/collected?${qs}`, {
       headers: headers(leaseToken),
+      signal: requestSignal(READ_TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`catalog collected 실패: HTTP ${res.status}`);
     const data = (await res.json()) as { mdelCds: string[] };

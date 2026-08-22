@@ -192,12 +192,18 @@ async function runJob(job: ClaimedJob, credential: ClaimedCredential, api: ApiCl
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   });
 
+  // 응답 지연 시 이전 heartbeat가 아직 진행 중일 수 있다 — 겹치면 서버 혼란만 키우므로 스킵.
+  let heartbeatInFlight = false;
   const heartbeatTimer = setInterval(async () => {
+    if (heartbeatInFlight) return;
+    heartbeatInFlight = true;
     try {
       const status = await api.heartbeat(job.id, job.leaseToken, currentProgress ? { progress: currentProgress } : undefined);
       if (status === "canceled") canceled = true;
     } catch (e) {
       log(`하트비트 오류: ${(e as Error).message}`);
+    } finally {
+      heartbeatInFlight = false;
     }
   }, HEARTBEAT_MS);
 
