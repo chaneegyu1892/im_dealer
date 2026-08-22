@@ -4,7 +4,7 @@ import {
   getRepresentativeQuotesByVehicle,
 } from "@/lib/representative-quote-query";
 import { lowestMonthly } from "@/lib/representative-quote";
-import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
+import { PUBLIC_TRIM_WHERE, filterLatestPublicTrims } from "@/lib/vehicle-visibility-policy";
 
 const MAX_IDS = 80;
 
@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
           id: true,
           price: true,
           discountPrice: true,
+          isVisible: true,
+          lineup: { select: { name: true, isVisible: true } },
         },
       },
     },
@@ -37,7 +39,8 @@ export async function GET(request: NextRequest) {
     vehicles.map((vehicle) => ({
       vehicleId: vehicle.id,
       vehicleSurchargeRate: vehicle.surchargeRate,
-      trims: vehicle.trims.map((trim) => ({
+      // 홈/목록(/cars)과 동일하게 최신 연식 공개 트림만 대상으로 한다.
+      trims: filterLatestPublicTrims(vehicle.trims).map((trim) => ({
         trimId: trim.id,
         vehiclePrice: trim.price,
         discountPrice: trim.discountPrice,
