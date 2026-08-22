@@ -45,7 +45,7 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: "npm run dev",
+        command: "pnpm run dev",
         url: BASE_URL,
         reuseExistingServer: !isCI,
         timeout: 120_000,

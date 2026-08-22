@@ -28,6 +28,19 @@
 
 ---
 
+## 개발 환경 설정
+
+```bash
+pnpm install            # postinstall로 prisma generate 자동 실행
+pnpm run dev
+```
+
+- Prisma client는 로컬 `node_modules`에 생성된다. **schema.prisma가 변경된 브랜치를 pull한 뒤 `pnpm run typecheck`에서 Prisma 모델 오류(`... does not exist on type 'PrismaClient'`)가 나면 `pnpm exec prisma generate`를 다시 실행하라.**
+- 패키지 매니저는 `pnpm@11` 고정이다. `npm`/`yarn`을 쓰지 않는다.
+- 테스트: `pnpm run test` (Vitest), E2E: `pnpm run e2e` (Playwright).
+
+---
+
 ## 디렉토리 구조
 
 ```
@@ -40,7 +53,7 @@ im_dealer/
 │  ├─ components/             UI 컴포넌트 (admin, recommend, charts ...)
 │  └─ lib/
 │     ├─ quote-calculator.ts  견적 계산 엔진 (핵심)
-│     ├─ admin-queries.ts     SSR 쿼리
+│     ├─ admin-queries/       SSR 쿼리 (디렉터리, 파일당 도메인 1개)
 │     └─ codef.ts             Codef 연동
 ├─ prisma/
 │  ├─ schema.prisma           DB 스키마 (Vehicle, Trim, SavedQuote, AdminUser ...)
