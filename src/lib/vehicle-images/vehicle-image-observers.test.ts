@@ -4,7 +4,7 @@ import {
   isExpectedNextImageNavigationAbort,
   shouldRecordVehicleImageRequestFailure,
   unexpectedBrowserConsoleErrors,
-} from "../../../e2e/fixtures/vehicle-image-observers";
+} from "../../../e2e/fixtures/vehicle-image-observer-rules";
 
 describe("isExpectedNextImageNavigationAbort", () => {
   const imageUrl = "http://127.0.0.1:3000/_next/image?url=http%3A%2F%2F127.0.0.1%3A4000%2Fstorage%2Fmain.png&w=640&q=75";
