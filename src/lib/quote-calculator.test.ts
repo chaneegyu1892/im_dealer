@@ -286,6 +286,53 @@ describe("quote-calculator", () => {
   });
 
   // ─── 어드민 자동 산출 헬퍼 검증 ───────────────────────────
+  describe("보간 한쪽 셀 누락(0) 폴백", () => {
+    // maxRateMatrix 의 해당 셀만 비어 있을 때 0으로 보간해 비정상 저가가 나오지 않는지 고정한다.
+    const halfMissingConfig: RateConfigData = {
+      ...mockRateConfig,
+      depositDiscountRate: 0,
+      prepayAdjustRate: 0,
+      maxRateMatrix: {
+        ...mockRateConfig.maxRateMatrix,
+        "48_20000": 0, // 이 셀만 누락
+      },
+    };
+
+    it("max 셀이 비어 있으면 min 회수율을 그대로 사용한다", () => {
+      const results = calculateMultiFinanceQuote({
+        ...defaultInput,
+        vehiclePrice: 35000000, // 보간이 무의미한 구간 — 폴백이 min 값임을 확인하기 좋은 지점
+        rateConfigs: [halfMissingConfig],
+      });
+      expect(results).toHaveLength(1);
+      // 48_20000 셀: min=0.014 만 유효 → baseMonthly = 차량가 × 0.014
+      expect(results[0].baseMonthly).toBe(35000000 * 0.014);
+      expect(Number.isFinite(results[0].monthlyPayment)).toBe(true);
+    });
+
+    it("min 셀이 비어 있으면 max 회수율을 그대로 사용한다", () => {
+      const results = calculateMultiFinanceQuote({
+        ...defaultInput,
+        rateConfigs: [{
+          ...halfMissingConfig,
+          minRateMatrix: { ...mockRateConfig.minRateMatrix, "48_20000": 0 },
+          maxRateMatrix: { ...mockRateConfig.minRateMatrix }, // min 전체 누락, max=원래 min값(0.014)
+        }],
+      });
+      expect(results).toHaveLength(1);
+      expect(results[0].baseMonthly).toBe(30000000 * 0.014);
+    });
+  });
+
+  describe("빈 순위 가산율 방어", () => {
+    it("rankSurchargeRates 가 비면 NaN 대신 명확히 실패한다", () => {
+      expect(() =>
+        calculateMultiFinanceQuote({ ...defaultInput, rankSurchargeRates: [] }),
+      ).toThrow(/rankSurchargeRates/);
+    });
+  });
+
+  // ─── 어드민 자동 산출 헬퍼 검증 ───────────────────────────
   describe("calcDepositDiscountRate 부호 컨벤션", () => {
     const VEHICLE_PRICE = 50_000_000;
 

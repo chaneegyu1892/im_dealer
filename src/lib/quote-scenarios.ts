@@ -6,7 +6,7 @@ import {
 } from "@/lib/quote-calculator";
 import type { FinanceQuoteResult, QuoteScenarioDetails } from "@/types/quote";
 import type { RateSheetRaw } from "@/types/admin";
-import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
+import { INHERITANCE_SURCHARGE_RATE, RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
 import { PUBLIC_TRIM_WHERE } from "@/lib/vehicle-visibility-policy";
 
 export type ContractTypeKor = "인수형" | "반납형";
@@ -232,7 +232,7 @@ export async function buildVehicleScenarios(
 
     const isPurchase = input.contractType === "인수형";
     const best: FinanceQuoteResult = results[0];
-    const purchaseSurcharge = isPurchase ? Math.round(best.monthlyPayment * 0.12) : 0;
+    const purchaseSurcharge = isPurchase ? Math.round(best.monthlyPayment * INHERITANCE_SURCHARGE_RATE) : 0;
     const monthlyPayment = best.monthlyPayment + purchaseSurcharge;
 
     scenarios[key] = {
@@ -247,7 +247,7 @@ export async function buildVehicleScenarios(
       breakdown: best.breakdown,
       surcharges: best.surcharges,
       allFinanceResults: results.map((r) => {
-        const rPurchase = isPurchase ? Math.round(r.monthlyPayment * 0.12) : 0;
+        const rPurchase = isPurchase ? Math.round(r.monthlyPayment * INHERITANCE_SURCHARGE_RATE) : 0;
         return {
           financeCompanyName: r.financeCompanyName,
           rank: r.rank,

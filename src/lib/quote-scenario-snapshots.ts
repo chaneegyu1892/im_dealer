@@ -6,7 +6,7 @@ import {
   type CalcInput,
   type RateConfigData,
 } from "@/lib/quote-calculator";
-import { SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
+import { INHERITANCE_SURCHARGE_RATE, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
 
 export type ScenarioSnapshotType = keyof typeof SCENARIO_CONDITIONS;
 
@@ -59,7 +59,7 @@ export function buildScenarioSnapshots(
       continue;
     }
 
-    const purchaseSurcharge = isPurchase ? Math.round(best.monthlyPayment * 0.12) : 0;
+    const purchaseSurcharge = isPurchase ? Math.round(best.monthlyPayment * INHERITANCE_SURCHARGE_RATE) : 0;
     snapshots[key] = {
       monthlyPayment: best.monthlyPayment + purchaseSurcharge,
       depositAmount: best.breakdown.depositAmount,

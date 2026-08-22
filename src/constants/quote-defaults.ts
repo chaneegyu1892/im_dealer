@@ -43,3 +43,7 @@ export const CONTRACT_TYPES = {
   RETURN: "반납형",
   PURCHASE: "인수형",
 } as const;
+
+/** 인수형: 잔존가치 상쇄를 위한 가산율 — 전체 금융사 월납입금에 동일 적용한다.
+ * 계산식은 모든 경로에서 `Math.round(monthly × INHERITANCE_SURCHARGE_RATE)` 합산으로 통일한다. */
+export const INHERITANCE_SURCHARGE_RATE = 0.12;

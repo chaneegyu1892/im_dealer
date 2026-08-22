@@ -176,6 +176,12 @@ export function calculateMultiFinanceQuote(
     rateConfigs,
   } = input;
 
+  // 빈 배열이면 rankRate === undefined → NaN 월납입금이 조용히 산출된다.
+  // 호출부 누락은 설정 오류이므로 NaN으로 번지기 전에 여기서 실패한다.
+  if (!Array.isArray(rankSurchargeRates) || rankSurchargeRates.length === 0) {
+    throw new Error("rankSurchargeRates must contain at least one surcharge rate (1순위~4순위+)");
+  }
+
   type Intermediate = {
     config: RateConfigData;
     recoveryRate: number;
@@ -326,48 +332,6 @@ export interface ScenarioResults {
   conservative: ScenarioResult;
   standard: ScenarioResult;
   aggressive: ScenarioResult;
-}
-
-export function calculateScenarios(
-  vehiclePrice: number,
-  rateConfig: RateConfigData,
-  annualMileage: number = 20000,
-  contractMonths: number = 48
-): ScenarioResults {
-  const rate = getInterpolatedRate(rateConfig, vehiclePrice, contractMonths, annualMileage);
-  const baseMonthly = Math.round(vehiclePrice * rate);
-
-  const conserv = applyDeposit(vehiclePrice, rate, 20, rateConfig.depositDiscountRate);
-  const aggress = applyPrepay(vehiclePrice, baseMonthly, contractMonths, 30, rateConfig.prepayAdjustRate);
-  // 선납 30%로 월대여료가 0 이하면 해당 조건 견적 불성립 → 0원 표기(calculate 라우트의 불가 컨벤션과 동일).
-  const aggressUnavailable = aggress.monthly <= 0;
-
-  return {
-    conservative: {
-      monthlyPayment: conserv.monthly,
-      depositAmount: conserv.depositAmount,
-      prepayAmount: 0,
-      contractMonths,
-      annualMileage,
-      contractType: "반납형",
-    },
-    standard: {
-      monthlyPayment: baseMonthly,
-      depositAmount: 0,
-      prepayAmount: 0,
-      contractMonths,
-      annualMileage,
-      contractType: "반납형",
-    },
-    aggressive: {
-      monthlyPayment: aggressUnavailable ? 0 : aggress.monthly,
-      depositAmount: 0,
-      prepayAmount: aggressUnavailable ? 0 : aggress.prepayAmount,
-      contractMonths,
-      annualMileage,
-      contractType: "반납형",
-    },
-  };
 }
 
 // ─── 회수율 계산 헬퍼 (관리자 입력 시 자동 계산용) ─────────

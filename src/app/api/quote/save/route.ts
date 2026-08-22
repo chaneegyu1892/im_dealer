@@ -11,7 +11,7 @@ import {
   type RateConfigData,
 } from "@/lib/quote-calculator";
 import type { RateSheetRaw } from "@/types/admin";
-import { RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
+import { INHERITANCE_SURCHARGE_RATE, RANK_SURCHARGE_RATES, SCENARIO_CONDITIONS } from "@/constants/quote-defaults";
 import { productTypeLabel } from "@/constants/product-type";
 import { createAdminNotification } from "@/lib/admin-notification";
 import { buildScenarioSnapshots } from "@/lib/quote-scenario-snapshots";
@@ -390,7 +390,7 @@ export async function POST(request: NextRequest) {
     }
 
     const purchaseSurcharge =
-      input.contractType === "인수형" ? Math.round(best.monthlyPayment * 0.12) : 0;
+      input.contractType === "인수형" ? Math.round(best.monthlyPayment * INHERITANCE_SURCHARGE_RATE) : 0;
     const monthlyPayment = best.monthlyPayment + purchaseSurcharge;
 
     // 재발급 견적서의 시나리오 비교 표까지 저장 시점 값으로 재현되도록 3종 스냅샷을 남긴다.
@@ -435,7 +435,7 @@ export async function POST(request: NextRequest) {
       surcharges: best.surcharges,
       allFinanceResults: results.map((r) => {
         const rPurchase =
-          input.contractType === "인수형" ? Math.round(r.monthlyPayment * 0.12) : 0;
+          input.contractType === "인수형" ? Math.round(r.monthlyPayment * INHERITANCE_SURCHARGE_RATE) : 0;
         return {
           financeCompanyName: r.financeCompanyName,
           rank: r.rank,

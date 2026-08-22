@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       ...(!history ? { isActive: true } : {}),
     };
 
-    const rows = await (prisma as any).capitalRateSheet.findMany({
+    const rows = await prisma.capitalRateSheet.findMany({
       where,
       orderBy: { weekOf: "desc" },
       include: {
@@ -160,7 +160,6 @@ export async function POST(request: NextRequest) {
     }
 
     const weekDate = new Date(weekOf);
-    const db = prisma as any;
 
     const sheetData = {
       minVehiclePrice,
@@ -183,7 +182,7 @@ export async function POST(request: NextRequest) {
       const saved: string[] = [];
 
       for (const tid of targetTrimIds) {
-        const existing = await (tx as any).capitalRateSheet.findUnique({
+        const existing = await tx.capitalRateSheet.findUnique({
           where: {
             financeCompanyId_trimId_weekOf_productType: {
               financeCompanyId,
@@ -195,17 +194,17 @@ export async function POST(request: NextRequest) {
         });
 
         if (existing) {
-          const updated = await (tx as any).capitalRateSheet.update({
+          const updated = await tx.capitalRateSheet.update({
             where: { id: existing.id },
             data: sheetData,
           });
           saved.push(updated.id);
         } else {
-          await (tx as any).capitalRateSheet.updateMany({
+          await tx.capitalRateSheet.updateMany({
             where: { financeCompanyId, trimId: tid, productType, isActive: true },
             data: { isActive: false },
           });
-          const created = await (tx as any).capitalRateSheet.create({
+          const created = await tx.capitalRateSheet.create({
             data: { financeCompanyId, trimId: tid, productType, weekOf: weekDate, ...sheetData },
           });
           saved.push(created.id);

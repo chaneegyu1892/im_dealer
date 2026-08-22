@@ -8,8 +8,10 @@ import {
   type RateConfigData,
   type CalcInput,
 } from "@/lib/quote-calculator";
+import type { RateSheetRaw } from "@/types/admin";
 import type { FinanceQuoteResult, QuoteScenarioDetails } from "@/types/quote";
 import {
+  INHERITANCE_SURCHARGE_RATE,
   PUBLIC_RESULT_INITIAL_COST,
   RANK_SURCHARGE_RATES,
   SCENARIO_CONDITIONS,
@@ -306,7 +308,7 @@ export async function POST(
 
     // 2) 회수율 데이터 + 순위 가산 설정 동시 조회
     const [rateSheets, rankSurcharges] = await Promise.all([
-      (prisma as any).capitalRateSheet.findMany({
+      prisma.capitalRateSheet.findMany({
         where: {
           trimId: trim.id,
           productType: input.productType,
@@ -371,14 +373,14 @@ export async function POST(
     }
 
     // 3) 데이터 매핑
-    const configs: RateConfigData[] = rateSheets.map((rs: any) => ({
+    const configs: RateConfigData[] = rateSheets.map((rs) => ({
       financeCompanyId: rs.financeCompanyId,
       financeCompanyName: rs.financeCompany.name,
       financeSurchargeRate: rs.financeCompany.surchargeRate,
       minVehiclePrice: rs.minVehiclePrice,
       maxVehiclePrice: rs.maxVehiclePrice,
-      minRateMatrix: rs.minRateMatrix,
-      maxRateMatrix: rs.maxRateMatrix,
+      minRateMatrix: rs.minRateMatrix as RateSheetRaw,
+      maxRateMatrix: rs.maxRateMatrix as RateSheetRaw,
       depositDiscountRate: rs.depositDiscountRate,
       prepayAdjustRate: rs.prepayAdjustRate,
     }));
@@ -454,16 +456,14 @@ export async function POST(
         continue;
       }
 
-      // 인수형: 잔존가치 상쇄를 위한 12% 가산 (전체 금융사 동일 적용)
-      const purchaseFactor = input.contractType === "인수형" ? 1.12 : 1;
-
-      // 1순위(최저가) 금융사 결과
+      // 인수형: 잔존가치 상쇄를 위한 가산 (전체 금융사 동일 적용).
+      // 다른 견적 경로(calculate/save/scenarios)와 같은 합산식 — best.monthlyPayment 는 이미
+      // 반올림 정수라 [monthlyPayment == best + surcharge] 항등이 유지된다.
       const best = results[0];
-      const monthlyPayment = Math.round(best.monthlyPayment * purchaseFactor);
-      // 차분으로 계산해야 segment 합 == monthlyPayment 보장 (단순 *0.12는 반올림 오차 발생)
       const purchaseSurcharge = input.contractType === "인수형"
-        ? monthlyPayment - Math.round(best.monthlyPayment)
+        ? Math.round(best.monthlyPayment * INHERITANCE_SURCHARGE_RATE)
         : 0;
+      const monthlyPayment = best.monthlyPayment + purchaseSurcharge;
 
       scenarios[key] = {
         monthlyPayment,
@@ -480,7 +480,11 @@ export async function POST(
         allFinanceResults: results.map((r) => ({
           financeCompanyName: r.financeCompanyName,
           rank: r.rank,
-          monthlyPayment: Math.round(r.monthlyPayment * purchaseFactor),
+          monthlyPayment:
+            r.monthlyPayment +
+            (input.contractType === "인수형"
+              ? Math.round(r.monthlyPayment * INHERITANCE_SURCHARGE_RATE)
+              : 0),
           baseMonthly: r.baseMonthly,
           surcharges: r.surcharges,
         })),

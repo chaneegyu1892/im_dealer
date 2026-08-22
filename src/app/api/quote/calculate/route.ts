@@ -12,6 +12,7 @@ import {
 import type { FinanceQuoteResult, QuoteScenarioDetails } from "@/types/quote";
 import type { RateSheetRaw } from "@/types/admin";
 import {
+  INHERITANCE_SURCHARGE_RATE,
   PUBLIC_RESULT_INITIAL_COST,
   RANK_SURCHARGE_RATES,
   SCENARIO_CONDITIONS,
@@ -288,7 +289,7 @@ export async function POST(request: NextRequest) {
 
       const isPurchase = input.contractType === "인수형";
       const best = results[0];
-      const purchaseSurcharge = isPurchase ? Math.round(best.monthlyPayment * 0.12) : 0;
+      const purchaseSurcharge = isPurchase ? Math.round(best.monthlyPayment * INHERITANCE_SURCHARGE_RATE) : 0;
       const monthlyPayment = best.monthlyPayment + purchaseSurcharge;
 
       scenarios[key] = {
@@ -306,7 +307,7 @@ export async function POST(request: NextRequest) {
         // 모든 금융사가 같은 차량가 입력을 받으므로 어느 best 기준이든 같다.
         rangeExceeded: best.rangeExceeded,
         allFinanceResults: results.map((r) => {
-          const rPurchase = isPurchase ? Math.round(r.monthlyPayment * 0.12) : 0;
+          const rPurchase = isPurchase ? Math.round(r.monthlyPayment * INHERITANCE_SURCHARGE_RATE) : 0;
           return {
             financeCompanyName: r.financeCompanyName,
             rank: r.rank,
