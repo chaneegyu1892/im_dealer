@@ -174,9 +174,14 @@ export async function GET(request: Request) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
-    // upsert 실패해도 세션은 살아있다. 다음 요청에서 lazy 보정 가능.
-    // 어드민 가드는 prisma.user 행 부재 시 null 반환이라 권한 우회 위험 없음.
+    // upsert 실패 시 세션만 살아있는 유령 로그인이 되어 마이페이지·게이트 판정이
+    // 전부 실패한다. account_inactive 와 같은 패턴으로 세션을 정리하고 되돌린다.
     console.error("[auth/callback] user upsert failed:", message);
+    const { error: signOutError } = await supabase.auth.signOut({ scope: "global" });
+    if (signOutError) {
+      console.error("[auth/callback] failed signup sign-out error:", signOutError.message);
+    }
+    return NextResponse.redirect(`${redirectOrigin}/login?error=signup_failed`);
   }
 
   // 이어서 보기: 게스트로 저장한 견적을 이 브라우저의 capability 쿠키로
@@ -185,7 +190,7 @@ export async function GET(request: Request) {
   try {
     const claimed = await claimGuestSavedQuotes(request.headers.get("cookie"), user.id);
     if (claimed > 0) {
-      console.log(`[auth/callback] claimed ${claimed} guest quote(s) to user ${user.id}`);
+      console.log(`[auth/callback] claimed ${claimed} guest quote(s)`);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
