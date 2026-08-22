@@ -39,10 +39,20 @@ export interface QuoteDeliveredVars {
 
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 
+/** 사용자 조작 가능 값(카카오 프로필명 등)의 개행·제어문자 제거. 본문 불일치(3016) 예방용. */
+function sanitizeTemplateVar(value: string, maxLength: number): string {
+  const flattened = value.replace(/[\u0000-\u001f\u007f]+/g, " ").trim();
+  if (flattened.length > maxLength) return flattened.slice(0, maxLength);
+  return flattened;
+}
+
 export function buildQuoteDeliveredMessage(v: QuoteDeliveredVars): string {
+  // 고객명은 카카오 프로필명이라 사용자가 임의로 길게/개행을 넣을 수 있다.
+  // 빈 값이 되면 변수 자리가 사라져 검수 템플릿과 어긋나므로 기본값을 넣는다.
+  const 고객명 = sanitizeTemplateVar(v.고객명, 20) || "고객";
   return `[아임딜러] 견적서 도착 안내
 
-${v.고객명}님, 요청하신 견적서가 준비되었습니다.
+${고객명}님, 요청하신 견적서가 준비되었습니다.
 
 ■ 차량: ${v.차량명} ${v.트림명}
 ■ 상품: ${v.상품유형} · ${v.계약기간}개월 · 연 ${won(v.약정거리)}km

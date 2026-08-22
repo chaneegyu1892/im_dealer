@@ -44,6 +44,24 @@ describe("buildQuoteDeliveredMessage", () => {
     expect(buildQuoteDeliveredMessage(VARS)).not.toMatch(/#\{/);
   });
 
+  it("고객명의 개행·제어문자는 제거되고 20자로 잘린다", () => {
+    const message = buildQuoteDeliveredMessage({
+      ...VARS,
+      고객명: "첫째\n둘째\t셋째",
+    });
+    expect(message).toContain("첫째 둘째 셋째님,");
+    expect(message).not.toContain("\n\n\n".repeat(1)); // 고객명 줄바꿈이 본문 구조를 깨지 않는다
+
+    const long = buildQuoteDeliveredMessage({ ...VARS, 고객명: "가".repeat(30) });
+    expect(long).toContain(`${"가".repeat(20)}님,`);
+    expect(long).not.toContain("가".repeat(21));
+  });
+
+  it("고객명이 공백만 있으면 기본값으로 보완한다", () => {
+    const message = buildQuoteDeliveredMessage({ ...VARS, 고객명: "  \n " });
+    expect(message).toContain("고객님,");
+  });
+
   it("본문이 1300자를 넘지 않는다", () => {
     expect(buildQuoteDeliveredMessage(VARS).length).toBeLessThanOrEqual(1300);
   });
