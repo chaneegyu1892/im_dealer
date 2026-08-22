@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import type { User } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { getTrustedClientIp } from "@/lib/client-ip";
+import { hashIp } from "@/lib/ip-hash";
 import { prisma } from "@/lib/prisma";
 
 export const VEHICLE_IMAGE_AUDIT_ACTIONS = [
@@ -146,6 +147,8 @@ export async function logAdminAction(params: LogAdminActionParams): Promise<void
 
   try {
     const diffPayload = buildDiff(before, after, meta);
+    // IP 는 ip-hash 단일 정책대로 해시해 저장한다(원문 저장 금지 — 다른 로그 경로와 동일).
+    const clientIp = extractIp(request);
     await prisma.adminAuditLog.create({
       data: {
         actorId: actor.id,
@@ -156,7 +159,7 @@ export async function logAdminAction(params: LogAdminActionParams): Promise<void
         diff: diffPayload
           ? (diffPayload as Prisma.InputJsonValue)
           : Prisma.JsonNull,
-        ip: extractIp(request),
+        ip: clientIp ? hashIp(clientIp) : null,
         userAgent: extractUserAgent(request)?.slice(0, 500) ?? null,
       },
     });

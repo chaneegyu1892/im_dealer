@@ -17,6 +17,10 @@ export function getTrustedClientIp(headers: Headers): string | null {
 
   // x-forwarded-for 첫 번째 값만 사용. Vercel 은 XFF 를 덮어쓰고,
   // 신뢰 프록시가 append 한 체인의 첫 값이 원 클라이언트다.
+  // ⚠️ 운영 제약: TRUST_PROXY=true 는 "프록시가 XFF 를 덮어쓰는" 토폴로지(Vercel 등) 전용이다.
+  // nginx 처럼 append 하는 프록시 뒤에서 쓰면 클라이언트가 위조한 XFF 첫 값을 신뢰하게 되어
+  // per-IP rate limit 우회·감사로그 위조가 가능하다. append 방식 프록시에서는 TRUST_PROXY 를
+  // 쓰지 말거나, 프록시 단에서 XFF 를 덮어쓰도록 구성해야 한다.
   const xff = headers.get("x-forwarded-for");
   if (xff) {
     const first = xff.split(",")[0]?.trim();

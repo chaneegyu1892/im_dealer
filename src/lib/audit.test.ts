@@ -17,14 +17,17 @@ import {
   VEHICLE_IMAGE_AUDIT_ACTIONS,
   VERIFICATION_AUDIT_ACTIONS,
 } from "./audit";
+import { hashIp } from "@/lib/ip-hash";
 
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.create.mockResolvedValue({});
+  process.env.IP_HASH_SALT = "audit-test-salt";
 });
 
 afterEach(() => {
   delete process.env.TRUST_PROXY;
+  delete process.env.IP_HASH_SALT;
 });
 
 describe("vehicle image audit actions", () => {
@@ -76,7 +79,7 @@ describe("verification audit actions", () => {
         resource: "CustomerVerification",
         targetId: "verification-1",
         diff: { meta: { verificationId: "verification-1" } },
-        ip: "203.0.113.10",
+        ip: hashIp("203.0.113.10"),
         userAgent: "audit-test",
       },
     });
