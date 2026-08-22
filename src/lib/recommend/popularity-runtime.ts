@@ -246,14 +246,3 @@ export async function refreshPopularitySnapshotFromNice(): Promise<PopularityRef
   };
 }
 
-export function popularityEvidenceForSnapshot(
-  period: string,
-  entries: unknown,
-  fuelPreference?: string
-): ((slug: string) => RecommendationPopularityEvidence) | null {
-  const fuelSnapshot = parseStoredFuelPopularitySnapshot(period, entries);
-  if (fuelSnapshot) return createFuelPopularityEvidenceLookup(fuelSnapshot, fuelPreference);
-
-  const legacySnapshot = parseLegacyStoredSnapshot(period, entries);
-  return legacySnapshot ? createPopularityEvidenceLookup(legacySnapshot) : null;
-}

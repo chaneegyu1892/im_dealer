@@ -26,8 +26,3 @@ export function formatKRWCount(count: number): string {
 export function formatDateKR(d: Date | string): string {
   return new Date(d).toLocaleDateString("ko-KR");
 }
-
-/** ISO string 또는 Date → 한국어 날짜시간 (예: 2026. 4. 15. 오후 3:00:00) */
-export function formatDateTimeKR(d: Date | string): string {
-  return new Date(d).toLocaleString("ko-KR");
-}

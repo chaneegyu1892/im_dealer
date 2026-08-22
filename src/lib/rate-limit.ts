@@ -55,17 +55,6 @@ export const strictRateLimit = redis
     })
   : null;
 
-// 3. 어드민 로그인 — 5분당 최대 5회. 무차별 대입 방어.
-export const loginRateLimit = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(5, "5 m"),
-      ephemeralCache: cache,
-      analytics: true,
-      prefix: "ratelimit:login",
-    })
-  : null;
-
 // 4. 후기 좋아요 토글 — 10초당 최대 10회. 익명 어브징 1차 방어.
 export const likeRateLimit = redis
   ? new Ratelimit({

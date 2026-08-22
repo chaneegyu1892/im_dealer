@@ -7,14 +7,6 @@ import {
 } from "@/lib/admin-roles";
 import { isAtLeast, toRole, type Role } from "@/lib/access-control";
 
-export async function requireAdmin() {
-  const admin = await getAdminSession();
-  if (!admin) {
-    return { admin: null, error: NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 }) };
-  }
-  return { admin, error: null };
-}
-
 // admin 또는 superadmin 보유 시 통과 (대부분의 어드민 보호 엔드포인트)
 export async function requireAdminLike() {
   const admin = await getAdminSession();

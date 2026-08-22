@@ -80,13 +80,6 @@ export function hasAccess(role: Role, pathname: string): boolean {
   return allowed.includes(role);
 }
 
-// 사이드바 등에서 사용: 역할이 접근 가능한 정의된 경로 목록
-export function getAccessiblePaths(role: Role): AccessPath[] {
-  return (Object.entries(PAGE_ACCESS) as [AccessPath, ReadonlyArray<Role>][])
-    .filter(([, roles]) => roles.includes(role))
-    .map(([path]) => path);
-}
-
 // 역할 비교 헬퍼
 export function isAtLeast(role: Role, minimum: Role): boolean {
   return ROLE_LEVEL[role] >= ROLE_LEVEL[minimum];

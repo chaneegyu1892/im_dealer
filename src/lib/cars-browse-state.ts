@@ -65,15 +65,6 @@ export function serializeCarsBrowseState(state: CarsBrowseState): string {
   return qs ? `/cars?${qs}` : "/cars";
 }
 
-export function carsBrowseStatesEqual(a: CarsBrowseState, b: CarsBrowseState): boolean {
-  return (
-    a.query === b.query &&
-    a.category === b.category &&
-    a.brand === b.brand &&
-    a.sort === b.sort
-  );
-}
-
 export function rememberCarsBrowseUrl(url: string): void {
   if (typeof window === "undefined") return;
   try {

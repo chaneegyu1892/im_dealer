@@ -77,14 +77,6 @@ export async function requireAccess(pathname: string): Promise<AccessContext> {
   redirect("/unauthorized");
 }
 
-// 명시적 역할 화이트리스트 가드 (특정 페이지에 정책이 정의돼 있지 않을 때 사용)
-export async function requireRole(allowed: ReadonlyArray<Role>): Promise<AccessContext> {
-  const ctx = await resolveContext();
-  if (allowed.includes(ctx.role)) return ctx;
-  if (ctx.role === "guest") redirect("/login");
-  redirect("/unauthorized");
-}
-
 // 카카오 로그인 회원만 통과 (member 이상)
 export async function requireMember(): Promise<AccessContext> {
   const ctx = await resolveContext();
@@ -92,7 +84,3 @@ export async function requireMember(): Promise<AccessContext> {
   redirect("/login");
 }
 
-// 라우트 그룹 layout 등에서 매처 없이 단순히 prefix 기준으로 검사하고 싶을 때 사용
-export function isPolicyDefined(pathname: string): boolean {
-  return matchPathPolicy(pathname) !== null;
-}

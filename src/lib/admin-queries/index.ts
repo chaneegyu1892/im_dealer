@@ -3,7 +3,6 @@ export * from "./vehicles";
 export * from "./dashboard";
 export * from "./analytics";
 export * from "./quotes";
-export * from "./inventory";
 export * from "./finance";
 export * from "./users";
 export * from "./reviews";

@@ -41,21 +41,6 @@ function toPublicReview(r: ReviewRow): PublicReview {
   };
 }
 
-export async function getPublicReviews(limit = 10): Promise<PublicReview[]> {
-  const rows = await prisma.review.findMany({
-    where: { isPublic: true },
-    orderBy: [
-      { isBest: "desc" },
-      { displayOrder: "asc" },
-      { reviewDate: "desc" },
-    ],
-    take: limit,
-    include: { vehicle: { select: { name: true, brand: true } } },
-  });
-
-  return rows.map(toPublicReview);
-}
-
 export async function getPublicReviewsByVehicleId(
   vehicleId: string,
   limit = 10

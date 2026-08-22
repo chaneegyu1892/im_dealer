@@ -101,28 +101,6 @@ export async function mirrorImage(rawUrl: string | null | undefined, ctx: Mirror
   return { url: mirroredUrl, uploaded: !uploadRes.error };
 }
 
-/**
- * 여러 URL 배열을 순차 미러링. 한 장 실패해도 나머지는 계속 진행.
- * 실패한 URL은 제외하고 성공한 것만 반환.
- */
-export async function mirrorImages(
-  urls: readonly (string | null | undefined)[],
-  ctx: MirrorContext,
-  onError?: (originalUrl: string, error: Error) => void,
-): Promise<string[]> {
-  const out: string[] = [];
-  for (const u of urls) {
-    if (!u) continue;
-    try {
-      const r = await mirrorImage(u, ctx);
-      if (r.url) out.push(r.url);
-    } catch (err) {
-      onError?.(u, err instanceof Error ? err : new Error(String(err)));
-    }
-  }
-  return out;
-}
-
 interface DownloadResult {
   bytes: Uint8Array;
   contentType: string;

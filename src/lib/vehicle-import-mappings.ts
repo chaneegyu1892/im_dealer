@@ -69,21 +69,6 @@ export function pickPrimaryEngine(code: string): string {
 /** 외부 CDN base */
 export const EXTERNAL_IMG_BASE = "https://p.ca8.kr/img/";
 
-/** 상대 경로 (예: "model/202605/184241.png") → 절대 URL */
-export function externalImageUrl(relativePath: string | null | undefined): string {
-  if (!relativePath) return "";
-  return EXTERNAL_IMG_BASE + relativePath;
-}
-
-/** 외부 PDF 뷰어 URL — files 객체의 url1/2/3 을 그대로 사용 (이미 절대 URL) */
-export function pickFileUrl(file: {
-  url1?: string;
-  url2?: string;
-  url3?: string;
-}): string {
-  return file.url1 ?? file.url2 ?? file.url3 ?? "";
-}
-
 /** 한글 차종명 + brand + externalId → 영문 slug
  *
  * 예: ("현대", "더 뉴 그랜저", "11874") → "external-hyundai-11874"

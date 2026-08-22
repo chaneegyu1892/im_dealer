@@ -51,15 +51,3 @@ export async function hasUserLiked(
   });
   return Boolean(row);
 }
-
-export async function getLikedReviewIds(
-  anonId: string,
-  reviewIds: string[]
-): Promise<Set<string>> {
-  if (!reviewIds.length) return new Set();
-  const rows = await prisma.reviewLike.findMany({
-    where: { anonId, reviewId: { in: reviewIds } },
-    select: { reviewId: true },
-  });
-  return new Set(rows.map((r) => r.reviewId));
-}
