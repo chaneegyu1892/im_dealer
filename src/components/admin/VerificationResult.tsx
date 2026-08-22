@@ -214,7 +214,8 @@ export function VerificationResult({ sessionId }: Props) {
         );
 
         if (!res.ok) {
-          if (!cancelled) setState({ status: "none" });
+          // 404(세션/기록 없음)만 "서류 미제출". 서버 장애는 error 상태로 구분한다.
+          if (!cancelled) setState({ status: res.status === 404 ? "none" : "error" });
           return;
         }
 
