@@ -215,8 +215,10 @@ function QuotationsContent() {
       const matchUserType = userTypeFilter === "전체" || q.userType === userTypeFilter;
       const matchQuoteType = quoteTypeFilter === "전체" || q.quoteType === quoteTypeFilter;
       const matchFC = filterFC === "전체" || q.vehicleBrand === filterFC;
-      const matchDateFrom = !filterDateFrom || q.createdAt >= filterDateFrom;
-      const matchDateTo = !filterDateTo || q.createdAt <= filterDateTo;
+      // 접수일 경계는 KST 하루 단위. 문자열 비교는 종료일 당일(예: "2026-08-22T09:00Z" <= "2026-08-22" = false)을 누락시킨다.
+      const createdAtMs = new Date(q.createdAt).getTime();
+      const matchDateFrom = !filterDateFrom || createdAtMs >= new Date(`${filterDateFrom}T00:00:00+09:00`).getTime();
+      const matchDateTo = !filterDateTo || createdAtMs <= new Date(`${filterDateTo}T23:59:59.999+09:00`).getTime();
       const min = filterPaymentMin ? Number(filterPaymentMin) * 10000 : 0;
       const max = filterPaymentMax ? Number(filterPaymentMax) * 10000 : Infinity;
       const hasPaymentFilter = Boolean(filterPaymentMin || filterPaymentMax);

@@ -4,15 +4,23 @@ import type {
   DashboardStats,
   CategoryCount,
 } from "@/types/admin";
-import { aggregateMonthly, fillDailyGaps, formatRelativeTime } from "./shared";
+import {
+  aggregateMonthly,
+  fillDailyGaps,
+  formatRelativeTime,
+  kstDayStart,
+  kstMonthStart,
+  kstMonthsAgoStart,
+} from "./shared";
 import { getCalcMemberAndApplyRates } from "./quote-calc-stats";
 
 export async function getDashboardData(): Promise<DashboardData> {
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+  const todayStart = kstDayStart(now);
+  const monthStart = kstMonthStart(now);
+  // 주간 버킷은 오늘 포함 7일(마지막 버킷 = 오늘)이므로 윈도우 시작도 KST 어제가 아니라 6일 전 자정이다.
+  const weekStart = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+  const sixMonthsAgo = kstMonthsAgoStart(now, 6);
 
   const [
     totalVehicles,
@@ -46,23 +54,23 @@ export async function getDashboardData(): Promise<DashboardData> {
     applyClickRate: calcRates.applyClickRate,
   };
 
-  const weeklyQuoteRows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
-    SELECT DATE_TRUNC('day', "createdAt") AS day, COUNT(*)::bigint AS count
+  const weeklyQuoteRows = await prisma.$queryRaw<{ day: string; count: bigint }[]>`
+    SELECT TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS day, COUNT(*)::bigint AS count
     FROM "ExplorationLog"
-    WHERE "eventType" = 'quote_start' AND "createdAt" >= ${weekAgo}
+    WHERE "eventType" = 'quote_start' AND "createdAt" >= ${weekStart}
     GROUP BY day
     ORDER BY day
   `;
-  const weeklyQuoteViews = fillDailyGaps(weeklyQuoteRows, weekAgo, 7);
+  const weeklyQuoteViews = fillDailyGaps(weeklyQuoteRows, weekStart, 7);
 
-  const weeklyAiRows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
-    SELECT DATE_TRUNC('day', "createdAt") AS day, COUNT(*)::bigint AS count
+  const weeklyAiRows = await prisma.$queryRaw<{ day: string; count: bigint }[]>`
+    SELECT TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS day, COUNT(*)::bigint AS count
     FROM "RecommendationLog"
-    WHERE "createdAt" >= ${weekAgo}
+    WHERE "createdAt" >= ${weekStart}
     GROUP BY day
     ORDER BY day
   `;
-  const weeklyAiSessions = fillDailyGaps(weeklyAiRows, weekAgo, 7);
+  const weeklyAiSessions = fillDailyGaps(weeklyAiRows, weekStart, 7);
 
   const categoryGroups = await prisma.vehicle.groupBy({
     by: ["category"],

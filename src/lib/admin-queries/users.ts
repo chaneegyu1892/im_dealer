@@ -1,5 +1,6 @@
 import { prisma } from "../prisma";
 import { supabaseAdmin } from "@/lib/supabase";
+import { kstMonthStart } from "./shared";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 export interface AdminUserActiveItem {
@@ -450,9 +451,7 @@ export async function getAdminUsers(): Promise<{
   }
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const thisMonthStart = new Date();
-  thisMonthStart.setDate(1);
-  thisMonthStart.setHours(0, 0, 0, 0);
+  const thisMonthStart = kstMonthStart();
 
   const users = [...userMap.values()].map((user) => ({
     ...user,

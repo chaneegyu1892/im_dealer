@@ -33,14 +33,14 @@ export async function getVehicleQuoteStats(
         WHERE "vehicleId" = ${vehicleId} ${sinceClause}
       `,
       since
-        ? prisma.$queryRaw<{ day: Date; count: bigint }[]>`
-            SELECT DATE_TRUNC('day', "createdAt") AS day, COUNT(*)::bigint AS count
+        ? prisma.$queryRaw<{ day: string; count: bigint }[]>`
+            SELECT TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS day, COUNT(*)::bigint AS count
             FROM "QuoteCalcLog"
             WHERE "vehicleId" = ${vehicleId} AND "createdAt" >= ${since}
             GROUP BY day
             ORDER BY day
           `
-        : Promise.resolve([] as { day: Date; count: bigint }[]),
+        : Promise.resolve([] as { day: string; count: bigint }[]),
       prisma.quoteCalcLog.groupBy({
         by: ["trimId"],
         where: { ...where, trimId: { not: null } },

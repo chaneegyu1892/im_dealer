@@ -1,6 +1,6 @@
 import { prisma } from "../prisma";
 import type { AnalyticsData, ColorPopularityItem } from "@/types/admin";
-import { fillDailyGaps } from "./shared";
+import { fillDailyGaps, kstDayStart } from "./shared";
 import {
   getCalcConditionDistribution,
   getCalcPopularVehicles,
@@ -55,22 +55,22 @@ async function getTopColors(
 
 export async function getAnalyticsData(): Promise<AnalyticsData> {
   const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  // 30일 버킷은 오늘(KST)로 끝난다: [29일 전 자정 .. 오늘]
+  const thirtyDaysAgo = new Date(kstDayStart(now).getTime() - 29 * 24 * 60 * 60 * 1000);
 
-  const [totalQuoteViews, totalVisitors] = await Promise.all([
-    prisma.explorationLog.count({
-      where: { eventType: "quote_start", createdAt: { gte: thirtyDaysAgo } },
-    }),
-    prisma.explorationLog
-      .groupBy({
-        by: ["sessionId"],
-        where: { createdAt: { gte: thirtyDaysAgo } },
-      })
-      .then((g) => g.length),
-  ]);
+  const totalQuoteViews = await prisma.explorationLog.count({
+    where: { eventType: "quote_start", createdAt: { gte: thirtyDaysAgo } },
+  });
+  // groupBy → length 는 세션 행 전체를 전송하므로 COUNT(DISTINCT) 로 대체한다.
+  const visitorRows = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(DISTINCT "sessionId")::bigint AS count
+    FROM "ExplorationLog"
+    WHERE "createdAt" >= ${thirtyDaysAgo}
+  `;
+  const totalVisitors = Number(visitorRows[0]?.count ?? 0);
 
-  const dailyRows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
-    SELECT DATE_TRUNC('day', "createdAt") AS day, COUNT(*)::bigint AS count
+  const dailyRows = await prisma.$queryRaw<{ day: string; count: bigint }[]>`
+    SELECT TO_CHAR("createdAt" AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS day, COUNT(*)::bigint AS count
     FROM "ExplorationLog"
     WHERE "eventType" = 'quote_start' AND "createdAt" >= ${thirtyDaysAgo}
     GROUP BY day
